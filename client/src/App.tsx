@@ -26,6 +26,81 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isThreadOpen, setIsThreadOpen] = useState(false);
 
+  // Resizable Sidebars Bounds & State
+  const MIN_CHANNEL_WIDTH = 200;
+  const MAX_CHANNEL_WIDTH = 450;
+  const MIN_THREAD_WIDTH = 360;
+  const MAX_THREAD_WIDTH = 720;
+  const DEFAULT_THREAD_WIDTH = 480; // Rộng rãi thoải mái đọc & nhắn tin trong thread
+
+  const [channelWidth, setChannelWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('nomna_channel_width');
+    return saved ? Math.max(MIN_CHANNEL_WIDTH, Math.min(MAX_CHANNEL_WIDTH, parseInt(saved, 10))) : 240;
+  });
+
+  const [threadWidth, setThreadWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('nomna_thread_width');
+    return saved ? Math.max(MIN_THREAD_WIDTH, Math.min(MAX_THREAD_WIDTH, parseInt(saved, 10))) : DEFAULT_THREAD_WIDTH;
+  });
+
+  const [isResizingChannel, setIsResizingChannel] = useState(false);
+  const [isResizingThread, setIsResizingThread] = useState(false);
+
+  // Resize Drag Handlers with strict minimum & maximum boundary clamping
+  const handleChannelResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingChannel(true);
+    const startX = e.clientX;
+    const startWidth = channelWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      // Clamped strictly: không cho phép co nhỏ hơn 200px
+      const newWidth = Math.max(MIN_CHANNEL_WIDTH, Math.min(MAX_CHANNEL_WIDTH, startWidth + (moveEvent.clientX - startX)));
+      setChannelWidth(newWidth);
+      localStorage.setItem('nomna_channel_width', newWidth.toString());
+    };
+
+    const onMouseUp = () => {
+      setIsResizingChannel(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleThreadResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingThread(true);
+    const startX = e.clientX;
+    const startWidth = threadWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      // Kéo sang trái mở rộng, clamped strictly: không cho phép co nhỏ hơn 360px
+      const newWidth = Math.max(MIN_THREAD_WIDTH, Math.min(MAX_THREAD_WIDTH, startWidth + (startX - moveEvent.clientX)));
+      setThreadWidth(newWidth);
+      localStorage.setItem('nomna_thread_width', newWidth.toString());
+    };
+
+    const onMouseUp = () => {
+      setIsResizingThread(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  // Tự động mở rộng Thread khi gõ tin nhắn hoặc click vào thread nếu đang quá hẹp
+  const handleExpandThread = () => {
+    if (threadWidth < DEFAULT_THREAD_WIDTH) {
+      setThreadWidth(DEFAULT_THREAD_WIDTH);
+      localStorage.setItem('nomna_thread_width', DEFAULT_THREAD_WIDTH.toString());
+    }
+  };
+
   // App Data State
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
@@ -217,8 +292,15 @@ export const App: React.FC = () => {
 
   return (
     <>
-      {/* Main Fullscreen Grid Layout */}
-      <main className={`app-layout ${isThreadOpen ? '' : 'thread-closed'}`} id="appLayout">
+      {/* Main Fullscreen Layout with Resizable Sidebars */}
+      <main
+        className="app-layout"
+        id="appLayout"
+        style={{
+          userSelect: isResizingChannel || isResizingThread ? 'none' : 'auto',
+          cursor: isResizingChannel || isResizingThread ? 'col-resize' : 'auto',
+        }}
+      >
         {/* 1. Workspace Rail (68px) */}
         <WorkspaceRail
           workspaces={workspaces}
@@ -227,7 +309,7 @@ export const App: React.FC = () => {
           onCreateWorkspace={handleCreateWorkspace}
         />
 
-        {/* 2. Channels Sidebar (240px) */}
+        {/* 2. Channels Sidebar (Resizable: default 240px, min 200px, max 450px) */}
         <ChannelSidebar
           currentWorkspace={currentWorkspace}
           channels={channels}
@@ -236,9 +318,17 @@ export const App: React.FC = () => {
           onCreateChannel={handleCreateChannel}
           currentUser={currentUser}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          width={channelWidth}
         />
 
-        {/* 3. Active Chat Area (1fr) */}
+        {/* 2.5 Resizer Divider between Channel Sidebar & Chat Area */}
+        <div
+          className={`pane-resizer ${isResizingChannel ? 'resizing' : ''}`}
+          onMouseDown={handleChannelResizeStart}
+          title="Kéo sang trái/phải để chỉnh kích thước Sidebar Kênh (Tối thiểu 200px)"
+        />
+
+        {/* 3. Active Chat Area (flex: 1) */}
         <ChatArea
           currentChannel={currentChannel}
           messages={messages}
@@ -247,19 +337,39 @@ export const App: React.FC = () => {
           onStartTyping={() => activeChannelId && signalRService.startTyping(activeChannelId)}
           onStopTyping={() => activeChannelId && signalRService.stopTyping(activeChannelId)}
           typingUser={typingUser}
-          onToggleThread={() => setIsThreadOpen(true)}
+          onToggleThread={() => {
+            setIsThreadOpen(true);
+            handleExpandThread();
+          }}
         />
 
-        {/* 4. Collapsible Thread Panel (320px) */}
+        {/* 3.5 Resizer Divider between Chat Area & Thread Panel (when open) */}
+        {isThreadOpen && (
+          <div
+            className={`pane-resizer ${isResizingThread ? 'resizing' : ''}`}
+            onMouseDown={handleThreadResizeStart}
+            title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thread (Tối thiểu 360px)"
+          />
+        )}
+
+        {/* 4. Collapsible Thread Panel (Resizable: default 480px, min 360px, max 720px) */}
         <ThreadPanel
           isOpen={isThreadOpen}
           onClose={() => setIsThreadOpen(false)}
           currentUser={currentUser}
+          width={threadWidth}
+          onExpandWidth={handleExpandThread}
         />
       </main>
 
       {/* Auth Modal */}
-      {isAuthOpen && <AuthModal onSuccess={handleAuthSuccess} />}
+      {isAuthOpen && (
+        <AuthModal
+          onSuccess={handleAuthSuccess}
+          currentTheme={theme}
+          onThemeChange={handleThemeChange}
+        />
+      )}
 
       {/* Settings Modal */}
       <SettingsModal

@@ -7,6 +7,7 @@
 ----------------------------------------------------------- */
 :root,
 [data-theme="warm-orange"] {
+  --spacing: 0.25rem;          /* Đảm bảo toàn bộ Tailwind v4 utility spacing hoạt động chuẩn */
   --bg-rail: #f6f5f2;          /* Cột workspace rail: Màu trắng kem ngà */
   --bg-sidebar: #fcfbf9;       /* Cột channels: Trắng ấm thanh lịch */
   --bg-chat: #ffffff;          /* Khu vực chat chính: Trắng tinh khiết */
@@ -31,6 +32,10 @@
   --code-bg: #292524;
   --code-text: #fed7aa;
   --scrollbar-thumb: #e7e5e4;
+
+  --dot-color: rgba(28, 25, 23, 0.12);
+  --card-glass-bg: rgba(255, 255, 255, 0.88);
+  --card-glass-border: rgba(234, 231, 225, 0.95);
 }
 
 /* -----------------------------------------------------------
@@ -61,6 +66,10 @@
   --code-bg: #09090b;
   --code-text: #a5b4fc;
   --scrollbar-thumb: #27272a;
+
+  --dot-color: rgba(255, 255, 255, 0.12);
+  --card-glass-bg: rgba(22, 22, 27, 0.88);
+  --card-glass-border: rgba(255, 255, 255, 0.1);
 }
 
 /* -----------------------------------------------------------
@@ -91,15 +100,34 @@
   --code-bg: #1e293b;
   --code-text: #fecdd3;
   --scrollbar-thumb: #cbd5e1;
+
+  --dot-color: rgba(15, 23, 42, 0.1);
+  --card-glass-bg: rgba(255, 255, 255, 0.9);
+  --card-glass-border: #e2e8f0;
+}
+
+.dot-matrix-bg {
+  background-color: var(--bg-rail);
+  background-image: radial-gradient(var(--dot-color) 1.5px, transparent 1.5px);
+  background-size: 26px 26px;
 }
 
 /* ------------------ Reset & Fullscreen Viewport ------------------ */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  -webkit-font-smoothing: antialiased;
+@layer base {
+  *, ::before, ::after {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  input,
+  button,
+  textarea,
+  select,
+  kbd {
+    font-family: inherit;
+  }
 }
 
 /* KHẮC PHỤC TRIỆT ĐỂ: KHÔNG CÓ SCROLLBAR Ở NGOÀI TRANG */
@@ -258,27 +286,44 @@ body,
   color: var(--text-muted);
 }
 
-/* ------------------ Main App Grid Layout ------------------ */
+/* ------------------ Main App Resizable Layout ------------------ */
 .app-layout {
   flex: 1;
   min-height: 0;
-  display: grid;
-  grid-template-columns: 68px 240px 1fr 320px;
+  display: flex;
   overflow: hidden;
   height: 100vh;
   height: 100dvh;
   width: 100vw;
-  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
 }
 
-.app-layout.thread-closed {
-  grid-template-columns: 68px 240px 1fr 0px;
+/* Draggable Split Resizer Dividers */
+.pane-resizer {
+  width: 5px;
+  background-color: var(--border-color);
+  cursor: col-resize;
+  position: relative;
+  flex-shrink: 0;
+  z-index: 25;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
 }
 
-.app-layout.thread-closed .thread-sidebar {
-  border-left: none;
-  visibility: hidden;
-  pointer-events: none;
+.pane-resizer:hover,
+.pane-resizer.resizing {
+  background-color: var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.pane-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  right: -5px;
+  z-index: 26;
 }
 
 /* ------------------ Column 1: Workspace Rail ------------------ */
@@ -355,6 +400,9 @@ body,
   overflow: hidden;
   height: 100%;
   min-height: 0;
+  flex-shrink: 0;
+  min-width: 200px;
+  max-width: 450px;
 }
 
 .sidebar-header {
@@ -879,7 +927,10 @@ body,
   flex-direction: column;
   overflow: hidden;
   height: 100%;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 0;
+  flex-shrink: 0;
+  min-width: 360px;
+  max-width: 720px;
 }
 
 .thread-top-bar {
@@ -910,3 +961,4 @@ body,
   background: var(--bg-rail);
   flex-shrink: 0;
 }
+

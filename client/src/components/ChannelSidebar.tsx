@@ -10,6 +10,7 @@ interface ChannelSidebarProps {
   onCreateChannel: () => void;
   currentUser: User | null;
   onOpenSettings: () => void;
+  width?: number;
 }
 
 export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
@@ -20,6 +21,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onCreateChannel,
   currentUser,
   onOpenSettings,
+  width = 240,
 }) => {
   const directMessages = [
     { id: '1', name: 'Alex Rivers', status: 'online' },
@@ -67,7 +69,16 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         ];
 
   return (
-    <aside className="channels-sidebar">
+    <aside
+      className="channels-sidebar"
+      id="channelSidebar"
+      style={{
+        width: `${width}px`,
+        minWidth: '200px',
+        maxWidth: '450px',
+        flexShrink: 0,
+      }}
+    >
       {/* Workspace Header */}
       <div className="sidebar-header" onClick={onOpenSettings} title="Cài đặt Workspace">
         <span>{currentWorkspace?.name || 'Nexus Hub'}</span>
