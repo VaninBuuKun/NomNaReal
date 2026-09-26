@@ -29,7 +29,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
         ];
 
   return (
-    <aside className="w-[68px] h-full min-h-0 shrink-0 bg-[var(--bg-rail)] border-r border-[var(--border-color)] py-3.5 flex flex-col items-center gap-3 overflow-y-auto overflow-x-hidden select-none">
+    <aside className="w-[68px] h-full min-h-0 shrink-0 bg-[var(--bg-rail)] border-r border-[var(--border-color)] py-3 flex flex-col items-center gap-2 overflow-y-auto overflow-x-hidden select-none">
       {displayWorkspaces.map((ws) => {
         const isActive = activeWorkspaceId === ws.id || (!activeWorkspaceId && ws.id === displayWorkspaces[0].id);
         const initials =
@@ -47,7 +47,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
             onClick={() => onSelectWorkspace(ws.id)}
             className={`relative w-11 h-11 flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border ${
               isActive
-                ? "bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)] rounded-[14px] before:content-[''] before:absolute before:-left-3.5 before:w-1 before:h-5.5 before:bg-[var(--accent-primary)] before:rounded-r"
+                ? "bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)] rounded-[14px] before:content-[''] before:absolute before:-left-[12px] before:top-1/2 before:-translate-y-1/2 before:w-[3.5px] before:h-[50px] before:bg-[var(--accent-primary)] before:rounded-r-full"
                 : "rounded-xl bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-primary)] hover:text-white hover:border-transparent hover:rounded-[14px] hover:shadow-[0_4px_12px_var(--accent-glow)]"
             }`}
           >
@@ -55,8 +55,6 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
           </div>
         );
       })}
-
-      <div className="w-7.5 h-px bg-[var(--border-color)] my-0.5 shrink-0" />
 
       {/* Add Workspace Button */}
       <button

@@ -5,12 +5,9 @@ import {
   Bell,
   Palette,
   Keyboard,
-  Buildings,
-  Users,
   SignOut,
   X,
   CheckCircle,
-  Plus,
 } from '@phosphor-icons/react';
 import { Button, Input, Avatar, Badge } from '@/shared/ui';
 import type { User } from '../types';
@@ -24,7 +21,7 @@ interface SettingsModalProps {
   onThemeChange: (theme: string) => void;
 }
 
-type TabType = 'profile' | 'security' | 'notifications' | 'appearance' | 'shortcuts' | 'workspace' | 'members';
+type TabType = 'profile' | 'security' | 'notifications' | 'appearance' | 'shortcuts';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -108,14 +105,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     shortcuts: {
       title: 'Phím tắt nhanh',
       subtitle: 'Danh sách các tổ hợp phím tắt thao tác nhanh giúp tăng tốc độ làm việc',
-    },
-    workspace: {
-      title: 'Thông tin Workspace',
-      subtitle: 'Chi tiết không gian làm việc Nexus Hub và mã mời tham gia',
-    },
-    members: {
-      title: 'Thành viên & Phân quyền',
-      subtitle: 'Danh sách thành viên trực thuộc Workspace và quyền hạn quản trị',
     },
   };
 
@@ -224,41 +213,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               >
                 <Keyboard size={17} weight={activeTab === 'shortcuts' ? 'bold' : 'regular'} />
                 <span>Phím tắt nhanh</span>
-              </button>
-            </div>
-
-            {/* Group 3: Workspace */}
-            <div className="mb-4">
-              <div className="text-[0.68rem] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 py-1">
-                Không gian làm việc
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveTab('workspace')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
-                  activeTab === 'workspace'
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <Buildings size={17} weight={activeTab === 'workspace' ? 'bold' : 'regular'} />
-                <span>Thông tin Workspace</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab('members')}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
-                  activeTab === 'members'
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <span className="flex items-center gap-2.5">
-                  <Users size={17} weight={activeTab === 'members' ? 'bold' : 'regular'} />
-                  <span>Thành viên</span>
-                </span>
-                <Badge variant="neutral" size="sm">4</Badge>
               </button>
             </div>
           </div>
@@ -546,87 +500,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <kbd className="px-2 py-1 rounded bg-[var(--bg-chat)] border border-[var(--border-color)] font-mono font-bold text-[var(--text-primary)]">
                     Esc
                   </kbd>
-                </div>
-              </section>
-            )}
-
-            {/* TAB 6: WORKSPACE */}
-            {activeTab === 'workspace' && (
-              <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-4">
-                <h3 className="font-bold text-sm text-[var(--text-primary)]">Thông tin Nexus Hub</h3>
-                <Input label="Tên không gian làm việc" defaultValue="Nexus Hub" />
-                <div>
-                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
-                    Mã mời tham gia (Invite Code)
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      readOnly
-                      defaultValue="NEXUS123"
-                      className="font-mono text-[var(--accent-primary)] font-bold flex-1"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="md"
-                      onClick={() => alert('Đã sao chép link mời: https://nomna.io/join/NEXUS123')}
-                      className="whitespace-nowrap shrink-0"
-                    >
-                      Sao chép link
-                    </Button>
-                  </div>
-                </div>
-              </section>
-            )}
-
-            {/* TAB 7: MEMBERS */}
-            {activeTab === 'members' && (
-              <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-4">
-                <div className="flex justify-between items-center">
-                  <h3 className="font-bold text-sm text-[var(--text-primary)]">Thành viên Workspace (4)</h3>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => alert('Nhập email thành viên để gửi lời mời tham gia')}
-                    leftIcon={<Plus size={14} weight="bold" />}
-                  >
-                    Mời thành viên
-                  </Button>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-chat)] border border-[var(--border-color)]">
-                    <div className="flex items-center gap-3">
-                      <Avatar fallback="Alex Rivers" status="online" size="md" />
-                      <div>
-                        <div className="text-xs font-bold text-[var(--text-primary)]">Alex Rivers</div>
-                        <div className="text-[0.7rem] text-[var(--text-muted)]">alex@pulsechat.io</div>
-                      </div>
-                    </div>
-                    <Badge variant="primary">OWNER</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-chat)] border border-[var(--border-color)]">
-                    <div className="flex items-center gap-3">
-                      <Avatar fallback="Minh Dev" status="online" size="md" />
-                      <div>
-                        <div className="text-xs font-bold text-[var(--text-primary)]">Minh Dev</div>
-                        <div className="text-[0.7rem] text-[var(--text-muted)]">minh@pulsechat.io</div>
-                      </div>
-                    </div>
-                    <Badge variant="neutral">ADMIN</Badge>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-[var(--bg-chat)] border border-[var(--border-color)]">
-                    <div className="flex items-center gap-3">
-                      <Avatar fallback="Van Nguyen" status="away" size="md" />
-                      <div>
-                        <div className="text-xs font-bold text-[var(--text-primary)]">Van Nguyen</div>
-                        <div className="text-[0.7rem] text-[var(--text-muted)]">van@pulsechat.io</div>
-                      </div>
-                    </div>
-                    <Badge variant="neutral">MEMBER</Badge>
-                  </div>
                 </div>
               </section>
             )}

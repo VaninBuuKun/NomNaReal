@@ -1,5 +1,5 @@
-import React from 'react';
-import { CaretDown, Plus, Hash, LockSimple, Gear } from '@phosphor-icons/react';
+import React, { useState, useRef, useEffect } from 'react';
+import { CaretDown, Plus, Hash, LockSimple, Gear, Sparkle, UserPlus, SignOut } from '@phosphor-icons/react';
 import type { Channel, User, Workspace } from '../types';
 
 interface ChannelSidebarProps {
@@ -10,6 +10,7 @@ interface ChannelSidebarProps {
   onCreateChannel: () => void;
   currentUser: User | null;
   onOpenSettings: () => void;
+  onLogout?: () => void;
   width?: number;
 }
 
@@ -23,6 +24,21 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onOpenSettings,
   width = 240,
 }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
+
   const directMessages = [
     { id: '1', name: 'Alex Rivers', status: 'online' },
     { id: '2', name: 'Minh Dev', status: 'online' },
@@ -74,14 +90,108 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
       className="h-full min-h-0 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col overflow-hidden min-w-[200px] max-w-[450px]"
       style={{ width: `${width}px` }}
     >
-      {/* Workspace Header */}
-      <div
-        className="h-[54px] px-4 border-b border-[var(--border-color)] flex items-center justify-between font-bold text-[0.95rem] cursor-pointer bg-[var(--bg-sidebar)] hover:bg-[var(--bg-surface)] shrink-0 transition-colors select-none"
-        onClick={onOpenSettings}
-        title="Cài đặt Workspace"
-      >
-        <span className="truncate text-[var(--text-primary)]">{currentWorkspace?.name || 'Nexus Hub'}</span>
-        <CaretDown size={13} weight="bold" className="text-[var(--text-muted)] shrink-0 ml-1.5" />
+      {/* Workspace Header with Dropdown */}
+      <div className="relative shrink-0">
+        <div
+          className="h-[54px] px-4 border-b border-[var(--border-color)] flex items-center justify-between font-bold text-[0.95rem] cursor-pointer bg-[var(--bg-sidebar)] hover:bg-[var(--bg-surface)] transition-colors select-none"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          title="Tùy chọn Workspace"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="truncate text-[var(--text-primary)] font-bold">{currentWorkspace?.name || 'Nexus Hub'}</span>
+            <CaretDown
+              size={13}
+              weight="bold"
+              className={`text-[var(--text-muted)] shrink-0 transition-transform duration-200 ${isMenuOpen ? 'rotate-180 text-[var(--accent-primary)]' : ''}`}
+            />
+          </div>
+        </div>
+
+        {/* Dropdown Menu */}
+        {isMenuOpen && (
+          <div
+            ref={menuRef}
+            className="absolute top-[46px] left-2 min-w-[275px] z-50 bg-[var(--card-glass-bg)] backdrop-blur-xl border border-[var(--card-glass-border)] rounded-xl shadow-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-0.5"
+          >
+            {/* Header: Avatar, Name (Bự), Creator (Nhỏ, không có chữ Tạo bởi) */}
+            <div className="flex items-center gap-2.5 p-2 rounded-lg bg-[var(--bg-chat)] border border-[var(--border-color)]/60">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-extrabold text-sm shadow-xs shrink-0">
+                {(currentWorkspace?.name || 'N').charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-extrabold text-sm text-[var(--text-primary)] leading-tight truncate">
+                  {currentWorkspace?.name || 'Nexus Hub'}
+                </div>
+                <div className="text-[0.68rem] text-[var(--text-muted)] font-normal truncate mt-0.5">
+                  Alex Rivers
+                </div>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="h-px bg-[var(--border-color)]/70 my-1" />
+
+            {/* Action: Upgrade Plan */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMenuOpen(false);
+                alert('Tính năng nâng cấp gói Pro: Đang chuẩn bị ra mắt!');
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-lg text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] transition-all cursor-pointer text-left group"
+            >
+              <Sparkle size={16} weight="fill" className="text-amber-500 group-hover:scale-110 transition-transform shrink-0" />
+              <span className="font-bold">Nâng cấp gói</span>
+              <span className="ml-auto text-[0.62rem] font-extrabold px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                PRO
+              </span>
+            </button>
+
+            {/* Action: Invite Members */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMenuOpen(false);
+                alert(`Mã mời tham gia Workspace: ${currentWorkspace?.inviteCode || 'NEXUS123'}`);
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-chat)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left"
+            >
+              <UserPlus size={16} weight="bold" className="shrink-0 text-[var(--text-muted)]" />
+              <span>Mời thêm thành viên</span>
+            </button>
+
+            {/* Action: Workspace Settings */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMenuOpen(false);
+                onOpenSettings();
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-chat)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left"
+            >
+              <Gear size={16} weight="bold" className="shrink-0 text-[var(--text-muted)]" />
+              <span>Cài đặt ứng dụng</span>
+            </button>
+
+            {/* Divider */}
+            <div className="h-px bg-[var(--border-color)]/70 my-1" />
+
+            {/* Action: Leave Workspace ("Rời nhóm", NOT "Đăng xuất") */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsMenuOpen(false);
+                if (confirm('Bạn có chắc chắn muốn rời khỏi nhóm này không?')) {
+                  alert('Đã rời khỏi nhóm thành công.');
+                }
+              }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-lg text-xs font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer text-left"
+            >
+              <SignOut size={16} weight="bold" className="shrink-0 text-red-500" />
+              <span>Rời nhóm</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Scroll Area */}
