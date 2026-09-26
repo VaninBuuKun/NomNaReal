@@ -23,7 +23,6 @@ interface ChatAreaProps {
   onStopTyping: () => void;
   typingUser: string | null;
   onToggleThread: () => void;
-  isThreadOpen: boolean;
 }
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
@@ -35,7 +34,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onStopTyping,
   typingUser,
   onToggleThread,
-  isThreadOpen,
 }) => {
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
@@ -127,16 +125,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </button>
           <button type="button" className="icon-tool-btn" title="Ghim">
             <PushPin size={17} />
-          </button>
-          <button
-            type="button"
-            className={`icon-tool-btn ${isThreadOpen ? 'active text-[var(--accent-primary)]' : ''}`}
-            title="Mở luồng thảo luận"
-            onClick={onToggleThread}
-            style={{ fontWeight: 600, fontSize: '0.8rem', gap: '4px' }}
-          >
-            <ChatCenteredDots size={17} weight={isThreadOpen ? 'fill' : 'regular'} />
-            <span>Thread</span>
           </button>
         </div>
       </div>

@@ -1,10 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  MagnifyingGlass,
-  ChatCenteredDots,
-  Gear,
-  Palette,
-} from '@phosphor-icons/react';
 import { WorkspaceRail } from './components/WorkspaceRail';
 import { ChannelSidebar } from './components/ChannelSidebar';
 import { ChatArea } from './components/ChatArea';
@@ -223,59 +217,6 @@ export const App: React.FC = () => {
 
   return (
     <>
-      {/* Top Navigation Bar: Brand + Search Bar + Quick Actions */}
-      <header className="top-navbar">
-        <div className="brand-section">
-          <div className="brand-logo">⚡</div>
-          <span>NomNa</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 500 }}>/</span>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}>
-            {currentWorkspace?.name || 'Nexus Hub'}
-          </span>
-        </div>
-
-        {/* Global Search Bar */}
-        <div
-          className="header-search-bar"
-          onClick={() => {}}
-          title="Tìm kiếm tin nhắn, kênh, tệp tin"
-        >
-          <MagnifyingGlass size={15} />
-          <span>Tìm kiếm trong #{currentChannel?.name || 'general'}...</span>
-          <kbd className="header-search-kbd">Ctrl K</kbd>
-        </div>
-
-        {/* Right Header Actions: Thread & Settings */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            type="button"
-            className="header-btn-action"
-            onClick={() => setIsSettingsOpen(true)}
-            title="Đổi chủ đề giao diện (Theme)"
-          >
-            <Palette size={16} weight="bold" />
-          </button>
-          <button
-            type="button"
-            className={`header-btn-action ${isThreadOpen ? 'active text-[var(--accent-primary)]' : ''}`}
-            onClick={() => setIsThreadOpen(!isThreadOpen)}
-            title="Mở bảng Thread luồng thảo luận"
-          >
-            <ChatCenteredDots size={16} weight="bold" />
-            <span>Threads</span>
-          </button>
-          <button
-            type="button"
-            className="header-btn-action"
-            onClick={() => setIsSettingsOpen(true)}
-            title="Cài đặt hệ thống"
-          >
-            <Gear size={16} weight="bold" />
-            <span>Cài đặt</span>
-          </button>
-        </div>
-      </header>
-
       {/* Main Fullscreen Grid Layout */}
       <main className={`app-layout ${isThreadOpen ? '' : 'thread-closed'}`} id="appLayout">
         {/* 1. Workspace Rail (68px) */}
@@ -306,8 +247,7 @@ export const App: React.FC = () => {
           onStartTyping={() => activeChannelId && signalRService.startTyping(activeChannelId)}
           onStopTyping={() => activeChannelId && signalRService.stopTyping(activeChannelId)}
           typingUser={typingUser}
-          onToggleThread={() => setIsThreadOpen(!isThreadOpen)}
-          isThreadOpen={isThreadOpen}
+          onToggleThread={() => setIsThreadOpen(true)}
         />
 
         {/* 4. Collapsible Thread Panel (320px) */}
