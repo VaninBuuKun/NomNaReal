@@ -71,7 +71,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
             Alex Rivers:
           </div>
           <div style={{ fontSize: '0.86rem', color: 'var(--text-primary)', marginTop: '4px', lineHeight: 1.4 }}>
-            Chào mừng mọi người đến với PulseChat! Hệ thống Backend .NET 9 và SignalR đã sẵn sàng hoạt động.
+            Chào mừng mọi người đến với NomNa! Hệ thống Backend .NET 9 và SignalR đã sẵn sàng hoạt động.
           </div>
         </div>
 

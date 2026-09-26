@@ -52,7 +52,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         background: 'var(--bg-sidebar)'
       }}>
         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {currentWorkspace?.name || 'PulseChat Workspace'}
+          {currentWorkspace?.name || 'NomNa Workspace'}
         </span>
         <ChevronDown size={16} color="var(--text-muted)" />
       </div>

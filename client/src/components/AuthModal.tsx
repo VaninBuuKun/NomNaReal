@@ -104,7 +104,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           }}>
             ⚡
           </div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>PulseChat</h2>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>NomNa</h2>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
             Hệ thống Chat Real-time Hiệu năng cao (.NET 9 + React)
           </p>
@@ -299,7 +299,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                   opacity: loading ? 0.7 : 1
                 }}
               >
-                {loading ? 'Đang xác thực...' : 'Đăng nhập vào PulseChat 🚀'}
+                {loading ? 'Đang xác thực...' : 'Đăng nhập vào NomNa 🚀'}
               </button>
             </form>
           ) : (

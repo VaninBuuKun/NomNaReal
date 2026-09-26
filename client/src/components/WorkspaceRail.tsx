@@ -30,7 +30,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
     }}>
       {/* Brand Icon */}
       <div 
-        title="PulseChat"
+        title="NomNa"
         style={{
           width: '44px',
           height: '44px',

@@ -1,0 +1,13 @@
+using MediatR;
+using NomNa.Application.Features.Channels.DTOs;
+using NomNa.Domain.Enums;
+
+namespace NomNa.Application.Features.Channels.Commands.CreateChannel;
+
+public record CreateChannelCommand(
+    Guid WorkspaceId,
+    string Name,
+    string? Topic,
+    ChannelType Type = ChannelType.Text,
+    bool IsPrivate = false
+) : IRequest<ChannelDto>;
