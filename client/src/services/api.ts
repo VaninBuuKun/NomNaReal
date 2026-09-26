@@ -12,7 +12,7 @@ export const apiClient = axios.create({
 
 // Attach Authorization header if access token exists
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('pulsechat_token');
+  const token = localStorage.getItem('nomna_token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }

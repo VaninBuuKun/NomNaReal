@@ -1,4 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import {
+  MagnifyingGlass,
+  ChatCenteredDots,
+  Gear,
+  Palette,
+} from '@phosphor-icons/react';
 import { WorkspaceRail } from './components/WorkspaceRail';
 import { ChannelSidebar } from './components/ChannelSidebar';
 import { ChatArea } from './components/ChatArea';
@@ -13,7 +19,12 @@ import './styles/globals.css';
 export const App: React.FC = () => {
   // Theme state: Warm Orange default (user customizable in Settings)
   const [theme, setTheme] = useState<string>(() => {
-    return localStorage.getItem('pulsechat_theme') || 'warm-orange';
+    const saved = localStorage.getItem('nomna_theme') || 'warm-orange';
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', saved);
+      document.body.setAttribute('data-theme', saved);
+    }
+    return saved;
   });
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -29,17 +40,16 @@ export const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUser, setTypingUser] = useState<string | null>(null);
 
-  // Apply Theme to documentElement
+  // Apply Theme to documentElement & body
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
-    localStorage.setItem('pulsechat_theme', newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-    document.body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('nomna_theme', newTheme);
   };
 
   useEffect(() => {
-    handleThemeChange(theme);
-  }, []);
+    document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+  }, [theme]);
 
   // Fetch Channel Messages
   const loadMessages = async (channelId: string) => {
@@ -78,7 +88,6 @@ export const App: React.FC = () => {
   // SignalR message handler callback
   const handleIncomingMessage = useCallback((msg: Message) => {
     setMessages((prev) => {
-      // Avoid duplicate message if already added
       if (prev.some((m) => m.id === msg.id)) return prev;
       return [...prev, msg];
     });
@@ -86,7 +95,7 @@ export const App: React.FC = () => {
 
   // Initialize App / Check Authentication
   const initApp = async () => {
-    const token = localStorage.getItem('pulsechat_token');
+    const token = localStorage.getItem('nomna_token');
     if (!token) {
       setIsAuthOpen(true);
       return;
@@ -108,7 +117,7 @@ export const App: React.FC = () => {
         }
       );
 
-      // Load Workspaces
+      // Load Workspaces from backend
       const wsList = await chatApi.getWorkspaces();
       setWorkspaces(wsList);
 
@@ -129,8 +138,8 @@ export const App: React.FC = () => {
       }
     } catch (err) {
       console.error('Authentication error:', err);
-      localStorage.removeItem('pulsechat_token');
-      localStorage.removeItem('pulsechat_refresh');
+      localStorage.removeItem('nomna_token');
+      localStorage.removeItem('nomna_refresh');
       setIsAuthOpen(true);
     }
   };
@@ -150,8 +159,8 @@ export const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('pulsechat_token');
-    localStorage.removeItem('pulsechat_refresh');
+    localStorage.removeItem('nomna_token');
+    localStorage.removeItem('nomna_refresh');
     signalRService.disconnect();
     setCurrentUser(null);
     setWorkspaces([]);
@@ -164,7 +173,7 @@ export const App: React.FC = () => {
     if (!activeChannelId) return;
 
     try {
-      // Send via SignalR for ultra-low latency real-time delivery
+      // Send via SignalR
       const msg = await signalRService.sendMessage(activeChannelId, content);
       if (msg) {
         setMessages((prev) => {
@@ -173,7 +182,7 @@ export const App: React.FC = () => {
         });
       }
     } catch {
-      // Fallback to REST API
+      // Fallback REST API
       const msg = await chatApi.sendMessage(activeChannelId, content);
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
@@ -190,7 +199,7 @@ export const App: React.FC = () => {
       const ws = await chatApi.createWorkspace(name.trim());
       setWorkspaces((prev) => [...prev, ws]);
       handleSelectWorkspace(ws.id);
-    } catch (err) {
+    } catch {
       alert('Không thể tạo workspace.');
     }
   };
@@ -213,58 +222,106 @@ export const App: React.FC = () => {
   const currentChannel = channels.find((c) => c.id === activeChannelId) || null;
 
   return (
-    <div style={{
-      width: '100vw',
-      height: '100vh',
-      display: 'flex',
-      overflow: 'hidden',
-      backgroundColor: 'var(--bg-rail)',
-    }}>
-      {/* 1. Workspace Rail (68px) */}
-      <WorkspaceRail
-        workspaces={workspaces}
-        activeWorkspaceId={activeWorkspaceId}
-        onSelectWorkspace={handleSelectWorkspace}
-        onCreateWorkspace={handleCreateWorkspace}
-      />
+    <>
+      {/* Top Navigation Bar: Brand + Search Bar + Quick Actions */}
+      <header className="top-navbar">
+        <div className="brand-section">
+          <div className="brand-logo">⚡</div>
+          <span>NomNa</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 500 }}>/</span>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}>
+            {currentWorkspace?.name || 'Nexus Hub'}
+          </span>
+        </div>
 
-      {/* 2. Channels Sidebar (240px) */}
-      <ChannelSidebar
-        currentWorkspace={currentWorkspace}
-        channels={channels}
-        activeChannelId={activeChannelId}
-        onSelectChannel={handleSelectChannel}
-        onCreateChannel={handleCreateChannel}
-        currentUser={currentUser}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-      />
+        {/* Global Search Bar */}
+        <div
+          className="header-search-bar"
+          onClick={() => {}}
+          title="Tìm kiếm tin nhắn, kênh, tệp tin"
+        >
+          <MagnifyingGlass size={15} />
+          <span>Tìm kiếm trong #{currentChannel?.name || 'general'}...</span>
+          <kbd className="header-search-kbd">Ctrl K</kbd>
+        </div>
 
-      {/* 3. Active Chat Area (Flex) */}
-      <ChatArea
-        currentChannel={currentChannel}
-        messages={messages}
-        currentUser={currentUser}
-        onSendMessage={handleSendMessage}
-        onStartTyping={() => activeChannelId && signalRService.startTyping(activeChannelId)}
-        onStopTyping={() => activeChannelId && signalRService.stopTyping(activeChannelId)}
-        typingUser={typingUser}
-        onToggleThread={() => setIsThreadOpen(!isThreadOpen)}
-        isThreadOpen={isThreadOpen}
-      />
+        {/* Right Header Actions: Thread & Settings */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            className="header-btn-action"
+            onClick={() => setIsSettingsOpen(true)}
+            title="Đổi chủ đề giao diện (Theme)"
+          >
+            <Palette size={16} weight="bold" />
+          </button>
+          <button
+            type="button"
+            className={`header-btn-action ${isThreadOpen ? 'active text-[var(--accent-primary)]' : ''}`}
+            onClick={() => setIsThreadOpen(!isThreadOpen)}
+            title="Mở bảng Thread luồng thảo luận"
+          >
+            <ChatCenteredDots size={16} weight="bold" />
+            <span>Threads</span>
+          </button>
+          <button
+            type="button"
+            className="header-btn-action"
+            onClick={() => setIsSettingsOpen(true)}
+            title="Cài đặt hệ thống"
+          >
+            <Gear size={16} weight="bold" />
+            <span>Cài đặt</span>
+          </button>
+        </div>
+      </header>
 
-      {/* 4. Collapsible Thread Panel (320px) */}
-      <ThreadPanel
-        isOpen={isThreadOpen}
-        onClose={() => setIsThreadOpen(false)}
-        currentUser={currentUser}
-      />
+      {/* Main Fullscreen Grid Layout */}
+      <main className={`app-layout ${isThreadOpen ? '' : 'thread-closed'}`} id="appLayout">
+        {/* 1. Workspace Rail (68px) */}
+        <WorkspaceRail
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onCreateWorkspace={handleCreateWorkspace}
+        />
 
-      {/* Auth Modal (Login / Register / Quick Demo Accounts) */}
-      {isAuthOpen && (
-        <AuthModal onSuccess={handleAuthSuccess} />
-      )}
+        {/* 2. Channels Sidebar (240px) */}
+        <ChannelSidebar
+          currentWorkspace={currentWorkspace}
+          channels={channels}
+          activeChannelId={activeChannelId}
+          onSelectChannel={handleSelectChannel}
+          onCreateChannel={handleCreateChannel}
+          currentUser={currentUser}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
 
-      {/* Settings Modal (Theme Customizer & Logout as requested) */}
+        {/* 3. Active Chat Area (1fr) */}
+        <ChatArea
+          currentChannel={currentChannel}
+          messages={messages}
+          currentUser={currentUser}
+          onSendMessage={handleSendMessage}
+          onStartTyping={() => activeChannelId && signalRService.startTyping(activeChannelId)}
+          onStopTyping={() => activeChannelId && signalRService.stopTyping(activeChannelId)}
+          typingUser={typingUser}
+          onToggleThread={() => setIsThreadOpen(!isThreadOpen)}
+          isThreadOpen={isThreadOpen}
+        />
+
+        {/* 4. Collapsible Thread Panel (320px) */}
+        <ThreadPanel
+          isOpen={isThreadOpen}
+          onClose={() => setIsThreadOpen(false)}
+          currentUser={currentUser}
+        />
+      </main>
+
+      {/* Auth Modal */}
+      {isAuthOpen && <AuthModal onSuccess={handleAuthSuccess} />}
+
+      {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -273,7 +330,7 @@ export const App: React.FC = () => {
         currentTheme={theme}
         onThemeChange={handleThemeChange}
       />
-    </div>
+    </>
   );
 };
 

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { LogIn, UserPlus, Zap } from 'lucide-react';
+import { LogIn, UserPlus } from 'lucide-react';
+import { ChatTeardropDots, Sparkle } from '@phosphor-icons/react';
+import { cn } from '@/shared/utils/cn';
 import { authApi } from '../services/api';
 import type { User } from '../types';
 
@@ -11,7 +13,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [emailOrUsername, setEmailOrUsername] = useState('alex@pulsechat.io');
   const [password, setPassword] = useState('Password123!');
-  
+
   // Register fields
   const [regEmail, setRegEmail] = useState('');
   const [regUsername, setRegUsername] = useState('');
@@ -29,8 +31,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       const u = customUser || emailOrUsername;
       const p = customPass || password;
       const res = await authApi.login(u, p);
-      localStorage.setItem('pulsechat_token', res.accessToken);
-      localStorage.setItem('pulsechat_refresh', res.refreshToken);
+      localStorage.setItem('nomna_token', res.accessToken);
+      localStorage.setItem('nomna_refresh', res.refreshToken);
       onSuccess(res.user, res.accessToken);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại!');
@@ -45,8 +47,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     setLoading(true);
     try {
       const res = await authApi.register(regEmail, regUsername, regDisplayName, regPassword);
-      localStorage.setItem('pulsechat_token', res.accessToken);
-      localStorage.setItem('pulsechat_refresh', res.refreshToken);
+      localStorage.setItem('nomna_token', res.accessToken);
+      localStorage.setItem('nomna_refresh', res.refreshToken);
       onSuccess(res.user, res.accessToken);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Đăng ký không thành công.');
@@ -55,212 +57,90 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
     }
   };
 
-  const quickLogin = (email: string) => {
-    setEmailOrUsername(email);
+  const quickLogin = (userOrEmail: string) => {
+    setEmailOrUsername(userOrEmail);
     setPassword('Password123!');
-    handleLogin(undefined, email, 'Password123!');
+    handleLogin(undefined, userOrEmail, 'Password123!');
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(0,0,0,0.65)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-    }}>
-      <div style={{
-        background: 'var(--bg-chat)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '20px',
-        width: '92%',
-        maxWidth: '460px',
-        overflow: 'hidden',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.3)',
-      }}>
+    <div className="fixed inset-0 bg-black/65 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+      <div className="bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-2xl w-full max-w-[440px] overflow-hidden shadow-2xl flex flex-col">
         {/* Banner */}
-        <div style={{
-          padding: '24px 24px 16px 24px',
-          textAlign: 'center',
-          borderBottom: '1px solid var(--border-color)',
-          background: 'var(--bg-rail)'
-        }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: '12px',
-            background: 'var(--accent-primary)',
-            color: '#fff',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.25rem',
-            fontWeight: 800,
-            marginBottom: '10px',
-            boxShadow: '0 4px 14px var(--accent-glow)'
-          }}>
-            ⚡
+        <div className="p-6 text-center border-b border-[var(--border-color)] bg-[var(--bg-rail)] flex flex-col items-center">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--accent-primary)] text-white flex items-center justify-center shadow-lg shadow-[var(--accent-glow)] mb-3">
+            <ChatTeardropDots size={28} weight="fill" />
           </div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>NomNa</h2>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Hệ thống Chat Real-time Hiệu năng cao (.NET 9 + React)
+          <h2 className="text-xl font-extrabold text-[var(--text-primary)] tracking-tight">
+            NomNa Chat
+          </h2>
+          <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-xs">
+            Nền tảng nhắn tin thời gian thực hiệu năng cao xây dựng trên .NET 9 & React
           </p>
 
-          {/* Quick Demo User Buttons */}
-          <div style={{
-            marginTop: '16px',
-            padding: '10px',
-            background: 'var(--bg-surface)',
-            borderRadius: '12px',
-            border: '1px solid var(--border-color)'
-          }}>
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-              <Zap size={13} />
-              <span>Đăng nhập nhanh 1-Click (Tài khoản mẫu)</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={() => quickLogin('alex@pulsechat.io')}
-                style={{
-                  padding: '6px 4px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-chat)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Alex Rivers
-              </button>
-              <button
-                type="button"
-                onClick={() => quickLogin('minh@pulsechat.io')}
-                style={{
-                  padding: '6px 4px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-chat)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Minh Dev
-              </button>
-              <button
-                type="button"
-                onClick={() => quickLogin('van@pulsechat.io')}
-                style={{
-                  padding: '6px 4px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-chat)',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Van Nguyen
-              </button>
-            </div>
+          {/* Tab Switcher */}
+          <div className="flex bg-[var(--bg-surface)] p-1 rounded-xl border border-[var(--border-color)] mt-4 w-full">
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegister(false);
+                setError(null);
+              }}
+              className={cn(
+                'flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer',
+                !isRegister
+                  ? 'bg-[var(--bg-chat)] text-[var(--text-primary)] shadow-xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              )}
+            >
+              <LogIn size={14} />
+              <span>Đăng nhập</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegister(true);
+                setError(null);
+              }}
+              className={cn(
+                'flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer',
+                isRegister
+                  ? 'bg-[var(--bg-chat)] text-[var(--text-primary)] shadow-xs'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              )}
+            >
+              <UserPlus size={14} />
+              <span>Đăng ký mới</span>
+            </button>
           </div>
-        </div>
-
-        {/* Tab Switcher */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)' }}>
-          <button
-            onClick={() => { setIsRegister(false); setError(null); }}
-            style={{
-              flex: 1,
-              padding: '12px',
-              border: 'none',
-              background: !isRegister ? 'var(--bg-chat)' : 'var(--bg-surface)',
-              color: !isRegister ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              fontWeight: 700,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              borderBottom: !isRegister ? '2px solid var(--accent-primary)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            <LogIn size={16} /> Đăng nhập
-          </button>
-          <button
-            onClick={() => { setIsRegister(true); setError(null); }}
-            style={{
-              flex: 1,
-              padding: '12px',
-              border: 'none',
-              background: isRegister ? 'var(--bg-chat)' : 'var(--bg-surface)',
-              color: isRegister ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              fontWeight: 700,
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              borderBottom: isRegister ? '2px solid var(--accent-primary)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-          >
-            <UserPlus size={16} /> Tạo tài khoản mới
-          </button>
         </div>
 
         {/* Form Body */}
-        <div style={{ padding: '24px' }}>
+        <div className="p-6 flex flex-col gap-4">
           {error && (
-            <div style={{
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#ef4444',
-              borderRadius: '8px',
-              padding: '10px 12px',
-              fontSize: '0.82rem',
-              marginBottom: '16px'
-            }}>
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-xl font-medium">
               {error}
             </div>
           )}
 
           {!isRegister ? (
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <form onSubmit={(e) => handleLogin(e)} className="flex flex-col gap-3.5">
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Email hoặc Username
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  Email hoặc Tên tài khoản
                 </label>
                 <input
                   type="text"
                   required
                   value={emailOrUsername}
                   onChange={(e) => setEmailOrUsername(e.target.value)}
-                  placeholder="alex@pulsechat.io"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
+                  placeholder="alex@pulsechat.io hoặc alexrivers"
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
                   Mật khẩu
                 </label>
                 <input
@@ -269,89 +149,65 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.9rem',
-                    outline: 'none'
-                  }}
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                style={{
-                  marginTop: '8px',
-                  padding: '11px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: 'var(--accent-primary)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: '0.92rem',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 14px var(--accent-glow)',
-                  opacity: loading ? 0.7 : 1
-                }}
+                className="mt-1 w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-md shadow-[var(--accent-glow)] disabled:opacity-50 cursor-pointer"
               >
                 {loading ? 'Đang xác thực...' : 'Đăng nhập vào NomNa 🚀'}
               </button>
             </form>
           ) : (
-            <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <form onSubmit={handleRegister} className="flex flex-col gap-3">
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Họ tên hiển thị
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  Họ và tên hiển thị
                 </label>
                 <input
                   type="text"
                   required
                   value={regDisplayName}
                   onChange={(e) => setRegDisplayName(e.target.value)}
-                  placeholder="Alex Rivers"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.88rem',
-                    outline: 'none'
-                  }}
+                  placeholder="Nguyễn Văn A"
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Tên tài khoản (Username)
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={regUsername}
-                  onChange={(e) => setRegUsername(e.target.value)}
-                  placeholder="alexrivers"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.88rem',
-                    outline: 'none'
-                  }}
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regUsername}
+                    onChange={(e) => setRegUsername(e.target.value)}
+                    placeholder="vana"
+                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                    Mật khẩu
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
+                  />
+                </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
                   Email
                 </label>
                 <input
@@ -359,63 +215,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                   required
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
-                  placeholder="alex@pulsechat.io"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.88rem',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Mật khẩu
-                </label>
-                <input
-                  type="password"
-                  required
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  placeholder="••••••••"
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-color)',
-                    background: 'var(--bg-surface)',
-                    color: 'var(--text-primary)',
-                    fontSize: '0.88rem',
-                    outline: 'none'
-                  }}
+                  placeholder="vana@example.com"
+                  className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl px-3.5 py-2 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                style={{
-                  marginTop: '6px',
-                  padding: '11px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: 'var(--accent-primary)',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: '0.92rem',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 14px var(--accent-glow)',
-                  opacity: loading ? 0.7 : 1
-                }}
+                className="mt-1 w-full bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white font-bold py-2.5 rounded-xl text-sm transition-all shadow-md shadow-[var(--accent-glow)] disabled:opacity-50 cursor-pointer"
               >
-                {loading ? 'Đang tạo...' : 'Đăng ký tài khoản 🎉'}
+                {loading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản mới'}
               </button>
             </form>
+          )}
+
+          {/* Quick Demo Login */}
+          {!isRegister && (
+            <div className="pt-2 border-t border-[var(--border-color)]">
+              <div className="flex items-center gap-1.5 text-[0.72rem] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+                <Sparkle size={13} weight="fill" className="text-[var(--accent-primary)]" />
+                <span>Đăng nhập nhanh (Tài khoản mẫu seed sẵn)</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => quickLogin('alex@pulsechat.io')}
+                  className="px-2.5 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-active)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] rounded-lg text-xs font-semibold text-[var(--text-primary)] transition-all text-left truncate cursor-pointer"
+                >
+                  ⚡ Alex Rivers (Lead)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => quickLogin('minh@pulsechat.io')}
+                  className="px-2.5 py-1.5 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-active)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] rounded-lg text-xs font-semibold text-[var(--text-primary)] transition-all text-left truncate cursor-pointer"
+                >
+                  💻 Minh Dev (Senior)
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </div>

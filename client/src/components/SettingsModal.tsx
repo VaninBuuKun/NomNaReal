@@ -1,5 +1,7 @@
 import React from 'react';
-import { X, Palette, LogOut } from 'lucide-react';
+import { X, LogOut } from 'lucide-react';
+import { Palette, CheckCircle } from '@phosphor-icons/react';
+import { cn } from '@/shared/utils/cn';
 import type { User } from '../types';
 
 interface SettingsModalProps {
@@ -22,153 +24,107 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   const themes = [
-    { id: 'warm-orange', name: 'Trắng Cam Ấm (Warm Light)', desc: 'Phong cách Arc / Substack ngả kem ấm áp', icon: '🍊' },
-    { id: 'dark-zinc', name: 'Dark Zinc (Tối Hiện Đại)', desc: 'Tông màu đen xám phong cách Linear & Discord', icon: '🌙' },
-    { id: 'clean-coral', name: 'Trắng San Hô (Clean Coral)', desc: 'Nền trắng sáng điểm xuyết màu hồng san hô', icon: '☀️' },
+    {
+      id: 'warm-orange',
+      name: 'Trắng Cam Hiện Đại (Warm Light)',
+      desc: 'Phong cách Arc Browser & Substack, màu cam ấm áp',
+      icon: '🍊',
+    },
+    {
+      id: 'dark-zinc',
+      name: 'Dark Zinc (Tối Hiện Đại)',
+      desc: 'Tông màu đen xám phong cách Linear & Discord',
+      icon: '🌙',
+    },
+    {
+      id: 'clean-coral',
+      name: 'Trắng San Hô (Clean Coral)',
+      desc: 'Nền trắng sáng điểm xuyết sắc màu hồng san hô',
+      icon: '☀️',
+    },
   ];
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      backdropFilter: 'blur(4px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 100,
-      animation: 'fadeIn 0.15s ease-out'
-    }}>
-      <div style={{
-        background: 'var(--bg-chat)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '16px',
-        width: '90%',
-        maxWidth: '520px',
-        overflow: 'hidden',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-      }}>
+    <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+      <div className="bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-2xl w-full max-w-[500px] overflow-hidden shadow-2xl flex flex-col">
         {/* Header */}
-        <div style={{
-          padding: '16px 20px',
-          borderBottom: '1px solid var(--border-color)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'var(--bg-surface)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '1.05rem' }}>
+        <div className="px-5 py-4 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-surface)]">
+          <div className="flex items-center gap-2 font-bold text-base text-[var(--text-primary)]">
             <span>⚙️ Cài đặt ứng dụng</span>
           </div>
-          <button 
+          <button
+            type="button"
             onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-muted)',
-              cursor: 'pointer',
-              padding: '4px',
-              borderRadius: '6px',
-              display: 'flex'
-            }}
+            className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
-          
+        <div className="p-5 flex flex-col gap-5">
           {/* User Profile Card */}
           {currentUser && (
-            <div style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '12px',
-              padding: '14px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '14px'
-            }}>
-              <div style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'var(--accent-primary)',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: '1.1rem'
-              }}>
+            <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-3.5 flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-[var(--accent-primary)] text-white flex items-center justify-center font-bold text-base shadow-sm">
                 {currentUser.displayName.slice(0, 2).toUpperCase()}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{currentUser.displayName}</div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>@{currentUser.username} · {currentUser.email}</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-sm text-[var(--text-primary)] truncate">
+                  {currentUser.displayName}
+                </div>
+                <div className="text-xs text-[var(--text-secondary)] truncate">
+                  @{currentUser.username} · {currentUser.email}
+                </div>
                 {currentUser.bio && (
-                  <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '2px' }}>{currentUser.bio}</div>
+                  <div className="text-[0.78rem] text-[var(--text-muted)] mt-0.5 truncate">
+                    {currentUser.bio}
+                  </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Theme Selector (As requested: moved into Settings) */}
+          {/* Theme Selector */}
           <div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '0.88rem',
-              fontWeight: 700,
-              color: 'var(--text-primary)',
-              marginBottom: '10px'
-            }}>
-              <Palette size={16} color="var(--accent-primary)" />
+            <div className="flex items-center gap-2 text-sm font-bold text-[var(--text-primary)] mb-2.5">
+              <Palette size={18} weight="duotone" className="text-[var(--accent-primary)]" />
               <span>Giao diện & Chủ đề (Theme)</span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="flex flex-col gap-2">
               {themes.map((theme) => {
                 const isActive = currentTheme === theme.id;
                 return (
                   <div
                     key={theme.id}
                     onClick={() => onThemeChange(theme.id)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      border: `1.5px solid ${isActive ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                      backgroundColor: isActive ? 'var(--accent-soft)' : 'var(--bg-surface)',
-                      transition: 'all 0.15s ease'
-                    }}
+                    className={cn(
+                      'flex items-center justify-between p-3 rounded-xl cursor-pointer border transition-all',
+                      isActive
+                        ? 'border-[var(--accent-primary)] bg-[var(--accent-soft)] shadow-xs'
+                        : 'border-[var(--border-color)] bg-[var(--bg-surface)] hover:border-[var(--border-hover)]'
+                    )}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '1.2rem' }}>{theme.icon}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl shrink-0">{theme.icon}</span>
                       <div>
-                        <div style={{ fontSize: '0.88rem', fontWeight: 600, color: isActive ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                        <div
+                          className={cn(
+                            'text-sm font-semibold',
+                            isActive ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'
+                          )}
+                        >
                           {theme.name}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {theme.desc}
-                        </div>
+                        <div className="text-xs text-[var(--text-muted)]">{theme.desc}</div>
                       </div>
                     </div>
+
                     {isActive && (
-                      <span style={{
-                        color: 'var(--accent-primary)',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        background: 'var(--bg-chat)',
-                        padding: '2px 8px',
-                        borderRadius: '99px'
-                      }}>
-                        Đang chọn
+                      <span className="flex items-center gap-1 text-[var(--accent-primary)] text-xs font-bold bg-[var(--bg-chat)] px-2 py-0.5 rounded-full border border-[var(--accent-primary)]/20 shadow-xs">
+                        <CheckCircle size={14} weight="fill" />
+                        <span>Đang chọn</span>
                       </span>
                     )}
                   </div>
@@ -178,36 +134,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Logout Action */}
-          <div style={{ paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+          <div className="pt-2 border-t border-[var(--border-color)]">
             <button
+              type="button"
               onClick={() => {
                 onLogout();
                 onClose();
               }}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                background: 'transparent',
-                color: 'var(--status-dnd)',
-                fontWeight: 600,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.08)')}
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-500/20 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 font-semibold text-sm transition-colors cursor-pointer"
             >
               <LogOut size={16} />
               <span>Đăng xuất khỏi tài khoản</span>
             </button>
           </div>
-
         </div>
       </div>
     </div>

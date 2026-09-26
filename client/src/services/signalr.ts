@@ -14,12 +14,12 @@ export class SignalRService {
       return;
     }
 
-    const token = localStorage.getItem('pulsechat_token');
+    const token = localStorage.getItem('nomna_token');
     if (!token) return;
 
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl('http://localhost:5000/hubs/chat', {
-        accessTokenFactory: () => localStorage.getItem('pulsechat_token') || '',
+        accessTokenFactory: () => localStorage.getItem('nomna_token') || '',
         transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
       })
       .withAutomaticReconnect()

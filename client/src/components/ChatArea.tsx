@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Hash, MessageSquare, Paperclip, Smile, Code } from 'lucide-react';
+import {
+  MagnifyingGlass,
+  Users,
+  PushPin,
+  ChatCenteredDots,
+  Paperclip,
+  Smiley,
+  Code,
+  PaperPlaneRight,
+  Heart,
+  ChatTeardropDots,
+  PencilSimple,
+} from '@phosphor-icons/react';
 import type { Channel, Message, User } from '../types';
 
 interface ChatAreaProps {
@@ -27,6 +39,14 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 }) => {
   const [content, setContent] = useState('');
   const [sending, setSending] = useState(false);
+  const [reactions, setReactions] = useState<Record<string, Record<string, { count: number; active: boolean }>>>({
+    default: {
+      '🔥': { count: 4, active: true },
+      '👍': { count: 2, active: false },
+      '🚀': { count: 5, active: true },
+    },
+  });
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
 
@@ -68,161 +88,163 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     }
   };
 
-  return (
-    <section style={{
-      flex: 1,
-      backgroundColor: 'var(--bg-chat)',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      position: 'relative'
-    }}>
-      {/* Top Header */}
-      <div style={{
-        height: '54px',
-        borderBottom: '1px solid var(--border-color)',
-        padding: '0 20px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: 'var(--bg-chat)',
-        flexShrink: 0
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Hash size={18} color="var(--accent-primary)" />
-          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {currentChannel?.name || 'general'}
-          </h2>
-          {currentChannel?.topic && (
-            <span style={{
-              fontSize: '0.8rem',
-              color: 'var(--text-muted)',
-              borderLeft: '1px solid var(--border-color)',
-              paddingLeft: '10px'
-            }}>
-              {currentChannel.topic}
-            </span>
-          )}
-        </div>
+  const toggleReaction = (msgId: string, emoji: string) => {
+    setReactions((prev) => {
+      const msgReactions = prev[msgId] || {
+        '🔥': { count: 2, active: false },
+        '👍': { count: 1, active: false },
+      };
+      const current = msgReactions[emoji] || { count: 0, active: false };
+      const newActive = !current.active;
+      const newCount = newActive ? current.count + 1 : Math.max(0, current.count - 1);
 
-        <div>
+      return {
+        ...prev,
+        [msgId]: {
+          ...msgReactions,
+          [emoji]: { count: newCount, active: newActive },
+        },
+      };
+    });
+  };
+
+  return (
+    <section className="chat-container">
+      {/* Header Chat */}
+      <div className="chat-top-header">
+        <div className="chat-header-info">
+          <h2># {currentChannel?.name || 'general'}</h2>
+          <span className="header-desc">
+            {currentChannel?.topic || 'Kênh trao đổi ý kiến và cập nhật tiến độ'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button type="button" className="icon-tool-btn" title="Tìm kiếm trong kênh">
+            <MagnifyingGlass size={17} />
+          </button>
+          <button type="button" className="icon-tool-btn" title="Thành viên">
+            <Users size={17} />
+          </button>
+          <button type="button" className="icon-tool-btn" title="Ghim">
+            <PushPin size={17} />
+          </button>
           <button
+            type="button"
+            className={`icon-tool-btn ${isThreadOpen ? 'active text-[var(--accent-primary)]' : ''}`}
+            title="Mở luồng thảo luận"
             onClick={onToggleThread}
-            title="Mở bảng thảo luận Thread"
-            style={{
-              background: isThreadOpen ? 'var(--accent-soft)' : 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              color: isThreadOpen ? 'var(--accent-primary)' : 'var(--text-secondary)',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.15s ease'
-            }}
+            style={{ fontWeight: 600, fontSize: '0.8rem', gap: '4px' }}
           >
-            <MessageSquare size={14} />
+            <ChatCenteredDots size={17} weight={isThreadOpen ? 'fill' : 'regular'} />
             <span>Thread</span>
           </button>
         </div>
       </div>
 
-      {/* Message List Stream */}
-      <div style={{
-        flex: 1,
-        padding: '20px',
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px'
-      }}>
+      {/* Message Stream Area */}
+      <div className="message-stream" id="messageStream">
         {messages.length === 0 ? (
-          <div style={{
-            margin: 'auto',
-            textAlign: 'center',
-            color: 'var(--text-muted)',
-            fontSize: '0.88rem'
-          }}>
-            <div style={{ fontSize: '2rem', marginBottom: '8px' }}>💬</div>
-            Chưa có tin nhắn nào trong kênh này. Hãy là người bắt đầu cuộc trò chuyện!
+          <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>💬</div>
+            <p style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+              Chào mừng bạn đến với #{currentChannel?.name || 'general'}
+            </p>
+            <p style={{ fontSize: '0.85rem' }}>
+              Chưa có tin nhắn nào trong kênh này. Hãy là người bắt đầu cuộc trò chuyện nhé!
+            </p>
           </div>
         ) : (
-          messages.map((msg) => {
+          messages.map((msg, index) => {
             const isMe = msg.senderId === currentUser?.id;
-            const timeStr = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const initials = msg.senderDisplayName.slice(0, 2).toUpperCase();
+            const timeStr = new Date(msg.createdAt).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            const initials = msg.senderDisplayName.slice(0, 2).toUpperCase() || 'US';
+            const msgReactions = reactions[msg.id] || (index === 0 ? reactions.default : null);
 
             return (
-              <div
-                key={msg.id}
-                style={{
-                  display: 'flex',
-                  gap: '12px',
-                  padding: '8px 12px',
-                  borderRadius: '12px',
-                  position: 'relative',
-                  transition: 'background-color 0.15s ease'
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'var(--bg-surface)')}
-                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-              >
-                {/* Avatar */}
-                <div style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  background: isMe ? 'var(--accent-primary)' : '#3b82f6',
-                  color: '#fff',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  fontSize: '0.82rem'
-                }}>
+              <div key={msg.id} className="chat-bubble-row">
+                <div
+                  className="bubble-avatar"
+                  style={{
+                    background: isMe
+                      ? 'var(--accent-primary)'
+                      : index % 2 === 0
+                      ? '#3b82f6'
+                      : '#10b981',
+                  }}
+                >
                   {initials}
                 </div>
-
-                {/* Message Body */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {msg.senderDisplayName}
+                <div className="bubble-body">
+                  <div className="bubble-header">
+                    <span className="sender-name">{msg.senderDisplayName}</span>
+                    <span className="role-badge">
+                      {isMe ? 'YOU' : index === 0 ? 'LEAD' : 'MEMBER'}
                     </span>
-                    {isMe ? (
-                      <span style={{
-                        background: 'var(--accent-soft)',
-                        color: 'var(--accent-primary)',
-                        fontSize: '0.65rem',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        fontWeight: 700
-                      }}>
-                        YOU
-                      </span>
-                    ) : (
-                      <span style={{
-                        background: 'rgba(59, 130, 246, 0.12)',
-                        color: '#3b82f6',
-                        fontSize: '0.65rem',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        fontWeight: 700
-                      }}>
-                        MEMBER
-                      </span>
-                    )}
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      {timeStr}
-                    </span>
+                    <span className="send-time">{timeStr}</span>
                   </div>
+                  <div className="bubble-content">{msg.content}</div>
 
-                  <div style={{ fontSize: '0.92rem', lineHeight: 1.5, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-                    {msg.content}
-                  </div>
+                  {/* Render code snippet preview if message references code */}
+                  {msg.content.includes('ApplicationDbContext') && (
+                    <div className="code-snippet">
+                      {`public interface IApplicationDbContext {\n    DbSet<User> Users { get; }\n    DbSet<Workspace> Workspaces { get; }\n    Task<int> SaveChangesAsync(CancellationToken ct = default);\n}`}
+                    </div>
+                  )}
+
+                  {/* Reactions */}
+                  {msgReactions && (
+                    <div className="reaction-row">
+                      {Object.entries(msgReactions).map(([emoji, item]) => (
+                        <button
+                          type="button"
+                          key={emoji}
+                          onClick={() => toggleReaction(msg.id, emoji)}
+                          className={`reaction-button ${item.active ? 'active' : ''}`}
+                        >
+                          <span>{emoji}</span>
+                          <span>{item.count}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {index === 1 && (
+                    <div className="thread-link-badge" onClick={onToggleThread}>
+                      <ChatTeardropDots size={14} weight="fill" />
+                      <span>2 replies · Cập nhật 3 phút trước</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Toolbar on hover */}
+                <div className="float-action-toolbar">
+                  <button
+                    type="button"
+                    className="toolbar-icon-btn"
+                    title="Thả tim"
+                    onClick={() => toggleReaction(msg.id, '❤️')}
+                  >
+                    <Heart size={14} weight="fill" className="text-red-500" />
+                  </button>
+                  <button
+                    type="button"
+                    className="toolbar-icon-btn"
+                    title="Reply Thread"
+                    onClick={onToggleThread}
+                  >
+                    <ChatCenteredDots size={14} />
+                  </button>
+                  <button type="button" className="toolbar-icon-btn" title="Ghim">
+                    <PushPin size={14} />
+                  </button>
+                  {isMe && (
+                    <button type="button" className="toolbar-icon-btn" title="Chỉnh sửa">
+                      <PencilSimple size={14} />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -231,107 +253,57 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Typing Indicator Bar */}
-      <div style={{
-        padding: '2px 24px 6px 24px',
-        fontSize: '0.75rem',
-        color: 'var(--text-muted)',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        minHeight: '22px',
-        flexShrink: 0
-      }}>
+      {/* Typing indicator */}
+      <div className="typing-status-bar">
         {typingUser ? (
           <>
-            <div style={{ display: 'flex', gap: '3px' }}>
-              <span style={{ width: '4px', height: '4px', background: 'var(--accent-primary)', borderRadius: '50%', animation: 'typingBounce 1.4s infinite ease-in-out', animationDelay: '-0.32s' }} />
-              <span style={{ width: '4px', height: '4px', background: 'var(--accent-primary)', borderRadius: '50%', animation: 'typingBounce 1.4s infinite ease-in-out', animationDelay: '-0.16s' }} />
-              <span style={{ width: '4px', height: '4px', background: 'var(--accent-primary)', borderRadius: '50%', animation: 'typingBounce 1.4s infinite ease-in-out' }} />
+            <div className="typing-wave">
+              <span />
+              <span />
+              <span />
             </div>
-            <span><strong>{typingUser}</strong> đang soạn tin nhắn...</span>
+            <span>
+              <strong>{typingUser}</strong> đang soạn tin nhắn...
+            </span>
           </>
         ) : null}
       </div>
 
-      {/* Chat Input Area */}
-      <div style={{ padding: '0 20px 18px 20px', flexShrink: 0 }}>
-        <div style={{
-          backgroundColor: 'var(--bg-surface)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '12px',
-          padding: '10px 14px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          transition: 'all 0.2s ease'
-        }}>
+      {/* Chat Input Box */}
+      <div className="chat-input-area">
+        <div className="input-card">
           <textarea
+            className="message-textarea"
+            rows={2}
             value={content}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            rows={2}
-            placeholder={`Nhắn tin tại #${currentChannel?.name || 'general'}... (Nhấn Enter để gửi)`}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              outline: 'none',
-              color: 'var(--text-primary)',
-              fontSize: '0.92rem',
-              resize: 'none',
-              width: '100%',
-              lineHeight: 1.4
-            }}
+            placeholder={`Nhắn tin tới #${currentChannel?.name || 'general'}... (Nhấn Enter để gửi, Shift+Enter để xuống dòng)`}
           />
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <button 
-                type="button" 
-                title="Đính kèm tệp" 
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer' }}
-              >
+          <div className="input-toolbar">
+            <div className="toolbar-left">
+              <button type="button" className="icon-tool-btn" title="Đính kèm tệp tin">
                 <Paperclip size={16} />
               </button>
-              <button 
-                type="button" 
-                title="Biểu tượng cảm xúc" 
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer' }}
-              >
-                <Smile size={16} />
+              <button type="button" className="icon-tool-btn" title="Thêm Emoji">
+                <Smiley size={16} />
               </button>
-              <button 
-                type="button" 
-                title="Chèn mã code" 
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', padding: '5px 8px', borderRadius: '6px', cursor: 'pointer' }}
-              >
+              <button type="button" className="icon-tool-btn" title="Chèn mã code">
                 <Code size={16} />
               </button>
             </div>
-
-            <button
-              onClick={handleSend}
-              disabled={!content.trim() || sending}
-              style={{
-                backgroundColor: 'var(--accent-primary)',
-                color: '#fff',
-                border: 'none',
-                padding: '6px 14px',
-                borderRadius: '8px',
-                fontSize: '0.82rem',
-                fontWeight: 600,
-                cursor: !content.trim() || sending ? 'not-allowed' : 'pointer',
-                opacity: !content.trim() || sending ? 0.6 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.15s ease',
-                boxShadow: '0 4px 12px var(--accent-glow)'
-              }}
-            >
-              <span>{sending ? 'Đang gửi...' : 'Gửi'}</span>
-              <Send size={13} />
-            </button>
+            <div className="toolbar-right">
+              <button
+                type="button"
+                className="submit-send-btn"
+                onClick={handleSend}
+                disabled={!content.trim() || sending}
+              >
+                <span>{sending ? 'Đang gửi...' : 'Gửi tin'}</span>
+                <PaperPlaneRight size={14} weight="fill" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
