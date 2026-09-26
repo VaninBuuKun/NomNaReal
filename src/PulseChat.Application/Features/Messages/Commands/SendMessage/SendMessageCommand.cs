@@ -1,0 +1,80 @@
+using FluentValidation;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using PulseChat.Application.Common.Exceptions;
+using PulseChat.Application.Common.Interfaces;
+using PulseChat.Application.Features.Messages.DTOs;
+using PulseChat.Domain.Entities;
+
+namespace PulseChat.Application.Features.Messages.Commands.SendMessage;
+
+public record SendMessageCommand(
+    Guid ChannelId,
+    string Content,
+    Guid? ThreadId = null
+) : IRequest<MessageDto>;
+
+public class SendMessageCommandValidator : AbstractValidator<SendMessageCommand>
+{
+    public SendMessageCommandValidator()
+    {
+        RuleFor(x => x.ChannelId).NotEmpty();
+        RuleFor(x => x.Content).NotEmpty().MaximumLength(4000);
+    }
+}
+
+public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, MessageDto>
+{
+    private readonly IApplicationDbContext _context;
+    private readonly ICurrentUserService _currentUserService;
+
+    public SendMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    {
+        _context = context;
+        _currentUserService = currentUserService;
+    }
+
+    public async Task<MessageDto> Handle(SendMessageCommand request, CancellationToken cancellationToken)
+    {
+        var userId = _currentUserService.UserId;
+        if (!userId.HasValue)
+            throw new UnauthorizedException();
+
+        var channel = await _context.Channels
+            .Include(c => c.Workspace)
+            .FirstOrDefaultAsync(c => c.Id == request.ChannelId, cancellationToken);
+
+        if (channel == null)
+            throw new NotFoundException("Channel", request.ChannelId);
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == userId.Value, cancellationToken);
+
+        if (user == null)
+            throw new UnauthorizedException();
+
+        var message = new Message
+        {
+            ChannelId = request.ChannelId,
+            SenderId = userId.Value,
+            Content = request.Content.Trim(),
+            ThreadId = request.ThreadId
+        };
+
+        _context.Messages.Add(message);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new MessageDto(
+            message.Id,
+            message.ChannelId,
+            message.SenderId,
+            user.DisplayName,
+            user.Username,
+            user.AvatarUrl,
+            message.Content,
+            message.ThreadId,
+            message.IsEdited,
+            message.CreatedAt
+        );
+    }
+}

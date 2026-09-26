@@ -1,0 +1,387 @@
+{
+  "format": 1,
+  "restore": {
+    "/home/vanmuzic/Projects/ChatApp/src/PulseChat.WebAPI/PulseChat.WebAPI.csproj": {}
+  },
+  "projects": {
+    "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Application/PulseChat.Application.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Application/PulseChat.Application.csproj",
+        "projectName": "PulseChat.Application",
+        "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Application/PulseChat.Application.csproj",
+        "packagesPath": "/home/vanmuzic/.nuget/packages/",
+        "outputPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Application/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/vanmuzic/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Domain/PulseChat.Domain.csproj": {
+                "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Domain/PulseChat.Domain.csproj"
+              },
+              "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/PulseChat.Shared.csproj": {
+                "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/PulseChat.Shared.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "BCrypt.Net-Next": {
+              "target": "Package",
+              "version": "[4.2.0, )"
+            },
+            "FluentValidation.DependencyInjectionExtensions": {
+              "target": "Package",
+              "version": "[12.1.1, )"
+            },
+            "MediatR": {
+              "target": "Package",
+              "version": "[14.2.0, )"
+            },
+            "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[9.0.*, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/home/vanmuzic/.dotnet/sdk/9.0.317/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Domain/PulseChat.Domain.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Domain/PulseChat.Domain.csproj",
+        "projectName": "PulseChat.Domain",
+        "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Domain/PulseChat.Domain.csproj",
+        "packagesPath": "/home/vanmuzic/.nuget/packages/",
+        "outputPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Domain/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/vanmuzic/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/home/vanmuzic/.dotnet/sdk/9.0.317/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Infrastructure/PulseChat.Infrastructure.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Infrastructure/PulseChat.Infrastructure.csproj",
+        "projectName": "PulseChat.Infrastructure",
+        "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Infrastructure/PulseChat.Infrastructure.csproj",
+        "packagesPath": "/home/vanmuzic/.nuget/packages/",
+        "outputPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Infrastructure/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/vanmuzic/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Application/PulseChat.Application.csproj": {
+                "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Application/PulseChat.Application.csproj"
+              },
+              "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Domain/PulseChat.Domain.csproj": {
+                "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Domain/PulseChat.Domain.csproj"
+              },
+              "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/PulseChat.Shared.csproj": {
+                "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/PulseChat.Shared.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "BCrypt.Net-Next": {
+              "target": "Package",
+              "version": "[4.2.0, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.*, )"
+            },
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
+              "target": "Package",
+              "version": "[9.0.*, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.23.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/home/vanmuzic/.dotnet/sdk/9.0.317/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/PulseChat.Shared.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/PulseChat.Shared.csproj",
+        "projectName": "PulseChat.Shared",
+        "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/PulseChat.Shared.csproj",
+        "packagesPath": "/home/vanmuzic/.nuget/packages/",
+        "outputPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/vanmuzic/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/home/vanmuzic/.dotnet/sdk/9.0.317/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/home/vanmuzic/Projects/ChatApp/src/PulseChat.WebAPI/PulseChat.WebAPI.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.WebAPI/PulseChat.WebAPI.csproj",
+        "projectName": "PulseChat.WebAPI",
+        "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.WebAPI/PulseChat.WebAPI.csproj",
+        "packagesPath": "/home/vanmuzic/.nuget/packages/",
+        "outputPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.WebAPI/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/home/vanmuzic/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Application/PulseChat.Application.csproj": {
+                "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Application/PulseChat.Application.csproj"
+              },
+              "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Infrastructure/PulseChat.Infrastructure.csproj": {
+                "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Infrastructure/PulseChat.Infrastructure.csproj"
+              },
+              "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/PulseChat.Shared.csproj": {
+                "projectPath": "/home/vanmuzic/Projects/ChatApp/src/PulseChat.Shared/PulseChat.Shared.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[9.0.*, )"
+            },
+            "Microsoft.AspNetCore.OpenApi": {
+              "target": "Package",
+              "version": "[9.0.19, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.*, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/home/vanmuzic/.dotnet/sdk/9.0.317/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,138 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* -----------------------------------------------------------
+   THEME 1: TRẮNG CAM HIỆN ĐẠI (Warm White + Sunset Orange) - MẶC ĐỊNH
+----------------------------------------------------------- */
+:root,
+[data-theme="warm-orange"] {
+  --bg-rail: #f6f5f2;
+  --bg-sidebar: #fcfbf9;
+  --bg-chat: #ffffff;
+  --bg-surface: #f4f2ed;
+  --bg-surface-active: #faeee4;
+  --border-color: #eae7e1;
+  --border-hover: #dad6cc;
+
+  --accent-primary: #ff5a1f;
+  --accent-hover: #e84a10;
+  --accent-soft: rgba(255, 90, 31, 0.12);
+  --accent-glow: rgba(255, 90, 31, 0.25);
+
+  --status-online: #16a34a;
+  --status-away: #ea580c;
+  --status-dnd: #dc2626;
+
+  --text-primary: #1c1917;
+  --text-secondary: #78716c;
+  --text-muted: #a8a29e;
+
+  --code-bg: #292524;
+  --code-text: #fed7aa;
+  --scrollbar-thumb: #e7e5e4;
+}
+
+/* -----------------------------------------------------------
+   THEME 2: DARK MODERN (Dark Zinc + Indigo)
+----------------------------------------------------------- */
+[data-theme="dark-zinc"] {
+  --bg-rail: #09090b;
+  --bg-sidebar: #111115;
+  --bg-chat: #16161b;
+  --bg-surface: #22222a;
+  --bg-surface-active: #2e2e38;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+
+  --accent-primary: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-soft: rgba(99, 102, 241, 0.15);
+  --accent-glow: rgba(99, 102, 241, 0.25);
+
+  --status-online: #10b981;
+  --status-away: #f59e0b;
+  --status-dnd: #ef4444;
+
+  --text-primary: #f4f4f6;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+
+  --code-bg: #09090b;
+  --code-text: #a5b4fc;
+  --scrollbar-thumb: #27272a;
+}
+
+/* -----------------------------------------------------------
+   THEME 3: CLEAN MINIMAL WHITE + CORAL (Trắng Sáng + San Hô)
+----------------------------------------------------------- */
+[data-theme="clean-coral"] {
+  --bg-rail: #f1f5f9;
+  --bg-sidebar: #f8fafc;
+  --bg-chat: #ffffff;
+  --bg-surface: #f1f5f9;
+  --bg-surface-active: #fee2e2;
+  --border-color: #e2e8f0;
+  --border-hover: #cbd5e1;
+
+  --accent-primary: #f43f5e;
+  --accent-hover: #e11d48;
+  --accent-soft: rgba(244, 63, 94, 0.12);
+  --accent-glow: rgba(244, 63, 94, 0.25);
+
+  --status-online: #10b981;
+  --status-away: #f59e0b;
+  --status-dnd: #f43f5e;
+
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  --code-bg: #1e293b;
+  --code-text: #fecdd3;
+  --scrollbar-thumb: #cbd5e1;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+html, body, #root {
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden; /* Cố định 100% viewport - KHÔNG CÓ SCROLLBAR NGOÀI */
+  background-color: var(--bg-rail);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Scrollbar nội bộ siêu thanh mảnh */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  opacity: 0.8;
+}
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
