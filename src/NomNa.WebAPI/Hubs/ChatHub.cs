@@ -37,7 +37,14 @@ public class ChatHub : Hub
     public async Task<MessageDto> SendMessage(Guid channelId, string content, Guid? threadId = null)
     {
         var command = new SendMessageCommand(channelId, content, threadId);
-        var message = await _mediator.Send(command);
+        var result = await _mediator.Send(command);
+
+        if (!result.IsSuccess)
+        {
+            throw new HubException(result.Error.Message);
+        }
+
+        var message = result.Value!;
 
         // Broadcast to all clients in the channel
         var groupName = channelId.ToString();

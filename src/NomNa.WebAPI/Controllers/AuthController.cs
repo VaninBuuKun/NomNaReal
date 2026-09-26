@@ -11,31 +11,31 @@ namespace NomNa.WebAPI.Controllers;
 public class AuthController : ApiControllerBase
 {
     [HttpPost("register")]
-    public async Task<ActionResult<AuthResultDto>> Register([FromBody] RegisterCommand command)
+    public async Task<IActionResult> Register([FromBody] RegisterCommand command)
     {
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return HandleResult(result);
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<AuthResultDto>> Login([FromBody] LoginCommand command)
+    public async Task<IActionResult> Login([FromBody] LoginCommand command)
     {
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return HandleResult(result);
     }
 
     [HttpPost("refresh")]
-    public async Task<ActionResult<AuthResultDto>> Refresh([FromBody] RefreshTokenCommand command)
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenCommand command)
     {
         var result = await Mediator.Send(command);
-        return Ok(result);
+        return HandleResult(result);
     }
 
     [Authorize]
     [HttpGet("me")]
-    public async Task<ActionResult<UserDto>> GetCurrentUser()
+    public async Task<IActionResult> GetCurrentUser()
     {
         var result = await Mediator.Send(new GetCurrentUserQuery());
-        return Ok(result);
+        return HandleResult(result);
     }
 }
