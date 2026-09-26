@@ -1,4 +1,5 @@
 using MediatR;
+using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Channels.DTOs;
 using NomNa.Domain.Enums;
 
@@ -10,4 +11,4 @@ public record CreateChannelCommand(
     string? Topic,
     ChannelType Type = ChannelType.Text,
     bool IsPrivate = false
-) : IRequest<ChannelDto>;
+) : IRequest<Result<ChannelDto>>;

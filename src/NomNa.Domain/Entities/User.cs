@@ -1,23 +1,36 @@
-using NomNa.Domain.Common;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Identity;
 using NomNa.Domain.Enums;
 
 namespace NomNa.Domain.Entities;
 
-public class User : BaseEntity
+public class User : IdentityUser<Guid>
 {
-    public string Email { get; set; } = string.Empty;
-    public string Username { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
-    public string PasswordHash { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public string? Bio { get; set; }
     public UserStatus Status { get; set; } = UserStatus.Offline;
     public DateTime? LastSeenAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
+
+    [NotMapped]
+    public string Username
+    {
+        get => UserName ?? string.Empty;
+        set => UserName = value;
+    }
 
     public ICollection<WorkspaceMember> WorkspaceMembers { get; set; } = new List<WorkspaceMember>();
     public ICollection<ChannelMember> ChannelMembers { get; set; } = new List<ChannelMember>();
     public ICollection<Message> Messages { get; set; } = new List<Message>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+
+    public User()
+    {
+        Id = Guid.NewGuid();
+        SecurityStamp = Guid.NewGuid().ToString();
+    }
 
     public void UpdateStatus(UserStatus status)
     {

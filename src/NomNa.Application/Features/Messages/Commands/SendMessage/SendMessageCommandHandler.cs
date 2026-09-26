@@ -1,13 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using NomNa.Application.Common.Exceptions;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Messages.DTOs;
 using NomNa.Domain.Entities;
 
 namespace NomNa.Application.Features.Messages.Commands.SendMessage;
 
-public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, MessageDto>
+public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Result<MessageDto>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -18,24 +18,24 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Mes
         _currentUserService = currentUserService;
     }
 
-    public async Task<MessageDto> Handle(SendMessageCommand request, CancellationToken cancellationToken)
+    public async Task<Result<MessageDto>> Handle(SendMessageCommand request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId;
         if (!userId.HasValue)
-            throw new UnauthorizedException();
+            return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         var channel = await _context.Channels
             .Include(c => c.Workspace)
             .FirstOrDefaultAsync(c => c.Id == request.ChannelId, cancellationToken);
 
         if (channel == null)
-            throw new NotFoundException("Channel", request.ChannelId);
+            return Error.NotFound("Channel.NotFound", $"Channel {request.ChannelId} not found.");
 
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.Id == userId.Value, cancellationToken);
 
         if (user == null)
-            throw new UnauthorizedException();
+            return Error.Unauthorized("Auth.Unauthorized", "User not found.");
 
         var message = new Message
         {

@@ -107,37 +107,51 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   };
 
   return (
-    <section className="chat-container">
+    <section className="flex-1 h-full min-h-0 bg-[var(--bg-chat)] flex flex-col overflow-hidden relative">
       {/* Header Chat */}
-      <div className="chat-top-header">
-        <div className="chat-header-info">
-          <h2># {currentChannel?.name || 'general'}</h2>
-          <span className="header-desc">
+      <div className="h-[54px] border-b border-[var(--border-color)] px-5 flex items-center justify-between bg-[var(--bg-chat)] shrink-0 select-none">
+        <div className="flex items-center gap-2.5 overflow-hidden">
+          <h2 className="text-[1rem] font-bold text-[var(--text-primary)] whitespace-nowrap">
+            # {currentChannel?.name || 'general'}
+          </h2>
+          <span className="text-[0.8rem] text-[var(--text-muted)] border-l border-[var(--border-color)] pl-2.5 whitespace-nowrap overflow-hidden text-ellipsis">
             {currentChannel?.topic || 'Kênh trao đổi ý kiến và cập nhật tiến độ'}
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <button type="button" className="icon-tool-btn" title="Tìm kiếm trong kênh">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+            title="Tìm kiếm trong kênh"
+          >
             <MagnifyingGlass size={17} />
           </button>
-          <button type="button" className="icon-tool-btn" title="Thành viên">
+          <button
+            type="button"
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+            title="Thành viên"
+          >
             <Users size={17} />
           </button>
-          <button type="button" className="icon-tool-btn" title="Ghim">
+          <button
+            type="button"
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+            title="Ghim"
+          >
             <PushPin size={17} />
           </button>
         </div>
       </div>
 
       {/* Message Stream Area */}
-      <div className="message-stream" id="messageStream">
+      <div className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-3" id="messageStream">
         {messages.length === 0 ? (
-          <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>💬</div>
-            <p style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+          <div className="m-auto text-center text-[var(--text-muted)] select-none">
+            <div className="text-4xl mb-2">💬</div>
+            <p className="font-bold text-[var(--text-primary)] mb-1">
               Chào mừng bạn đến với #{currentChannel?.name || 'general'}
             </p>
-            <p style={{ fontSize: '0.85rem' }}>
+            <p className="text-sm">
               Chưa có tin nhắn nào trong kênh này. Hãy là người bắt đầu cuộc trò chuyện nhé!
             </p>
           </div>
@@ -152,9 +166,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             const msgReactions = reactions[msg.id] || (index === 0 ? reactions.default : null);
 
             return (
-              <div key={msg.id} className="chat-bubble-row">
+              <div key={msg.id} className="group relative flex gap-3 px-3 py-2 rounded-xl transition-all duration-150 hover:bg-[var(--bg-surface)]">
                 <div
-                  className="bubble-avatar"
+                  className="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center font-bold text-[0.82rem] text-white shadow-sm"
                   style={{
                     background: isMe
                       ? 'var(--accent-primary)'
@@ -165,32 +179,36 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 >
                   {initials}
                 </div>
-                <div className="bubble-body">
-                  <div className="bubble-header">
-                    <span className="sender-name">{msg.senderDisplayName}</span>
-                    <span className="role-badge">
+                <div className="flex-1 min-w-0 flex flex-col gap-0.75">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[0.9rem] font-semibold text-[var(--text-primary)]">{msg.senderDisplayName}</span>
+                    <span className="bg-[var(--accent-soft)] text-[var(--accent-primary)] text-[0.65rem] px-1.5 py-0.25 rounded font-bold uppercase">
                       {isMe ? 'YOU' : index === 0 ? 'LEAD' : 'MEMBER'}
                     </span>
-                    <span className="send-time">{timeStr}</span>
+                    <span className="text-[0.72rem] text-[var(--text-muted)]">{timeStr}</span>
                   </div>
-                  <div className="bubble-content">{msg.content}</div>
+                  <div className="text-[0.92rem] leading-relaxed text-[var(--text-primary)] break-words whitespace-pre-wrap">{msg.content}</div>
 
                   {/* Render code snippet preview if message references code */}
                   {msg.content.includes('ApplicationDbContext') && (
-                    <div className="code-snippet">
+                    <div className="bg-[var(--code-bg)] text-[var(--code-text)] rounded-lg px-3.5 py-2.5 mt-1.5 font-mono text-[0.82rem] leading-normal overflow-x-auto">
                       {`public interface IApplicationDbContext {\n    DbSet<User> Users { get; }\n    DbSet<Workspace> Workspaces { get; }\n    Task<int> SaveChangesAsync(CancellationToken ct = default);\n}`}
                     </div>
                   )}
 
                   {/* Reactions */}
                   {msgReactions && (
-                    <div className="reaction-row">
+                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
                       {Object.entries(msgReactions).map(([emoji, item]) => (
                         <button
                           type="button"
                           key={emoji}
                           onClick={() => toggleReaction(msg.id, emoji)}
-                          className={`reaction-button ${item.active ? 'active' : ''}`}
+                          className={`border rounded-md px-2 py-0.75 text-[0.78rem] inline-flex items-center gap-1.25 cursor-pointer transition-all duration-150 ${
+                            item.active
+                              ? 'bg-[var(--accent-soft)] border-[var(--accent-primary)] text-[var(--accent-primary)] font-semibold'
+                              : 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-surface-active)]'
+                          }`}
                         >
                           <span>{emoji}</span>
                           <span>{item.count}</span>
@@ -200,7 +218,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   )}
 
                   {index === 1 && (
-                    <div className="thread-link-badge" onClick={onToggleThread}>
+                    <div className="inline-flex items-center gap-1.5 mt-1.5 text-[0.8rem] text-[var(--accent-primary)] font-semibold cursor-pointer hover:underline" onClick={onToggleThread}>
                       <ChatTeardropDots size={14} weight="fill" />
                       <span>2 replies · Cập nhật 3 phút trước</span>
                     </div>
@@ -208,10 +226,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 </div>
 
                 {/* Toolbar on hover */}
-                <div className="float-action-toolbar">
+                <div className="absolute -top-3 right-3.5 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-lg p-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 transition-all duration-150 shadow-md z-10">
                   <button
                     type="button"
-                    className="toolbar-icon-btn"
+                    className="p-1 px-2 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer"
                     title="Thả tim"
                     onClick={() => toggleReaction(msg.id, '❤️')}
                   >
@@ -219,17 +237,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   </button>
                   <button
                     type="button"
-                    className="toolbar-icon-btn"
+                    className="p-1 px-2 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer"
                     title="Reply Thread"
                     onClick={onToggleThread}
                   >
                     <ChatCenteredDots size={14} />
                   </button>
-                  <button type="button" className="toolbar-icon-btn" title="Ghim">
+                  <button type="button" className="p-1 px-2 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer" title="Ghim">
                     <PushPin size={14} />
                   </button>
                   {isMe && (
-                    <button type="button" className="toolbar-icon-btn" title="Chỉnh sửa">
+                    <button type="button" className="p-1 px-2 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer" title="Chỉnh sửa">
                       <PencilSimple size={14} />
                     </button>
                   )}
@@ -242,7 +260,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       </div>
 
       {/* Typing indicator */}
-      <div className="typing-status-bar">
+      <div className="px-6 py-1 text-xs text-[var(--text-muted)] flex items-center gap-2 min-h-5.5 shrink-0">
         {typingUser ? (
           <>
             <div className="typing-wave">
@@ -258,10 +276,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       </div>
 
       {/* Chat Input Box */}
-      <div className="chat-input-area">
-        <div className="input-card">
+      <div className="px-5 pb-4.5 shrink-0">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 px-3.5 flex flex-col gap-2 transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_4px_16px_var(--accent-glow)]">
           <textarea
-            className="message-textarea"
+            className="bg-transparent border-none outline-none text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-[0.92rem] resize-none w-full leading-normal"
             rows={2}
             value={content}
             onChange={handleInputChange}
@@ -269,22 +287,34 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             placeholder={`Nhắn tin tới #${currentChannel?.name || 'general'}... (Nhấn Enter để gửi, Shift+Enter để xuống dòng)`}
           />
 
-          <div className="input-toolbar">
-            <div className="toolbar-left">
-              <button type="button" className="icon-tool-btn" title="Đính kèm tệp tin">
+          <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+                title="Đính kèm tệp tin"
+              >
                 <Paperclip size={16} />
               </button>
-              <button type="button" className="icon-tool-btn" title="Thêm Emoji">
+              <button
+                type="button"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+                title="Thêm Emoji"
+              >
                 <Smiley size={16} />
               </button>
-              <button type="button" className="icon-tool-btn" title="Chèn mã code">
+              <button
+                type="button"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+                title="Chèn mã code"
+              >
                 <Code size={16} />
               </button>
             </div>
-            <div className="toolbar-right">
+            <div className="flex items-center">
               <button
                 type="button"
-                className="submit-send-btn"
+                className="bg-[var(--accent-primary)] text-white border-none px-3.5 py-1.5 rounded-lg text-[0.82rem] font-semibold cursor-pointer transition-all duration-150 flex items-center gap-1.5 shadow-[0_2px_8px_var(--accent-glow)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_14px_var(--accent-glow)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 onClick={handleSend}
                 disabled={!content.trim() || sending}
               >

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NomNa.Domain.Entities;
 using NomNa.Domain.Enums;
@@ -7,10 +8,12 @@ namespace NomNa.Infrastructure.Persistence;
 public class ApplicationDbContextInitializer
 {
     private readonly ApplicationDbContext _context;
+    private readonly UserManager<User> _userManager;
 
-    public ApplicationDbContextInitializer(ApplicationDbContext context)
+    public ApplicationDbContextInitializer(ApplicationDbContext context, UserManager<User> userManager)
     {
         _context = context;
+        _userManager = userManager;
     }
 
     public async Task InitializeAsync()
@@ -35,40 +38,40 @@ public class ApplicationDbContextInitializer
         if (await _context.Users.AnyAsync())
             return; // Already seeded
 
-        var defaultPasswordHash = BCrypt.Net.BCrypt.HashPassword("Password123!");
-
-        // 1. Seed Users
+        // 1. Seed Users via UserManager for proper Identity password hashing
         var alex = new User
         {
             Email = "alex@pulsechat.io",
-            Username = "alexrivers",
+            UserName = "alexrivers",
             DisplayName = "Alex Rivers",
-            PasswordHash = defaultPasswordHash,
             Status = UserStatus.Online,
-            Bio = "Tech Lead & System Architect"
+            Bio = "Tech Lead & System Architect",
+            EmailConfirmed = true
         };
 
         var minh = new User
         {
             Email = "minh@pulsechat.io",
-            Username = "minhdev",
+            UserName = "minhdev",
             DisplayName = "Minh Dev",
-            PasswordHash = defaultPasswordHash,
             Status = UserStatus.Online,
-            Bio = "Senior .NET Engineer"
+            Bio = "Senior .NET Engineer",
+            EmailConfirmed = true
         };
 
         var van = new User
         {
             Email = "van@pulsechat.io",
-            Username = "vannguyen",
+            UserName = "vannguyen",
             DisplayName = "Van Nguyen",
-            PasswordHash = defaultPasswordHash,
             Status = UserStatus.Online,
-            Bio = "Fullstack Developer"
+            Bio = "Fullstack Developer",
+            EmailConfirmed = true
         };
 
-        _context.Users.AddRange(alex, minh, van);
+        await _userManager.CreateAsync(alex, "Password123!");
+        await _userManager.CreateAsync(minh, "Password123!");
+        await _userManager.CreateAsync(van, "Password123!");
 
         // 2. Seed Workspace
         var workspace = new Workspace

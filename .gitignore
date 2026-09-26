@@ -4,6 +4,8 @@
 # Previews & Prototypes
 previews/
 
+plans/
+
 # IDE & Editor files
 .idea/
 .vscode/

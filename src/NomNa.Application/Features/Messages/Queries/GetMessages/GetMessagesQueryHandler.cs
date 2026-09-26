@@ -1,12 +1,12 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using NomNa.Application.Common.Exceptions;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Messages.DTOs;
 
 namespace NomNa.Application.Features.Messages.Queries.GetMessages;
 
-public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, List<MessageDto>>
+public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<List<MessageDto>>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -17,11 +17,11 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, List<Me
         _currentUserService = currentUserService;
     }
 
-    public async Task<List<MessageDto>> Handle(GetMessagesQuery request, CancellationToken cancellationToken)
+    public async Task<Result<List<MessageDto>>> Handle(GetMessagesQuery request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId;
         if (!userId.HasValue)
-            throw new UnauthorizedException();
+            return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         // Optimized query: AsNoTracking + Index-friendly CreatedAt cursor + Direct projection
         var query = _context.Messages

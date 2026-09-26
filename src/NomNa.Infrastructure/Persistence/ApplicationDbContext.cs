@@ -1,14 +1,15 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Domain.Entities;
 
 namespace NomNa.Infrastructure.Persistence;
 
-public class ApplicationDbContext : DbContext, IApplicationDbContext
+public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, Guid>, IApplicationDbContext
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
-    public DbSet<User> Users => Set<User>();
     public DbSet<Workspace> Workspaces => Set<Workspace>();
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
     public DbSet<Channel> Channels => Set<Channel>();
@@ -20,18 +21,21 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     {
         base.OnModelCreating(builder);
 
-        // User Configuration
+        // Identity Tables Mapping
         builder.Entity<User>(entity =>
         {
             entity.ToTable("users");
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.Email).IsUnique();
-            entity.HasIndex(e => e.Username).IsUnique();
-            entity.Property(e => e.Email).HasMaxLength(256).IsRequired();
-            entity.Property(e => e.Username).HasMaxLength(50).IsRequired();
             entity.Property(e => e.DisplayName).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.PasswordHash).IsRequired();
+            entity.Property(e => e.AvatarUrl).HasMaxLength(500);
+            entity.Property(e => e.Bio).HasMaxLength(250);
         });
+
+        builder.Entity<IdentityRole<Guid>>(b => b.ToTable("roles"));
+        builder.Entity<IdentityUserRole<Guid>>(b => b.ToTable("user_roles"));
+        builder.Entity<IdentityUserClaim<Guid>>(b => b.ToTable("user_claims"));
+        builder.Entity<IdentityUserLogin<Guid>>(b => b.ToTable("user_logins"));
+        builder.Entity<IdentityUserToken<Guid>>(b => b.ToTable("user_tokens"));
+        builder.Entity<IdentityRoleClaim<Guid>>(b => b.ToTable("role_claims"));
 
         // Workspace Configuration
         builder.Entity<Workspace>(entity =>

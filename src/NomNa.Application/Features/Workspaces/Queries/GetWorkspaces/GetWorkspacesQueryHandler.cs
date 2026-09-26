@@ -1,12 +1,12 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using NomNa.Application.Common.Exceptions;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Workspaces.DTOs;
 
 namespace NomNa.Application.Features.Workspaces.Queries.GetWorkspaces;
 
-public class GetWorkspacesQueryHandler : IRequestHandler<GetWorkspacesQuery, List<WorkspaceDto>>
+public class GetWorkspacesQueryHandler : IRequestHandler<GetWorkspacesQuery, Result<List<WorkspaceDto>>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -17,11 +17,11 @@ public class GetWorkspacesQueryHandler : IRequestHandler<GetWorkspacesQuery, Lis
         _currentUserService = currentUserService;
     }
 
-    public async Task<List<WorkspaceDto>> Handle(GetWorkspacesQuery request, CancellationToken cancellationToken)
+    public async Task<Result<List<WorkspaceDto>>> Handle(GetWorkspacesQuery request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId;
         if (!userId.HasValue)
-            throw new UnauthorizedException();
+            return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         return await _context.WorkspaceMembers
             .AsNoTracking()

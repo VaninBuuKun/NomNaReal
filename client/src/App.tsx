@@ -294,8 +294,8 @@ export const App: React.FC = () => {
     <>
       {/* Main Fullscreen Layout with Resizable Sidebars */}
       <main
-        className="app-layout"
         id="appLayout"
+        className="flex-1 min-h-0 flex overflow-hidden h-screen h-[100dvh] w-screen relative"
         style={{
           userSelect: isResizingChannel || isResizingThread ? 'none' : 'auto',
           cursor: isResizingChannel || isResizingThread ? 'col-resize' : 'auto',
@@ -323,7 +323,11 @@ export const App: React.FC = () => {
 
         {/* 2.5 Resizer Divider between Channel Sidebar & Chat Area */}
         <div
-          className={`pane-resizer ${isResizingChannel ? 'resizing' : ''}`}
+          className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+            isResizingChannel
+              ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
+              : 'bg-[var(--border-color)]'
+          }`}
           onMouseDown={handleChannelResizeStart}
           title="Kéo sang trái/phải để chỉnh kích thước Sidebar Kênh (Tối thiểu 200px)"
         />
@@ -346,7 +350,11 @@ export const App: React.FC = () => {
         {/* 3.5 Resizer Divider between Chat Area & Thread Panel (when open) */}
         {isThreadOpen && (
           <div
-            className={`pane-resizer ${isResizingThread ? 'resizing' : ''}`}
+            className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+              isResizingThread
+                ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
+                : 'bg-[var(--border-color)]'
+            }`}
             onMouseDown={handleThreadResizeStart}
             title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thread (Tối thiểu 360px)"
           />

@@ -155,18 +155,12 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
 
   return (
     <aside
-      className="thread-sidebar"
       id="threadSidebar"
-      style={{
-        width: `${width}px`,
-        minWidth: '360px',
-        maxWidth: '720px',
-        flexShrink: 0,
-        display: 'flex',
-      }}
+      className="h-full min-h-0 shrink-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col overflow-hidden min-w-[360px] max-w-[720px]"
+      style={{ width: `${width}px` }}
     >
       {/* 1. Thread Header */}
-      <div className="thread-top-bar">
+      <div className="h-[54px] border-b border-[var(--border-color)] px-4 flex items-center justify-between font-bold text-[0.92rem] shrink-0 bg-[var(--bg-sidebar)] select-none">
         <div className="flex items-center gap-2">
           <ChatCenteredDots size={17} weight="bold" className="text-[var(--accent-primary)]" />
           <span className="font-bold text-sm text-[var(--text-primary)]">
@@ -178,7 +172,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
         </div>
         <button
           type="button"
-          className="icon-tool-btn"
+          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
           onClick={onClose}
           title="Đóng bảng thread (Esc)"
         >
@@ -187,7 +181,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
       </div>
 
       {/* 2. Messages List */}
-      <div className="thread-content-list flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
         {/* Parent Root Message Card */}
         <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-color)] flex flex-col gap-2 shadow-xs">
           <div className="flex items-center justify-between">
@@ -219,52 +213,49 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
         {replies.map((r) => {
           const isMe = r.sender === 'Bạn' || (currentUser && r.sender === currentUser.displayName);
           return (
-            <div key={r.id} className="chat-bubble-row group relative p-2.5 rounded-xl hover:bg-[var(--bg-surface)] transition-all">
+            <div key={r.id} className="group relative p-2.5 rounded-xl hover:bg-[var(--bg-surface)] transition-all flex gap-3">
               <div
-                className="bubble-avatar"
+                className="w-[30px] h-[30px] rounded-lg shrink-0 flex items-center justify-center font-bold text-[0.74rem] text-white shadow-xs"
                 style={{
-                  width: '30px',
-                  height: '30px',
-                  fontSize: '0.74rem',
                   background: r.color,
                 }}
               >
                 {r.initials}
               </div>
-              <div className="bubble-body flex-1 min-w-0">
-                <div className="bubble-header flex items-baseline gap-2">
-                  <span className="sender-name text-xs font-bold text-[var(--text-primary)]">
+              <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs font-bold text-[var(--text-primary)]">
                     {r.sender}
                   </span>
-                  <span className="role-badge text-[0.62rem]">
+                  <span className="bg-[var(--accent-soft)] text-[var(--accent-primary)] text-[0.62rem] px-1.5 py-0.2 rounded font-bold uppercase">
                     {isMe ? 'YOU' : 'DEV'}
                   </span>
-                  <span className="send-time text-[0.68rem] text-[var(--text-muted)]">{r.time}</span>
+                  <span className="text-[0.68rem] text-[var(--text-muted)]">{r.time}</span>
                 </div>
 
-                <div className="bubble-content text-xs text-[var(--text-primary)] mt-0.5 leading-relaxed">
+                <div className="text-xs text-[var(--text-primary)] mt-0.5 leading-relaxed break-words whitespace-pre-wrap">
                   {r.content}
                 </div>
 
                 {/* Optional code snippet */}
                 {r.codeSnippet && (
-                  <div className="code-snippet text-[0.75rem] p-2.5 rounded-lg mt-2 font-mono overflow-x-auto">
+                  <div className="bg-[var(--code-bg)] text-[var(--code-text)] text-[0.75rem] p-2.5 rounded-lg mt-2 font-mono overflow-x-auto leading-normal">
                     {r.codeSnippet}
                   </div>
                 )}
 
                 {/* Emoji reactions row */}
                 {r.reactions && Object.keys(r.reactions).length > 0 && (
-                  <div className="reaction-row flex gap-1.5 mt-2 flex-wrap">
+                  <div className="flex gap-1.5 mt-2 flex-wrap">
                     {Object.entries(r.reactions).map(([emoji, item]) => (
                       <button
                         type="button"
                         key={emoji}
                         onClick={() => toggleReaction(r.id, emoji)}
-                        className={`reaction-button text-[0.72rem] px-2 py-0.5 rounded-md flex items-center gap-1 transition-all ${
+                        className={`text-[0.72rem] px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
                           item.active
-                            ? 'bg-[var(--accent-soft)] border-[var(--accent-primary)] text-[var(--accent-primary)] font-bold'
-                            : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-color)]'
+                            ? 'bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-[var(--accent-primary)] font-bold'
+                            : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:border-[var(--border-hover)]'
                         }`}
                       >
                         <span>{emoji}</span>
@@ -276,10 +267,10 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
               </div>
 
               {/* Hover Floating Action Toolbar */}
-              <div className="float-action-toolbar opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute -top-3 right-3 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-lg p-0.5 flex gap-0.5 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 transition-all duration-150 shadow-md z-10">
                 <button
                   type="button"
-                  className="toolbar-icon-btn"
+                  className="p-1 px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer"
                   title="Thả tim"
                   onClick={() => toggleReaction(r.id, '❤️')}
                 >
@@ -287,7 +278,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="toolbar-icon-btn"
+                  className="p-1 px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer"
                   title="Like"
                   onClick={() => toggleReaction(r.id, '👍')}
                 >
@@ -295,7 +286,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="toolbar-icon-btn"
+                  className="p-1 px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer"
                   title="Fire"
                   onClick={() => toggleReaction(r.id, '🔥')}
                 >
@@ -303,17 +294,25 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="toolbar-icon-btn"
+                  className="p-1 px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer"
                   title="Rocket"
                   onClick={() => toggleReaction(r.id, '🚀')}
                 >
                   🚀
                 </button>
-                <button type="button" className="toolbar-icon-btn" title="Ghim">
+                <button
+                  type="button"
+                  className="p-1 px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer"
+                  title="Ghim"
+                >
                   <PushPin size={13} />
                 </button>
                 {isMe && (
-                  <button type="button" className="toolbar-icon-btn" title="Chỉnh sửa">
+                  <button
+                    type="button"
+                    className="p-1 px-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded text-xs transition-colors cursor-pointer"
+                    title="Chỉnh sửa"
+                  >
                     <PencilSimple size={13} />
                   </button>
                 )}
@@ -325,8 +324,8 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
       </div>
 
       {/* 3. Rich Chat Input Area for Thread */}
-      <div className="chat-input-area p-3 shrink-0">
-        <div className="input-card">
+      <div className="p-3 shrink-0">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 px-3 flex flex-col gap-2 transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_4px_16px_var(--accent-glow)]">
           {/* Quick Emoji Bar Popup */}
           {showEmojiBar && (
             <div className="flex items-center gap-2 p-1.5 mb-1 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-md animate-in slide-in-from-bottom-2 duration-150">
@@ -344,7 +343,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
           )}
 
           <textarea
-            className="message-textarea"
+            className="bg-transparent border-none outline-none text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-[0.88rem] resize-none w-full leading-normal"
             rows={2}
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
@@ -353,11 +352,11 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
             placeholder="Trả lời trong thread... (Enter để gửi, Shift+Enter xuống dòng)"
           />
 
-          <div className="input-toolbar">
-            <div className="toolbar-left flex items-center gap-1">
+          <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                className="icon-tool-btn"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
                 title="Đính kèm tệp tin"
                 onClick={() => alert('Chọn tệp đính kèm trong thread')}
               >
@@ -365,7 +364,11 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
               </button>
               <button
                 type="button"
-                className={`icon-tool-btn ${showEmojiBar ? 'text-[var(--accent-primary)]' : ''}`}
+                className={`p-1.5 rounded-md transition-colors cursor-pointer inline-flex items-center justify-center ${
+                  showEmojiBar
+                    ? 'text-[var(--accent-primary)] bg-[var(--accent-soft)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]'
+                }`}
                 title="Thêm Emoji"
                 onClick={() => setShowEmojiBar(!showEmojiBar)}
               >
@@ -373,7 +376,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
               </button>
               <button
                 type="button"
-                className="icon-tool-btn"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
                 title="Chèn mã code"
                 onClick={insertCodeTemplate}
               >
@@ -381,7 +384,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
               </button>
               <button
                 type="button"
-                className="icon-tool-btn"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
                 title="Gửi hình ảnh"
                 onClick={() => alert('Chọn hình ảnh để tải lên thread')}
               >
@@ -389,10 +392,10 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
               </button>
             </div>
 
-            <div className="toolbar-right">
+            <div className="flex items-center">
               <button
                 type="button"
-                className="submit-send-btn"
+                className="bg-[var(--accent-primary)] text-white border-none px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all duration-150 flex items-center gap-1.5 shadow-[0_2px_8px_var(--accent-glow)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_14px_var(--accent-glow)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 onClick={handleSendReply}
                 disabled={!replyText.trim()}
               >

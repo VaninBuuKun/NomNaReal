@@ -29,7 +29,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
         ];
 
   return (
-    <aside className="workspace-rail">
+    <aside className="w-[68px] h-full min-h-0 shrink-0 bg-[var(--bg-rail)] border-r border-[var(--border-color)] py-3.5 flex flex-col items-center gap-3 overflow-y-auto overflow-x-hidden select-none">
       {displayWorkspaces.map((ws) => {
         const isActive = activeWorkspaceId === ws.id || (!activeWorkspaceId && ws.id === displayWorkspaces[0].id);
         const initials =
@@ -45,20 +45,23 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
             key={ws.id}
             title={ws.name}
             onClick={() => onSelectWorkspace(ws.id)}
-            className={`ws-item ${isActive ? 'active' : ''}`}
+            className={`relative w-11 h-11 flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border ${
+              isActive
+                ? "bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)] rounded-[14px] before:content-[''] before:absolute before:-left-3.5 before:w-1 before:h-5.5 before:bg-[var(--accent-primary)] before:rounded-r"
+                : "rounded-xl bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-primary)] hover:text-white hover:border-transparent hover:rounded-[14px] hover:shadow-[0_4px_12px_var(--accent-glow)]"
+            }`}
           >
             {initials}
           </div>
         );
       })}
 
-      <div className="rail-divider" />
+      <div className="w-7.5 h-px bg-[var(--border-color)] my-0.5 shrink-0" />
 
       {/* Add Workspace Button */}
       <button
         type="button"
-        className="ws-item"
-        style={{ border: '1px dashed var(--text-muted)', background: 'transparent' }}
+        className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--text-muted)] border border-dashed border-[var(--text-muted)] bg-transparent hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-soft)] transition-all duration-200 cursor-pointer"
         title="Tạo Workspace mới"
         onClick={onCreateWorkspace}
       >

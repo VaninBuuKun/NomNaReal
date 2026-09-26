@@ -1,12 +1,12 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using NomNa.Application.Common.Exceptions;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Channels.DTOs;
 
 namespace NomNa.Application.Features.Channels.Queries.GetChannels;
 
-public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, List<ChannelDto>>
+public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<List<ChannelDto>>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -17,18 +17,18 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, List<Ch
         _currentUserService = currentUserService;
     }
 
-    public async Task<List<ChannelDto>> Handle(GetChannelsQuery request, CancellationToken cancellationToken)
+    public async Task<Result<List<ChannelDto>>> Handle(GetChannelsQuery request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId;
         if (!userId.HasValue)
-            throw new UnauthorizedException();
+            return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         // Check if user is a member of this workspace
         var isMember = await _context.WorkspaceMembers
             .AnyAsync(wm => wm.WorkspaceId == request.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
 
         if (!isMember)
-            throw new UnauthorizedException("You are not a member of this workspace.");
+            return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
 
         return await _context.Channels
             .AsNoTracking()

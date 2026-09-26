@@ -1,13 +1,13 @@
 using MediatR;
-using NomNa.Application.Common.Exceptions;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Workspaces.DTOs;
 using NomNa.Domain.Entities;
 using NomNa.Domain.Enums;
 
 namespace NomNa.Application.Features.Workspaces.Commands.CreateWorkspace;
 
-public class CreateWorkspaceCommandHandler : IRequestHandler<CreateWorkspaceCommand, WorkspaceDto>
+public class CreateWorkspaceCommandHandler : IRequestHandler<CreateWorkspaceCommand, Result<WorkspaceDto>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -18,11 +18,11 @@ public class CreateWorkspaceCommandHandler : IRequestHandler<CreateWorkspaceComm
         _currentUserService = currentUserService;
     }
 
-    public async Task<WorkspaceDto> Handle(CreateWorkspaceCommand request, CancellationToken cancellationToken)
+    public async Task<Result<WorkspaceDto>> Handle(CreateWorkspaceCommand request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId;
         if (!userId.HasValue)
-            throw new UnauthorizedException();
+            return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         var workspace = new Workspace
         {

@@ -32,6 +32,10 @@ export const authApi = {
     const res = await apiClient.get<User>('/auth/me');
     return res.data;
   },
+  googleLogin: async (idToken: string): Promise<AuthResponse> => {
+    const res = await apiClient.post<AuthResponse>('/auth/google', { idToken });
+    return res.data;
+  },
 };
 
 export const chatApi = {

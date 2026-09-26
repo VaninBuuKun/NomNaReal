@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNa.Application.Features.Auth.Commands.GoogleLogin;
 using NomNa.Application.Features.Auth.Commands.Login;
 using NomNa.Application.Features.Auth.Commands.RefreshToken;
 using NomNa.Application.Features.Auth.Commands.Register;
@@ -19,6 +20,13 @@ public class AuthController : ApiControllerBase
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginCommand command)
     {
         var result = await Mediator.Send(command);
         return HandleResult(result);

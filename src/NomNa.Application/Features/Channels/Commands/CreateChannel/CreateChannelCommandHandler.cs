@@ -1,13 +1,13 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using NomNa.Application.Common.Exceptions;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Channels.DTOs;
 using NomNa.Domain.Entities;
 
 namespace NomNa.Application.Features.Channels.Commands.CreateChannel;
 
-public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand, ChannelDto>
+public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand, Result<ChannelDto>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -18,23 +18,23 @@ public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand,
         _currentUserService = currentUserService;
     }
 
-    public async Task<ChannelDto> Handle(CreateChannelCommand request, CancellationToken cancellationToken)
+    public async Task<Result<ChannelDto>> Handle(CreateChannelCommand request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId;
         if (!userId.HasValue)
-            throw new UnauthorizedException();
+            return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         var isMember = await _context.WorkspaceMembers
             .AnyAsync(wm => wm.WorkspaceId == request.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
 
         if (!isMember)
-            throw new UnauthorizedException("You are not a member of this workspace.");
+            return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
 
         var channelName = request.Name.Trim().ToLowerInvariant();
 
         if (await _context.Channels.AnyAsync(c => c.WorkspaceId == request.WorkspaceId && c.Name == channelName, cancellationToken))
         {
-            throw new AppException($"Channel #{channelName} already exists in this workspace.");
+            return Error.Conflict("Channel.AlreadyExists", $"Channel #{channelName} already exists in this workspace.");
         }
 
         var channel = new Channel
