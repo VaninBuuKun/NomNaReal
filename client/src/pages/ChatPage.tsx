@@ -1,27 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { WorkspaceRail } from '../components/WorkspaceRail';
-import { ChannelSidebar } from '../components/ChannelSidebar';
-import { ChatArea } from '../components/ChatArea';
-import { ThreadPanel } from '../components/ThreadPanel';
-import { SettingsModal } from '../components/SettingsModal';
-import { CreateWorkspaceModal } from '../components/CreateWorkspaceModal';
-import { authApi, chatApi } from '../services/api';
-import { signalRService } from '../services/signalr';
+import { WorkspaceRail, CreateWorkspaceModal } from '../components/workspace';
+import { ChannelSidebar } from '../components/channel';
+import { ChatArea } from '../components/chat';
+import { ThreadPanel } from '../components/thread';
+import { SettingsModal } from '../components/settings';
+import { authApi, workspaceApi, channelApi, messageApi, signalRService } from '../services';
+import { useTheme } from '../hooks/useTheme';
 import type { User, Workspace, Channel, Message } from '../types';
 
 export const ChatPage: React.FC = () => {
   const navigate = useNavigate();
-
-  // Theme state: Warm Orange default (user customizable in Settings)
-  const [theme, setTheme] = useState<string>(() => {
-    const saved = localStorage.getItem('nomna_theme') || 'warm-orange';
-    if (typeof document !== 'undefined') {
-      document.documentElement.setAttribute('data-theme', saved);
-      document.body.setAttribute('data-theme', saved);
-    }
-    return saved;
-  });
+  const { theme, changeTheme } = useTheme();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -109,21 +99,11 @@ export const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [typingUser, setTypingUser] = useState<string | null>(null);
 
-  const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme);
-    localStorage.setItem('nomna_theme', newTheme);
-  };
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.setAttribute('data-theme', theme);
-  }, [theme]);
-
   // Fetch Channel Messages
   const loadMessages = async (channelId: string) => {
     try {
-      const msgs = await chatApi.getMessages(channelId);
-      setMessages(msgs);
+      const msgs = await messageApi.getMessages(channelId);
+      setMessages(msgs.reverse());
     } catch (err) {
       console.error('Failed to load messages:', err);
     }
@@ -140,7 +120,7 @@ export const ChatPage: React.FC = () => {
   const handleSelectWorkspace = async (workspaceId: string) => {
     setActiveWorkspaceId(workspaceId);
     try {
-      const chs = await chatApi.getChannels(workspaceId);
+      const chs = await channelApi.getChannels(workspaceId);
       setChannels(chs);
       if (chs.length > 0) {
         handleSelectChannel(chs[0].id);
@@ -222,7 +202,7 @@ export const ChatPage: React.FC = () => {
       });
 
       // Load Workspaces from backend
-      const wsList = await chatApi.getWorkspaces();
+      const wsList = await workspaceApi.getWorkspaces();
       setWorkspaces(wsList);
 
       if (wsList.length > 0) {
@@ -230,7 +210,7 @@ export const ChatPage: React.FC = () => {
         setActiveWorkspaceId(firstWsId);
 
         // Load Channels of first workspace
-        const chList = await chatApi.getChannels(firstWsId);
+        const chList = await channelApi.getChannels(firstWsId);
         setChannels(chList);
 
         if (chList.length > 0) {
@@ -255,8 +235,13 @@ export const ChatPage: React.FC = () => {
     };
   }, []);
 
-  // Logout Handler: Closes settings, clears tokens, stops SignalR, and routes to /login
-  const handleLogout = () => {
+  // Logout Handler
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // ignore
+    }
     localStorage.removeItem('nomna_token');
     localStorage.removeItem('nomna_refresh_token');
     signalRService.disconnect();
@@ -280,7 +265,7 @@ export const ChatPage: React.FC = () => {
         });
       }
     } catch {
-      const msg = await chatApi.sendMessage(activeChannelId, content);
+      const msg = await messageApi.sendMessage(activeChannelId, content);
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
@@ -303,7 +288,7 @@ export const ChatPage: React.FC = () => {
     if (!name?.trim()) return;
 
     try {
-      const ch = await chatApi.createChannel(activeWorkspaceId, name.trim().toLowerCase());
+      const ch = await channelApi.createChannel(activeWorkspaceId, name.trim().toLowerCase());
       setChannels((prev) => [...prev, ch]);
       handleSelectChannel(ch.id);
     } catch (err: any) {
@@ -324,7 +309,7 @@ export const ChatPage: React.FC = () => {
     try {
       await signalRService.toggleReaction(messageId, emoji);
     } catch {
-      await chatApi.toggleReaction(messageId, emoji);
+      await messageApi.toggleReaction(messageId, emoji);
     }
   };
 
@@ -335,7 +320,7 @@ export const ChatPage: React.FC = () => {
         setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
       }
     } catch {
-      const updated = await chatApi.editMessage(messageId, content);
+      const updated = await messageApi.editMessage(messageId, content);
       setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
     }
   };
@@ -345,14 +330,13 @@ export const ChatPage: React.FC = () => {
       await signalRService.deleteMessage(messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
     } catch {
-      await chatApi.deleteMessage(messageId);
+      await messageApi.deleteMessage(messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
     }
   };
 
   return (
     <>
-      {/* Main Fullscreen Layout with Resizable Sidebars */}
       <main
         id="appLayout"
         className="flex-1 min-h-0 flex overflow-hidden h-screen h-[100dvh] w-screen relative"
@@ -361,7 +345,7 @@ export const ChatPage: React.FC = () => {
           cursor: isResizingChannel || isResizingThread ? 'col-resize' : 'auto',
         }}
       >
-        {/* 1. Workspace Rail (68px) */}
+        {/* 1. Workspace Rail */}
         <WorkspaceRail
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
@@ -369,7 +353,7 @@ export const ChatPage: React.FC = () => {
           onCreateWorkspace={handleCreateWorkspace}
         />
 
-        {/* 2. Channels Sidebar (Resizable: default 240px, min 200px, max 450px) */}
+        {/* 2. Channels Sidebar */}
         <ChannelSidebar
           currentWorkspace={currentWorkspace}
           channels={channels}
@@ -382,7 +366,7 @@ export const ChatPage: React.FC = () => {
           width={channelWidth}
         />
 
-        {/* 2.5 Resizer Divider between Channel Sidebar & Chat Area */}
+        {/* 2.5 Resizer Divider */}
         <div
           className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
             isResizingChannel
@@ -393,7 +377,7 @@ export const ChatPage: React.FC = () => {
           title="Kéo sang trái/phải để chỉnh kích thước Sidebar Kênh (Tối thiểu 200px)"
         />
 
-        {/* 3. Active Chat Area (flex: 1) */}
+        {/* 3. Active Chat Area */}
         <ChatArea
           currentChannel={currentChannel}
           messages={messages}
@@ -415,7 +399,7 @@ export const ChatPage: React.FC = () => {
           onOpenThread={handleOpenThread}
         />
 
-        {/* 3.5 Resizer Divider between Chat Area & Thread Panel (when open) */}
+        {/* 3.5 Resizer Divider */}
         {isThreadOpen && (
           <div
             className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
@@ -428,7 +412,7 @@ export const ChatPage: React.FC = () => {
           />
         )}
 
-        {/* 4. Collapsible Thread Panel (Resizable: default 480px, min 360px, max 720px) */}
+        {/* 4. Collapsible Thread Panel */}
         <ThreadPanel
           isOpen={isThreadOpen}
           onClose={() => {
@@ -445,17 +429,17 @@ export const ChatPage: React.FC = () => {
         />
       </main>
 
-      {/* Settings Modal (User Account Settings Only) */}
+      {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         currentUser={currentUser}
         onLogout={handleLogout}
         currentTheme={theme}
-        onThemeChange={handleThemeChange}
+        onThemeChange={changeTheme}
       />
 
-      {/* Create Workspace Modal (Mandatory Name & Avatar) */}
+      {/* Create Workspace Modal */}
       <CreateWorkspaceModal
         isOpen={isCreateWorkspaceOpen}
         onClose={() => setIsCreateWorkspaceOpen(false)}

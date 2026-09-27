@@ -20,17 +20,40 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
 
     public async Task<Result<AuthResultDto>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        var user = await _context.Users
-            .Include(u => u.RefreshTokens)
-            .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
+        User? user = null;
+        NomNa.Domain.Entities.RefreshToken? matchingToken = null;
 
-        if (user == null)
-            return Error.NotFound("User.NotFound", "User not found.");
+        if (request.UserId != Guid.Empty)
+        {
+            user = await _context.Users
+                .Include(u => u.RefreshTokens)
+                .FirstOrDefaultAsync(u => u.Id == request.UserId, cancellationToken);
 
-        var activeTokens = user.RefreshTokens.Where(t => t.IsActive).ToList();
-        var matchingToken = activeTokens.FirstOrDefault(t => BCrypt.Net.BCrypt.Verify(request.RefreshToken, t.TokenHash));
+            if (user == null)
+                return Error.NotFound("User.NotFound", "User not found.");
 
-        if (matchingToken == null)
+            var activeTokens = user.RefreshTokens.Where(t => t.IsActive).ToList();
+            matchingToken = activeTokens.FirstOrDefault(t => BCrypt.Net.BCrypt.Verify(request.RefreshToken, t.TokenHash));
+        }
+        else
+        {
+            var activeTokens = await _context.RefreshTokens
+                .Include(t => t.User)
+                .Where(t => t.RevokedAt == null && t.ExpiresAt > DateTime.UtcNow)
+                .ToListAsync(cancellationToken);
+
+            foreach (var token in activeTokens)
+            {
+                if (BCrypt.Net.BCrypt.Verify(request.RefreshToken, token.TokenHash))
+                {
+                    matchingToken = token;
+                    user = token.User;
+                    break;
+                }
+            }
+        }
+
+        if (matchingToken == null || user == null)
             return Error.Unauthorized("Auth.InvalidToken", "Invalid or expired refresh token.");
 
         // Revoke old token
