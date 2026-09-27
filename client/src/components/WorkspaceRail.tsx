@@ -45,13 +45,21 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
             key={ws.id}
             title={ws.name}
             onClick={() => onSelectWorkspace(ws.id)}
-            className={`relative w-11 h-11 flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border ${
+            className={`relative w-11 h-11 flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border overflow-hidden ${
               isActive
                 ? "bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)] rounded-[14px] before:content-[''] before:absolute before:-left-[12px] before:top-1/2 before:-translate-y-1/2 before:w-[3.5px] before:h-[50px] before:bg-[var(--accent-primary)] before:rounded-r-full"
                 : "rounded-xl bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-primary)] hover:text-white hover:border-transparent hover:rounded-[14px] hover:shadow-[0_4px_12px_var(--accent-glow)]"
             }`}
           >
-            {initials}
+            {ws.iconUrl ? (
+              <img
+                src={ws.iconUrl}
+                alt={ws.name}
+                className="w-full h-full object-cover rounded-[inherit]"
+              />
+            ) : (
+              initials
+            )}
           </div>
         );
       })}

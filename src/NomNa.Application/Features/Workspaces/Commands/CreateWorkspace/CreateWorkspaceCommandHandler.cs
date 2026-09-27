@@ -28,6 +28,7 @@ public class CreateWorkspaceCommandHandler : IRequestHandler<CreateWorkspaceComm
         {
             Name = request.Name.Trim(),
             Description = request.Description?.Trim(),
+            IconUrl = request.IconUrl.Trim(),
             OwnerId = userId.Value
         };
 

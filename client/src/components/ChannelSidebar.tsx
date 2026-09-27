@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CaretDown, Plus, Hash, LockSimple, Gear, Sparkle, UserPlus, SignOut } from '@phosphor-icons/react';
+import { Avatar } from '@/shared/ui';
 import type { Channel, User, Workspace } from '../types';
 
 interface ChannelSidebarProps {
@@ -87,27 +88,44 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   return (
     <aside
       id="channelSidebar"
-      className="h-full min-h-0 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col overflow-hidden min-w-[200px] max-w-[450px]"
+      className="h-full min-h-0 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col overflow-visible min-w-[200px] max-w-[450px] relative z-30"
       style={{ width: `${width}px` }}
     >
       {/* Workspace Header with Dropdown */}
-      <div className="relative shrink-0">
-        <div
-          className="h-[54px] px-4 border-b border-[var(--border-color)] flex items-center justify-between font-bold text-[0.95rem] cursor-pointer bg-[var(--bg-sidebar)] hover:bg-[var(--bg-surface)] transition-colors select-none"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          title="Tùy chọn Workspace"
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="truncate text-[var(--text-primary)] font-bold">{currentWorkspace?.name || 'Nexus Hub'}</span>
+      <div className="relative shrink-0 z-50">
+        <div className="h-[54px] px-3.5 border-b border-[var(--border-color)] flex items-center justify-between font-bold text-[0.95rem] bg-[var(--bg-sidebar)] select-none">
+          {/* Only clicking from name to caret icon toggles dropdown; the rest of the header does not */}
+          <button
+            type="button"
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+            className="flex items-center gap-2 max-w-[calc(100%-8px)] px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] transition-colors cursor-pointer text-left group"
+            title="Tùy chọn Workspace"
+          >
+            <span className="truncate text-[var(--text-primary)] font-bold text-[0.95rem]">
+              {currentWorkspace?.name || 'Nexus Hub'}
+            </span>
             <CaretDown
               size={13}
               weight="bold"
-              className={`text-[var(--text-muted)] shrink-0 transition-transform duration-200 ${isMenuOpen ? 'rotate-180 text-[var(--accent-primary)]' : ''}`}
+              className={`text-[var(--text-muted)] group-hover:text-[var(--text-primary)] shrink-0 transition-transform duration-200 ${
+                isMenuOpen ? 'rotate-180 text-[var(--accent-primary)]' : ''
+              }`}
             />
-          </div>
+          </button>
         </div>
 
-        {/* Dropdown Menu */}
+        {/* Fullscreen Backdrop Overlay: Click outside to dismiss first without triggering other actions */}
+        {isMenuOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/10 backdrop-blur-[0.5px]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
+            }}
+          />
+        )}
+
+        {/* Dropdown Menu (on top of everything z-50) */}
         {isMenuOpen && (
           <div
             ref={menuRef}
@@ -282,10 +300,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
       {/* User Account Footer */}
       <div className="h-14 bg-[var(--bg-rail)] border-t border-[var(--border-color)] px-3 flex items-center justify-between shrink-0 select-none">
         <div className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1 hover:opacity-90 transition-opacity" onClick={onOpenSettings} title="Mở Cài đặt">
-          <div className="relative w-8.5 h-8.5 rounded-xl bg-[var(--accent-primary)] text-white flex items-center justify-center font-bold text-[0.8rem] shrink-0">
-            {currentUser?.displayName.slice(0, 2).toUpperCase() || 'AR'}
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--status-online)] border-2 border-[var(--bg-rail)]" />
-          </div>
+          <Avatar
+            src={currentUser?.avatarUrl}
+            fallback={currentUser?.displayName || 'User'}
+            size="sm"
+            status="online"
+          />
           <div className="min-w-0">
             <div className="text-[0.85rem] font-bold truncate text-[var(--text-primary)]">
               {currentUser?.displayName || 'Alex Rivers'}

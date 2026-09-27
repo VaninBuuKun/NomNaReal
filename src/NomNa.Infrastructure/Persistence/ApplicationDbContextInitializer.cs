@@ -78,6 +78,7 @@ public class ApplicationDbContextInitializer
         {
             Name = "Nexus Hub",
             Description = "Trung tâm làm việc & phát triển sản phẩm của team NomNa",
+            IconUrl = "/default-avatar.png",
             InviteCode = "NEXUS123",
             Owner = alex
         };

@@ -1,31 +1,31 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: pulsechat_postgres
+    container_name: nomna_postgres
     restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: pulsechat
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: NomNa
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: 123456
     volumes:
-      - pulsechat_pgdata:/var/lib/postgresql/data
+      - NomNa_db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U db_user -d NomNa"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: pulsechat_redis
+    container_name: nomna_redis
     restart: unless-stopped
     ports:
       - "6380:6379"
     volumes:
-      - pulsechat_redisdata:/data
+      - NomNa_redis:/data
 
 volumes:
-  pulsechat_pgdata:
-  pulsechat_redisdata:
+  NomNa_db:
+  NomNa_redis:

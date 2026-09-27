@@ -44,6 +44,15 @@ public class WorkspacesController : ApiControllerBase
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
+
+    [HttpPost("{workspaceId}/dm")]
+    public async Task<IActionResult> CreateOrGetDm([FromRoute] Guid workspaceId, [FromBody] CreateDmRequest request)
+    {
+        var command = new Application.Features.Channels.Commands.CreateOrGetDmChannel.CreateOrGetDmChannelCommand(workspaceId, request.TargetUserId);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
 }
 
 public record CreateChannelRequest(string Name, string? Topic, Domain.Enums.ChannelType Type = Domain.Enums.ChannelType.Text, bool IsPrivate = false);
+public record CreateDmRequest(Guid TargetUserId);

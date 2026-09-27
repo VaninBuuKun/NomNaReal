@@ -24,9 +24,10 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         // Optimized query: AsNoTracking + Index-friendly CreatedAt cursor + Direct projection
+        // Only return root messages (ThreadId == null) in main channel stream
         var query = _context.Messages
             .AsNoTracking()
-            .Where(m => m.ChannelId == request.ChannelId && m.DeletedAt == null);
+            .Where(m => m.ChannelId == request.ChannelId && m.DeletedAt == null && m.ThreadId == null);
 
         if (request.Before.HasValue)
         {
@@ -48,7 +49,18 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
                 m.Content,
                 m.ThreadId,
                 m.IsEdited,
-                m.CreatedAt
+                m.CreatedAt,
+                m.Replies.Count(r => r.DeletedAt == null),
+                m.Replies.Where(r => r.DeletedAt == null).Max(r => (DateTime?)r.CreatedAt),
+                m.Reactions
+                    .GroupBy(r => r.Emoji)
+                    .Select(g => new ReactionGroupDto(
+                        g.Key,
+                        g.Count(),
+                        g.Select(r => r.UserId).ToList(),
+                        g.Any(r => r.UserId == userId.Value)
+                    ))
+                    .ToList()
             ))
             .ToListAsync(cancellationToken);
 

@@ -24,6 +24,16 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 
+// Configure large file / video upload support (up to 100MB)
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 105 * 1024 * 1024; // 105MB
+});
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 105 * 1024 * 1024; // 105MB
+});
+
 // 3. Configure CORS (allow React Vite dev server)
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
     ?? new[] { "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://localhost:5174", "http://127.0.0.1:5174" };
@@ -94,6 +104,7 @@ using (var scope = app.Services.CreateScope())
 // 6. Middleware Pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+app.UseStaticFiles();
 app.UseCors("CorsPolicy");
 
 app.UseAuthentication();

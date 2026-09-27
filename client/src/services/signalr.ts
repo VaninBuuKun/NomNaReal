@@ -1,5 +1,5 @@
 import * as signalR from '@microsoft/signalr';
-import type { Message } from '../types';
+import type { Message, ReactionUpdate, DeletedMessage } from '../types';
 
 export class SignalRService {
   private connection: signalR.HubConnection | null = null;
@@ -17,8 +17,10 @@ export class SignalRService {
     const token = localStorage.getItem('nomna_token');
     if (!token) return;
 
+    const baseHubUrl = (import.meta.env.VITE_API_URL as string)?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
+
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl('http://localhost:5000/hubs/chat', {
+      .withUrl(`${baseHubUrl}/hubs/chat`, {
         accessTokenFactory: () => localStorage.getItem('nomna_token') || '',
         transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
       })
@@ -59,11 +61,111 @@ export class SignalRService {
     await this.connection.invoke('JoinChannel', channelId);
   }
 
+  public async joinThread(parentMessageId: string): Promise<void> {
+    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke('JoinThread', parentMessageId);
+    }
+  }
+
+  public async leaveThread(parentMessageId: string): Promise<void> {
+    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
+      await this.connection.invoke('LeaveThread', parentMessageId);
+    }
+  }
+
+  public async sendThreadReply(parentMessageId: string, content: string): Promise<Message | null> {
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      return null;
+    }
+    return await this.connection.invoke('SendThreadReply', parentMessageId, content);
+  }
+
+  public onThreadReply(callback: (reply: Message) => void): void {
+    if (this.connection) {
+      this.connection.on('ReceiveThreadReply', callback);
+    }
+  }
+
+  public offThreadReply(callback: (reply: Message) => void): void {
+    if (this.connection) {
+      this.connection.off('ReceiveThreadReply', callback);
+    }
+  }
+
+  public onThreadReplyCountUpdated(callback: (data: { parentMessageId: string; channelId: string; replyId: string; createdAt: string }) => void): void {
+    if (this.connection) {
+      this.connection.on('ThreadReplyCountUpdated', callback);
+    }
+  }
+
+  public offThreadReplyCountUpdated(callback: (data: any) => void): void {
+    if (this.connection) {
+      this.connection.off('ThreadReplyCountUpdated', callback);
+    }
+  }
+
+  public onReactionUpdated(callback: (update: ReactionUpdate) => void): void {
+    if (this.connection) {
+      this.connection.on('ReceiveReactionUpdated', callback);
+    }
+  }
+
+  public offReactionUpdated(callback: (update: ReactionUpdate) => void): void {
+    if (this.connection) {
+      this.connection.off('ReceiveReactionUpdated', callback);
+    }
+  }
+
+  public onMessageEdited(callback: (message: Message) => void): void {
+    if (this.connection) {
+      this.connection.on('MessageEdited', callback);
+    }
+  }
+
+  public offMessageEdited(callback: (message: Message) => void): void {
+    if (this.connection) {
+      this.connection.off('MessageEdited', callback);
+    }
+  }
+
+  public onMessageDeleted(callback: (deleted: DeletedMessage) => void): void {
+    if (this.connection) {
+      this.connection.on('MessageDeleted', callback);
+    }
+  }
+
+  public offMessageDeleted(callback: (deleted: DeletedMessage) => void): void {
+    if (this.connection) {
+      this.connection.off('MessageDeleted', callback);
+    }
+  }
+
   public async sendMessage(channelId: string, content: string, threadId?: string): Promise<Message | null> {
     if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
       return null;
     }
     return await this.connection.invoke('SendMessage', channelId, content, threadId || null);
+  }
+
+  public async editMessage(messageId: string, content: string): Promise<Message | null> {
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      return null;
+    }
+    return await this.connection.invoke('EditMessage', messageId, content);
+  }
+
+  public async deleteMessage(messageId: string): Promise<DeletedMessage | null> {
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      return null;
+    }
+    return await this.connection.invoke('DeleteMessage', messageId);
+  }
+
+  public async toggleReaction(messageId: string, emoji: string): Promise<ReactionUpdate | null> {
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      return null;
+    }
+    return await this.connection.invoke('ToggleReaction', messageId, emoji);
   }
 
   public async startTyping(channelId: string): Promise<void> {

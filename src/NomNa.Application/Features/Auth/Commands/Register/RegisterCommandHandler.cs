@@ -45,6 +45,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
             Email = emailLower,
             UserName = usernameLower,
             DisplayName = request.DisplayName.Trim(),
+            AvatarUrl = null,
             Status = UserStatus.Online
         };
 

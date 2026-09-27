@@ -9,6 +9,9 @@ public static class SignalRConstants
         public const string ReceiveMessage = "ReceiveMessage";
         public const string MessageEdited = "MessageEdited";
         public const string MessageDeleted = "MessageDeleted";
+        public const string ReceiveThreadReply = "ReceiveThreadReply";
+        public const string ThreadReplyCountUpdated = "ThreadReplyCountUpdated";
+        public const string ReceiveReactionUpdated = "ReceiveReactionUpdated";
         public const string UserTyping = "UserTyping";
         public const string UserStoppedTyping = "UserStoppedTyping";
         public const string UserStatusChanged = "UserStatusChanged";
@@ -17,8 +20,14 @@ public static class SignalRConstants
     public static class Methods
     {
         public const string SendMessage = "SendMessage";
+        public const string EditMessage = "EditMessage";
+        public const string DeleteMessage = "DeleteMessage";
+        public const string ToggleReaction = "ToggleReaction";
         public const string JoinChannel = "JoinChannel";
         public const string LeaveChannel = "LeaveChannel";
+        public const string JoinThread = "JoinThread";
+        public const string LeaveThread = "LeaveThread";
+        public const string SendThreadReply = "SendThreadReply";
         public const string StartTyping = "StartTyping";
         public const string StopTyping = "StopTyping";
     }

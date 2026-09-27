@@ -5,6 +5,7 @@ import { ChannelSidebar } from '../components/ChannelSidebar';
 import { ChatArea } from '../components/ChatArea';
 import { ThreadPanel } from '../components/ThreadPanel';
 import { SettingsModal } from '../components/SettingsModal';
+import { CreateWorkspaceModal } from '../components/CreateWorkspaceModal';
 import { authApi, chatApi } from '../services/api';
 import { signalRService } from '../services/signalr';
 import type { User, Workspace, Channel, Message } from '../types';
@@ -24,7 +25,9 @@ export const ChatPage: React.FC = () => {
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [isThreadOpen, setIsThreadOpen] = useState(false);
+  const [activeThreadMessage, setActiveThreadMessage] = useState<Message | null>(null);
 
   // Resizable Sidebars Bounds & State
   const MIN_CHANNEL_WIDTH = 200;
@@ -181,6 +184,43 @@ export const ChatPage: React.FC = () => {
         }
       );
 
+      // Listen for thread reply count updates live
+      signalRService.onThreadReplyCountUpdated((data) => {
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id === data.parentMessageId) {
+              return {
+                ...m,
+                replyCount: (m.replyCount || 0) + 1,
+                lastReplyAt: data.createdAt,
+              };
+            }
+            return m;
+          })
+        );
+      });
+
+      // Listen for realtime reaction updates
+      signalRService.onReactionUpdated((update) => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === update.messageId ? { ...m, reactions: update.reactions } : m
+          )
+        );
+      });
+
+      // Listen for realtime message edits
+      signalRService.onMessageEdited((edited) => {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === edited.id ? edited : m))
+        );
+      });
+
+      // Listen for realtime message deletions
+      signalRService.onMessageDeleted((deleted) => {
+        setMessages((prev) => prev.filter((m) => m.id !== deleted.messageId));
+      });
+
       // Load Workspaces from backend
       const wsList = await chatApi.getWorkspaces();
       setWorkspaces(wsList);
@@ -248,17 +288,13 @@ export const ChatPage: React.FC = () => {
     }
   };
 
-  const handleCreateWorkspace = async () => {
-    const name = prompt('Nhập tên Workspace mới:');
-    if (!name?.trim()) return;
+  const handleCreateWorkspace = () => {
+    setIsCreateWorkspaceOpen(true);
+  };
 
-    try {
-      const ws = await chatApi.createWorkspace(name.trim());
-      setWorkspaces((prev) => [...prev, ws]);
-      handleSelectWorkspace(ws.id);
-    } catch {
-      alert('Không thể tạo workspace.');
-    }
+  const handleWorkspaceCreated = (ws: Workspace) => {
+    setWorkspaces((prev) => [...prev, ws]);
+    handleSelectWorkspace(ws.id);
   };
 
   const handleCreateChannel = async () => {
@@ -277,6 +313,42 @@ export const ChatPage: React.FC = () => {
 
   const currentWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || null;
   const currentChannel = channels.find((c) => c.id === activeChannelId) || null;
+
+  const handleOpenThread = (msg: Message) => {
+    setActiveThreadMessage(msg);
+    setIsThreadOpen(true);
+    handleExpandThread();
+  };
+
+  const handleToggleReaction = async (messageId: string, emoji: string) => {
+    try {
+      await signalRService.toggleReaction(messageId, emoji);
+    } catch {
+      await chatApi.toggleReaction(messageId, emoji);
+    }
+  };
+
+  const handleEditMessage = async (messageId: string, content: string) => {
+    try {
+      const updated = await signalRService.editMessage(messageId, content);
+      if (updated) {
+        setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      }
+    } catch {
+      const updated = await chatApi.editMessage(messageId, content);
+      setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    try {
+      await signalRService.deleteMessage(messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    } catch {
+      await chatApi.deleteMessage(messageId);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    }
+  };
 
   return (
     <>
@@ -327,13 +399,20 @@ export const ChatPage: React.FC = () => {
           messages={messages}
           currentUser={currentUser}
           onSendMessage={handleSendMessage}
+          onEditMessage={handleEditMessage}
+          onDeleteMessage={handleDeleteMessage}
+          onToggleReaction={handleToggleReaction}
           onStartTyping={() => activeChannelId && signalRService.startTyping(activeChannelId)}
           onStopTyping={() => activeChannelId && signalRService.stopTyping(activeChannelId)}
           typingUser={typingUser}
           onToggleThread={() => {
+            if (!activeThreadMessage && messages.length > 0) {
+              setActiveThreadMessage(messages[0]);
+            }
             setIsThreadOpen(true);
             handleExpandThread();
           }}
+          onOpenThread={handleOpenThread}
         />
 
         {/* 3.5 Resizer Divider between Chat Area & Thread Panel (when open) */}
@@ -352,10 +431,17 @@ export const ChatPage: React.FC = () => {
         {/* 4. Collapsible Thread Panel (Resizable: default 480px, min 360px, max 720px) */}
         <ThreadPanel
           isOpen={isThreadOpen}
-          onClose={() => setIsThreadOpen(false)}
+          onClose={() => {
+            setIsThreadOpen(false);
+            setActiveThreadMessage(null);
+          }}
           currentUser={currentUser}
+          parentMessage={activeThreadMessage}
           width={threadWidth}
           onExpandWidth={handleExpandThread}
+          onToggleReaction={handleToggleReaction}
+          onEditMessage={handleEditMessage}
+          onDeleteMessage={handleDeleteMessage}
         />
       </main>
 
@@ -367,6 +453,13 @@ export const ChatPage: React.FC = () => {
         onLogout={handleLogout}
         currentTheme={theme}
         onThemeChange={handleThemeChange}
+      />
+
+      {/* Create Workspace Modal (Mandatory Name & Avatar) */}
+      <CreateWorkspaceModal
+        isOpen={isCreateWorkspaceOpen}
+        onClose={() => setIsCreateWorkspaceOpen(false)}
+        onWorkspaceCreated={handleWorkspaceCreated}
       />
     </>
   );

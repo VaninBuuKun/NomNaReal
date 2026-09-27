@@ -35,6 +35,26 @@ export interface Channel {
   isPrivate: boolean;
 }
 
+export interface ReactionGroup {
+  emoji: string;
+  count: number;
+  userIds: string[];
+  hasReacted: boolean;
+}
+
+export interface ReactionUpdate {
+  messageId: string;
+  channelId: string;
+  threadId?: string | null;
+  reactions: ReactionGroup[];
+}
+
+export interface DeletedMessage {
+  messageId: string;
+  channelId: string;
+  threadId?: string | null;
+}
+
 export interface Message {
   id: string;
   channelId: string;
@@ -46,4 +66,12 @@ export interface Message {
   threadId?: string | null;
   isEdited: boolean;
   createdAt: string;
+  replyCount?: number;
+  lastReplyAt?: string | null;
+  reactions?: ReactionGroup[];
+}
+
+export interface ThreadDetails {
+  parentMessage: Message;
+  replies: Message[];
 }

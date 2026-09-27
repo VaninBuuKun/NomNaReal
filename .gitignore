@@ -5,6 +5,7 @@
 previews/
 
 plans/
+docs/
 
 # IDE & Editor files
 .idea/
@@ -35,11 +36,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Environment files
+# Environment & Secret files
 .env
 .env.local
 .env.*.local
 *.local
+appsettings.Development.json
+appsettings.*.local.json
+appsettings.Local.json
 
 # OS generated
 .DS_Store

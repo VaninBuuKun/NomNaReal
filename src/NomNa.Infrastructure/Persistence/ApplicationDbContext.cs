@@ -15,6 +15,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<ChannelMember> ChannelMembers => Set<ChannelMember>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<MessageReaction> MessageReactions => Set<MessageReaction>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -109,6 +110,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             entity.HasKey(e => e.Id);
             // Critical index for chat app performance: messages by channel and creation time
             entity.HasIndex(e => new { e.ChannelId, e.CreatedAt });
+            entity.HasIndex(e => new { e.ThreadId, e.CreatedAt });
             entity.HasIndex(e => e.SenderId);
             entity.Property(e => e.Content).HasMaxLength(4000).IsRequired();
 
@@ -122,7 +124,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .HasForeignKey(e => e.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne<Message>()
+            entity.HasOne(e => e.ParentMessage)
                 .WithMany(m => m.Replies)
                 .HasForeignKey(e => e.ThreadId)
                 .OnDelete(DeleteBehavior.Cascade);
@@ -137,6 +139,25 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
 
             entity.HasOne(e => e.User)
                 .WithMany(u => u.RefreshTokens)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MessageReaction Configuration
+        builder.Entity<MessageReaction>(entity =>
+        {
+            entity.ToTable("message_reactions");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.MessageId, e.UserId, e.Emoji }).IsUnique();
+            entity.Property(e => e.Emoji).HasMaxLength(32).IsRequired();
+
+            entity.HasOne(e => e.Message)
+                .WithMany(m => m.Reactions)
+                .HasForeignKey(e => e.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });

@@ -6,5 +6,6 @@ namespace NomNa.Application.Features.Workspaces.Commands.CreateWorkspace;
 
 public record CreateWorkspaceCommand(
     string Name,
-    string? Description
+    string? Description,
+    string IconUrl
 ) : IRequest<Result<WorkspaceDto>>;

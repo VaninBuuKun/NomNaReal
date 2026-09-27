@@ -6,6 +6,11 @@ public class CreateWorkspaceCommandValidator : AbstractValidator<CreateWorkspace
 {
     public CreateWorkspaceCommandValidator()
     {
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(100);
+        RuleFor(x => x.Name)
+            .NotEmpty().WithMessage("Workspace name is required.")
+            .MaximumLength(100).WithMessage("Workspace name cannot exceed 100 characters.");
+
+        RuleFor(x => x.IconUrl)
+            .NotEmpty().WithMessage("Workspace avatar / icon is required.");
     }
 }

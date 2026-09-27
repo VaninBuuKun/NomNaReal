@@ -265,11 +265,44 @@ namespace NomNa.Infrastructure.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.HasIndex("ThreadId");
-
                     b.HasIndex("ChannelId", "CreatedAt");
 
+                    b.HasIndex("ThreadId", "CreatedAt");
+
                     b.ToTable("messages", (string)null);
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.MessageReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Emoji")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("MessageId", "UserId", "Emoji")
+                        .IsUnique();
+
+                    b.ToTable("message_reactions", (string)null);
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.RefreshToken", b =>
@@ -567,14 +600,35 @@ namespace NomNa.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("NomNa.Domain.Entities.Message", null)
+                    b.HasOne("NomNa.Domain.Entities.Message", "ParentMessage")
                         .WithMany("Replies")
                         .HasForeignKey("ThreadId")
                         .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Channel");
 
+                    b.Navigation("ParentMessage");
+
                     b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.MessageReaction", b =>
+                {
+                    b.HasOne("NomNa.Domain.Entities.Message", "Message")
+                        .WithMany("Reactions")
+                        .HasForeignKey("MessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNa.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Message");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.RefreshToken", b =>
@@ -627,6 +681,8 @@ namespace NomNa.Infrastructure.Migrations
 
             modelBuilder.Entity("NomNa.Domain.Entities.Message", b =>
                 {
+                    b.Navigation("Reactions");
+
                     b.Navigation("Replies");
                 });
 

@@ -16,6 +16,10 @@ export const Avatar: React.FC<AvatarProps> = ({
   status,
   className,
 }) => {
+  const [imageError, setImageError] = React.useState(false);
+  const defaultAvatar = (import.meta.env.VITE_DEFAULT_AVATAR as string) || '/default-avatar.png';
+  const effectiveSrc = (src && src.trim() !== '') ? src : defaultAvatar;
+
   const sizeClasses = {
     sm: 'w-7 h-7 text-xs rounded-lg',
     md: 'w-9 h-9 text-sm rounded-xl',
@@ -37,14 +41,15 @@ export const Avatar: React.FC<AvatarProps> = ({
     offline: 'bg-zinc-400',
   };
 
-  const initials = fallback.slice(0, 2).toUpperCase();
+  const initials = (fallback || 'U').slice(0, 2).toUpperCase();
 
   return (
     <div className="relative inline-flex shrink-0">
-      {src ? (
+      {effectiveSrc && !imageError ? (
         <img
-          src={src}
+          src={effectiveSrc}
           alt={fallback}
+          onError={() => setImageError(true)}
           className={cn('object-cover shadow-xs', sizeClasses[size], className)}
         />
       ) : (
