@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { SquaresFour, House, Plus, Check, ChatTeardropDots } from '@phosphor-icons/react';
+import { SquaresFour, House, Plus, Check, ChatTeardropDots, ChatTeardropIcon, WechatLogoIcon } from '@phosphor-icons/react';
 import type { Workspace } from '../../types';
 
 interface WorkspaceRailProps {
@@ -65,11 +65,10 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
         type="button"
         title="Danh sách không gian & Điều hướng"
         onClick={() => setIsMenuOpen((prev) => !prev)}
-        className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs ${
-          isMenuOpen
-            ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
-            : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
-        }`}
+        className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs ${isMenuOpen
+          ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
+          : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+          }`}
       >
         <SquaresFour size={22} weight={isMenuOpen ? 'fill' : 'duotone'} />
       </button>
@@ -81,17 +80,16 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
       {activeWorkspace && (
         <div className="relative">
           {activeSidebarView === 'channels' && (
-            <div className="absolute -left-[14px] top-1/2 -translate-y-1/2 w-[3.5px] h-7 bg-[var(--accent-primary)] rounded-r-full shadow-[0_0_8px_var(--accent-glow)]" />
+            <div className="absolute -left-[14px] top-1/2 -translate-y-1/2 w-[3.5px] h-7 bg-[var(--accent-primary)] rounded-[2px] shadow-[0_0_8px_var(--accent-glow)]" />
           )}
 
           <div
             title={`Không gian: ${activeWorkspace.name} (Kênh thảo luận)`}
             onClick={() => onSelectView?.('channels')}
-            className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border overflow-hidden shadow-xs ${
-              activeSidebarView === 'channels'
-                ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
-                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]'
-            }`}
+            className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border overflow-hidden shadow-xs ${activeSidebarView === 'channels'
+              ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
+              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]'
+              }`}
           >
             {activeWorkspace.iconUrl ? (
               <img
@@ -107,25 +105,24 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
       )}
 
       {/* Divider */}
-      <div className="w-8 h-px bg-[var(--border-color)] my-0.5" />
+      {/* <div className="w-8 h-px bg-[var(--border-color)] my-0.5" /> */}
 
       {/* 3. Direct Messages Icon Button */}
       <div className="relative">
         {activeSidebarView === 'dms' && (
-          <div className="absolute -left-[14px] top-1/2 -translate-y-1/2 w-[3.5px] h-7 bg-[var(--accent-primary)] rounded-r-full shadow-[0_0_8px_var(--accent-glow)]" />
+          <div className="absolute -left-[14px] top-1/2 -translate-y-1/2 w-[3.5px] h-7 bg-[var(--accent-primary)] rounded-[2px] shadow-[0_0_8px_var(--accent-glow)]" />
         )}
 
         <button
           type="button"
           title="Tin nhắn trực tiếp (Direct Messages)"
           onClick={() => onSelectView?.('dms')}
-          className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs ${
-            activeSidebarView === 'dms'
-              ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
-              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
-          }`}
+          className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs ${activeSidebarView === 'dms'
+            ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
+            : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+            }`}
         >
-          <ChatTeardropDots size={22} weight={activeSidebarView === 'dms' ? 'fill' : 'duotone'} />
+          <WechatLogoIcon size={22} weight={activeSidebarView === 'dms' ? 'fill' : 'duotone'} />
         </button>
       </div>
 
@@ -185,11 +182,10 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
                         setIsMenuOpen(false);
                         onSelectWorkspace(ws.id);
                       }}
-                      className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[3px] text-xs transition-colors cursor-pointer text-left ${
-                        isActive
-                          ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
-                          : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
-                      }`}
+                      className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[3px] text-xs transition-colors cursor-pointer text-left ${isActive
+                        ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
+                        : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
+                        }`}
                     >
                       <div className="w-6 h-6 rounded-[3px] overflow-hidden border border-[var(--border-color)] bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-[10px] shrink-0">
                         {ws.iconUrl ? (

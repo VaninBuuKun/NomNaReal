@@ -5,6 +5,7 @@ import {
   ChatTeardropDots,
   PaperPlaneTilt,
   X,
+  WechatLogoIcon,
 } from '@phosphor-icons/react';
 import type { DirectMessageUser } from './NewDirectMessageModal';
 
@@ -67,7 +68,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
       <div className="h-[54px] px-3.5 border-b border-[var(--border-color)] flex items-center justify-between font-bold text-[0.95rem] bg-[var(--bg-sidebar)] select-none shrink-0">
         <div className="flex items-center gap-2 text-[var(--text-primary)]">
           <div className="w-7 h-7 rounded-[4px] bg-[var(--accent-soft)] flex items-center justify-center text-[var(--accent-primary)] shrink-0">
-            <ChatTeardropDots size={18} weight="fill" />
+            <WechatLogoIcon size={24} weight="fill" />
           </div>
           <span className="truncate font-bold text-[0.95rem]">Tin nhắn trực tiếp</span>
         </div>
@@ -76,10 +77,10 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
         <button
           type="button"
           onClick={onOpenNewDm}
-          title="Bắt đầu tin nhắn mới"
-          className="w-7 h-7 rounded-[3px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer border border-transparent hover:border-[var(--border-color)] shrink-0"
+          title="Nhắn tin với thành viên mới"
+          className="w-8 h-8 rounded-[3px] bg-[var(--accent-primary)] hover:opacity-90 text-white flex items-center justify-center shadow-xs transition-transform active:scale-95 cursor-pointer shrink-0"
         >
-          <Plus size={15} weight="bold" />
+          <Plus size={16} weight="bold" />
         </button>
       </div>
 
@@ -111,7 +112,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
             )}
           </div>
 
-          {/* Plus Action Button on the Right */}
+          {/* Plus Action Button on the Right
           <button
             type="button"
             onClick={onOpenNewDm}
@@ -119,7 +120,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
             className="w-8 h-8 rounded-[3px] bg-[var(--accent-primary)] hover:opacity-90 text-white flex items-center justify-center shadow-xs transition-transform active:scale-95 cursor-pointer shrink-0"
           >
             <Plus size={16} weight="bold" />
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -158,11 +159,10 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
               <div
                 key={item.id}
                 onClick={() => onSelectConversation(item)}
-                className={`group relative flex items-center gap-3 px-2.5 py-2 rounded-[4px] cursor-pointer transition-all select-none ${
-                  isActive
-                    ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-medium shadow-2xs'
-                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
-                }`}
+                className={`group relative flex items-center gap-3 px-2.5 py-2 rounded-[4px] cursor-pointer transition-all select-none ${isActive
+                  ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-medium shadow-2xs'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                  }`}
               >
                 {/* User Avatar with Status Indicator */}
                 <div className="relative shrink-0">
@@ -189,11 +189,10 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-1 leading-tight">
                     <span
-                      className={`text-xs truncate ${
-                        isActive
-                          ? 'font-bold text-[var(--accent-primary)]'
-                          : 'font-semibold text-[var(--text-primary)]'
-                      }`}
+                      className={`text-xs truncate ${isActive
+                        ? 'font-bold text-[var(--accent-primary)]'
+                        : 'font-semibold text-[var(--text-primary)]'
+                        }`}
                     >
                       {item.user.displayName}
                     </span>
