@@ -7,8 +7,16 @@ export const channelApi = {
     return res.data;
   },
 
-  createChannel: async (workspaceId: string, name: string, topic?: string): Promise<Channel> => {
-    const res = await httpClient.post<Channel>(`/workspaces/${workspaceId}/channels`, { name, topic });
+  createChannel: async (
+    workspaceId: string,
+    nameOrData: string | { name: string; topic?: string; type?: number; isPrivate?: boolean },
+    topic?: string
+  ): Promise<Channel> => {
+    const payload =
+      typeof nameOrData === 'string'
+        ? { name: nameOrData, topic }
+        : nameOrData;
+    const res = await httpClient.post<Channel>(`/workspaces/${workspaceId}/channels`, payload);
     return res.data;
   },
 

@@ -94,7 +94,7 @@ public class GoogleLoginCommandHandler : IRequestHandler<GoogleLoginCommand, Res
         }
 
         // 5. Generate tokens
-        var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email ?? string.Empty, user.Username);
+        var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email ?? string.Empty, user.UserName);
         var rawRefreshToken = _jwtService.GenerateRefreshToken();
 
         var refreshTokenEntity = new NomNa.Domain.Entities.RefreshToken
@@ -107,7 +107,7 @@ public class GoogleLoginCommandHandler : IRequestHandler<GoogleLoginCommand, Res
         _context.RefreshTokens.Add(refreshTokenEntity);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var userDto = new UserDto(user.Id, user.Email ?? string.Empty, user.Username, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
+        var userDto = new UserDto(user.Id, user.Email ?? string.Empty, user.UserName, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
         return new AuthResultDto(accessToken, rawRefreshToken, expiresAt, userDto);
     }
 }

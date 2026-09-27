@@ -52,12 +52,12 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-150"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
         className={cn(
-          'w-full bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-2xl shadow-2xl flex flex-col overflow-hidden relative',
+          'w-full bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-[4px] shadow-2xl flex flex-col overflow-hidden relative',
           'animate-in zoom-in-95 duration-200',
           sizeClasses[size],
           className
@@ -81,7 +81,7 @@ export const Modal: React.FC<ModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer border border-transparent hover:border-[var(--border-color)]"
+                className="w-8 h-8 rounded-[3px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer border border-transparent hover:border-[var(--border-color)]"
                 title="Đóng (Esc)"
               >
                 <X size={16} />

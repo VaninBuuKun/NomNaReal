@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { LoginForm, RegisterForm } from '../components/auth';
 import { Button } from '../components/ui';
 import { useTheme } from '../hooks/useTheme';
+import { authApi } from '../services';
 
 interface AuthPageProps {
   mode: 'login' | 'register';
@@ -21,7 +22,63 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
   };
 
   const handleGoogleLogin = () => {
-    setError('Tính năng đăng nhập Google: Đang chuẩn bị kích hoạt với Google OAuth Client ID.');
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+    if (!googleClientId || googleClientId.trim() === '') {
+      setError('Chưa cấu hình Google Client ID. Vui lòng điền VITE_GOOGLE_CLIENT_ID trong file client/.env để kích hoạt.');
+      return;
+    }
+
+    const loadGsiScript = (onLoaded: () => void) => {
+      const existingScript = document.getElementById('google-gsi-script');
+      if (existingScript && (window as any).google?.accounts?.id) {
+        onLoaded();
+        return;
+      }
+      const script = document.createElement('script');
+      script.id = 'google-gsi-script';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = onLoaded;
+      script.onerror = () => {
+        setError('Không thể tải Google Identity Services. Vui lòng kiểm tra kết nối mạng.');
+      };
+      document.head.appendChild(script);
+    };
+
+    loadGsiScript(() => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id) {
+        setError('Google Identity Service không khả dụng trên trình duyệt này.');
+        return;
+      }
+
+      setError(null);
+      google.accounts.id.initialize({
+        client_id: googleClientId.trim(),
+        callback: async (response: { credential?: string }) => {
+          if (!response.credential) {
+            setError('Không nhận được mã xác thực Google Token.');
+            return;
+          }
+          try {
+            await authApi.googleLogin(response.credential);
+            localStorage.setItem('nomna_logged_in', 'true');
+            handleAuthSuccess();
+          } catch (err: unknown) {
+            const errorObj = err as { response?: { data?: { message?: string } } };
+            setError(errorObj?.response?.data?.message || 'Đăng nhập với Google thất bại. Vui lòng thử lại.');
+          }
+        },
+      });
+
+      google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          console.warn('Google One Tap notification skipped or not displayed');
+        }
+      });
+    });
   };
 
   return (

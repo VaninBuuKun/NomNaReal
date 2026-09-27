@@ -53,7 +53,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
             message.ChannelId,
             message.SenderId,
             user.DisplayName,
-            user.Username,
+            user.UserName,
             user.AvatarUrl,
             message.Content,
             message.ThreadId,

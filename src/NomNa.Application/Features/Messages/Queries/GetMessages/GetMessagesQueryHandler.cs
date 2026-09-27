@@ -44,7 +44,7 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
                 m.ChannelId,
                 m.SenderId,
                 m.Sender.DisplayName,
-                m.Sender.Username,
+                m.Sender.UserName,
                 m.Sender.AvatarUrl,
                 m.Content,
                 m.ThreadId,

@@ -32,7 +32,8 @@ public class GetWorkspacesQueryHandler : IRequestHandler<GetWorkspacesQuery, Res
                 wm.Workspace.Description,
                 wm.Workspace.IconUrl,
                 wm.Workspace.InviteCode,
-                wm.Workspace.OwnerId
+                wm.Workspace.OwnerId,
+                wm.Workspace.Members.Count
             ))
             .ToListAsync(cancellationToken);
     }

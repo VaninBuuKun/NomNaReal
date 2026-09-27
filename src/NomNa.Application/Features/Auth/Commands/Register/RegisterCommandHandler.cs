@@ -62,10 +62,10 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
         }
 
         // Generate tokens
-        var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email ?? string.Empty, user.Username);
+        var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email, user.UserName);
         var rawRefreshToken = _jwtService.GenerateRefreshToken();
 
-        var refreshTokenEntity = new NomNa.Domain.Entities.RefreshToken
+        var refreshTokenEntity = new Domain.Entities.RefreshToken
         {
             UserId = user.Id,
             TokenHash = _jwtService.HashToken(rawRefreshToken),
@@ -75,7 +75,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
         _context.RefreshTokens.Add(refreshTokenEntity);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var userDto = new UserDto(user.Id, user.Email ?? string.Empty, user.Username, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
+        var userDto = new UserDto(user.Id, user.Email, user.UserName, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
         return new AuthResultDto(accessToken, rawRefreshToken, expiresAt, userDto);
     }
 }

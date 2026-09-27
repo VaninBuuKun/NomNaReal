@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   User as UserIcon,
   ShieldCheck,
@@ -10,6 +10,8 @@ import {
   CheckCircle,
 } from '@phosphor-icons/react';
 import { Button, Input, Avatar, Badge } from '../ui';
+import { authApi } from '../../services/authApi';
+import { fileApi } from '../../services/fileApi';
 import type { User } from '../../types';
 
 interface SettingsModalProps {
@@ -19,6 +21,7 @@ interface SettingsModalProps {
   onLogout: () => void;
   currentTheme: string;
   onThemeChange: (theme: string) => void;
+  onUserUpdated?: (user: User) => void;
 }
 
 type TabType = 'profile' | 'security' | 'notifications' | 'appearance' | 'shortcuts';
@@ -30,6 +33,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onLogout,
   currentTheme,
   onThemeChange,
+  onUserUpdated,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('profile');
 
@@ -37,13 +41,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [displayName, setDisplayName] = useState(currentUser?.displayName || 'Alex Rivers');
   const [username, setUsername] = useState(currentUser?.username || 'alexrivers');
   const [bio, setBio] = useState(currentUser?.bio || 'Tech Lead & System Architect @ NomNa');
+  const [avatarUrl, setAvatarUrl] = useState(currentUser?.avatarUrl || '');
   const [density, setDensity] = useState<'cozy' | 'compact'>('cozy');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (currentUser) {
       setDisplayName(currentUser.displayName);
       setUsername(currentUser.username);
       setBio(currentUser.bio || '');
+      setAvatarUrl(currentUser.avatarUrl || '');
     }
   }, [currentUser]);
 
@@ -108,9 +119,54 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     },
   };
 
-  const handleSave = () => {
-    alert('Đã lưu các thay đổi cài đặt thành công!');
-    onClose();
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn tệp hình ảnh hợp lệ (.jpg, .png, .webp).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Dung lượng ảnh tối đa là 10MB.');
+      return;
+    }
+
+    try {
+      setIsUploadingAvatar(true);
+      const res = await fileApi.uploadFile(file, 'avatars');
+      setAvatarUrl(res.url);
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      alert(errorObj?.response?.data?.message || 'Không thể tải ảnh đại diện lên.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+      setSaveMessage(null);
+      const updated = await authApi.updateProfile({
+        displayName: displayName.trim(),
+        avatarUrl: avatarUrl ? avatarUrl.trim() : '',
+        bio: bio.trim(),
+      });
+      if (onUserUpdated) {
+        onUserUpdated(updated);
+      }
+      setSaveMessage('Đã lưu thay đổi hồ sơ cá nhân thành công!');
+      setTimeout(() => {
+        onClose();
+      }, 600);
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      alert(errorObj?.response?.data?.message || 'Không thể lưu cài đặt.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -119,7 +175,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="w-[980px] max-w-[95vw] h-[680px] max-h-[92vh] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-2xl flex overflow-hidden shadow-2xl relative animate-in zoom-in-95 duration-200"
+        className="w-[980px] max-w-[95vw] h-[680px] max-h-[92vh] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-[4px] flex overflow-hidden shadow-2xl relative animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ================= 1. LEFT SIDEBAR (250px) ================= */}
@@ -130,7 +186,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div>
             {/* Header */}
             <div className="flex items-center gap-2.5 pb-4 mb-4 border-b border-[var(--border-color)]">
-              <div className="w-7 h-7 rounded-lg bg-[var(--accent-primary)] text-white flex items-center justify-center text-sm font-bold shadow-xs">
+              <div className="w-7 h-7 rounded-[3px] bg-[var(--accent-primary)] text-white flex items-center justify-center text-sm font-bold shadow-xs">
                 ⚡
               </div>
               <h2 className="font-bold text-sm text-[var(--text-primary)]">Cài đặt NomNa</h2>
@@ -144,7 +200,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('profile')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[3px] text-xs font-semibold transition-all cursor-pointer text-left ${
                   activeTab === 'profile'
                     ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] hover:text-[var(--text-primary)]'
@@ -157,7 +213,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('security')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[3px] text-xs font-semibold transition-all cursor-pointer text-left ${
                   activeTab === 'security'
                     ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] hover:text-[var(--text-primary)]'
@@ -170,7 +226,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('notifications')}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-[3px] text-xs font-semibold transition-all cursor-pointer text-left ${
                   activeTab === 'notifications'
                     ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] hover:text-[var(--text-primary)]'
@@ -192,7 +248,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('appearance')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[3px] text-xs font-semibold transition-all cursor-pointer text-left ${
                   activeTab === 'appearance'
                     ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] hover:text-[var(--text-primary)]'
@@ -205,7 +261,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveTab('shortcuts')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer text-left ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[3px] text-xs font-semibold transition-all cursor-pointer text-left ${
                   activeTab === 'shortcuts'
                     ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] hover:text-[var(--text-primary)]'
@@ -222,7 +278,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               type="button"
               onClick={onLogout}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer text-left"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[3px] text-xs font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer text-left"
             >
               <SignOut size={17} weight="bold" />
               <span>Đăng xuất tài khoản</span>
@@ -245,7 +301,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer border border-transparent hover:border-[var(--border-color)]"
+              className="w-8 h-8 rounded-[3px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer border border-transparent hover:border-[var(--border-color)]"
               title="Đóng (Esc)"
             >
               <X size={16} weight="bold" />
@@ -258,35 +314,57 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* TAB 1: PROFILE */}
             {activeTab === 'profile' && (
               <>
-                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-4">
+                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[4px] p-5 flex flex-col gap-4">
                   <h3 className="font-bold text-sm text-[var(--text-primary)]">Ảnh đại diện & Danh tính</h3>
                   <div className="flex items-center gap-4">
-                    <Avatar fallback={displayName} size="xl" status="online" />
+                    <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-[var(--border-color)] bg-[var(--bg-chat)] shrink-0 flex items-center justify-center">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                      ) : (
+                        <Avatar fallback={displayName} size="xl" status="online" />
+                      )}
+                      {isUploadingAvatar && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px] font-bold">
+                          Đang tải...
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex flex-col gap-2">
+                      <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarFileChange}
+                        className="hidden"
+                      />
                       <div className="flex gap-2">
                         <Button
                           variant="primary"
                           size="sm"
-                          onClick={() => alert('Chọn file ảnh JPG/PNG từ máy tính của bạn')}
+                          disabled={isUploadingAvatar}
+                          onClick={() => avatarInputRef.current?.click()}
                         >
-                          Tải ảnh mới lên
+                          {isUploadingAvatar ? 'Đang tải lên...' : 'Tải ảnh mới lên'}
                         </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => alert('Đã khôi phục avatar mặc định theo tên')}
-                        >
-                          Xóa ảnh
-                        </Button>
+                        {avatarUrl && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setAvatarUrl('')}
+                          >
+                            Xóa ảnh
+                          </Button>
+                        )}
                       </div>
                       <span className="text-xs text-[var(--text-muted)]">
-                        Định dạng hỗ trợ: JPG, PNG, WebP hoặc GIF. Kích thước tối đa 5MB.
+                        Định dạng hỗ trợ: JPG, PNG, WebP hoặc GIF. Kích thước tối đa 10MB.
                       </span>
                     </div>
                   </div>
                 </section>
 
-                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-4">
+                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[4px] p-5 flex flex-col gap-4">
                   <h3 className="font-bold text-sm text-[var(--text-primary)]">Thông tin cơ bản</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <Input
@@ -310,7 +388,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={bio}
                       onChange={(e) => setBio(e.target.value)}
                       placeholder="Giới thiệu đôi nét về bản thân hoặc chức danh của bạn..."
-                      className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-chat)] p-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] resize-vertical transition-all"
+                      className="w-full rounded-[3px] border border-[var(--border-color)] bg-[var(--bg-chat)] p-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] resize-vertical transition-all"
                     />
                   </div>
 
@@ -327,7 +405,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* TAB 2: SECURITY */}
             {activeTab === 'security' && (
               <>
-                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-4">
+                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[4px] p-5 flex flex-col gap-4">
                   <h3 className="font-bold text-sm text-[var(--text-primary)]">Đổi mật khẩu tài khoản</h3>
                   <Input label="Mật khẩu hiện tại" type="password" placeholder="••••••••••••" showPasswordToggle />
                   <div className="grid grid-cols-2 gap-4">
@@ -345,7 +423,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </section>
 
-                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-3">
+                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[4px] p-5 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-sm text-[var(--text-primary)]">Xác thực 2 lớp (2FA - TOTP)</h3>
                     <Badge variant="success">Khuyến nghị</Badge>
@@ -368,7 +446,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             {/* TAB 3: NOTIFICATIONS */}
             {activeTab === 'notifications' && (
-              <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-4">
+              <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[4px] p-5 flex flex-col gap-4">
                 <h3 className="font-bold text-sm text-[var(--text-primary)]">Cấu hình thông báo tin nhắn</h3>
                 
                 <label className="flex items-center justify-between py-2.5 border-b border-[var(--border-color)] cursor-pointer">
@@ -376,7 +454,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="text-sm font-semibold text-[var(--text-primary)]">Âm thanh tin nhắn đến</div>
                     <div className="text-xs text-[var(--text-muted)]">Phát âm thanh nhẹ khi có tin nhắn mới trong kênh đang theo dõi</div>
                   </div>
-                  <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[var(--accent-primary)] cursor-pointer" />
+                  <input type="checkbox" defaultChecked className="w-4 h-4 rounded-[2px] accent-[var(--accent-primary)] cursor-pointer" />
                 </label>
 
                 <label className="flex items-center justify-between py-2.5 border-b border-[var(--border-color)] cursor-pointer">
@@ -384,7 +462,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="text-sm font-semibold text-[var(--text-primary)]">Thông báo đẩy Desktop (Push)</div>
                     <div className="text-xs text-[var(--text-muted)]">Hiển thị banner thông báo trên màn hình ngay cả khi thu nhỏ trình duyệt</div>
                   </div>
-                  <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[var(--accent-primary)] cursor-pointer" />
+                  <input type="checkbox" defaultChecked className="w-4 h-4 rounded-[2px] accent-[var(--accent-primary)] cursor-pointer" />
                 </label>
 
                 <label className="flex items-center justify-between py-2.5 cursor-pointer">
@@ -392,7 +470,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="text-sm font-semibold text-[var(--text-primary)]">Nhắc nhở khi được nhắc tên (@mention)</div>
                     <div className="text-xs text-[var(--text-muted)]">Ưu tiên thông báo nổi bật khi ai đó gắn thẻ bạn hoặc @everyone</div>
                   </div>
-                  <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[var(--accent-primary)] cursor-pointer" />
+                  <input type="checkbox" defaultChecked className="w-4 h-4 rounded-[2px] accent-[var(--accent-primary)] cursor-pointer" />
                 </label>
               </section>
             )}
@@ -400,7 +478,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* TAB 4: APPEARANCE & THEME */}
             {activeTab === 'appearance' && (
               <>
-                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-4">
+                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[4px] p-5 flex flex-col gap-4">
                   <h3 className="font-bold text-sm text-[var(--text-primary)]">Chủ đề giao diện (Theme Palette)</h3>
                   <div className="grid grid-cols-3 gap-3">
                     {themes.map((t) => {
@@ -409,7 +487,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div
                           key={t.id}
                           onClick={() => onThemeChange(t.id)}
-                          className={`border-2 rounded-xl p-3.5 cursor-pointer transition-all flex flex-col gap-2 relative bg-[var(--bg-chat)] ${
+                          className={`border-2 rounded-[3px] p-3.5 cursor-pointer transition-all flex flex-col gap-2 relative bg-[var(--bg-chat)] ${
                             isActive
                               ? 'border-[var(--accent-primary)] bg-[var(--accent-soft)] shadow-sm'
                               : 'border-[var(--border-color)] hover:border-[var(--border-hover)] hover:-translate-y-0.5'
@@ -423,7 +501,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               <CheckCircle size={16} weight="fill" className="text-[var(--accent-primary)]" />
                             )}
                           </div>
-                          <div className="flex gap-1 h-4 rounded overflow-hidden">
+                          <div className="flex gap-1 h-4 rounded-[2px] overflow-hidden">
                             {t.colors.map((c, idx) => (
                               <div
                                 key={idx}
@@ -441,7 +519,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </section>
 
-                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-3">
+                <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[4px] p-5 flex flex-col gap-3">
                   <h3 className="font-bold text-sm text-[var(--text-primary)]">Mật độ hiển thị tin nhắn</h3>
                   <div className="flex gap-5">
                     <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold">
@@ -471,7 +549,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             {/* TAB 5: SHORTCUTS */}
             {activeTab === 'shortcuts' && (
-              <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-2xl p-5 flex flex-col gap-3">
+              <section className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[4px] p-5 flex flex-col gap-3">
                 <h3 className="font-bold text-sm text-[var(--text-primary)]">Phím tắt tăng tốc làm việc</h3>
                 
                 <div className="flex justify-between items-center py-2 border-b border-[var(--border-color)] text-xs">
@@ -525,9 +603,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               variant="primary"
               size="md"
               onClick={handleSave}
+              isLoading={isSaving}
               style={{ padding: '8px 22px', minWidth: '120px' }}
             >
-              Lưu thay đổi
+              {saveMessage || 'Lưu thay đổi'}
             </Button>
           </footer>
         </main>

@@ -1,78 +1,237 @@
-import React from 'react';
-import { Plus } from '@phosphor-icons/react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { SquaresFour, House, Plus, Check, ChatTeardropDots } from '@phosphor-icons/react';
 import type { Workspace } from '../../types';
 
 interface WorkspaceRailProps {
   workspaces: Workspace[];
   activeWorkspaceId: string | null;
+  activeSidebarView?: 'channels' | 'dms';
+  onSelectView?: (view: 'channels' | 'dms') => void;
   onSelectWorkspace: (id: string) => void;
-  onCreateWorkspace: () => void;
+  onCreateWorkspace?: () => void;
+  onGoHome?: () => void;
 }
 
 export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
   workspaces,
   activeWorkspaceId,
+  activeSidebarView = 'channels',
+  onSelectView,
   onSelectWorkspace,
   onCreateWorkspace,
+  onGoHome,
 }) => {
-  const displayWorkspaces: Workspace[] =
-    workspaces.length > 0
-      ? workspaces
-      : [
-          {
-            id: 'ws-nexus',
-            name: 'Nexus Hub',
-            description: 'Trung tâm làm việc & phát triển sản phẩm của team NomNa',
-            inviteCode: 'NEXUS123',
-            ownerId: 'u1',
-          },
-        ];
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
+
+  const activeWorkspace =
+    workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0] || null;
+
+  const initials =
+    activeWorkspace?.name
+      ?.split(' ')
+      .map((w) => w[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase() || 'WS';
 
   return (
-    <aside className="w-[68px] h-full min-h-0 shrink-0 bg-[var(--bg-rail)] border-r border-[var(--border-color)] py-3 flex flex-col items-center gap-2 overflow-y-auto overflow-x-hidden select-none">
-      {displayWorkspaces.map((ws) => {
-        const isActive = activeWorkspaceId === ws.id || (!activeWorkspaceId && ws.id === displayWorkspaces[0].id);
-        const initials =
-          ws.name
-            .split(' ')
-            .map((w) => w[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase() || 'NX';
+    <aside className="w-[68px] h-full min-h-0 shrink-0 bg-[var(--bg-rail)] border-r border-[var(--border-color)] py-3 flex flex-col items-center gap-2.5 overflow-visible select-none relative z-30">
+      {/* 1. Hub / Switcher Icon Button */}
+      <button
+        ref={buttonRef}
+        type="button"
+        title="Danh sách không gian & Điều hướng"
+        onClick={() => setIsMenuOpen((prev) => !prev)}
+        className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs ${
+          isMenuOpen
+            ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
+            : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+        }`}
+      >
+        <SquaresFour size={22} weight={isMenuOpen ? 'fill' : 'duotone'} />
+      </button>
 
-        return (
+      {/* Divider */}
+      <div className="w-8 h-px bg-[var(--border-color)] my-0.5" />
+
+      {/* 2. Active Main Workspace Logo (Switches to Channels) */}
+      {activeWorkspace && (
+        <div className="relative">
+          {activeSidebarView === 'channels' && (
+            <div className="absolute -left-[14px] top-1/2 -translate-y-1/2 w-[3.5px] h-7 bg-[var(--accent-primary)] rounded-r-full shadow-[0_0_8px_var(--accent-glow)]" />
+          )}
+
           <div
-            key={ws.id}
-            title={ws.name}
-            onClick={() => onSelectWorkspace(ws.id)}
-            className={`relative w-11 h-11 flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border overflow-hidden ${
-              isActive
-                ? "bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)] rounded-[14px] before:content-[''] before:absolute before:-left-[12px] before:top-1/2 before:-translate-y-1/2 before:w-[3.5px] before:h-[50px] before:bg-[var(--accent-primary)] before:rounded-r-full"
-                : "rounded-xl bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-primary)] hover:text-white hover:border-transparent hover:rounded-[14px] hover:shadow-[0_4px_12px_var(--accent-glow)]"
+            title={`Không gian: ${activeWorkspace.name} (Kênh thảo luận)`}
+            onClick={() => onSelectView?.('channels')}
+            className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border overflow-hidden shadow-xs ${
+              activeSidebarView === 'channels'
+                ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
+                : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]'
             }`}
           >
-            {ws.iconUrl ? (
+            {activeWorkspace.iconUrl ? (
               <img
-                src={ws.iconUrl}
-                alt={ws.name}
-                className="w-full h-full object-cover rounded-[inherit]"
+                src={activeWorkspace.iconUrl}
+                alt={activeWorkspace.name}
+                className="w-full h-full object-cover"
               />
             ) : (
               initials
             )}
           </div>
-        );
-      })}
+        </div>
+      )}
 
-      {/* Add Workspace Button */}
-      <button
-        type="button"
-        className="w-11 h-11 rounded-xl flex items-center justify-center text-[var(--text-muted)] border border-dashed border-[var(--text-muted)] bg-transparent hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-soft)] transition-all duration-200 cursor-pointer"
-        title="Tạo Workspace mới"
-        onClick={onCreateWorkspace}
-      >
-        <Plus size={18} weight="bold" />
-      </button>
+      {/* Divider */}
+      <div className="w-8 h-px bg-[var(--border-color)] my-0.5" />
+
+      {/* 3. Direct Messages Icon Button */}
+      <div className="relative">
+        {activeSidebarView === 'dms' && (
+          <div className="absolute -left-[14px] top-1/2 -translate-y-1/2 w-[3.5px] h-7 bg-[var(--accent-primary)] rounded-r-full shadow-[0_0_8px_var(--accent-glow)]" />
+        )}
+
+        <button
+          type="button"
+          title="Tin nhắn trực tiếp (Direct Messages)"
+          onClick={() => onSelectView?.('dms')}
+          className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs ${
+            activeSidebarView === 'dms'
+              ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
+              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+          }`}
+        >
+          <ChatTeardropDots size={22} weight={activeSidebarView === 'dms' ? 'fill' : 'duotone'} />
+        </button>
+      </div>
+
+      {/* Dropdown Menu Portal */}
+      {isMenuOpen &&
+        createPortal(
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0 z-[999] bg-black/20 backdrop-blur-[1px]"
+              onClick={() => setIsMenuOpen(false)}
+            />
+
+            {/* Menu Popover */}
+            <div
+              ref={menuRef}
+              className="fixed top-[16px] left-[76px] w-[270px] z-[1000] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-[4px] shadow-2xl p-1.5 flex flex-col gap-0.5"
+            >
+              {/* Item 1: Về trang chủ */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onGoHome?.();
+                }}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[3px] text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer text-left"
+              >
+                <House size={16} weight="duotone" className="text-[var(--accent-primary)] shrink-0" />
+                <span>Về trang chủ</span>
+              </button>
+
+              {/* Divider */}
+              <div className="h-px bg-[var(--border-color)]/70 my-1" />
+
+              {/* Label */}
+              <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                Không gian làm việc ({workspaces.length})
+              </div>
+
+              {/* Workspaces List */}
+              <div className="max-h-[220px] overflow-y-auto flex flex-col gap-0.5 py-0.5">
+                {workspaces.map((ws) => {
+                  const isActive = ws.id === activeWorkspace?.id;
+                  const wsInitials =
+                    ws.name
+                      .split(' ')
+                      .map((w) => w[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase() || 'WS';
+
+                  return (
+                    <button
+                      key={ws.id}
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onSelectWorkspace(ws.id);
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[3px] text-xs transition-colors cursor-pointer text-left ${
+                        isActive
+                          ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
+                          : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
+                      }`}
+                    >
+                      <div className="w-6 h-6 rounded-[3px] overflow-hidden border border-[var(--border-color)] bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-[10px] shrink-0">
+                        {ws.iconUrl ? (
+                          <img src={ws.iconUrl} alt={ws.name} className="w-full h-full object-cover" />
+                        ) : (
+                          wsInitials
+                        )}
+                      </div>
+
+                      <span className="truncate flex-1 font-medium">{ws.name}</span>
+
+                      {isActive && (
+                        <Check size={14} weight="bold" className="text-[var(--accent-primary)] shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Divider */}
+              <div className="h-px bg-[var(--border-color)]/70 my-1" />
+
+              {/* Item Bottom: Thêm workspace */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  if (onCreateWorkspace) {
+                    onCreateWorkspace();
+                  } else {
+                    onGoHome?.();
+                  }
+                }}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[3px] text-xs font-semibold text-[var(--accent-primary)] hover:bg-[var(--accent-soft)] transition-colors cursor-pointer text-left"
+              >
+                <Plus size={16} weight="bold" className="shrink-0" />
+                <span>Thêm không gian mới</span>
+              </button>
+            </div>
+          </>,
+          document.body
+        )}
     </aside>
   );
 };

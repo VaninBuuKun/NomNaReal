@@ -68,7 +68,7 @@ public class ReplyToMessageCommandHandler : IRequestHandler<ReplyToMessageComman
             reply.ChannelId,
             reply.SenderId,
             user.DisplayName,
-            user.Username,
+            user.UserName,
             user.AvatarUrl,
             reply.Content,
             reply.ThreadId,

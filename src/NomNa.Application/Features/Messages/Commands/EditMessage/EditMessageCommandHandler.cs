@@ -65,7 +65,7 @@ public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, Res
             message.ChannelId,
             message.SenderId,
             message.Sender.DisplayName,
-            message.Sender.Username,
+            message.Sender.UserName,
             message.Sender.AvatarUrl,
             message.Content,
             message.ThreadId,

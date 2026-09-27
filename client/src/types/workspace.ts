@@ -5,4 +5,5 @@ export interface Workspace {
   iconUrl?: string | null;
   inviteCode: string;
   ownerId: string;
+  memberCount?: number;
 }

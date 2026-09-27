@@ -23,7 +23,6 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
   onWorkspaceCreated,
 }) => {
   const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
   const [iconUrl, setIconUrl] = useState('/default-avatar.png');
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,7 +71,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
     try {
       setIsSubmitting(true);
       setError(null);
-      const newWs = await workspaceApi.createWorkspace(name.trim(), iconUrl.trim(), description.trim() || undefined);
+      const newWs = await workspaceApi.createWorkspace(name.trim(), iconUrl.trim());
       onWorkspaceCreated(newWs);
       handleClose();
     } catch (err: unknown) {
@@ -85,7 +84,6 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
 
   const handleClose = () => {
     setName('');
-    setDescription('');
     setIconUrl('/default-avatar.png');
     setError(null);
     onClose();
@@ -97,11 +95,11 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
       onClose={handleClose}
       title="Tạo Không gian làm việc"
       subtitle="Không gian là nơi nhóm của bạn trò chuyện, gọi điện và chia sẻ tài liệu."
-      className="max-w-[540px]"
+      className="max-w-[480px]"
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
         {error && (
-          <div className="p-3 text-xs rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-500 font-medium">
+          <div className="p-3 text-xs rounded-[3px] bg-rose-500/10 border border-rose-500/20 text-rose-500 font-medium">
             {error}
           </div>
         )}
@@ -118,10 +116,10 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
               <img
                 src={iconUrl}
                 alt="Workspace Icon Preview"
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-[var(--border-color)] group-hover:border-[var(--accent-primary)] transition-all shadow-sm"
+                className="w-16 h-16 rounded-[4px] object-cover border-2 border-[var(--border-color)] group-hover:border-[var(--accent-primary)] transition-all shadow-sm"
               />
               {isUploading && (
-                <div className="absolute inset-0 bg-black/50 rounded-2xl flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/50 rounded-[4px] flex items-center justify-center">
                   <Loader2 size={20} className="animate-spin text-white" />
                 </div>
               )}
@@ -143,7 +141,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
                 leftIcon={<UploadCloud size={15} />}
-                className="w-full text-xs"
+                className="w-full text-xs rounded-[3px]"
               >
                 {isUploading ? 'Đang tải lên...' : 'Tải ảnh máy tính lên'}
               </Button>
@@ -167,16 +165,16 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                     key={preset.id}
                     type="button"
                     onClick={() => setIconUrl(preset.url)}
-                    className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border transition-all cursor-pointer ${
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-[3px] border transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-[var(--accent-primary)] bg-[var(--accent-light)] shadow-xs'
+                        ? 'border-[var(--accent-primary)] bg-[var(--accent-soft)] shadow-xs'
                         : 'border-[var(--border-color)] hover:border-[var(--text-muted)] bg-[var(--bg-surface)]'
                     }`}
                   >
                     <img
                       src={preset.url}
                       alt={preset.label}
-                      className="w-7 h-7 rounded-lg object-cover shrink-0"
+                      className="w-7 h-7 rounded-[2px] object-cover shrink-0"
                     />
                     <span className="text-xs font-semibold truncate text-[var(--text-primary)]">
                       {preset.label.replace('Mascot ', '')}
@@ -203,33 +201,15 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
           />
         </div>
 
-        {/* Description (Optional) */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-              Mô tả không gian (Không bắt buộc)
-            </label>
-            <span className="text-[11px] text-[var(--text-muted)]">
-              {description.length}/300 ký tự
-            </span>
-          </div>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value.slice(0, 300))}
-            placeholder="VD: Không gian trao đổi kỹ thuật, cập nhật kiến trúc hệ thống và thảo luận công nghệ của team..."
-            rows={4}
-            className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all resize-none leading-relaxed"
-          />
-        </div>
-
         {/* Footer Actions */}
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border-color)]">
-          <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting}>
+          <Button type="button" variant="ghost" size="sm" onClick={handleClose} disabled={isSubmitting}>
             Hủy
           </Button>
           <Button
             type="submit"
             variant="primary"
+            size="sm"
             isLoading={isSubmitting}
             disabled={!name.trim() || !iconUrl.trim() || isUploading}
           >

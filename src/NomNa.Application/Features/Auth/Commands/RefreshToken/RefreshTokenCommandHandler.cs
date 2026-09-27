@@ -30,16 +30,6 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
             .Include(t => t.User)
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
 
-        // Fallback for any legacy BCrypt tokens if not found by SHA256
-        if (matchingToken == null && request.UserId != Guid.Empty)
-        {
-            var userTokens = await _context.RefreshTokens
-                .Include(t => t.User)
-                .Where(t => t.UserId == request.UserId && t.RevokedAt == null && t.ExpiresAt > DateTime.UtcNow)
-                .ToListAsync(cancellationToken);
-
-            matchingToken = userTokens.FirstOrDefault(t => t.TokenHash.StartsWith("$2") && BCrypt.Net.BCrypt.Verify(request.RefreshToken, t.TokenHash));
-        }
 
         if (matchingToken == null || !matchingToken.IsActive || matchingToken.User == null)
             return Error.Unauthorized("Auth.InvalidToken", "Invalid or expired refresh token.");
@@ -50,7 +40,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
         matchingToken.RevokedAt = DateTime.UtcNow;
 
         // Generate new token pair
-        var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email ?? string.Empty, user.Username);
+        var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email ?? string.Empty, user.UserName);
         var newRawRefreshToken = _jwtService.GenerateRefreshToken();
 
         var newRefreshTokenEntity = new NomNa.Domain.Entities.RefreshToken
@@ -63,7 +53,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
         _context.RefreshTokens.Add(newRefreshTokenEntity);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var userDto = new UserDto(user.Id, user.Email ?? string.Empty, user.Username, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
+        var userDto = new UserDto(user.Id, user.Email ?? string.Empty, user.UserName, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
         return new AuthResultDto(accessToken, newRawRefreshToken, expiresAt, userDto);
     }
 }

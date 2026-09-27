@@ -1,24 +1,110 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { WorkspaceRail, CreateWorkspaceModal } from '../components/workspace';
-import { ChannelSidebar, UserFooterBar } from '../components/channel';
+import { ChannelSidebar, UserFooterBar, CreateChannelModal } from '../components/channel';
+import { DirectMessagesSidebar, NewDirectMessageModal, type DirectMessageItem, type DirectMessageUser } from '../components/dm';
 import { ChatArea } from '../components/chat';
 import { ThreadPanel } from '../components/thread';
 import { SettingsModal } from '../components/settings';
 import { authApi, workspaceApi, channelApi, messageApi, signalRService } from '../services';
 import { useTheme } from '../hooks/useTheme';
-import type { User, Workspace, Channel, Message } from '../types';
+import { ChannelType, type User, type Workspace, type Channel, type Message } from '../types';
 
 export const ChatPage: React.FC = () => {
   const navigate = useNavigate();
+  const { workspaceId: paramWorkspaceId } = useParams<{ workspaceId?: string }>();
   const { theme, changeTheme } = useTheme();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
+  const [createChannelType, setCreateChannelType] = useState<ChannelType>(ChannelType.Text);
   const [isThreadOpen, setIsThreadOpen] = useState(false);
   const [activeThreadMessage, setActiveThreadMessage] = useState<Message | null>(null);
+
+  // Direct Messages & Sidebar View States
+  const [activeSidebarView, setActiveSidebarView] = useState<'channels' | 'dms'>('channels');
+  const [isNewDmOpen, setIsNewDmOpen] = useState(false);
+  const [activeDmId, setActiveDmId] = useState<string | null>(null);
+
+  const [dmConversations, setDmConversations] = useState<DirectMessageItem[]>([
+    {
+      id: 'dm-alex',
+      user: {
+        id: 'user-alex',
+        displayName: 'Alex Rivers',
+        username: 'alexrivers',
+        email: 'alex.rivers@nomna.io',
+        avatarUrl: '/default-avatar.png',
+        status: 'online',
+        role: 'Quản trị viên',
+        customStatus: 'Đang review code .NET 9 & SignalR',
+      },
+      lastMessage: 'Chào bạn! Hệ thống SignalR và Clean Architecture của NomNa đã sẵn sàng để kiểm thử.',
+      lastMessageTime: '10:45',
+      unreadCount: 1,
+    },
+    {
+      id: 'dm-minh',
+      user: {
+        id: 'user-minh',
+        displayName: 'Minh Dev',
+        username: 'minhdev',
+        email: 'minh.dev@nomna.io',
+        status: 'online',
+        role: 'Thành viên',
+        customStatus: 'Làm việc với React & Tailwind',
+      },
+      lastMessage: 'Đã hoàn thiện modal và sidebar theo đúng chuẩn thiết kế nhé!',
+      lastMessageTime: 'Hôm qua',
+      unreadCount: 0,
+    },
+    {
+      id: 'dm-sarah',
+      user: {
+        id: 'user-sarah',
+        displayName: 'Sarah Miller',
+        username: 'sarahm',
+        email: 'sarah.miller@nomna.io',
+        status: 'away',
+        role: 'Thiết kế UI/UX',
+        customStatus: 'Đang thiết kế Design System',
+      },
+      lastMessage: 'Bạn check giúp mình bản figma design system mới nhé.',
+      lastMessageTime: '26/09',
+      unreadCount: 0,
+    },
+  ]);
+
+  const [dmHistory, setDmHistory] = useState<Record<string, Message[]>>({
+    'dm-alex': [
+      {
+        id: 'msg-dm-alex-1',
+        channelId: 'dm-alex',
+        senderId: 'user-alex',
+        senderUsername: 'alexrivers',
+        senderDisplayName: 'Alex Rivers',
+        senderAvatarUrl: '/default-avatar.png',
+        content: 'Chào bạn! Hệ thống SignalR và Clean Architecture của NomNa đã sẵn sàng để kiểm thử.',
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+        isEdited: false,
+      },
+    ],
+    'dm-minh': [
+      {
+        id: 'msg-dm-minh-1',
+        channelId: 'dm-minh',
+        senderId: 'user-minh',
+        senderUsername: 'minhdev',
+        senderDisplayName: 'Minh Dev',
+        content: 'Đã hoàn thiện modal và sidebar theo đúng chuẩn thiết kế nhé!',
+        createdAt: new Date(Date.now() - 86400000).toISOString(),
+        isEdited: false,
+      },
+    ],
+  });
 
   // Resizable Sidebars Bounds & State
   const MIN_CHANNEL_WIDTH = 200;
@@ -113,6 +199,7 @@ export const ChatPage: React.FC = () => {
   // Switch Active Channel
   const handleSelectChannel = async (channelId: string) => {
     setActiveChannelId(channelId);
+    setActiveDmId(null);
     await loadMessages(channelId);
     await signalRService.joinChannel(channelId);
   };
@@ -120,6 +207,7 @@ export const ChatPage: React.FC = () => {
   // Switch Active Workspace
   const handleSelectWorkspace = async (workspaceId: string) => {
     setActiveWorkspaceId(workspaceId);
+    navigate(`/workspace/${workspaceId}`, { replace: true });
     try {
       const chs = await channelApi.getChannels(workspaceId);
       setChannels(chs);
@@ -132,6 +220,11 @@ export const ChatPage: React.FC = () => {
     } catch (err) {
       console.error('Failed to load channels:', err);
     }
+  };
+
+  const handleWorkspaceCreated = (ws: Workspace) => {
+    setWorkspaces((prev) => [...prev, ws]);
+    handleSelectWorkspace(ws.id);
   };
 
   // SignalR message handler callback
@@ -210,11 +303,11 @@ export const ChatPage: React.FC = () => {
       setWorkspaces(wsList);
 
       if (wsList.length > 0) {
-        const firstWsId = wsList[0].id;
-        setActiveWorkspaceId(firstWsId);
+        const targetWs = wsList.find((w) => w.id === paramWorkspaceId) || wsList[0];
+        setActiveWorkspaceId(targetWs.id);
 
-        // Load Channels of first workspace
-        const chList = await channelApi.getChannels(firstWsId);
+        // Load Channels of target workspace
+        const chList = await channelApi.getChannels(targetWs.id);
         setChannels(chList);
 
         if (chList.length > 0) {
@@ -223,6 +316,8 @@ export const ChatPage: React.FC = () => {
           await loadMessages(firstChId);
           await signalRService.joinChannel(firstChId);
         }
+      } else {
+        navigate('/', { replace: true });
       }
     } catch (err) {
       console.error('Authentication error:', err);
@@ -260,6 +355,34 @@ export const ChatPage: React.FC = () => {
   const handleSendMessage = async (content: string) => {
     if (!activeChannelId) return;
 
+    // Direct Message sending (in-memory mock with instantaneous chat support)
+    if (activeChannelId.startsWith('dm-') || currentChannel?.type === ChannelType.DirectMessage) {
+      const newMsg: Message = {
+        id: `msg-${Date.now()}`,
+        channelId: activeChannelId,
+        senderId: currentUser?.id || 'me',
+        senderUsername: currentUser?.username || 'me',
+        senderDisplayName: currentUser?.displayName || 'Tôi',
+        senderAvatarUrl: currentUser?.avatarUrl,
+        content,
+        createdAt: new Date().toISOString(),
+        isEdited: false,
+      };
+      setMessages((prev) => [...prev, newMsg]);
+      setDmHistory((prev) => ({
+        ...prev,
+        [activeChannelId]: [...(prev[activeChannelId] || []), newMsg],
+      }));
+      setDmConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeChannelId
+            ? { ...c, lastMessage: content, lastMessageTime: 'Vừa xong' }
+            : c
+        )
+      );
+      return;
+    }
+
     try {
       const msg = await signalRService.sendMessage(activeChannelId, content);
       if (msg) {
@@ -277,31 +400,57 @@ export const ChatPage: React.FC = () => {
     }
   };
 
-  const handleCreateWorkspace = () => {
-    setIsCreateWorkspaceOpen(true);
+  const handleCreateChannel = (type: ChannelType) => {
+    setCreateChannelType(type);
+    setIsCreateChannelOpen(true);
   };
 
-  const handleWorkspaceCreated = (ws: Workspace) => {
-    setWorkspaces((prev) => [...prev, ws]);
-    handleSelectWorkspace(ws.id);
+  const handleChannelCreated = (newChannel: Channel) => {
+    setChannels((prev) => [...prev, newChannel]);
+    handleSelectChannel(newChannel.id);
   };
 
-  const handleCreateChannel = async () => {
-    if (!activeWorkspaceId) return;
-    const name = prompt('Nhập tên Channel (chữ thường, số, dấu gạch nối):');
-    if (!name?.trim()) return;
+  const handleSelectDmConversation = (dm: DirectMessageItem) => {
+    setActiveDmId(dm.id);
+    setActiveChannelId(dm.id);
+    const history = dmHistory[dm.id] || [];
+    setMessages(history);
+    setDmConversations((prev) =>
+      prev.map((c) => (c.id === dm.id ? { ...c, unreadCount: 0 } : c))
+    );
+  };
 
-    try {
-      const ch = await channelApi.createChannel(activeWorkspaceId, name.trim().toLowerCase());
-      setChannels((prev) => [...prev, ch]);
-      handleSelectChannel(ch.id);
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Không thể tạo channel.');
+  const handleStartDm = (targetUser: DirectMessageUser) => {
+    let existing = dmConversations.find((c) => c.user.id === targetUser.id);
+    if (!existing) {
+      const newDm: DirectMessageItem = {
+        id: `dm-${targetUser.id}`,
+        user: targetUser,
+        lastMessage: 'Cuộc trò chuyện mới',
+        lastMessageTime: 'Vừa xong',
+        unreadCount: 0,
+      };
+      setDmConversations((prev) => [newDm, ...prev]);
+      existing = newDm;
     }
+    handleSelectDmConversation(existing);
+    setIsNewDmOpen(false);
   };
 
+  const activeDm = dmConversations.find((d) => d.id === activeChannelId);
   const currentWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || null;
-  const currentChannel = channels.find((c) => c.id === activeChannelId) || null;
+  const currentChannel: Channel | null =
+    channels.find((c) => c.id === activeChannelId) ||
+    (activeDm
+      ? {
+          id: activeDm.id,
+          workspaceId: activeWorkspaceId || '',
+          name: activeDm.user.displayName,
+          topic: `@${activeDm.user.username}`,
+          type: ChannelType.DirectMessage,
+          isPrivate: true,
+        }
+      : null);
 
   const handleOpenThread = (msg: Message) => {
     setActiveThreadMessage(msg);
@@ -373,17 +522,39 @@ export const ChatPage: React.FC = () => {
             <WorkspaceRail
               workspaces={workspaces}
               activeWorkspaceId={activeWorkspaceId}
+              activeSidebarView={activeSidebarView}
+              onSelectView={(view) => setActiveSidebarView(view)}
               onSelectWorkspace={handleSelectWorkspace}
-              onCreateWorkspace={handleCreateWorkspace}
+              onCreateWorkspace={() => setIsCreateWorkspaceOpen(true)}
+              onGoHome={() => navigate('/')}
             />
-            <ChannelSidebar
-              currentWorkspace={currentWorkspace}
-              channels={channels}
-              activeChannelId={activeChannelId}
-              onSelectChannel={handleSelectChannel}
-              onCreateChannel={handleCreateChannel}
-              onOpenSettings={() => setIsSettingsOpen(true)}
-            />
+            {activeSidebarView === 'channels' ? (
+              <ChannelSidebar
+                currentWorkspace={currentWorkspace}
+                channels={channels}
+                activeChannelId={activeChannelId}
+                onSelectChannel={handleSelectChannel}
+                onCreateChannel={handleCreateChannel}
+                onOpenSettings={() => setIsSettingsOpen(true)}
+              />
+            ) : (
+              <DirectMessagesSidebar
+                conversations={dmConversations}
+                activeConversationId={activeDmId}
+                onSelectConversation={handleSelectDmConversation}
+                onOpenNewDm={() => setIsNewDmOpen(true)}
+                onRemoveConversation={(id, e) => {
+                  e.stopPropagation();
+                  setDmConversations((prev) => prev.filter((c) => c.id !== id));
+                  if (activeDmId === id) {
+                    const remaining = dmConversations.filter((c) => c.id !== id);
+                    if (remaining.length > 0) {
+                      handleSelectDmConversation(remaining[0]);
+                    }
+                  }
+                }}
+              />
+            )}
           </div>
 
           {/* User Account Footer Bar (spans across both Workspace Rail & Channel Sidebar) */}
@@ -456,6 +627,30 @@ export const ChatPage: React.FC = () => {
         />
       </main>
 
+      {/* Create Workspace Modal */}
+      <CreateWorkspaceModal
+        isOpen={isCreateWorkspaceOpen}
+        onClose={() => setIsCreateWorkspaceOpen(false)}
+        onWorkspaceCreated={handleWorkspaceCreated}
+      />
+
+      {/* Create Channel Modal */}
+      <CreateChannelModal
+        isOpen={isCreateChannelOpen}
+        onClose={() => setIsCreateChannelOpen(false)}
+        workspaceId={activeWorkspaceId}
+        channelType={createChannelType}
+        onChannelCreated={handleChannelCreated}
+      />
+
+      {/* New Direct Message Modal */}
+      <NewDirectMessageModal
+        isOpen={isNewDmOpen}
+        onClose={() => setIsNewDmOpen(false)}
+        onStartDm={handleStartDm}
+        existingDmUserIds={dmConversations.map((c) => c.user.id)}
+      />
+
       {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
@@ -464,13 +659,7 @@ export const ChatPage: React.FC = () => {
         onLogout={handleLogout}
         currentTheme={theme}
         onThemeChange={changeTheme}
-      />
-
-      {/* Create Workspace Modal */}
-      <CreateWorkspaceModal
-        isOpen={isCreateWorkspaceOpen}
-        onClose={() => setIsCreateWorkspaceOpen(false)}
-        onWorkspaceCreated={handleWorkspaceCreated}
+        onUserUpdated={(u) => setCurrentUser(u)}
       />
     </>
   );

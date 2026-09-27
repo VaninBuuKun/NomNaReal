@@ -11,8 +11,8 @@ public enum UserStatus
 public enum ChannelType
 {
     Text = 0,
-    DirectMessage = 1,
-    Announcement = 2
+    Voice = 1,
+    DirectMessage = 2
 }
 
 public enum WorkspaceRole

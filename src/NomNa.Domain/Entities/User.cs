@@ -14,13 +14,6 @@ public class User : IdentityUser<Guid>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
-    [NotMapped]
-    public string Username
-    {
-        get => UserName ?? string.Empty;
-        set => UserName = value;
-    }
-
     public ICollection<WorkspaceMember> WorkspaceMembers { get; set; } = new List<WorkspaceMember>();
     public ICollection<ChannelMember> ChannelMembers { get; set; } = new List<ChannelMember>();
     public ICollection<Message> Messages { get; set; } = new List<Message>();
@@ -29,7 +22,6 @@ public class User : IdentityUser<Guid>
     public User()
     {
         Id = Guid.NewGuid();
-        SecurityStamp = Guid.NewGuid().ToString();
     }
 
     public void UpdateStatus(UserStatus status)

@@ -29,7 +29,7 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, R
             .Select(u => new UserDto(
                 u.Id,
                 u.Email ?? string.Empty,
-                u.Username,
+                u.UserName,
                 u.DisplayName,
                 u.AvatarUrl,
                 u.Bio,

@@ -4,6 +4,7 @@ using NomNa.Application.Features.Auth.Commands.GoogleLogin;
 using NomNa.Application.Features.Auth.Commands.Login;
 using NomNa.Application.Features.Auth.Commands.RefreshToken;
 using NomNa.Application.Features.Auth.Commands.Register;
+using NomNa.Application.Features.Auth.Commands.UpdateProfile;
 using NomNa.Application.Features.Auth.Queries.GetCurrentUser;
 
 namespace NomNa.WebAPI.Controllers;
@@ -98,6 +99,14 @@ public class AuthController : ApiControllerBase
     public async Task<IActionResult> GetCurrentUser()
     {
         var result = await Mediator.Send(new GetCurrentUserQuery());
+        return HandleResult(result);
+    }
+
+    [Authorize]
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
+    {
+        var result = await Mediator.Send(command);
         return HandleResult(result);
     }
 

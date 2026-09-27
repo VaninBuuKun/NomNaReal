@@ -6,5 +6,6 @@ public record WorkspaceDto(
     string? Description,
     string? IconUrl,
     string InviteCode,
-    Guid OwnerId
+    Guid OwnerId,
+    int MemberCount = 0
 );

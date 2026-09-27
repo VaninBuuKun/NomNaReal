@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthPage } from './pages/AuthPage';
 import { ChatPage } from './pages/ChatPage';
+import { HomePage } from './pages/HomePage';
 import './styles/globals.css';
 
 // Protected Route Component: requires auth session
@@ -51,6 +52,14 @@ export const App: React.FC = () => {
         />
         <Route
           path="/"
+          element={
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/workspace/:workspaceId"
           element={
             <ProtectedRoute>
               <ChatPage />

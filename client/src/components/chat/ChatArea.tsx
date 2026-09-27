@@ -15,7 +15,7 @@ import {
   CircleNotch,
   HandWaving,
 } from "@phosphor-icons/react";
-import type { Channel, Message, User } from "../../types";
+import { ChannelType, type Channel, type Message, type User } from "../../types";
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
 import { formatDateDivider, isDifferentDay } from "../../utils/formatDate";
@@ -286,14 +286,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       <div className="h-[54px] border-b border-[var(--border-color)] px-5 flex items-center justify-between bg-[var(--bg-chat)] shrink-0 select-none">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <h2 className="text-[1rem] font-bold text-[var(--text-primary)] whitespace-nowrap">
-            {currentChannel ? `# ${currentChannel.name}` : "NomNa Workspace"}
+            {currentChannel
+              ? currentChannel.type === 2 || currentChannel.type === ChannelType.DirectMessage
+                ? `@ ${currentChannel.name}`
+                : `# ${currentChannel.name}`
+              : "NomNa Workspace"}
           </h2>
         </div>
         <div className="flex items-center gap-1">
           <button
             type="button"
             className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-            title="Tìm kiếm trong kênh"
+            title="Tìm kiếm"
           >
             <MagnifyingGlass size={17} />
           </button>
@@ -321,14 +325,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         {/* Channel Welcome Header (Discord / Slack style) */}
         {currentChannel ? (
           <div className="pt-6 pb-4 px-2 select-none flex flex-col gap-2 border-b border-[var(--border-color)]/50 mb-1">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md shadow-orange-500/20">
-              <HandWaving size={26} weight="fill" className="text-amber-100" />
+            <div className="w-12 h-12 rounded-2xl bg-[var(--accent-primary)] flex items-center justify-center text-white shadow-md shadow-[var(--accent-glow)]">
+              <HandWaving size={26} weight="fill" className="text-white" />
             </div>
             <h3 className="text-xl font-black text-[var(--text-primary)] tracking-tight">
-              Chào mừng bạn đến với kênh #{currentChannel.name}!
+              {currentChannel.type === 2 || currentChannel.type === ChannelType.DirectMessage
+                ? `Đoạn chat riêng với ${currentChannel.name}`
+                : `Chào mừng bạn đến với kênh #${currentChannel.name}!`}
             </h3>
             <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-              Điểm bắt đầu cho cuộc trò chuyện. Nơi mọi người làm việc với nhau.
+              {currentChannel.type === 2 || currentChannel.type === ChannelType.DirectMessage
+                ? `Đây là sự bắt đầu của lịch sử trò chuyện trực tiếp giữa bạn và ${currentChannel.name}. Tin nhắn được bảo mật riêng tư.`
+                : `Điểm bắt đầu cho cuộc trò chuyện. Nơi mọi người làm việc với nhau.`}
             </p>
           </div>
         ) : (

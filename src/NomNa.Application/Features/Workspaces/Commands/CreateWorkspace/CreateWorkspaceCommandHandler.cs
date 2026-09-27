@@ -39,11 +39,10 @@ public class CreateWorkspaceCommandHandler : IRequestHandler<CreateWorkspaceComm
             Role = WorkspaceRole.Owner
         });
 
-        // Add default #general channel
+        // Add default #general text channel
         var generalChannel = new Channel
         {
             Name = "general",
-            Topic = "General discussions",
             Type = ChannelType.Text,
             CreatedById = userId.Value
         };
@@ -51,8 +50,20 @@ public class CreateWorkspaceCommandHandler : IRequestHandler<CreateWorkspaceComm
         {
             UserId = userId.Value
         });
-
         workspace.Channels.Add(generalChannel);
+
+        // Add default voice channel
+        var generalVoiceChannel = new Channel
+        {
+            Name = "general-voice",
+            Type = ChannelType.Voice,
+            CreatedById = userId.Value
+        };
+        generalVoiceChannel.Members.Add(new ChannelMember
+        {
+            UserId = userId.Value
+        });
+        workspace.Channels.Add(generalVoiceChannel);
 
         _context.Workspaces.Add(workspace);
         await _context.SaveChangesAsync(cancellationToken);
@@ -63,7 +74,8 @@ public class CreateWorkspaceCommandHandler : IRequestHandler<CreateWorkspaceComm
             workspace.Description,
             workspace.IconUrl,
             workspace.InviteCode,
-            workspace.OwnerId
+            workspace.OwnerId,
+            1
         );
     }
 }

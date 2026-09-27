@@ -22,6 +22,11 @@ export const authApi = {
     return res.data;
   },
 
+  updateProfile: async (data: { displayName?: string; avatarUrl?: string | null; bio?: string }): Promise<User> => {
+    const res = await httpClient.put<User>('/auth/profile', data);
+    return res.data;
+  },
+
   refresh: async (userId?: string): Promise<AuthResponse> => {
     const res = await httpClient.post<AuthResponse>('/auth/refresh', { userId });
     return res.data;
