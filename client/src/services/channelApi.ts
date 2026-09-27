@@ -9,12 +9,11 @@ export const channelApi = {
 
   createChannel: async (
     workspaceId: string,
-    nameOrData: string | { name: string; topic?: string; type?: number; isPrivate?: boolean },
-    topic?: string
+    nameOrData: string | { name: string; type?: number; isPrivate?: boolean }
   ): Promise<Channel> => {
     const payload =
       typeof nameOrData === 'string'
-        ? { name: nameOrData, topic }
+        ? { name: nameOrData }
         : nameOrData;
     const res = await httpClient.post<Channel>(`/workspaces/${workspaceId}/channels`, payload);
     return res.data;

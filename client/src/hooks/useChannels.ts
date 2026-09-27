@@ -40,9 +40,9 @@ export function useChannels(workspaceId?: string) {
     fetchChannels();
   }, [fetchChannels]);
 
-  const createChannel = async (name: string, topic?: string): Promise<Channel> => {
+  const createChannel = async (name: string): Promise<Channel> => {
     if (!workspaceId) throw new Error('No active workspace selected');
-    const newChan = await channelApi.createChannel(workspaceId, name, topic);
+    const newChan = await channelApi.createChannel(workspaceId, name);
     setChannels((prev) => [...prev, newChan]);
     setActiveChannel(newChan);
     return newChan;

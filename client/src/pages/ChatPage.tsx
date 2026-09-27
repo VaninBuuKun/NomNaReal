@@ -451,7 +451,6 @@ export const ChatPage: React.FC = () => {
           id: activeDm.id,
           workspaceId: activeWorkspaceId || '',
           name: activeDm.user.displayName,
-          topic: `@${activeDm.user.username}`,
           type: ChannelType.DirectMessage,
           isPrivate: true,
         }

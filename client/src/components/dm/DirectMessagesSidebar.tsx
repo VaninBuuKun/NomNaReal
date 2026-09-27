@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   MagnifyingGlass,
-  Plus,
+  UserPlus,
   PaperPlaneTilt,
   X,
   WechatLogoIcon,
@@ -30,7 +30,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
   activeConversationId,
   onSelectConversation,
   onOpenNewDm,
-  onRemoveConversation,
+  onRemoveConversation: _onRemoveConversation,
 }) => {
   const [filterQuery, setFilterQuery] = useState('');
 
@@ -64,11 +64,11 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
       id="directMessagesSidebar"
       className="h-full min-h-0 flex-1 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col overflow-visible min-w-[200px] relative z-30"
     >
-      {/* 1. Header (Fixed 54px matching ChannelSidebar) */}
-      <div className="h-[54px] px-3.5 border-b border-[var(--border-color)] flex items-center justify-between font-bold text-[0.95rem] bg-[var(--bg-sidebar)] select-none shrink-0">
-        <div className="flex items-center gap-2 text-[var(--text-primary)]">
+      {/* 1. Header (Fixed 54px matching ChannelSidebar, fully responsive) */}
+      <div className="h-[54px] px-3.5 border-b border-[var(--border-color)] flex items-center justify-between gap-2 font-bold text-[0.95rem] bg-[var(--bg-sidebar)] select-none shrink-0">
+        <div className="flex items-center gap-2 text-[var(--text-primary)] min-w-0 flex-1">
           <div className="w-7 h-7 rounded-[4px] bg-[var(--accent-soft)] flex items-center justify-center text-[var(--accent-primary)] shrink-0">
-            <WechatLogoIcon size={24} weight="fill" />
+            <WechatLogoIcon size={20} weight="fill" />
           </div>
           <span className="truncate font-bold text-[0.95rem]">Tin nhắn trực tiếp</span>
         </div>
@@ -78,13 +78,13 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
           type="button"
           onClick={onOpenNewDm}
           title="Nhắn tin với thành viên mới"
-          className="w-8 h-8 rounded-[3px] bg-[var(--accent-primary)] hover:opacity-90 text-white flex items-center justify-center shadow-xs transition-transform active:scale-95 cursor-pointer shrink-0"
+          className="w-8 h-8 rounded-[4px] bg-[var(--accent-soft)] hover:bg-[var(--accent-primary)] text-[var(--accent-primary)] hover:text-white flex items-center justify-center shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
         >
-          <Plus size={16} weight="bold" />
+          <UserPlus size={17} weight="bold" />
         </button>
       </div>
 
-      {/* 2. Messenger-style Search Bar with '+' button on the right */}
+      {/* 2. Messenger-style Search Bar */}
       <div className="p-3 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0">
         <div className="flex items-center gap-2">
           {/* Search Input Box */}
@@ -111,16 +111,6 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
               </button>
             )}
           </div>
-
-          {/* Plus Action Button on the Right
-          <button
-            type="button"
-            onClick={onOpenNewDm}
-            title="Nhắn tin với thành viên mới"
-            className="w-8 h-8 rounded-[3px] bg-[var(--accent-primary)] hover:opacity-90 text-white flex items-center justify-center shadow-xs transition-transform active:scale-95 cursor-pointer shrink-0"
-          >
-            <Plus size={16} weight="bold" />
-          </button> */}
         </div>
       </div>
 
@@ -216,18 +206,6 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
                     )}
                   </div>
                 </div>
-
-                {/* Close/Remove conversation hover button */}
-                {onRemoveConversation && (
-                  <button
-                    type="button"
-                    onClick={(e) => onRemoveConversation(item.id, e)}
-                    title="Đóng đoạn chat"
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-[3px] text-[var(--text-muted)] hover:text-red-500 hover:bg-[var(--bg-surface-active)] transition-all cursor-pointer shrink-0"
-                  >
-                    <X size={12} weight="bold" />
-                  </button>
-                )}
               </div>
             );
           })

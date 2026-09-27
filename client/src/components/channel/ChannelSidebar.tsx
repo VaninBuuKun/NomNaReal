@@ -12,6 +12,7 @@ import {
   SignOut,
 } from '@phosphor-icons/react';
 import { ChannelType, type Channel, type Workspace } from '../../types';
+import { InviteMemberModal } from '../workspace';
 
 interface ChannelSidebarProps {
   currentWorkspace: Workspace | null;
@@ -31,6 +32,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onOpenSettings,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isTextCollapsed, setIsTextCollapsed] = useState(false);
   const [isVoiceCollapsed, setIsVoiceCollapsed] = useState(false);
 
@@ -70,12 +72,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
     >
       {/* Workspace Header with Dropdown */}
       <div className="relative shrink-0 z-50">
-        <div className="h-[54px] px-3.5 border-b border-[var(--border-color)] flex items-center justify-between font-bold text-[0.95rem] bg-[var(--bg-sidebar)] select-none">
+        <div className="h-[54px] px-3.5 border-b border-[var(--border-color)] flex items-center justify-between gap-2 font-bold text-[0.95rem] bg-[var(--bg-sidebar)] select-none">
           <button
             ref={buttonRef}
             type="button"
             onClick={() => setIsMenuOpen((prev) => !prev)}
-            className="flex items-center gap-2 max-w-[calc(100%-8px)] px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] transition-colors cursor-pointer text-left group"
+            className="flex items-center gap-2 min-w-0 flex-1 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] transition-colors cursor-pointer text-left group"
             title="Tùy chọn Workspace"
           >
             <span className="truncate text-[var(--text-primary)] font-bold text-[0.95rem]">
@@ -87,6 +89,16 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               className={`text-[var(--text-muted)] group-hover:text-[var(--text-primary)] shrink-0 transition-transform duration-200 ${isMenuOpen ? 'rotate-180 text-[var(--accent-primary)]' : ''
                 }`}
             />
+          </button>
+
+          {/* Quick Invite Member button */}
+          <button
+            type="button"
+            onClick={() => setIsInviteModalOpen(true)}
+            title="Mời thêm thành viên vào không gian làm việc"
+            className="w-8 h-8 rounded-[4px] bg-[var(--accent-soft)] hover:bg-[var(--accent-primary)] text-[var(--accent-primary)] hover:text-white flex items-center justify-center shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
+          >
+            <UserPlus size={17} weight="bold" />
           </button>
         </div>
 
@@ -123,7 +135,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   type="button"
                   onClick={() => {
                     setIsMenuOpen(false);
-                    alert(`Mã mời tham gia Workspace: ${currentWorkspace?.inviteCode || 'NEXUS123'}`);
+                    setIsInviteModalOpen(true);
                   }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-[3px] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left"
                 >
@@ -234,7 +246,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               ) : (
                 <CaretDown size={12} weight="bold" />
               )}
-              <span>Kênh thoại (Voice)</span>
+              <span>Kênh thoại</span>
               <span className="text-[10px] text-[var(--text-muted)] font-normal">({voiceChannels.length})</span>
             </button>
             <button
@@ -276,6 +288,13 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           )}
         </div>
       </div>
+
+      {/* Invite Member Modal */}
+      <InviteMemberModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        workspace={currentWorkspace}
+      />
     </aside>
   );
 };

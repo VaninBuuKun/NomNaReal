@@ -67,14 +67,6 @@ export const EmptyChatState: React.FC<EmptyChatStateProps> = ({
         Chào mừng đến với #{currentChannel.name}!
       </h2>
 
-      {/* Channel Topic Badge (if exists) */}
-      {currentChannel.topic ? (
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--accent-soft)] border border-[var(--accent-primary)]/20 text-xs font-semibold text-[var(--accent-primary)] mb-3 max-w-md shadow-xs">
-          <span>📌</span>
-          <span className="truncate">{currentChannel.topic}</span>
-        </div>
-      ) : null}
-
       {/* Friendly Description */}
       <p className="text-sm text-[var(--text-muted)] max-w-md leading-relaxed mb-6">
         Đây là điểm khởi đầu của kênh <strong>#{currentChannel.name}</strong>. Hãy gửi lời chào đầu tiên hoặc bấm vào gợi ý bên dưới để bắt đầu cuộc trò chuyện sôi nổi!
