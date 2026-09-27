@@ -89,15 +89,20 @@ export class SignalRService {
     }
   }
 
-  public onThreadReplyCountUpdated(callback: (data: { parentMessageId: string; channelId: string; replyId: string; createdAt: string }) => void): void {
+  public onThreadReplyCountUpdated(callback: (data: { parentMessageId: string; channelId: string; replyId: string; replyCount?: number; createdAt: string }) => void): void {
     if (this.connection) {
+      this.connection.off('ThreadReplyCountUpdated');
       this.connection.on('ThreadReplyCountUpdated', callback);
     }
   }
 
-  public offThreadReplyCountUpdated(callback: (data: any) => void): void {
+  public offThreadReplyCountUpdated(callback?: (data: any) => void): void {
     if (this.connection) {
-      this.connection.off('ThreadReplyCountUpdated', callback);
+      if (callback) {
+        this.connection.off('ThreadReplyCountUpdated', callback);
+      } else {
+        this.connection.off('ThreadReplyCountUpdated');
+      }
     }
   }
 

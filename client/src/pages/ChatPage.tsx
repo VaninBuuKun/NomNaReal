@@ -104,7 +104,7 @@ export const ChatPage: React.FC = () => {
   const loadMessages = async (channelId: string) => {
     try {
       const msgs = await messageApi.getMessages(channelId);
-      setMessages(msgs.reverse());
+      setMessages(msgs);
     } catch (err) {
       console.error('Failed to load messages:', err);
     }
@@ -175,7 +175,7 @@ export const ChatPage: React.FC = () => {
             if (m.id === data.parentMessageId) {
               return {
                 ...m,
-                replyCount: (m.replyCount || 0) + 1,
+                replyCount: typeof data.replyCount === 'number' ? data.replyCount : (m.replyCount || 0) + 1,
                 lastReplyAt: data.createdAt,
               };
             }

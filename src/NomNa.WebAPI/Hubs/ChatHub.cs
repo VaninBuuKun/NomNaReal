@@ -91,6 +91,7 @@ public class ChatHub : Hub
             parentMessageId,
             channelId = reply.ChannelId,
             replyId = reply.Id,
+            replyCount = reply.ReplyCount,
             createdAt = reply.CreatedAt
         });
 

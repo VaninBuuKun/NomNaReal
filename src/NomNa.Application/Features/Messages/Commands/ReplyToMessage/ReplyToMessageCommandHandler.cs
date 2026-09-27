@@ -60,6 +60,9 @@ public class ReplyToMessageCommandHandler : IRequestHandler<ReplyToMessageComman
         _context.Messages.Add(reply);
         await _context.SaveChangesAsync(cancellationToken);
 
+        var replyCount = await _context.Messages
+            .CountAsync(m => m.ThreadId == rootThreadId && m.DeletedAt == null, cancellationToken);
+
         return new MessageDto(
             reply.Id,
             reply.ChannelId,
@@ -70,6 +73,8 @@ public class ReplyToMessageCommandHandler : IRequestHandler<ReplyToMessageComman
             reply.Content,
             reply.ThreadId,
             reply.IsEdited,
+            reply.CreatedAt,
+            replyCount,
             reply.CreatedAt
         );
     }

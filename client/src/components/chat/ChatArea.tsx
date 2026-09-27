@@ -13,11 +13,12 @@ import {
   Trash,
   FileText,
   CircleNotch,
+  HandWaving,
 } from "@phosphor-icons/react";
 import type { Channel, Message, User } from "../../types";
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
-import { EmptyChatState } from "./EmptyChatState";
+import { formatDateDivider, isDifferentDay } from "../../utils/formatDate";
 
 interface ChatAreaProps {
   currentChannel: Channel | null;
@@ -287,15 +288,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           <h2 className="text-[1rem] font-bold text-[var(--text-primary)] whitespace-nowrap">
             {currentChannel ? `# ${currentChannel.name}` : "NomNa Workspace"}
           </h2>
-          {currentChannel?.topic ? (
-            <span className="text-[0.8rem] text-[var(--text-muted)] border-l border-[var(--border-color)] pl-2.5 whitespace-nowrap overflow-hidden text-ellipsis">
-              {currentChannel.topic}
-            </span>
-          ) : !currentChannel ? (
-            <span className="text-[0.8rem] text-[var(--text-muted)] border-l border-[var(--border-color)] pl-2.5 whitespace-nowrap overflow-hidden text-ellipsis">
-              Không gian trao đổi và làm việc nhóm
-            </span>
-          ) : null}
         </div>
         <div className="flex items-center gap-1">
           <button
@@ -323,32 +315,55 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       </div>
 
       {/* Message Stream Area */}
-      <div className="flex-1 min-h-0 p-5 overflow-y-auto flex flex-col gap-3" id="messageStream">
-        {messages.length === 0 ? (
-          <EmptyChatState
-            currentChannel={currentChannel}
-            onSelectPrompt={(promptText) => {
-              setContent(promptText);
-              textareaRef.current?.focus();
-            }}
-          />
-        ) : (
-          <>
-            <div className="mt-auto" />
-            {messages.map((msg, index) => {
-              const isMe = currentUser && (msg.senderId === currentUser.id || msg.senderUsername === currentUser.username);
-              const isEditingThis = editingMessageId === msg.id;
-              const timeStr = new Date(msg.createdAt).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              });
-              const avatarSrc = msg.senderAvatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png";
+      <div className="flex-1 min-h-0 px-5 pt-4 pb-1 overflow-y-auto flex flex-col gap-2.5" id="messageStream">
+        <div className="mt-auto" />
 
-              return (
-                <div
-                  key={msg.id}
-                  className="group relative flex gap-3 px-3 py-2 rounded-xl transition-all duration-150 hover:bg-[var(--bg-surface)]"
-                >
+        {/* Channel Welcome Header (Discord / Slack style) */}
+        {currentChannel ? (
+          <div className="pt-6 pb-4 px-2 select-none flex flex-col gap-2 border-b border-[var(--border-color)]/50 mb-1">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-md shadow-orange-500/20">
+              <HandWaving size={26} weight="fill" className="text-amber-100" />
+            </div>
+            <h3 className="text-xl font-black text-[var(--text-primary)] tracking-tight">
+              Chào mừng bạn đến với kênh #{currentChannel.name}!
+            </h3>
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+              Điểm bắt đầu cho cuộc trò chuyện. Nơi mọi người làm việc với nhau.
+            </p>
+          </div>
+        ) : (
+          <div className="p-8 text-center text-xs text-[var(--text-muted)]">
+            Chọn một kênh để bắt đầu trò chuyện.
+          </div>
+        )}
+
+        {messages.map((msg, index) => {
+          const prevMsg = index > 0 ? messages[index - 1] : undefined;
+          const showDateDivider = isDifferentDay(msg.createdAt, prevMsg?.createdAt);
+          const isMe = currentUser && (msg.senderId === currentUser.id || msg.senderUsername === currentUser.username);
+          const isEditingThis = editingMessageId === msg.id;
+          const timeStr = new Date(msg.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const avatarSrc = msg.senderAvatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png";
+
+          return (
+            <React.Fragment key={msg.id}>
+              {showDateDivider && (
+                <div className="relative my-3 flex items-center justify-center select-none">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-[var(--border-color)]" />
+                  </div>
+                  <span className="relative px-3 py-0.5 text-[0.72rem] font-semibold text-[var(--text-muted)] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-full shadow-2xs">
+                    {formatDateDivider(msg.createdAt)}
+                  </span>
+                </div>
+              )}
+
+              <div
+                className="group relative flex gap-3 px-3 py-2 rounded-xl transition-all duration-150 hover:bg-[var(--bg-surface)]"
+              >
                   {/* Sender Avatar */}
                   <div className="w-9 h-9 rounded-xl shrink-0 overflow-hidden flex items-center justify-center font-bold text-[0.82rem] text-white shadow-sm border border-[var(--border-color)]">
                     <img
@@ -511,40 +526,41 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     )}
                   </div>
                 </div>
-              );
-            })}
-          </>
-        )}
+              </React.Fragment>
+            );
+          })}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Typing indicator & Upload Progress */}
-      <div className="px-5 text-xs text-[var(--text-muted)] flex items-center justify-between shrink-0 min-h-6">
-        <div className="flex items-center gap-2">
-          {typingUser && (
-            <>
-              <div className="typing-wave">
-                <span />
-                <span />
-                <span />
-              </div>
-              <span>
-                <strong>{typingUser}</strong> đang soạn tin nhắn...
-              </span>
-            </>
+      {(Boolean(typingUser) || uploading) && (
+        <div className="px-5 py-1 text-xs text-[var(--text-muted)] flex items-center justify-between shrink-0 animate-in fade-in duration-150">
+          <div className="flex items-center gap-2">
+            {typingUser && (
+              <>
+                <div className="typing-wave">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <span>
+                  <strong>{typingUser}</strong> đang soạn tin nhắn...
+                </span>
+              </>
+            )}
+          </div>
+
+          {uploading && (
+            <div className="flex items-center gap-1.5 text-[var(--accent-primary)] font-medium">
+              <CircleNotch size={14} className="animate-spin" />
+              <span>{uploadProgress || "Đang tải lên media S3 (tối đa 100MB)..."}</span>
+            </div>
           )}
         </div>
-
-        {uploading && (
-          <div className="flex items-center gap-1.5 text-[var(--accent-primary)] font-medium">
-            <CircleNotch size={14} className="animate-spin" />
-            <span>{uploadProgress || "Đang tải lên media S3 (tối đa 100MB)..."}</span>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Chat Input Box */}
-      <div className="px-5 pb-3 shrink-0">
+      <div className="px-5 pb-2.5 pt-0.5 shrink-0">
         <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-md p-2.5 px-3.5 flex flex-col gap-2 transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_2px_12px_var(--accent-glow)]">
           <textarea
             ref={textareaRef}

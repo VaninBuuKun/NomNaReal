@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CaretDown, Plus, Hash, LockSimple, Gear, Sparkle, UserPlus, SignOut } from '@phosphor-icons/react';
+import { CaretDown, Plus, Hash, Key, Gear, Sparkle, UserPlus, SignOut } from '@phosphor-icons/react';
 import type { Channel, Workspace } from '../../types';
 
 interface ChannelSidebarProps {
@@ -45,39 +45,39 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
     channels.length > 0
       ? channels
       : [
-          {
-            id: '1',
-            workspaceId: currentWorkspace?.id || 'ws-nexus',
-            name: 'general',
-            topic: 'Kênh trao đổi chung cho toàn bộ thành viên',
-            type: 0,
-            isPrivate: false,
-          },
-          {
-            id: '2',
-            workspaceId: currentWorkspace?.id || 'ws-nexus',
-            name: 'backend-net9',
-            topic: 'Kiến trúc .NET 9, SignalR Hub & Performance',
-            type: 0,
-            isPrivate: false,
-          },
-          {
-            id: '3',
-            workspaceId: currentWorkspace?.id || 'ws-nexus',
-            name: 'react-frontend',
-            topic: 'React + Vite UI with Warm White Orange Theme',
-            type: 0,
-            isPrivate: false,
-          },
-          {
-            id: '4',
-            workspaceId: currentWorkspace?.id || 'ws-nexus',
-            name: 'devops-cloud',
-            topic: 'Docker, CI/CD và triển khai ứng dụng',
-            type: 1,
-            isPrivate: true,
-          },
-        ];
+        {
+          id: '1',
+          workspaceId: currentWorkspace?.id || 'ws-nexus',
+          name: 'general',
+          topic: 'Kênh trao đổi chung cho toàn bộ thành viên',
+          type: 0,
+          isPrivate: false,
+        },
+        {
+          id: '2',
+          workspaceId: currentWorkspace?.id || 'ws-nexus',
+          name: 'backend-net9',
+          topic: 'Kiến trúc .NET 9, SignalR Hub & Performance',
+          type: 0,
+          isPrivate: false,
+        },
+        {
+          id: '3',
+          workspaceId: currentWorkspace?.id || 'ws-nexus',
+          name: 'react-frontend',
+          topic: 'React + Vite UI with Warm White Orange Theme',
+          type: 0,
+          isPrivate: false,
+        },
+        {
+          id: '4',
+          workspaceId: currentWorkspace?.id || 'ws-nexus',
+          name: 'devops-cloud',
+          topic: 'Docker, CI/CD và triển khai ứng dụng',
+          type: 1,
+          isPrivate: true,
+        },
+      ];
 
   return (
     <aside
@@ -99,9 +99,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             <CaretDown
               size={13}
               weight="bold"
-              className={`text-[var(--text-muted)] group-hover:text-[var(--text-primary)] shrink-0 transition-transform duration-200 ${
-                isMenuOpen ? 'rotate-180 text-[var(--accent-primary)]' : ''
-              }`}
+              className={`text-[var(--text-muted)] group-hover:text-[var(--text-primary)] shrink-0 transition-transform duration-200 ${isMenuOpen ? 'rotate-180 text-[var(--accent-primary)]' : ''
+                }`}
             />
           </button>
         </div>
@@ -220,15 +219,14 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 <li
                   key={ch.id}
                   onClick={() => onSelectChannel(ch.id)}
-                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[0.88rem] font-medium cursor-pointer transition-all duration-150 border-none w-full text-left ${
-                    isActive
-                      ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
-                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
-                  }`}
+                  className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[0.88rem] font-medium cursor-pointer transition-all duration-150 border-none w-full text-left ${isActive
+                    ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                    }`}
                 >
                   <span className="flex items-center gap-1.5 min-w-0">
                     {ch.isPrivate ? (
-                      <LockSimple size={15} weight="bold" className="mr-2 opacity-65 font-semibold shrink-0" />
+                      <Key size={15} weight="bold" className="mr-2 text-amber-500/90 shrink-0" />
                     ) : (
                       <Hash size={16} weight="bold" className="mr-2 opacity-65 font-semibold shrink-0" />
                     )}
@@ -266,13 +264,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               >
                 <span className="flex items-center min-w-0">
                   <span
-                    className={`w-2 h-2 rounded-full inline-block mr-2 shrink-0 ${
-                      dm.status === 'online'
-                        ? 'bg-[var(--status-online)] shadow-[0_0_6px_rgba(22,163,74,0.4)]'
-                        : dm.status === 'away'
+                    className={`w-2 h-2 rounded-full inline-block mr-2 shrink-0 ${dm.status === 'online'
+                      ? 'bg-[var(--status-online)] shadow-[0_0_6px_rgba(22,163,74,0.4)]'
+                      : dm.status === 'away'
                         ? 'bg-[var(--status-away)]'
                         : 'bg-[var(--status-dnd)]'
-                    }`}
+                      }`}
                   />
                   <span className="truncate">{dm.name}</span>
                 </span>
