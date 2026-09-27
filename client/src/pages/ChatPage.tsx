@@ -8,7 +8,6 @@ import { ThreadPanel } from '../components/thread';
 import { SettingsModal } from '../components/settings';
 import { authApi, workspaceApi, channelApi, messageApi, signalRService } from '../services';
 import { useTheme } from '../hooks/useTheme';
-import { uuidv7 } from '../utils/uuidv7';
 import { ChannelType, type User, type Workspace, type Channel, type Message } from '../types';
 
 export const ChatPage: React.FC = () => {
@@ -29,83 +28,8 @@ export const ChatPage: React.FC = () => {
   const [activeSidebarView, setActiveSidebarView] = useState<'channels' | 'dms'>('channels');
   const [isNewDmOpen, setIsNewDmOpen] = useState(false);
   const [activeDmId, setActiveDmId] = useState<string | null>(null);
-
-  const [dmConversations, setDmConversations] = useState<DirectMessageItem[]>([
-    {
-      id: 'dm-alex',
-      user: {
-        id: 'user-alex',
-        displayName: 'Alex Rivers',
-        username: 'alexrivers',
-        email: 'alex.rivers@nomna.io',
-        avatarUrl: '/default-avatar.png',
-        status: 'online',
-        role: 'Quản trị viên',
-        customStatus: 'Đang review code .NET 9 & SignalR',
-      },
-      lastMessage: 'Chào bạn! Hệ thống SignalR và Clean Architecture của NomNa đã sẵn sàng để kiểm thử.',
-      lastMessageTime: '10:45',
-      unreadCount: 1,
-    },
-    {
-      id: 'dm-minh',
-      user: {
-        id: 'user-minh',
-        displayName: 'Minh Dev',
-        username: 'minhdev',
-        email: 'minh.dev@nomna.io',
-        status: 'online',
-        role: 'Thành viên',
-        customStatus: 'Làm việc với React & Tailwind',
-      },
-      lastMessage: 'Đã hoàn thiện modal và sidebar theo đúng chuẩn thiết kế nhé!',
-      lastMessageTime: 'Hôm qua',
-      unreadCount: 0,
-    },
-    {
-      id: 'dm-sarah',
-      user: {
-        id: 'user-sarah',
-        displayName: 'Sarah Miller',
-        username: 'sarahm',
-        email: 'sarah.miller@nomna.io',
-        status: 'away',
-        role: 'Thiết kế UI/UX',
-        customStatus: 'Đang thiết kế Design System',
-      },
-      lastMessage: 'Bạn check giúp mình bản figma design system mới nhé.',
-      lastMessageTime: '26/09',
-      unreadCount: 0,
-    },
-  ]);
-
-  const [dmHistory, setDmHistory] = useState<Record<string, Message[]>>({
-    'dm-alex': [
-      {
-        id: 'msg-dm-alex-1',
-        channelId: 'dm-alex',
-        senderId: 'user-alex',
-        senderUsername: 'alexrivers',
-        senderDisplayName: 'Alex Rivers',
-        senderAvatarUrl: '/default-avatar.png',
-        content: 'Chào bạn! Hệ thống SignalR và Clean Architecture của NomNa đã sẵn sàng để kiểm thử.',
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-        isEdited: false,
-      },
-    ],
-    'dm-minh': [
-      {
-        id: 'msg-dm-minh-1',
-        channelId: 'dm-minh',
-        senderId: 'user-minh',
-        senderUsername: 'minhdev',
-        senderDisplayName: 'Minh Dev',
-        content: 'Đã hoàn thiện modal và sidebar theo đúng chuẩn thiết kế nhé!',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        isEdited: false,
-      },
-    ],
-  });
+  const [dmConversations, setDmConversations] = useState<DirectMessageItem[]>([]);
+  const [workspaceMembers, setWorkspaceMembers] = useState<DirectMessageUser[]>([]);
 
   // Resizable Sidebars Bounds & State
   const MIN_CHANNEL_WIDTH = 200;
@@ -205,21 +129,70 @@ export const ChatPage: React.FC = () => {
     await signalRService.joinChannel(channelId);
   };
 
+  // Fetch Workspace Channels, DMs, and Members in parallel
+  const loadWorkspaceData = async (wsId: string, currentUid?: string) => {
+    try {
+      const [chs, dms, members] = await Promise.all([
+        channelApi.getChannels(wsId),
+        workspaceApi.getDirectMessages(wsId).catch(() => []),
+        workspaceApi.getMembers(wsId).catch(() => []),
+      ]);
+
+      setChannels(chs);
+
+      // Format real DM conversations
+      const formattedDms: DirectMessageItem[] = (dms || []).map((d) => ({
+        id: d.id,
+        workspaceId: d.workspaceId,
+        user: {
+          id: d.targetUserId,
+          displayName: d.targetDisplayName,
+          username: d.targetUsername,
+          avatarUrl: d.targetAvatarUrl,
+          email: d.targetEmail || '',
+          status: (d.targetStatus as any) || 'online',
+        },
+        lastMessage: d.lastMessage || 'Cuộc trò chuyện mới',
+        lastMessageTime: d.lastMessageAt
+          ? new Date(d.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          : undefined,
+        unreadCount: d.unreadCount || 0,
+        isPending: false,
+      }));
+      setDmConversations(formattedDms);
+
+      // Format members (exclude current user so we don't start DM with ourselves)
+      const uid = currentUid || currentUser?.id;
+      const formattedMembers: DirectMessageUser[] = (members || [])
+        .filter((m) => m.userId !== uid)
+        .map((m) => ({
+          id: m.userId,
+          displayName: m.displayName,
+          username: m.username,
+          email: m.email || '',
+          avatarUrl: m.avatarUrl,
+          status: (m.status as any) || 'online',
+          role: m.role,
+        }));
+      setWorkspaceMembers(formattedMembers);
+
+      return { channels: chs, dms: formattedDms };
+    } catch (err) {
+      console.error('Failed to load workspace data:', err);
+      return { channels: [], dms: [] };
+    }
+  };
+
   // Switch Active Workspace
   const handleSelectWorkspace = async (workspaceId: string) => {
     setActiveWorkspaceId(workspaceId);
     navigate(`/workspace/${workspaceId}`, { replace: true });
-    try {
-      const chs = await channelApi.getChannels(workspaceId);
-      setChannels(chs);
-      if (chs.length > 0) {
-        handleSelectChannel(chs[0].id);
-      } else {
-        setActiveChannelId(null);
-        setMessages([]);
-      }
-    } catch (err) {
-      console.error('Failed to load channels:', err);
+    const { channels: chs } = await loadWorkspaceData(workspaceId, currentUser?.id);
+    if (chs.length > 0) {
+      handleSelectChannel(chs[0].id);
+    } else {
+      setActiveChannelId(null);
+      setMessages([]);
     }
   };
 
@@ -234,6 +207,22 @@ export const ChatPage: React.FC = () => {
       if (prev.some((m) => m.id === msg.id)) return prev;
       return [...prev, msg];
     });
+
+    // Live update DM snippet if incoming message belongs to a DM conversation
+    setDmConversations((prev) =>
+      prev.map((c) =>
+        c.id === msg.channelId
+          ? {
+              ...c,
+              lastMessage: msg.content,
+              lastMessageTime: new Date(msg.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+            }
+          : c
+      )
+    );
   }, []);
 
   // Initialize Chat App & Verify User Session via Cookie
@@ -307,9 +296,8 @@ export const ChatPage: React.FC = () => {
         const targetWs = wsList.find((w) => w.id === paramWorkspaceId) || wsList[0];
         setActiveWorkspaceId(targetWs.id);
 
-        // Load Channels of target workspace
-        const chList = await channelApi.getChannels(targetWs.id);
-        setChannels(chList);
+        // Load Channels, DMs, and Members of target workspace
+        const { channels: chList } = await loadWorkspaceData(targetWs.id, user.id);
 
         if (chList.length > 0) {
           const firstChId = chList[0].id;
@@ -356,37 +344,38 @@ export const ChatPage: React.FC = () => {
   const handleSendMessage = async (content: string) => {
     if (!activeChannelId) return;
 
-    // Direct Message sending (scoped to workspace with UUIDv7)
-    if (activeChannelId.startsWith('dm-') || currentChannel?.type === ChannelType.DirectMessage) {
-      const newMsgId = uuidv7();
-      const newMsg: Message = {
-        id: newMsgId,
-        channelId: activeChannelId,
-        senderId: currentUser?.id || 'me',
-        senderUsername: currentUser?.username || 'me',
-        senderDisplayName: currentUser?.displayName || 'Tôi',
-        senderAvatarUrl: currentUser?.avatarUrl,
-        content,
-        createdAt: new Date().toISOString(),
-        isEdited: false,
-      };
-      setMessages((prev) => [...prev, newMsg]);
-      setDmHistory((prev) => ({
-        ...prev,
-        [activeChannelId]: [...(prev[activeChannelId] || []), newMsg],
-      }));
-      setDmConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeChannelId
-            ? { ...c, lastMessage: content, lastMessageTime: 'Vừa xong' }
-            : c
-        )
-      );
-      return;
+    let targetChannelId = activeChannelId;
+
+    // Deferred DM creation: If this is a pending DM conversation, create it in DB on first message!
+    const currentDm = dmConversations.find((c) => c.id === activeChannelId);
+    if (currentDm?.isPending) {
+      if (!activeWorkspaceId) return;
+      try {
+        const realDm = await channelApi.createOrGetDm(activeWorkspaceId, currentDm.user.id);
+        targetChannelId = realDm.id;
+
+        // Upgrade pending conversation in state to real channel ID
+        setDmConversations((prev) =>
+          prev.map((c) =>
+            c.id === currentDm.id
+              ? { ...c, id: realDm.id, isPending: false }
+              : c
+          )
+        );
+        setActiveDmId(realDm.id);
+        setActiveChannelId(realDm.id);
+
+        // Join the newly created SignalR channel
+        await signalRService.joinChannel(realDm.id);
+      } catch (err) {
+        console.error('Failed to create DM channel:', err);
+        alert('Không thể bắt đầu cuộc trò chuyện. Vui lòng thử lại.');
+        return;
+      }
     }
 
     try {
-      const msg = await signalRService.sendMessage(activeChannelId, content);
+      const msg = await signalRService.sendMessage(targetChannelId, content);
       if (msg) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === msg.id)) return prev;
@@ -394,12 +383,25 @@ export const ChatPage: React.FC = () => {
         });
       }
     } catch {
-      const msg = await messageApi.sendMessage(activeChannelId, content);
+      const msg = await messageApi.sendMessage(targetChannelId, content);
       setMessages((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
         return [...prev, msg];
       });
     }
+
+    // If this is a DM, update lastMessage
+    setDmConversations((prev) =>
+      prev.map((c) =>
+        c.id === targetChannelId
+          ? {
+              ...c,
+              lastMessage: content,
+              lastMessageTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }
+          : c
+      )
+    );
   };
 
   const handleCreateChannel = (type: ChannelType) => {
@@ -412,33 +414,65 @@ export const ChatPage: React.FC = () => {
     handleSelectChannel(newChannel.id);
   };
 
-  const handleSelectDmConversation = (dm: DirectMessageItem) => {
+  const handleSelectDmConversation = async (dm: DirectMessageItem) => {
     setActiveDmId(dm.id);
     setActiveChannelId(dm.id);
-    const history = dmHistory[dm.id] || [];
-    setMessages(history);
+
+    if (dm.isPending) {
+      // Pending DM conversation not yet in DB; clear messages
+      setMessages([]);
+    } else {
+      // Real channel in DB
+      await loadMessages(dm.id);
+      await signalRService.joinChannel(dm.id);
+    }
+
     setDmConversations((prev) =>
       prev.map((c) => (c.id === dm.id ? { ...c, unreadCount: 0 } : c))
     );
   };
 
-  const handleStartDm = (targetUser: DirectMessageUser) => {
+  const handleStartDmWithUser = (targetUser: {
+    id: string;
+    displayName: string;
+    username: string;
+    avatarUrl?: string;
+    email?: string;
+    status?: string;
+    role?: string;
+  }) => {
     let existing = dmConversations.find(
       (c) => c.user.id === targetUser.id && (!c.workspaceId || c.workspaceId === activeWorkspaceId)
     );
+
     if (!existing) {
+      const pendingDmId = `pending-dm-${targetUser.id}`;
       const newDm: DirectMessageItem = {
-        id: `dm-${uuidv7()}`,
+        id: pendingDmId,
         workspaceId: activeWorkspaceId || undefined,
-        user: targetUser,
+        user: {
+          id: targetUser.id,
+          displayName: targetUser.displayName,
+          username: targetUser.username,
+          email: targetUser.email || '',
+          avatarUrl: targetUser.avatarUrl,
+          status: (targetUser.status as any) || 'online',
+          role: targetUser.role,
+        },
         lastMessage: 'Cuộc trò chuyện mới',
-        lastMessageTime: 'Vừa xong',
         unreadCount: 0,
+        isPending: true,
       };
       setDmConversations((prev) => [newDm, ...prev]);
       existing = newDm;
     }
+
+    setActiveSidebarView('dms');
     handleSelectDmConversation(existing);
+  };
+
+  const handleStartDm = (targetUser: DirectMessageUser) => {
+    handleStartDmWithUser(targetUser);
     setIsNewDmOpen(false);
   };
 
@@ -601,6 +635,7 @@ export const ChatPage: React.FC = () => {
             handleExpandThread();
           }}
           onOpenThread={handleOpenThread}
+          onStartDmWithUser={handleStartDmWithUser}
         />
 
         {/* 3.5 Resizer Divider */}
@@ -655,6 +690,7 @@ export const ChatPage: React.FC = () => {
         onClose={() => setIsNewDmOpen(false)}
         onStartDm={handleStartDm}
         existingDmUserIds={dmConversations.map((c) => c.user.id)}
+        members={workspaceMembers}
       />
 
       {/* Settings Modal */}

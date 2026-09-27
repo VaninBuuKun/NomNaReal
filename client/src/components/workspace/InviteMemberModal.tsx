@@ -10,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import { Modal, Button } from '../ui';
 import type { Workspace } from '../../types';
+import { workspaceApi } from '../../services/workspaceApi';
 
 interface InviteMemberModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
   const [gmailInput, setGmailInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [sendSuccessMessage, setSendSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const inviteCode = workspace?.inviteCode || 'NEXUS123';
   const inviteUrl = typeof window !== 'undefined'
@@ -57,27 +59,37 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     }
   };
 
-  const handleSendGmailInvites = (e: React.FormEvent) => {
+  const handleSendGmailInvites = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (parsedEmails.length === 0 || isSending) return;
+    if (parsedEmails.length === 0 || isSending || !workspace?.id) return;
 
     setIsSending(true);
     setSendSuccessMessage(null);
+    setErrorMessage(null);
 
-    // Simulate sending email invites UI-only
-    setTimeout(() => {
-      setIsSending(false);
-      setSendSuccessMessage(
-        `Đã gửi lời mời thành công đến ${parsedEmails.length} địa chỉ Gmail!`
-      );
+    try {
+      const result = await workspaceApi.sendEmailInvites(workspace.id, parsedEmails);
+      let msg = `Đã gửi thành công ${result.sentCount} email mời tham gia!`;
+      if (result.alreadyMemberEmails && result.alreadyMemberEmails.length > 0) {
+        msg += ` (${result.alreadyMemberEmails.length} email đã là thành viên)`;
+      }
+      setSendSuccessMessage(msg);
       setGmailInput('');
-      setTimeout(() => setSendSuccessMessage(null), 4000);
-    }, 1200);
+      setTimeout(() => setSendSuccessMessage(null), 6000);
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      setErrorMessage(
+        errorObj?.response?.data?.message || 'Có lỗi xảy ra khi gửi email mời. Vui lòng thử lại.'
+      );
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleClose = () => {
     setGmailInput('');
     setSendSuccessMessage(null);
+    setErrorMessage(null);
     setCopiedType(null);
     onClose();
   };
@@ -201,6 +213,13 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
               <div className="flex items-center gap-2 p-3 rounded-[4px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 text-xs font-medium animate-in fade-in">
                 <CheckCircle size={16} weight="bold" className="shrink-0" />
                 <span>{sendSuccessMessage}</span>
+              </div>
+            )}
+
+            {errorMessage && (
+              <div className="flex items-center gap-2 p-3 rounded-[4px] bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-medium animate-in fade-in">
+                <Info size={16} weight="bold" className="shrink-0" />
+                <span>{errorMessage}</span>
               </div>
             )}
 

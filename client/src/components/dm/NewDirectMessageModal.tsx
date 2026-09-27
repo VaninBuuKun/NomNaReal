@@ -18,85 +18,28 @@ interface NewDirectMessageModalProps {
   onClose: () => void;
   onStartDm: (user: DirectMessageUser) => void;
   existingDmUserIds?: string[];
+  members?: DirectMessageUser[];
 }
-
-// Mock workspace members for instant search
-const MOCK_WORKSPACE_MEMBERS: DirectMessageUser[] = [
-  {
-    id: 'user-alex',
-    displayName: 'Alex Rivers',
-    username: 'alexrivers',
-    email: 'alex.rivers@nomna.io',
-    avatarUrl: '/default-avatar.png',
-    status: 'online',
-    role: 'Quản trị viên',
-    customStatus: 'Đang review code .NET 9 & SignalR',
-  },
-  {
-    id: 'user-minh',
-    displayName: 'Minh Dev',
-    username: 'minhdev',
-    email: 'minh.dev@nomna.io',
-    status: 'online',
-    role: 'Thành viên',
-    customStatus: 'Làm việc với React & Tailwind',
-  },
-  {
-    id: 'user-sarah',
-    displayName: 'Sarah Miller',
-    username: 'sarahm',
-    email: 'sarah.miller@nomna.io',
-    status: 'away',
-    role: 'Thiết kế UI/UX',
-    customStatus: 'Đang thiết kế Design System',
-  },
-  {
-    id: 'user-duc',
-    displayName: 'Duc Nguyen',
-    username: 'ducnguyen',
-    email: 'duc.nguyen@nomna.io',
-    status: 'dnd',
-    role: 'Kỹ sư DevOps',
-    customStatus: 'Triển khai Docker & CI/CD',
-  },
-  {
-    id: 'user-linh',
-    displayName: 'Linh Tran',
-    username: 'linhtran',
-    email: 'linh.tran@nomna.io',
-    status: 'offline',
-    role: 'Thành viên',
-    customStatus: 'Nghỉ ngơi',
-  },
-  {
-    id: 'user-hoang',
-    displayName: 'Hoang Le',
-    username: 'hoangle',
-    email: 'hoang.le@nomna.io',
-    status: 'online',
-    role: 'Mobile Lead',
-    customStatus: 'Họp team định kỳ',
-  },
-];
 
 export const NewDirectMessageModal: React.FC<NewDirectMessageModalProps> = ({
   isOpen,
   onClose,
   onStartDm,
   existingDmUserIds = [],
+  members = [],
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredMembers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return MOCK_WORKSPACE_MEMBERS;
-    return MOCK_WORKSPACE_MEMBERS.filter(
+    if (!term) return members;
+    return members.filter(
       (m) =>
         m.displayName.toLowerCase().includes(term) ||
         m.username.toLowerCase().includes(term) ||
-        m.email.toLowerCase().includes(term)
+        (m.email && m.email.toLowerCase().includes(term))
     );
-  }, [searchTerm]);
+  }, [members, searchTerm]);
 
   const handleSelectUser = (user: DirectMessageUser) => {
     onStartDm(user);

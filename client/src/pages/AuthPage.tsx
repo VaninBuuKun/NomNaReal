@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LoginForm, RegisterForm } from '../components/auth';
 import { Button } from '../components/ui';
@@ -15,69 +15,116 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
   const isRegister = mode === 'register';
   const [error, setError] = useState<string | null>(null);
   const { theme: activeTheme, changeTheme } = useTheme();
+  const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
   const handleAuthSuccess = () => {
     if (onAuthSuccess) onAuthSuccess();
-    navigate('/');
+    const pendingInvite = sessionStorage.getItem('nomna_pending_invite');
+    if (pendingInvite) {
+      navigate(`/join/${pendingInvite}`, { replace: true });
+    } else {
+      navigate('/', { replace: true });
+    }
   };
 
-  const handleGoogleLogin = () => {
-    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const handleGoogleCredentialResponse = async (response: { credential?: string }) => {
+    if (!response.credential) {
+      setError('Không nhận được mã xác thực Google Token.');
+      return;
+    }
+    try {
+      await authApi.googleLogin(response.credential);
+      localStorage.setItem('nomna_logged_in', 'true');
+      handleAuthSuccess();
+    } catch (err: unknown) {
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      setError(errorObj?.response?.data?.message || 'Đăng nhập với Google thất bại. Vui lòng thử lại.');
+    }
+  };
 
-    if (!googleClientId || googleClientId.trim() === '') {
-      setError('Chưa cấu hình Google Client ID. Vui lòng điền VITE_GOOGLE_CLIENT_ID trong file client/.env để kích hoạt.');
+  // Pre-load Google Identity Services and render official popup button (bypasses Firefox cookie blocking)
+  useEffect(() => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!googleClientId || googleClientId.trim() === '') return;
+
+    let isMounted = true;
+
+    const setupGoogle = () => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id) return;
+
+      try {
+        google.accounts.id.initialize({
+          client_id: googleClientId.trim(),
+          callback: handleGoogleCredentialResponse,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        });
+
+        if (googleBtnContainerRef.current && isMounted) {
+          google.accounts.id.renderButton(googleBtnContainerRef.current, {
+            theme: activeTheme === 'dark-zinc' ? 'filled_black' : 'outline',
+            size: 'large',
+            width: 400,
+            text: isRegister ? 'signup_with' : 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'center',
+            locale: 'vi',
+          });
+        }
+      } catch (e) {
+        console.warn('Google GSI init failed:', e);
+      }
+    };
+
+    const existingScript = document.getElementById('google-gsi-script');
+    if (existingScript && (window as any).google?.accounts?.id) {
+      setupGoogle();
       return;
     }
 
-    const loadGsiScript = (onLoaded: () => void) => {
-      const existingScript = document.getElementById('google-gsi-script');
-      if (existingScript && (window as any).google?.accounts?.id) {
-        onLoaded();
-        return;
-      }
-      const script = document.createElement('script');
-      script.id = 'google-gsi-script';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = onLoaded;
-      script.onerror = () => {
-        setError('Không thể tải Google Identity Services. Vui lòng kiểm tra kết nối mạng.');
-      };
-      document.head.appendChild(script);
+    const script = document.createElement('script');
+    script.id = 'google-gsi-script';
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if (isMounted) setupGoogle();
     };
+    script.onerror = () => {
+      console.warn('Failed to load Google GSI script.');
+    };
+    document.head.appendChild(script);
 
-    loadGsiScript(() => {
-      const google = (window as any).google;
-      if (!google?.accounts?.id) {
-        setError('Google Identity Service không khả dụng trên trình duyệt này.');
-        return;
-      }
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTheme, isRegister]);
 
-      setError(null);
-      google.accounts.id.initialize({
-        client_id: googleClientId.trim(),
-        callback: async (response: { credential?: string }) => {
-          if (!response.credential) {
-            setError('Không nhận được mã xác thực Google Token.');
-            return;
-          }
-          try {
-            await authApi.googleLogin(response.credential);
-            localStorage.setItem('nomna_logged_in', 'true');
-            handleAuthSuccess();
-          } catch (err: unknown) {
-            const errorObj = err as { response?: { data?: { message?: string } } };
-            setError(errorObj?.response?.data?.message || 'Đăng nhập với Google thất bại. Vui lòng thử lại.');
-          }
-        },
-      });
+  const handleGoogleLoginFallback = () => {
+    const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!googleClientId || googleClientId.trim() === '') {
+      setError('Chưa cấu hình Google Client ID. Vui lòng điền VITE_GOOGLE_CLIENT_ID trong file client/.env.');
+      return;
+    }
 
-      google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          console.warn('Google One Tap notification skipped or not displayed');
+    const google = (window as any).google;
+    if (!google?.accounts?.id) {
+      setError('Google Identity Service chưa sẵn sàng. Vui lòng tải lại trang.');
+      return;
+    }
+
+    setError(null);
+    google.accounts.id.prompt((notification: any) => {
+      if (notification.isNotDisplayed()) {
+        const reason = notification.getNotDisplayedReason?.() || 'unknown';
+        console.warn('Google One Tap not displayed, reason:', reason);
+        if (reason === 'opt_out_or_no_session') {
+          setError('Trình duyệt đang chặn cookie bên thứ 3 (như trên Firefox) hoặc chưa đăng nhập tài khoản Google.');
+        } else {
+          setError(`Google từ chối yêu cầu (Lý do: ${reason}). Hãy kiểm tra mục "Authorised JavaScript origins" trong Google Cloud Console.`);
         }
-      });
+      }
     });
   };
 
@@ -154,13 +201,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
         </div>
 
         {/* Social Login */}
-        <div>
+        <div className="relative w-full">
           <Button
             type="button"
             variant="social"
             size="md"
             fullWidth
-            onClick={handleGoogleLogin}
+            onClick={handleGoogleLoginFallback}
+            className="h-11 rounded-xl text-sm font-semibold justify-center gap-2.5 shadow-2xs border-[var(--border-color)] hover:border-[var(--accent-primary)] transition-all cursor-pointer"
             leftIcon={
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                 <path
@@ -182,8 +230,15 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
               </svg>
             }
           >
-            Đăng nhập với Google
+            {isRegister ? 'Đăng ký với Google' : 'Đăng nhập với Google'}
           </Button>
+
+          {/* Invisible Google GIS button overlay that triggers Google's native popup */}
+          <div
+            ref={googleBtnContainerRef}
+            className="absolute inset-0 opacity-[0.001] cursor-pointer overflow-hidden rounded-xl z-10 flex items-center justify-center [&>div]:!w-full [&>div]:!h-full [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!scale-125"
+            title={isRegister ? 'Đăng ký với Google' : 'Đăng nhập với Google'}
+          />
         </div>
 
         {/* Footer */}

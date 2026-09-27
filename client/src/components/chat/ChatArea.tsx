@@ -33,9 +33,18 @@ interface ChatAreaProps {
   typingUser: string | null;
   onToggleThread: () => void;
   onOpenThread?: (message: Message) => void;
+  onStartDmWithUser?: (user: { id: string; displayName: string; username: string; avatarUrl?: string }) => void;
 }
 
 const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
+
+interface SelectedUserProfile {
+  userId: string;
+  displayName: string;
+  username: string;
+  avatarUrl?: string;
+  targetRect: DOMRect;
+}
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
   currentChannel,
@@ -50,11 +59,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   typingUser,
   onToggleThread,
   onOpenThread,
+  onStartDmWithUser,
 }) => {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+
+  // Smart user profile dropdown state
+  const [selectedProfile, setSelectedProfile] = useState<SelectedUserProfile | null>(null);
+  const profileCardRef = useRef<HTMLDivElement>(null);
 
   // Inline editing state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -70,6 +84,51 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Handle clicking outside or pressing Escape to close profile dropdown
+  useEffect(() => {
+    if (!selectedProfile) return;
+    const handleDown = (e: MouseEvent) => {
+      if (profileCardRef.current && !profileCardRef.current.contains(e.target as Node)) {
+        setSelectedProfile(null);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedProfile(null);
+    };
+    document.addEventListener("mousedown", handleDown);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleDown);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [selectedProfile]);
+
+  const getProfilePositionStyle = (): React.CSSProperties => {
+    if (!selectedProfile) return {};
+    const { targetRect } = selectedProfile;
+    const popoverWidth = 270;
+    const popoverHeight = 240;
+    const margin = 12;
+
+    // Prefer right side of avatar
+    let left = targetRect.right + margin;
+    if (left + popoverWidth > window.innerWidth - margin) {
+      // Flip to left side of avatar
+      left = targetRect.left - popoverWidth - margin;
+    }
+    // Clamp horizontally
+    left = Math.max(margin, Math.min(left, window.innerWidth - popoverWidth - margin));
+
+    // Align with top of avatar, clamp vertically
+    let top = targetRect.top - 8;
+    if (top + popoverHeight > window.innerHeight - margin) {
+      top = window.innerHeight - popoverHeight - margin;
+    }
+    top = Math.max(margin, top);
+
+    return { top: `${top}px`, left: `${left}px` };
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setContent(e.target.value);
@@ -373,7 +432,26 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 className="group relative flex gap-3 px-3 py-2 rounded-xl transition-all duration-150 hover:bg-[var(--bg-surface)]"
               >
                   {/* Sender Avatar */}
-                  <div className="w-9 h-9 rounded-xl shrink-0 overflow-hidden flex items-center justify-center font-bold text-[0.82rem] text-white shadow-sm border border-[var(--border-color)]">
+                  <div
+                    onClick={(e) => {
+                      if (currentChannel?.type === ChannelType.DirectMessage) return;
+                      e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setSelectedProfile({
+                        userId: msg.senderId,
+                        displayName: msg.senderDisplayName,
+                        username: msg.senderUsername || msg.senderDisplayName.toLowerCase().replace(/\s+/g, ""),
+                        avatarUrl: msg.senderAvatarUrl || undefined,
+                        targetRect: rect,
+                      });
+                    }}
+                    title={currentChannel?.type !== ChannelType.DirectMessage ? "Xem thông tin thành viên" : undefined}
+                    className={`w-9 h-9 rounded-xl shrink-0 overflow-hidden flex items-center justify-center font-bold text-[0.82rem] text-white shadow-sm border border-[var(--border-color)] ${
+                      currentChannel?.type !== ChannelType.DirectMessage
+                        ? "cursor-pointer hover:opacity-90 hover:scale-105 active:scale-95 transition-all ring-1 ring-transparent hover:ring-[var(--accent-primary)]/40"
+                        : ""
+                    }`}
+                  >
                     <img
                       src={avatarSrc}
                       alt={msg.senderDisplayName}
@@ -639,6 +717,77 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Smart User Profile Dropdown Popover */}
+      {selectedProfile && (
+        <div
+          ref={profileCardRef}
+          style={getProfilePositionStyle()}
+          className="fixed z-50 w-[270px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-2xl shadow-2xl p-4 flex flex-col gap-3.5 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
+        >
+          {/* Ambient Header Bar */}
+          <div className="h-10 -mx-4 -mt-4 rounded-t-2xl bg-gradient-to-r from-[var(--accent-primary)]/20 via-[var(--accent-primary)]/10 to-transparent p-2.5 flex items-center">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-primary)]">
+              Thông tin thành viên
+            </span>
+          </div>
+
+          {/* Avatar & Online status */}
+          <div className="flex items-center gap-3 -mt-4">
+            <div className="relative">
+              <div className="w-13 h-13 rounded-2xl bg-[var(--bg-surface)] border-2 border-[var(--bg-chat)] overflow-hidden shadow-md flex items-center justify-center font-bold text-base text-white">
+                <img
+                  src={selectedProfile.avatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png"}
+                  alt={selectedProfile.displayName}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              </div>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[var(--bg-chat)] bg-emerald-500 shadow-xs" />
+            </div>
+
+            <div className="min-w-0 flex-1 pt-2">
+              <h4 className="font-bold text-sm text-[var(--text-primary)] truncate">
+                {selectedProfile.displayName}
+              </h4>
+              <p className="text-xs text-[var(--text-muted)] truncate">
+                @{selectedProfile.username}
+              </p>
+            </div>
+          </div>
+
+          {/* Action / Identity Details */}
+          <div className="pt-2 border-t border-[var(--border-color)]">
+            {currentUser && (selectedProfile.userId === currentUser.id || selectedProfile.username === currentUser.username) ? (
+              <div className="text-center py-1.5 text-xs text-[var(--text-muted)] font-medium bg-[var(--bg-surface)] rounded-xl">
+                ✨ Đây là tài khoản của bạn
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  const target = { ...selectedProfile };
+                  setSelectedProfile(null);
+                  if (onStartDmWithUser) {
+                    onStartDmWithUser({
+                      id: target.userId,
+                      displayName: target.displayName,
+                      username: target.username,
+                      avatarUrl: target.avatarUrl,
+                    });
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold transition-all shadow-md shadow-[var(--accent-glow)] cursor-pointer active:scale-98"
+              >
+                <ChatCenteredDots size={16} weight="bold" />
+                <span>Gửi tin nhắn</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 };

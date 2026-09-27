@@ -14,8 +14,9 @@ import {
   BookOpen,
   LockKey,
   ShieldStar,
+  SignIn,
 } from '@phosphor-icons/react';
-import { CreateWorkspaceModal } from '../components/workspace';
+import { CreateWorkspaceModal, JoinWorkspaceModal } from '../components/workspace';
 import { SettingsModal } from '../components/settings';
 import { authApi, workspaceApi } from '../services';
 import { useTheme } from '../hooks/useTheme';
@@ -30,6 +31,7 @@ export const HomePage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [isJoinWorkspaceOpen, setIsJoinWorkspaceOpen] = useState(false);
 
   useEffect(() => {
     const initHome = async () => {
@@ -73,6 +75,14 @@ export const HomePage: React.FC = () => {
   const handleWorkspaceCreated = (newWs: Workspace) => {
     setWorkspaces((prev) => [...prev, newWs]);
     navigate(`/workspace/${newWs.id}`);
+  };
+
+  const handleWorkspaceJoined = (joinedWs: Workspace) => {
+    setWorkspaces((prev) => {
+      const exists = prev.some((w) => w.id === joinedWs.id);
+      return exists ? prev : [...prev, joinedWs];
+    });
+    navigate(`/workspace/${joinedWs.id}`);
   };
 
   const defaultAvatar = (import.meta.env.VITE_DEFAULT_AVATAR as string) || '/default-avatar.png';
@@ -198,14 +208,25 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsCreateWorkspaceOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[4px] bg-[var(--accent-primary)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all shadow-[0_2px_10px_var(--accent-glow)] cursor-pointer group shrink-0"
-            >
-              <Plus size={16} weight="bold" className="group-hover:rotate-90 transition-transform duration-200" />
-              <span>Tạo Không gian mới</span>
-            </button>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsJoinWorkspaceOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-[4px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-xs font-bold hover:bg-[var(--bg-surface-active)] hover:border-[var(--accent-primary)] transition-all cursor-pointer group shrink-0"
+              >
+                <SignIn size={16} weight="bold" className="text-[var(--accent-primary)]" />
+                <span>Tham gia bằng mã</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsCreateWorkspaceOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[4px] bg-[var(--accent-primary)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all shadow-[0_2px_10px_var(--accent-glow)] cursor-pointer group shrink-0"
+              >
+                <Plus size={16} weight="bold" className="group-hover:rotate-90 transition-transform duration-200" />
+                <span>Tạo Không gian mới</span>
+              </button>
+            </div>
           </div>
 
           {/* Workspaces Grid */}
@@ -284,6 +305,22 @@ export const HomePage: React.FC = () => {
               </h3>
               <p className="text-xs text-[var(--text-muted)] mt-1 max-w-[200px] leading-relaxed">
                 Tạo một không gian riêng cho phòng ban hoặc nhóm mới
+              </p>
+            </div>
+
+            {/* Quick Join Workspace Card */}
+            <div
+              onClick={() => setIsJoinWorkspaceOpen(true)}
+              className="flex flex-col items-center justify-center text-center p-6 rounded-[4px] border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-primary)] bg-[var(--bg-surface)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200 cursor-pointer group min-h-[160px]"
+            >
+              <div className="w-12 h-12 rounded-full bg-[var(--bg-chat)] border border-[var(--border-color)] group-hover:border-[var(--accent-primary)] group-hover:scale-110 flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-all duration-200 mb-3 shadow-2xs">
+                <SignIn size={22} weight="bold" />
+              </div>
+              <h3 className="font-bold text-sm text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
+                Tham gia bằng mã mời
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-1 max-w-[200px] leading-relaxed">
+                Nhập mã mời hoặc liên kết để tham gia vào không gian có sẵn
               </p>
             </div>
           </div>
@@ -395,6 +432,13 @@ export const HomePage: React.FC = () => {
         isOpen={isCreateWorkspaceOpen}
         onClose={() => setIsCreateWorkspaceOpen(false)}
         onWorkspaceCreated={handleWorkspaceCreated}
+      />
+
+      {/* Join Workspace Modal */}
+      <JoinWorkspaceModal
+        isOpen={isJoinWorkspaceOpen}
+        onClose={() => setIsJoinWorkspaceOpen(false)}
+        onWorkspaceJoined={handleWorkspaceJoined}
       />
     </div>
   );

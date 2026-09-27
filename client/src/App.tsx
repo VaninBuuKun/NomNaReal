@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthPage } from './pages/AuthPage';
-import { ChatPage } from './pages/ChatPage';
-import { HomePage } from './pages/HomePage';
+import { AuthPage, ChatPage, HomePage, JoinPage } from './pages';
 import './styles/globals.css';
 
 // Protected Route Component: requires auth session
@@ -66,6 +64,7 @@ export const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
+        <Route path="/join/:inviteCode" element={<JoinPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

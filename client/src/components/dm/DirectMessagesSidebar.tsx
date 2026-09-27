@@ -15,6 +15,7 @@ export interface DirectMessageItem {
   lastMessage?: string;
   lastMessageTime?: string;
   unreadCount?: number;
+  isPending?: boolean;
 }
 
 interface DirectMessagesSidebarProps {
