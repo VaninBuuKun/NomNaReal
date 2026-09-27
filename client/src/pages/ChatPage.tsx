@@ -8,6 +8,7 @@ import { ThreadPanel } from '../components/thread';
 import { SettingsModal } from '../components/settings';
 import { authApi, workspaceApi, channelApi, messageApi, signalRService } from '../services';
 import { useTheme } from '../hooks/useTheme';
+import { uuidv7 } from '../utils/uuidv7';
 import { ChannelType, type User, type Workspace, type Channel, type Message } from '../types';
 
 export const ChatPage: React.FC = () => {
@@ -355,10 +356,11 @@ export const ChatPage: React.FC = () => {
   const handleSendMessage = async (content: string) => {
     if (!activeChannelId) return;
 
-    // Direct Message sending (in-memory mock with instantaneous chat support)
+    // Direct Message sending (scoped to workspace with UUIDv7)
     if (activeChannelId.startsWith('dm-') || currentChannel?.type === ChannelType.DirectMessage) {
+      const newMsgId = uuidv7();
       const newMsg: Message = {
-        id: `msg-${Date.now()}`,
+        id: newMsgId,
         channelId: activeChannelId,
         senderId: currentUser?.id || 'me',
         senderUsername: currentUser?.username || 'me',
@@ -421,10 +423,13 @@ export const ChatPage: React.FC = () => {
   };
 
   const handleStartDm = (targetUser: DirectMessageUser) => {
-    let existing = dmConversations.find((c) => c.user.id === targetUser.id);
+    let existing = dmConversations.find(
+      (c) => c.user.id === targetUser.id && (!c.workspaceId || c.workspaceId === activeWorkspaceId)
+    );
     if (!existing) {
       const newDm: DirectMessageItem = {
-        id: `dm-${targetUser.id}`,
+        id: `dm-${uuidv7()}`,
+        workspaceId: activeWorkspaceId || undefined,
         user: targetUser,
         lastMessage: 'Cuộc trò chuyện mới',
         lastMessageTime: 'Vừa xong',
@@ -539,7 +544,9 @@ export const ChatPage: React.FC = () => {
               />
             ) : (
               <DirectMessagesSidebar
-                conversations={dmConversations}
+                conversations={dmConversations.filter(
+                  (c) => !c.workspaceId || c.workspaceId === activeWorkspaceId
+                )}
                 activeConversationId={activeDmId}
                 onSelectConversation={handleSelectDmConversation}
                 onOpenNewDm={() => setIsNewDmOpen(true)}

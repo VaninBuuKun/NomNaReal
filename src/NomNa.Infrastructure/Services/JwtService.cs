@@ -34,7 +34,7 @@ public class JwtService : IJwtService
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
             new Claim(ClaimTypes.Email, email),
             new Claim(ClaimTypes.Name, username),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.CreateVersion7().ToString())
         };
 
         var tokenDescriptor = new JwtSecurityToken(

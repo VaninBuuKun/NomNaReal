@@ -23,7 +23,7 @@ public class FileStorageService : IFileStorageService
         }
 
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var uniqueName = $"{Guid.NewGuid():N}{extension}";
+        var uniqueName = $"{Guid.CreateVersion7():N}{extension}";
         var filePath = Path.Combine(targetDir, uniqueName);
 
         using (var destStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))

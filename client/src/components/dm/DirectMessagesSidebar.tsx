@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import {
   MagnifyingGlass,
   Plus,
-  ChatTeardropDots,
   PaperPlaneTilt,
   X,
   WechatLogoIcon,
@@ -11,6 +10,7 @@ import type { DirectMessageUser } from './NewDirectMessageModal';
 
 export interface DirectMessageItem {
   id: string; // DM channel ID or temporary conversation ID
+  workspaceId?: string;
   user: DirectMessageUser;
   lastMessage?: string;
   lastMessageTime?: string;

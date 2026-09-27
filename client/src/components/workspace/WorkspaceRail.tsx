@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { SquaresFour, House, Plus, Check, ChatTeardropDots, ChatTeardropIcon, WechatLogoIcon } from '@phosphor-icons/react';
+import { SquaresFour, House, Plus, Check, WechatLogoIcon } from '@phosphor-icons/react';
 import type { Workspace } from '../../types';
 
 interface WorkspaceRailProps {

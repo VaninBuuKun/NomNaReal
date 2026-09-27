@@ -21,7 +21,7 @@ public class User : IdentityUser<Guid>
 
     public User()
     {
-        Id = Guid.NewGuid();
+        Id = Guid.CreateVersion7();
     }
 
     public void UpdateStatus(UserStatus status)

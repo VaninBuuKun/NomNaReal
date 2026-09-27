@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Auth.DTOs;
-using NomNa.Domain.Entities;
+
 
 namespace NomNa.Application.Features.Auth.Commands.RefreshToken;
 
@@ -43,7 +43,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
         var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email ?? string.Empty, user.UserName);
         var newRawRefreshToken = _jwtService.GenerateRefreshToken();
 
-        var newRefreshTokenEntity = new NomNa.Domain.Entities.RefreshToken
+        var newRefreshTokenEntity = new Domain.Entities.RefreshToken()
         {
             UserId = user.Id,
             TokenHash = _jwtService.HashToken(newRawRefreshToken),

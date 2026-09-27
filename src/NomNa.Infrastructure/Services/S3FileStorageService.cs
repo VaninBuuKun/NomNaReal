@@ -91,7 +91,7 @@ public class S3FileStorageService : IFileStorageService
         }
 
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var uniqueFileName = $"{Guid.NewGuid():N}{extension}";
+        var uniqueFileName = $"{Guid.CreateVersion7():N}{extension}";
         var cleanFolder = folder.Trim().Trim('/');
         var s3Key = string.IsNullOrEmpty(cleanFolder) ? uniqueFileName : $"{cleanFolder}/{uniqueFileName}";
 

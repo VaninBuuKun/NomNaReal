@@ -61,7 +61,7 @@ public class CreateOrGetDmChannelCommandHandler : IRequestHandler<CreateOrGetDmC
         }
 
         // Create new DM channel
-        var channelName = $"dm-{Guid.NewGuid():N}";
+        var channelName = $"dm-{Guid.CreateVersion7():N}";
         var newChannel = new Channel
         {
             WorkspaceId = request.WorkspaceId,
