@@ -19,7 +19,7 @@ const registerSchema = z.object({
 export type RegisterFormData = z.infer<typeof registerSchema>;
 
 interface RegisterFormProps {
-  onSuccess: (accessToken: string) => void;
+  onSuccess: (user?: any) => void;
   onError?: (errorMessage: string) => void;
 }
 
@@ -41,10 +41,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError }
     setLocalError(null);
     setLoading(true);
     try {
-      const res = await authApi.register(data.email, data.username, data.displayName, data.password);
-      // Store only access token in localStorage. Refresh token is in HttpOnly cookie.
-      localStorage.setItem('nomna_token', res.accessToken);
-      onSuccess(res.accessToken);
+      const user = await authApi.register(data.email, data.username, data.displayName, data.password);
+      localStorage.setItem('nomna_logged_in', 'true');
+      onSuccess(user);
     } catch (err: any) {
       const msg =
         err.response?.data?.message ||

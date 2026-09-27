@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkspaceRail, CreateWorkspaceModal } from '../components/workspace';
-import { ChannelSidebar } from '../components/channel';
+import { ChannelSidebar, UserFooterBar } from '../components/channel';
 import { ChatArea } from '../components/chat';
 import { ThreadPanel } from '../components/thread';
 import { SettingsModal } from '../components/settings';
@@ -14,6 +14,7 @@ export const ChatPage: React.FC = () => {
   const { theme, changeTheme } = useTheme();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [isThreadOpen, setIsThreadOpen] = useState(false);
@@ -141,17 +142,20 @@ export const ChatPage: React.FC = () => {
     });
   }, []);
 
-  // Initialize Chat App & Verify User Token
+  // Initialize Chat App & Verify User Session via Cookie
   const initApp = async () => {
-    const token = localStorage.getItem('nomna_token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-
     try {
-      const user = await authApi.getMe();
+      setIsInitializing(true);
+      let user: User;
+      try {
+        user = await authApi.getMe();
+      } catch {
+        // Attempt refresh via HttpOnly refresh_token cookie
+        user = await authApi.refresh();
+      }
+
       setCurrentUser(user);
+      localStorage.setItem('nomna_logged_in', 'true');
 
       // Connect SignalR
       await signalRService.startConnection(
@@ -222,9 +226,10 @@ export const ChatPage: React.FC = () => {
       }
     } catch (err) {
       console.error('Authentication error:', err);
-      localStorage.removeItem('nomna_token');
-      localStorage.removeItem('nomna_refresh_token');
-      navigate('/login');
+      localStorage.removeItem('nomna_logged_in');
+      navigate('/login', { replace: true });
+    } finally {
+      setIsInitializing(false);
     }
   };
 
@@ -242,8 +247,7 @@ export const ChatPage: React.FC = () => {
     } catch {
       // ignore
     }
-    localStorage.removeItem('nomna_token');
-    localStorage.removeItem('nomna_refresh_token');
+    localStorage.removeItem('nomna_logged_in');
     signalRService.disconnect();
     setCurrentUser(null);
     setWorkspaces([]);
@@ -335,6 +339,20 @@ export const ChatPage: React.FC = () => {
     }
   };
 
+  if (isInitializing && !currentUser) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-chat)] text-[var(--text-primary)] select-none">
+        <div className="relative flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-[0_0_30px_var(--accent-glow)] animate-pulse">
+            <span className="text-2xl font-black">N</span>
+          </div>
+        </div>
+        <div className="text-base font-bold text-[var(--text-primary)]">Đang kết nối NomNa...</div>
+        <div className="text-xs text-[var(--text-muted)] mt-1">Đang tải không gian làm việc và tin nhắn</div>
+      </div>
+    );
+  }
+
   return (
     <>
       <main
@@ -345,26 +363,35 @@ export const ChatPage: React.FC = () => {
           cursor: isResizingChannel || isResizingThread ? 'col-resize' : 'auto',
         }}
       >
-        {/* 1. Workspace Rail */}
-        <WorkspaceRail
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={handleSelectWorkspace}
-          onCreateWorkspace={handleCreateWorkspace}
-        />
+        {/* 1 & 2. Unified Left Dock (Workspace Rail + Channel Sidebar + Spanning User Footer) */}
+        <div
+          className="h-full flex flex-col shrink-0 overflow-hidden"
+          style={{ width: `${68 + channelWidth}px` }}
+        >
+          {/* Top Columns */}
+          <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
+            <WorkspaceRail
+              workspaces={workspaces}
+              activeWorkspaceId={activeWorkspaceId}
+              onSelectWorkspace={handleSelectWorkspace}
+              onCreateWorkspace={handleCreateWorkspace}
+            />
+            <ChannelSidebar
+              currentWorkspace={currentWorkspace}
+              channels={channels}
+              activeChannelId={activeChannelId}
+              onSelectChannel={handleSelectChannel}
+              onCreateChannel={handleCreateChannel}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
+          </div>
 
-        {/* 2. Channels Sidebar */}
-        <ChannelSidebar
-          currentWorkspace={currentWorkspace}
-          channels={channels}
-          activeChannelId={activeChannelId}
-          onSelectChannel={handleSelectChannel}
-          onCreateChannel={handleCreateChannel}
-          currentUser={currentUser}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onLogout={handleLogout}
-          width={channelWidth}
-        />
+          {/* User Account Footer Bar (spans across both Workspace Rail & Channel Sidebar) */}
+          <UserFooterBar
+            currentUser={currentUser}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+          />
+        </div>
 
         {/* 2.5 Resizer Divider */}
         <div

@@ -4,10 +4,10 @@ import { AuthPage } from './pages/AuthPage';
 import { ChatPage } from './pages/ChatPage';
 import './styles/globals.css';
 
-// Protected Route Component: requires auth token
+// Protected Route Component: requires auth session
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const token = localStorage.getItem('nomna_token');
-  if (!token) {
+  const isLoggedIn = localStorage.getItem('nomna_logged_in') === 'true';
+  if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
@@ -15,8 +15,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 // Public Only Route Component: redirects authenticated users to root /
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const token = localStorage.getItem('nomna_token');
-  if (token) {
+  const isLoggedIn = localStorage.getItem('nomna_logged_in') === 'true';
+  if (isLoggedIn) {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;

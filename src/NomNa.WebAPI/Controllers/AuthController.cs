@@ -4,7 +4,6 @@ using NomNa.Application.Features.Auth.Commands.GoogleLogin;
 using NomNa.Application.Features.Auth.Commands.Login;
 using NomNa.Application.Features.Auth.Commands.RefreshToken;
 using NomNa.Application.Features.Auth.Commands.Register;
-using NomNa.Application.Features.Auth.DTOs;
 using NomNa.Application.Features.Auth.Queries.GetCurrentUser;
 
 namespace NomNa.WebAPI.Controllers;
@@ -15,33 +14,47 @@ public class AuthController : ApiControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterCommand command)
     {
         var result = await Mediator.Send(command);
-        if (result.IsSuccess && !string.IsNullOrEmpty(result.Value?.RefreshToken))
+        if (!result.IsSuccess)
         {
-            AppendRefreshTokenCookie(result.Value.RefreshToken);
+            return HandleResult(result);
         }
-        return HandleResult(result);
+
+        AppendAccessTokenCookie(result.Value!.AccessToken, result.Value.ExpiresAt);
+        AppendRefreshTokenCookie(result.Value.RefreshToken);
+
+        // Do not expose tokens in JSON body since they are stored in HttpOnly cookies
+        return Ok(result.Value.User);
     }
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginCommand command)
     {
         var result = await Mediator.Send(command);
-        if (result.IsSuccess && !string.IsNullOrEmpty(result.Value?.RefreshToken))
+        if (!result.IsSuccess)
         {
-            AppendRefreshTokenCookie(result.Value.RefreshToken);
+            return HandleResult(result);
         }
-        return HandleResult(result);
+
+        AppendAccessTokenCookie(result.Value!.AccessToken, result.Value.ExpiresAt);
+        AppendRefreshTokenCookie(result.Value.RefreshToken);
+
+        // Do not expose tokens in JSON body since they are stored in HttpOnly cookies
+        return Ok(result.Value.User);
     }
 
     [HttpPost("google")]
     public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginCommand command)
     {
         var result = await Mediator.Send(command);
-        if (result.IsSuccess && !string.IsNullOrEmpty(result.Value?.RefreshToken))
+        if (!result.IsSuccess)
         {
-            AppendRefreshTokenCookie(result.Value.RefreshToken);
+            return HandleResult(result);
         }
-        return HandleResult(result);
+
+        AppendAccessTokenCookie(result.Value!.AccessToken, result.Value.ExpiresAt);
+        AppendRefreshTokenCookie(result.Value.RefreshToken);
+
+        return Ok(result.Value.User);
     }
 
     [HttpPost("refresh")]
@@ -50,23 +63,33 @@ public class AuthController : ApiControllerBase
         var tokenFromCookie = Request.Cookies["refresh_token"];
         var refreshToken = !string.IsNullOrEmpty(command?.RefreshToken) ? command.RefreshToken : tokenFromCookie;
 
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return Unauthorized(new { message = "Refresh token is missing from cookie." });
+        }
+
         var effectiveCommand = new RefreshTokenCommand(
             command?.UserId ?? Guid.Empty,
-            refreshToken ?? string.Empty
+            refreshToken
         );
 
         var result = await Mediator.Send(effectiveCommand);
-        if (result.IsSuccess && !string.IsNullOrEmpty(result.Value?.RefreshToken))
+        if (!result.IsSuccess)
         {
-            AppendRefreshTokenCookie(result.Value.RefreshToken);
+            ClearAuthCookies();
+            return HandleResult(result);
         }
-        return HandleResult(result);
+
+        AppendAccessTokenCookie(result.Value!.AccessToken, result.Value.ExpiresAt);
+        AppendRefreshTokenCookie(result.Value.RefreshToken);
+
+        return Ok(result.Value.User);
     }
 
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        ClearRefreshTokenCookie();
+        ClearAuthCookies();
         return Ok(new { message = "Logged out successfully" });
     }
 
@@ -78,6 +101,19 @@ public class AuthController : ApiControllerBase
         return HandleResult(result);
     }
 
+    private void AppendAccessTokenCookie(string accessToken, DateTime expiresAt)
+    {
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Lax,
+            Expires = expiresAt,
+            Secure = Request.IsHttps,
+            Path = "/"
+        };
+        Response.Cookies.Append("access_token", accessToken, cookieOptions);
+    }
+
     private void AppendRefreshTokenCookie(string refreshToken)
     {
         var cookieOptions = new CookieOptions
@@ -86,19 +122,27 @@ public class AuthController : ApiControllerBase
             SameSite = SameSiteMode.Lax,
             Expires = DateTimeOffset.UtcNow.AddDays(7),
             Secure = Request.IsHttps,
-            Path = "/"
+            Path = "/api/auth" // Transmitted only when requesting auth endpoints like /refresh or /logout
         };
         Response.Cookies.Append("refresh_token", refreshToken, cookieOptions);
     }
 
-    private void ClearRefreshTokenCookie()
+    private void ClearAuthCookies()
     {
-        Response.Cookies.Delete("refresh_token", new CookieOptions
+        Response.Cookies.Delete("access_token", new CookieOptions
         {
             HttpOnly = true,
             SameSite = SameSiteMode.Lax,
             Secure = Request.IsHttps,
             Path = "/"
+        });
+
+        Response.Cookies.Delete("refresh_token", new CookieOptions
+        {
+            HttpOnly = true,
+            SameSite = SameSiteMode.Lax,
+            Secure = Request.IsHttps,
+            Path = "/api/auth"
         });
     }
 }

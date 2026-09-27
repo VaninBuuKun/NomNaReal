@@ -73,17 +73,27 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 
-    // Extract access_token from query string for SignalR WebSocket connections
+    // Extract access_token from HttpOnly cookie or SignalR query string
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            // 1. Primary: HttpOnly cookie
+            if (context.Request.Cookies.TryGetValue("access_token", out var cookieToken) && !string.IsNullOrEmpty(cookieToken))
             {
-                context.Token = accessToken;
+                context.Token = cookieToken;
             }
+            // 2. Fallback: Query string for SignalR WebSocket upgrades
+            else
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+            }
+
             return Task.CompletedTask;
         }
     };

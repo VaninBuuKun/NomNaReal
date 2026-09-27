@@ -97,7 +97,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
       onClose={handleClose}
       title="Tạo Không gian làm việc"
       subtitle="Không gian là nơi nhóm của bạn trò chuyện, gọi điện và chia sẻ tài liệu."
-      size="md"
+      className="max-w-[540px]"
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
         {error && (
@@ -148,18 +148,18 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                 {isUploading ? 'Đang tải lên...' : 'Tải ảnh máy tính lên'}
               </Button>
               <p className="text-[11px] text-[var(--text-muted)]">
-                Khuyến nghị tỉ lệ 1:1, dung lượng tối đa 20MB.
+                Khuyến nghị tỉ lệ 1:1 vuông, dung lượng tối đa 20MB.
               </p>
             </div>
           </div>
 
           {/* Quick Mascot Presets */}
-          <div className="mt-3">
+          <div className="mt-3.5">
             <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] mb-2">
               <Sparkles size={13} className="text-[var(--accent-primary)]" />
               <span>Hoặc chọn biểu tượng Mascot NomNa:</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2.5">
               {PRESET_AVATARS.map((preset) => {
                 const isSelected = iconUrl === preset.url;
                 return (
@@ -167,18 +167,18 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
                     key={preset.id}
                     type="button"
                     onClick={() => setIconUrl(preset.url)}
-                    className={`flex items-center gap-2 p-1.5 rounded-xl border transition-all cursor-pointer ${
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-xl border transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-[var(--accent-primary)] bg-[var(--accent-light)]'
+                        ? 'border-[var(--accent-primary)] bg-[var(--accent-light)] shadow-xs'
                         : 'border-[var(--border-color)] hover:border-[var(--text-muted)] bg-[var(--bg-surface)]'
                     }`}
                   >
                     <img
                       src={preset.url}
                       alt={preset.label}
-                      className="w-7 h-7 rounded-lg object-cover"
+                      className="w-7 h-7 rounded-lg object-cover shrink-0"
                     />
-                    <span className="text-xs font-medium truncate text-[var(--text-primary)]">
+                    <span className="text-xs font-semibold truncate text-[var(--text-primary)]">
                       {preset.label.replace('Mascot ', '')}
                     </span>
                     {isSelected && (
@@ -205,20 +205,25 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
 
         {/* Description (Optional) */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1.5">
-            Mô tả (Không bắt buộc)
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+              Mô tả không gian (Không bắt buộc)
+            </label>
+            <span className="text-[11px] text-[var(--text-muted)]">
+              {description.length}/300 ký tự
+            </span>
+          </div>
           <textarea
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Giới thiệu sơ lược về không gian này..."
-            rows={2}
-            className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all resize-none"
+            onChange={(e) => setDescription(e.target.value.slice(0, 300))}
+            placeholder="VD: Không gian trao đổi kỹ thuật, cập nhật kiến trúc hệ thống và thảo luận công nghệ của team..."
+            rows={4}
+            className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[var(--border-color)] bg-[var(--bg-input)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all resize-none leading-relaxed"
           />
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[var(--border-color)]">
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border-color)]">
           <Button type="button" variant="ghost" onClick={handleClose} disabled={isSubmitting}>
             Hủy
           </Button>

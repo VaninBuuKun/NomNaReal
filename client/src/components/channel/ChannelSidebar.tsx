@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CaretDown, Plus, Hash, LockSimple, Gear, Sparkle, UserPlus, SignOut } from '@phosphor-icons/react';
-import { Avatar } from '../ui';
-import type { Channel, User, Workspace } from '../../types';
+import type { Channel, Workspace } from '../../types';
 
 interface ChannelSidebarProps {
   currentWorkspace: Workspace | null;
@@ -9,10 +8,7 @@ interface ChannelSidebarProps {
   activeChannelId: string | null;
   onSelectChannel: (id: string) => void;
   onCreateChannel: () => void;
-  currentUser: User | null;
-  onOpenSettings: () => void;
-  onLogout?: () => void;
-  width?: number;
+  onOpenSettings?: () => void;
 }
 
 export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
@@ -21,9 +17,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   activeChannelId,
   onSelectChannel,
   onCreateChannel,
-  currentUser,
   onOpenSettings,
-  width = 240,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -88,8 +82,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   return (
     <aside
       id="channelSidebar"
-      className="h-full min-h-0 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col overflow-visible min-w-[200px] max-w-[450px] relative z-30"
-      style={{ width: `${width}px` }}
+      className="h-full min-h-0 flex-1 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col overflow-visible min-w-[200px] relative z-30"
     >
       {/* Workspace Header with Dropdown */}
       <div className="relative shrink-0 z-50">
@@ -177,7 +170,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               type="button"
               onClick={() => {
                 setIsMenuOpen(false);
-                onOpenSettings();
+                onOpenSettings?.();
               }}
               className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-lg text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-chat)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left"
             >
@@ -287,32 +280,6 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             ))}
           </ul>
         </div>
-      </div>
-
-      {/* User Account Footer */}
-      <div className="h-14 bg-[var(--bg-rail)] border-t border-[var(--border-color)] px-3 flex items-center justify-between shrink-0 select-none">
-        <div className="flex items-center gap-2.5 cursor-pointer min-w-0 flex-1 hover:opacity-90 transition-opacity" onClick={onOpenSettings} title="Mở Cài đặt">
-          <Avatar
-            src={currentUser?.avatarUrl}
-            fallback={currentUser?.displayName || 'User'}
-            size="sm"
-            status="online"
-          />
-          <div className="min-w-0">
-            <div className="text-[0.85rem] font-bold truncate text-[var(--text-primary)]">
-              {currentUser?.displayName || 'Alex Rivers'}
-            </div>
-            <div className="text-[0.7rem] text-[var(--text-muted)]">Online</div>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-          onClick={onOpenSettings}
-          title="Cài đặt & Đổi theme"
-        >
-          <Gear size={17} weight="bold" />
-        </button>
       </div>
     </aside>
   );

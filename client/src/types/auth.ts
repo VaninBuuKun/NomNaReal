@@ -10,9 +10,5 @@ export interface User {
   status: UserStatus;
 }
 
-export interface AuthResponse {
-  accessToken: string;
-  refreshToken?: string;
-  expiresAt: string;
-  user: User;
-}
+// Backend sets access_token and refresh_token in HttpOnly cookies and returns User
+export type AuthResponse = User;

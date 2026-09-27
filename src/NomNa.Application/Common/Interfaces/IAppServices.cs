@@ -10,4 +10,5 @@ public interface IJwtService
 {
     (string Token, DateTime ExpiresAt) GenerateAccessToken(Guid userId, string email, string username);
     string GenerateRefreshToken();
+    string HashToken(string token);
 }

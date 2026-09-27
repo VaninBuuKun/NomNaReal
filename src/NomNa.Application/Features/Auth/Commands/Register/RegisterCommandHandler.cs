@@ -68,7 +68,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
         var refreshTokenEntity = new NomNa.Domain.Entities.RefreshToken
         {
             UserId = user.Id,
-            TokenHash = BCrypt.Net.BCrypt.HashPassword(rawRefreshToken),
+            TokenHash = _jwtService.HashToken(rawRefreshToken),
             ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
 

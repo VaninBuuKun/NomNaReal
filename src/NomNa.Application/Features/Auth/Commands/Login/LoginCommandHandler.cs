@@ -73,7 +73,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResu
         var refreshTokenEntity = new NomNa.Domain.Entities.RefreshToken
         {
             UserId = user.Id,
-            TokenHash = BCrypt.Net.BCrypt.HashPassword(rawRefreshToken),
+            TokenHash = _jwtService.HashToken(rawRefreshToken),
             ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
 

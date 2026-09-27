@@ -3,34 +3,25 @@ import { API_BASE_URL } from '../utils/constants';
 
 export const httpClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // Required for HttpOnly refresh_token cookies
+  withCredentials: true, // Automatically sends and receives HttpOnly cookies
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Attach access token to outgoing requests
-httpClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('nomna_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Auto-refresh token on 401 errors
+// Auto-refresh token on 401 errors using HttpOnly refresh_token cookie
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (value?: unknown) => void;
   reject: (reason?: unknown) => void;
 }> = [];
 
-const processQueue = (error: unknown, token: string | null = null) => {
+const processQueue = (error: unknown) => {
   failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
-      prom.resolve(token);
+      prom.resolve();
     }
   });
   failedQueue = [];
@@ -41,8 +32,12 @@ httpClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Prevent infinite loop if refresh endpoint itself failed
-    if (originalRequest?.url?.includes('/auth/refresh') || originalRequest?.url?.includes('/auth/login')) {
+    // Prevent infinite loop if refresh or login endpoints failed
+    if (
+      originalRequest?.url?.includes('/auth/refresh') ||
+      originalRequest?.url?.includes('/auth/login') ||
+      originalRequest?.url?.includes('/auth/register')
+    ) {
       return Promise.reject(error);
     }
 
@@ -51,12 +46,7 @@ httpClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then((token) => {
-            if (token && originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            return httpClient(originalRequest);
-          })
+          .then(() => httpClient(originalRequest))
           .catch((err) => Promise.reject(err));
       }
 
@@ -64,25 +54,19 @@ httpClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Call refresh endpoint; browser sends refresh_token HttpOnly cookie automatically
-        const res = await axios.post(
+        // Browser automatically sends HttpOnly refresh_token cookie to /auth/refresh
+        await axios.post(
           `${API_BASE_URL}/auth/refresh`,
           {},
           { withCredentials: true }
         );
 
-        const newAccessToken = res.data?.accessToken;
-        if (newAccessToken) {
-          localStorage.setItem('nomna_token', newAccessToken);
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-          }
-          processQueue(null, newAccessToken);
-          return httpClient(originalRequest);
-        }
+        // Cookies are refreshed and set in browser via Set-Cookie
+        processQueue(null);
+        return httpClient(originalRequest);
       } catch (refreshErr) {
-        processQueue(refreshErr, null);
-        localStorage.removeItem('nomna_token');
+        processQueue(refreshErr);
+        localStorage.removeItem('nomna_logged_in');
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;

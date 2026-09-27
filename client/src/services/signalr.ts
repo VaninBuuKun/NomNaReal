@@ -14,14 +14,11 @@ export class SignalRService {
       return;
     }
 
-    const token = localStorage.getItem('nomna_token');
-    if (!token) return;
-
     const baseHubUrl = (import.meta.env.VITE_API_URL as string)?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
 
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(`${baseHubUrl}/hubs/chat`, {
-        accessTokenFactory: () => localStorage.getItem('nomna_token') || '',
+        withCredentials: true,
         transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
       })
       .withAutomaticReconnect()

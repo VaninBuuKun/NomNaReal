@@ -6,30 +6,20 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize current user from /auth/me
+  // Initialize current user from /auth/me (browser transmits HttpOnly access_token cookie)
   const initAuth = useCallback(async () => {
-    const token = localStorage.getItem('nomna_token');
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
-
     try {
       const currentUser = await authApi.getMe();
       setUser(currentUser);
+      localStorage.setItem('nomna_logged_in', 'true');
     } catch {
-      // Token might be expired, attempt refresh via HttpOnly cookie
+      // Access token may be expired or absent, attempt refresh via HttpOnly refresh_token cookie
       try {
-        const refreshRes = await authApi.refresh();
-        if (refreshRes.accessToken) {
-          localStorage.setItem('nomna_token', refreshRes.accessToken);
-          setUser(refreshRes.user);
-        } else {
-          localStorage.removeItem('nomna_token');
-          setUser(null);
-        }
+        const refreshedUser = await authApi.refresh();
+        setUser(refreshedUser);
+        localStorage.setItem('nomna_logged_in', 'true');
       } catch {
-        localStorage.removeItem('nomna_token');
+        localStorage.removeItem('nomna_logged_in');
         setUser(null);
       }
     } finally {
@@ -42,33 +32,33 @@ export function useAuth() {
   }, [initAuth]);
 
   const login = async (emailOrUsername: string, password: string): Promise<User> => {
-    const res = await authApi.login(emailOrUsername, password);
-    localStorage.setItem('nomna_token', res.accessToken);
-    setUser(res.user);
-    return res.user;
+    const loggedUser = await authApi.login(emailOrUsername, password);
+    localStorage.setItem('nomna_logged_in', 'true');
+    setUser(loggedUser);
+    return loggedUser;
   };
 
   const register = async (email: string, username: string, displayName: string, password: string): Promise<User> => {
-    const res = await authApi.register(email, username, displayName, password);
-    localStorage.setItem('nomna_token', res.accessToken);
-    setUser(res.user);
-    return res.user;
+    const registeredUser = await authApi.register(email, username, displayName, password);
+    localStorage.setItem('nomna_logged_in', 'true');
+    setUser(registeredUser);
+    return registeredUser;
   };
 
   const googleLogin = async (idToken: string): Promise<User> => {
-    const res = await authApi.googleLogin(idToken);
-    localStorage.setItem('nomna_token', res.accessToken);
-    setUser(res.user);
-    return res.user;
+    const googleUser = await authApi.googleLogin(idToken);
+    localStorage.setItem('nomna_logged_in', 'true');
+    setUser(googleUser);
+    return googleUser;
   };
 
   const logout = async (): Promise<void> => {
     try {
       await authApi.logout();
     } finally {
+      localStorage.removeItem('nomna_logged_in');
       localStorage.removeItem('nomna_token');
-      localStorage.removeItem('nomna_refresh_token'); // Ensure legacy keys removed
-      localStorage.removeItem('nomna_refresh');
+      localStorage.removeItem('nomna_refresh_token');
       setUser(null);
     }
   };

@@ -15,7 +15,7 @@ const loginSchema = z.object({
 export type LoginFormData = z.infer<typeof loginSchema>;
 
 interface LoginFormProps {
-  onSuccess: (accessToken: string) => void;
+  onSuccess: (user?: any) => void;
   onError?: (errorMessage: string) => void;
 }
 
@@ -42,10 +42,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
     setLocalError(null);
     setLoading(true);
     try {
-      const res = await authApi.login(data.emailOrUsername, data.password);
-      // Store only access token in localStorage. Refresh token is in HttpOnly cookie.
-      localStorage.setItem('nomna_token', res.accessToken);
-      onSuccess(res.accessToken);
+      const user = await authApi.login(data.emailOrUsername, data.password);
+      localStorage.setItem('nomna_logged_in', 'true');
+      onSuccess(user);
     } catch (err: any) {
       const msg =
         err.response?.data?.message ||

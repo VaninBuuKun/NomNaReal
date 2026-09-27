@@ -136,6 +136,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             entity.ToTable("refresh_tokens");
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.TokenHash);
 
             entity.HasOne(e => e.User)
                 .WithMany(u => u.RefreshTokens)
