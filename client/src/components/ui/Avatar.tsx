@@ -41,28 +41,14 @@ export const Avatar: React.FC<AvatarProps> = ({
     offline: 'bg-zinc-400',
   };
 
-  const initials = (fallback || 'U').slice(0, 2).toUpperCase();
-
   return (
     <div className="relative inline-flex shrink-0">
-      {effectiveSrc && !imageError ? (
-        <img
-          src={effectiveSrc}
-          alt={fallback}
-          onError={() => setImageError(true)}
-          className={cn('object-cover shadow-xs', sizeClasses[size], className)}
-        />
-      ) : (
-        <div
-          className={cn(
-            'bg-[var(--accent-primary)] text-white font-bold flex items-center justify-center shadow-xs select-none',
-            sizeClasses[size],
-            className
-          )}
-        >
-          {initials}
-        </div>
-      )}
+      <img
+        src={effectiveSrc && !imageError ? effectiveSrc : DEFAULT_AVATAR}
+        alt={fallback}
+        onError={() => setImageError(true)}
+        className={cn('object-cover shadow-xs', sizeClasses[size], className)}
+      />
 
       {status && (
         <span

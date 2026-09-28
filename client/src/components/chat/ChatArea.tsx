@@ -20,6 +20,10 @@ import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
 import { formatDateDivider, isDifferentDay } from "../../utils/formatDate";
 import { ChatAreaSkeleton } from "./ChatAreaSkeleton";
+import { CodeBlock } from "./CodeBlock";
+import { EmojiPickerPopover } from "./EmojiPickerPopover";
+import { GifPicker } from "./GifPicker";
+import { DeleteMessageModal } from "./DeleteMessageModal";
 
 interface ChatAreaProps {
   currentChannel: Channel | null;
@@ -39,6 +43,7 @@ interface ChatAreaProps {
   isLoadingMore?: boolean;
   isLoadingMessages?: boolean;
   onLoadMoreMessages?: () => Promise<void>;
+  workspaceMembers?: { id: string; displayName?: string; username?: string; role?: string }[];
 }
 
 const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
@@ -69,11 +74,26 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   isLoadingMore = false,
   isLoadingMessages = false,
   onLoadMoreMessages,
+  workspaceMembers = [],
 }) => {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGifPicker, setShowGifPicker] = useState(false);
+
+  // Delete message modal state
+  const [deleteModalState, setDeleteModalState] = useState<{
+    isOpen: boolean;
+    messageId: string | null;
+    preview: string;
+  }>({
+    isOpen: false,
+    messageId: null,
+    preview: "",
+  });
+  const [isDeletingMessage, setIsDeletingMessage] = useState(false);
 
   // Skeleton threshold delay (150ms) to prevent UI flicker on fast responses
   const [showSkeleton, setShowSkeleton] = useState(false);
@@ -311,10 +331,23 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     }
   };
 
-  // Delete message
-  const handleDelete = async (msgId: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xoá tin nhắn này?")) return;
+  // Delete message triggering
+  const handleDeleteClick = (msg: Message) => {
+    const skip = localStorage.getItem("nomna_skip_delete_confirm") === "true";
+    if (skip) {
+      performDelete(msg.id);
+    } else {
+      setDeleteModalState({
+        isOpen: true,
+        messageId: msg.id,
+        preview: msg.content,
+      });
+    }
+  };
+
+  const performDelete = async (msgId: string) => {
     try {
+      setIsDeletingMessage(true);
       if (onDeleteMessage) {
         await onDeleteMessage(msgId);
       } else {
@@ -323,7 +356,19 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     } catch (err) {
       console.error("Failed to delete message:", err);
       alert("Không thể xoá tin nhắn. Vui lòng thử lại.");
+    } finally {
+      setIsDeletingMessage(false);
     }
+  };
+
+  const handleConfirmDelete = async (dontAskAgain: boolean) => {
+    if (dontAskAgain) {
+      localStorage.setItem("nomna_skip_delete_confirm", "true");
+    }
+    if (deleteModalState.messageId) {
+      await performDelete(deleteModalState.messageId);
+    }
+    setDeleteModalState({ isOpen: false, messageId: null, preview: "" });
   };
 
   // Toggle reaction
@@ -335,9 +380,33 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     }
   };
 
-  // Render message content with markdown, video player, and images
+  // Insert emoji at cursor without unwanted spaces
+  const handleInsertEmoji = (emoji: string) => {
+    if (textareaRef.current) {
+      const start = textareaRef.current.selectionStart || 0;
+      const end = textareaRef.current.selectionEnd || 0;
+      const next = content.substring(0, start) + emoji + content.substring(end);
+      setContent(next);
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + emoji.length;
+        }
+      }, 0);
+    } else {
+      setContent((prev) => prev + emoji);
+    }
+  };
+
+  // Send selected GIF
+  const handleSelectGif = (url: string, title: string) => {
+    const gifMarkdown = `![GIF: ${title}](${url})`;
+    onSendMessage(gifMarkdown);
+  };
+
+  // Render message content with markdown, code blocks, GIF/images, and video player
   const renderMessageBody = (text: string) => {
-    // Check for video attachment pattern: [video:fileName](url)
+    // 1. Video attachment: [video:fileName](url)
     const videoMatch = text.match(/\[video:(.*?)\]\((.*?)\)/);
     if (videoMatch) {
       const fileName = videoMatch[1];
@@ -346,7 +415,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       return (
         <div className="flex flex-col gap-2">
-          {restText && <div>{restText}</div>}
+          {restText && renderMessageBody(restText)}
           <div className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-black/60 max-w-lg shadow-md my-1">
             <video
               src={videoUrl}
@@ -363,29 +432,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       );
     }
 
-    // Check for image attachment pattern: ![fileName](url)
-    const imageMatch = text.match(/!\[(.*?)\]\((.*?)\)/);
-    if (imageMatch) {
-      const altText = imageMatch[1];
-      const imageUrl = imageMatch[2];
-      const restText = text.replace(/!\[.*?\]\(.*?\)/, "").trim();
-
-      return (
-        <div className="flex flex-col gap-2">
-          {restText && <div>{restText}</div>}
-          <div className="max-w-md rounded-xl overflow-hidden border border-[var(--border-color)] shadow-sm my-1">
-            <img
-              src={imageUrl}
-              alt={altText}
-              className="w-full max-h-[320px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
-              onClick={() => window.open(imageUrl, "_blank")}
-            />
-          </div>
-        </div>
-      );
-    }
-
-    // Check for generic file attachment pattern: [file:fileName](url)
+    // 2. Generic file: [file:fileName](url)
     const fileMatch = text.match(/\[file:(.*?)\]\((.*?)\)/);
     if (fileMatch) {
       const fileName = fileMatch[1];
@@ -394,7 +441,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       return (
         <div className="flex flex-col gap-2">
-          {restText && <div>{restText}</div>}
+          {restText && renderMessageBody(restText)}
           <a
             href={fileUrl}
             target="_blank"
@@ -406,6 +453,60 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </a>
         </div>
       );
+    }
+
+    // 3. Image / GIF attachment: ![alt](url)
+    const imageMatch = text.match(/!\[(.*?)\]\((.*?)\)/);
+    if (imageMatch) {
+      const altText = imageMatch[1];
+      const imageUrl = imageMatch[2];
+      const restText = text.replace(/!\[.*?\]\(.*?\)/, "").trim();
+      const isGif = /\.gif($|\?)/i.test(imageUrl) || altText.toLowerCase().includes("gif");
+
+      return (
+        <div className="flex flex-col gap-2">
+          {restText && renderMessageBody(restText)}
+          <div className="max-w-md rounded-xl overflow-hidden border border-[var(--border-color)] shadow-sm my-1 bg-black/10">
+            <img
+              src={imageUrl}
+              alt={altText}
+              className="w-full max-h-[340px] object-contain cursor-pointer hover:opacity-95 transition-opacity"
+              onClick={() => window.open(imageUrl, "_blank")}
+              loading="lazy"
+            />
+            {isGif && (
+              <div className="px-2 py-0.5 bg-black/60 text-[10px] font-bold text-white w-fit rounded-tr-md">
+                GIF
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // 4. Code Blocks: ```[lang]?\n code \n```
+    const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g;
+    if (codeBlockRegex.test(text)) {
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+
+      codeBlockRegex.lastIndex = 0;
+      while ((match = codeBlockRegex.exec(text)) !== null) {
+        const preText = text.substring(lastIndex, match.index);
+        if (preText) {
+          parts.push(<span key={`pre-${lastIndex}`}>{preText}</span>);
+        }
+        const lang = match[1] || "";
+        const code = match[2];
+        parts.push(<CodeBlock key={`code-${match.index}`} code={code} language={lang} />);
+        lastIndex = match.index + match[0].length;
+      }
+      const postText = text.substring(lastIndex);
+      if (postText) {
+        parts.push(<span key={`post-${lastIndex}`}>{postText}</span>);
+      }
+      return <div className="flex flex-col gap-1">{parts}</div>;
     }
 
     return <div>{text}</div>;
@@ -535,7 +636,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               )}
 
               <div
-                className="group relative flex gap-3 px-3 py-2 rounded-xl transition-all duration-150 hover:bg-[var(--bg-surface)]"
+                className="group relative flex gap-3 px-3 py-2 rounded-md transition-all duration-150 hover:bg-[var(--bg-surface)]"
               >
                   {/* Sender Avatar */}
                   <div
@@ -563,8 +664,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                       alt={msg.senderDisplayName}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        // Fallback initials if image fails
-                        e.currentTarget.style.display = "none";
+                        e.currentTarget.src = "/default-avatar.png";
                       }}
                     />
                   </div>
@@ -575,9 +675,37 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                       <span className="text-[0.9rem] font-semibold text-[var(--text-primary)]">
                         {msg.senderDisplayName}
                       </span>
-                      <span className="bg-[var(--accent-soft)] text-[var(--accent-primary)] text-[0.65rem] px-1.5 py-0.25 rounded font-bold uppercase">
-                        {isMe ? "YOU" : index === 0 ? "LEAD" : "MEMBER"}
-                      </span>
+                      {/* Role badge: NEVER show Lead vs Member in DMs! In channels, show real role or YOU */}
+                      {(() => {
+                        const isDm = currentChannel?.type === ChannelType.DirectMessage || currentChannel?.type === 2;
+                        const memberRole = workspaceMembers?.find((m) => m.id === msg.senderId)?.role;
+
+                        if (isDm) {
+                          return isMe ? (
+                            <span className="bg-[var(--accent-soft)] text-[var(--accent-primary)] text-[0.65rem] px-1.5 py-0.25 rounded font-bold uppercase">
+                              YOU
+                            </span>
+                          ) : null;
+                        }
+
+                        if (isMe) {
+                          return (
+                            <span className="bg-[var(--accent-soft)] text-[var(--accent-primary)] text-[0.65rem] px-1.5 py-0.25 rounded font-bold uppercase">
+                              YOU
+                            </span>
+                          );
+                        }
+
+                        if (memberRole === "Owner" || memberRole === "Admin") {
+                          return (
+                            <span className="bg-[var(--accent-soft)] text-[var(--accent-primary)] text-[0.65rem] px-1.5 py-0.25 rounded font-bold uppercase">
+                              {memberRole.toUpperCase()}
+                            </span>
+                          );
+                        }
+
+                        return null;
+                      })()}
                       <span className="text-[0.72rem] text-[var(--text-muted)]">{timeStr}</span>
                       {msg.isEdited && (
                         <span className="text-[0.7rem] text-[var(--text-muted)] italic select-none">
@@ -588,7 +716,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
                     {/* Message Content or Inline Edit Box */}
                     {isEditingThis ? (
-                      <div className="mt-1 flex flex-col gap-2 p-2 rounded-xl bg-[var(--bg-chat)] border border-[var(--accent-primary)] shadow-sm">
+                      <div className="mt-1 flex flex-col gap-2 p-2 rounded-md bg-[var(--bg-chat)] border border-[var(--accent-primary)] shadow-sm">
                         <textarea
                           value={editContent}
                           onChange={(e) => setEditContent(e.target.value)}
@@ -667,7 +795,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   </div>
 
                   {/* Toolbar on Hover */}
-                  <div className="absolute -top-3.5 right-3.5 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl p-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 transition-all duration-150 shadow-md z-10">
+                  <div className="absolute -top-3.5 right-3.5 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-md p-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 transition-all duration-150 shadow-md z-10">
                     {/* Quick Emojis */}
                     {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
                       <button
@@ -711,7 +839,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                         type="button"
                         className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg text-xs transition-colors cursor-pointer"
                         title="Xoá tin nhắn"
-                        onClick={() => handleDelete(msg.id)}
+                        onClick={() => handleDeleteClick(msg)}
                       >
                         <Trash size={15} />
                       </button>
@@ -753,7 +881,21 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       )}
 
       {/* Chat Input Box */}
-      <div className="px-5 pb-2.5 pt-0.5 shrink-0">
+      <div className="px-5 pb-2.5 pt-0.5 shrink-0 relative">
+        {/* Emoji Picker Popover */}
+        <EmojiPickerPopover
+          isOpen={showEmojiPicker}
+          onClose={() => setShowEmojiPicker(false)}
+          onSelectEmoji={handleInsertEmoji}
+        />
+
+        {/* GIF Picker Popover */}
+        <GifPicker
+          isOpen={showGifPicker}
+          onClose={() => setShowGifPicker(false)}
+          onSelectGif={handleSelectGif}
+        />
+
         <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-md p-2.5 px-3.5 flex flex-col gap-2 transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_2px_12px_var(--accent-glow)]">
           <textarea
             ref={textareaRef}
@@ -783,30 +925,55 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
               <button
                 type="button"
-                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
                 title="Đính kèm tệp tin / Video (Tối đa 100MB)"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
-                <Paperclip size={16} />
+                <Paperclip size={17} />
               </button>
 
               <button
                 type="button"
-                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-                title="Thêm Emoji"
-                onClick={() => setContent((prev) => prev + " 🔥 ")}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center ${
+                  showGifPicker
+                    ? "bg-[var(--accent-soft)] text-[var(--accent-primary)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
+                }`}
+                title="Thư viện ảnh GIF"
+                onClick={() => {
+                  setShowGifPicker((prev) => !prev);
+                  setShowEmojiPicker(false);
+                }}
               >
-                <Smiley size={16} />
+                <span className="font-bold text-[10px] border border-current px-1 py-0.2 rounded leading-tight tracking-wider">
+                  GIF
+                </span>
               </button>
 
               <button
                 type="button"
-                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-                title="Chèn mã code"
-                onClick={() => setContent((prev) => prev + "\n```csharp\n// Nhập code\n```\n")}
+                className={`p-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center ${
+                  showEmojiPicker
+                    ? "bg-[var(--accent-soft)] text-[var(--accent-primary)]"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
+                }`}
+                title="Thêm biểu cảm Emoji"
+                onClick={() => {
+                  setShowEmojiPicker((prev) => !prev);
+                  setShowGifPicker(false);
+                }}
               >
-                <Code size={16} />
+                <Smiley size={17} />
+              </button>
+
+              <button
+                type="button"
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+                title="Chèn khối mã code"
+                onClick={() => setContent((prev) => prev ? `${prev}\n\`\`\`csharp\n// Nhập mã code tại đây\n\`\`\`\n` : `\`\`\`csharp\n// Nhập mã code tại đây\n\`\`\`\n`)}
+              >
+                <Code size={17} />
               </button>
             </div>
 
@@ -830,10 +997,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         <div
           ref={profileCardRef}
           style={getProfilePositionStyle()}
-          className="fixed z-50 w-[270px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-2xl shadow-2xl p-4 flex flex-col gap-3.5 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
+          className="fixed z-50 w-[270px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-[4px] shadow-2xl p-4 flex flex-col gap-3.5 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
         >
           {/* Ambient Header Bar */}
-          <div className="h-10 -mx-4 -mt-4 rounded-t-2xl bg-gradient-to-r from-[var(--accent-primary)]/20 via-[var(--accent-primary)]/10 to-transparent p-2.5 flex items-center">
+          <div className="h-10 -mx-4 -mt-4 rounded-t-[4px] bg-gradient-to-r from-[var(--accent-primary)]/20 via-[var(--accent-primary)]/10 to-transparent p-2.5 flex items-center">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-primary)]">
               Thông tin thành viên
             </span>
@@ -842,13 +1009,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           {/* Avatar & Online status */}
           <div className="flex items-center gap-3 -mt-4">
             <div className="relative">
-              <div className="w-13 h-13 rounded-2xl bg-[var(--bg-surface)] border-2 border-[var(--bg-chat)] overflow-hidden shadow-md flex items-center justify-center font-bold text-base text-white">
+              <div className="w-13 h-13 rounded-[4px] bg-[var(--bg-surface)] border-2 border-[var(--bg-chat)] overflow-hidden shadow-md flex items-center justify-center font-bold text-base text-white">
                 <img
                   src={selectedProfile.avatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png"}
                   alt={selectedProfile.displayName}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.currentTarget.style.display = "none";
+                    e.currentTarget.src = "/default-avatar.png";
                   }}
                 />
               </div>
@@ -868,7 +1035,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           {/* Action / Identity Details */}
           <div className="pt-2 border-t border-[var(--border-color)]">
             {currentUser && (selectedProfile.userId === currentUser.id || selectedProfile.username === currentUser.username) ? (
-              <div className="text-center py-1.5 text-xs text-[var(--text-muted)] font-medium bg-[var(--bg-surface)] rounded-xl">
+              <div className="text-center py-1.5 text-xs text-[var(--text-muted)] font-medium bg-[var(--bg-surface)] rounded-md">
                 ✨ Đây là tài khoản của bạn
               </div>
             ) : (
@@ -886,7 +1053,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     });
                   }
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold transition-all shadow-md shadow-[var(--accent-glow)] cursor-pointer active:scale-98"
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold transition-all shadow-md shadow-[var(--accent-glow)] cursor-pointer active:scale-98"
               >
                 <ChatCenteredDots size={16} weight="bold" />
                 <span>Gửi tin nhắn</span>
@@ -895,6 +1062,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteMessageModal
+        isOpen={deleteModalState.isOpen}
+        onClose={() => setDeleteModalState({ isOpen: false, messageId: null, preview: "" })}
+        onConfirm={handleConfirmDelete}
+        messagePreview={deleteModalState.preview}
+        isDeleting={isDeletingMessage}
+      />
     </section>
   );
 };

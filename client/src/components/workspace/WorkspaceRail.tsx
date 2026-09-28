@@ -49,14 +49,6 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
   const activeWorkspace =
     workspaces.find((w) => w.id === activeWorkspaceId) || workspaces[0] || null;
 
-  const initials =
-    activeWorkspace?.name
-      ?.split(' ')
-      .map((w) => w[0])
-      .join('')
-      .slice(0, 2)
-      .toUpperCase() || 'WS';
-
   return (
     <aside className="w-[68px] h-full min-h-0 shrink-0 bg-[var(--bg-rail)] border-r border-[var(--border-color)] py-3 flex flex-col items-center gap-2.5 overflow-visible select-none relative z-30">
       {/* 1. Hub / Switcher Icon Button */}
@@ -86,20 +78,19 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
           <div
             title={`Không gian: ${activeWorkspace.name} (Kênh thảo luận)`}
             onClick={() => onSelectView?.('channels')}
-            className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border overflow-hidden shadow-xs ${activeSidebarView === 'channels'
-              ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
-              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]'
+            className={`w-11 h-11 rounded-[14px] flex items-center justify-center cursor-pointer transition-all duration-200 border overflow-hidden shadow-xs ${activeSidebarView === 'channels'
+              ? 'border-[var(--accent-primary)] shadow-[0_4px_14px_var(--accent-glow)] ring-2 ring-[var(--accent-primary)]/40'
+              : 'border-[var(--border-color)] hover:border-[var(--accent-primary)]'
               }`}
           >
-            {activeWorkspace.iconUrl ? (
-              <img
-                src={activeWorkspace.iconUrl}
-                alt={activeWorkspace.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              initials
-            )}
+            <img
+              src={activeWorkspace.iconUrl || '/default-avatar.png'}
+              alt={activeWorkspace.name}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src = '/default-avatar.png';
+              }}
+            />
           </div>
         </div>
       )}
@@ -166,14 +157,6 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
               <div className="max-h-[220px] overflow-y-auto flex flex-col gap-0.5 py-0.5">
                 {workspaces.map((ws) => {
                   const isActive = ws.id === activeWorkspace?.id;
-                  const wsInitials =
-                    ws.name
-                      .split(' ')
-                      .map((w) => w[0])
-                      .join('')
-                      .slice(0, 2)
-                      .toUpperCase() || 'WS';
-
                   return (
                     <button
                       key={ws.id}
@@ -187,12 +170,15 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
                         : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
                         }`}
                     >
-                      <div className="w-6 h-6 rounded-[3px] overflow-hidden border border-[var(--border-color)] bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-[10px] shrink-0">
-                        {ws.iconUrl ? (
-                          <img src={ws.iconUrl} alt={ws.name} className="w-full h-full object-cover" />
-                        ) : (
-                          wsInitials
-                        )}
+                      <div className="w-6 h-6 rounded-[3px] overflow-hidden border border-[var(--border-color)] bg-[var(--bg-chat)] flex items-center justify-center shrink-0">
+                        <img
+                          src={ws.iconUrl || '/default-avatar.png'}
+                          alt={ws.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = '/default-avatar.png';
+                          }}
+                        />
                       </div>
 
                       <span className="truncate flex-1 font-medium">{ws.name}</span>

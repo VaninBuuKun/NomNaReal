@@ -116,8 +116,15 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 className="fixed top-[52px] left-[76px] w-[280px] z-[1000] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-[4px] shadow-2xl p-1.5 flex flex-col gap-0.5"
               >
                 <div className="flex items-center gap-2.5 p-2 rounded-[3px] bg-[var(--bg-surface)] border border-[var(--border-color)]/60">
-                  <div className="w-9 h-9 rounded-[3px] bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-extrabold text-sm shadow-xs shrink-0">
-                    {(currentWorkspace?.name || 'N').charAt(0).toUpperCase()}
+                  <div className="w-9 h-9 rounded-[4px] border border-[var(--border-color)] overflow-hidden shrink-0 bg-[var(--bg-chat)] flex items-center justify-center">
+                    <img
+                      src={currentWorkspace?.iconUrl || '/default-avatar.png'}
+                      alt={currentWorkspace?.name || 'Workspace'}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = '/default-avatar.png';
+                      }}
+                    />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-extrabold text-sm text-[var(--text-primary)] leading-tight truncate">

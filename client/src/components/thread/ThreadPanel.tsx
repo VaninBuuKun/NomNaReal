@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   X,
   PaperPlaneRight,
@@ -10,11 +10,14 @@ import {
   Trash,
   CircleNotch,
   FileText,
+  Images,
 } from "@phosphor-icons/react";
 import type { Message, MessageEdited, User, ReactionUpdate, DeletedMessage } from "../../types";
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
 import { signalRService } from "../../services/signalr";
+import { CodeBlock } from "../chat/CodeBlock";
+import { DeleteMessageModal } from "../chat/DeleteMessageModal";
 
 interface ThreadPanelProps {
   isOpen: boolean;
@@ -52,20 +55,20 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
 
+  // Delete modal state
+  const [deleteModalState, setDeleteModalState] = useState<{
+    isOpen: boolean;
+    messageId: string | null;
+    preview: string;
+  }>({
+    isOpen: false,
+    messageId: null,
+    preview: "",
+  });
+  const [isDeletingReply, setIsDeletingReply] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Helper to extract code block from message content
-  const parseMessageContent = useCallback((content: string) => {
-    const codeMatch = content.match(/```(?:[a-zA-Z0-9_-]+)?\n?([\s\S]*?)```/);
-    if (codeMatch) {
-      const codeSnippet = codeMatch[1].trim();
-      let text = content.replace(/```(?:[a-zA-Z0-9_-]+)?\n?([\s\S]*?)```/, "").trim();
-      if (!text) text = "Đã chia sẻ đoạn mã nguồn:";
-      return { text, codeSnippet };
-    }
-    return { text: content, codeSnippet: undefined };
-  }, []);
 
   // Fetch thread replies & join SignalR thread room
   useEffect(() => {
@@ -211,9 +214,22 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
     }
   };
 
-  const handleDeleteReply = async (replyId: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xoá phản hồi này?")) return;
+  const handleDeleteClick = (reply: Message) => {
+    const skip = localStorage.getItem("nomna_skip_delete_confirm") === "true";
+    if (skip) {
+      performDelete(reply.id);
+    } else {
+      setDeleteModalState({
+        isOpen: true,
+        messageId: reply.id,
+        preview: reply.content,
+      });
+    }
+  };
+
+  const performDelete = async (replyId: string) => {
     try {
+      setIsDeletingReply(true);
       if (onDeleteMessage) {
         await onDeleteMessage(replyId);
       } else {
@@ -221,7 +237,19 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
       }
     } catch {
       alert("Không thể xoá phản hồi.");
+    } finally {
+      setIsDeletingReply(false);
     }
+  };
+
+  const handleConfirmDelete = async (dontAskAgain: boolean) => {
+    if (dontAskAgain) {
+      localStorage.setItem("nomna_skip_delete_confirm", "true");
+    }
+    if (deleteModalState.messageId) {
+      await performDelete(deleteModalState.messageId);
+    }
+    setDeleteModalState({ isOpen: false, messageId: null, preview: "" });
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -295,17 +323,32 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
       );
     }
 
-    const { text: cleanText, codeSnippet } = parseMessageContent(text);
-    return (
-      <>
-        <div>{cleanText}</div>
-        {codeSnippet && (
-          <div className="bg-[var(--code-bg)] text-[var(--code-text)] text-[0.75rem] p-2.5 rounded-lg mt-2 font-mono overflow-x-auto leading-normal">
-            {codeSnippet}
-          </div>
-        )}
-      </>
-    );
+    // Code blocks parser
+    const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g;
+    if (codeBlockRegex.test(text)) {
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+
+      codeBlockRegex.lastIndex = 0;
+      while ((match = codeBlockRegex.exec(text)) !== null) {
+        const preText = text.substring(lastIndex, match.index);
+        if (preText) {
+          parts.push(<span key={`pre-${lastIndex}`}>{preText}</span>);
+        }
+        const lang = match[1] || "";
+        const code = match[2];
+        parts.push(<CodeBlock key={`code-${match.index}`} code={code} language={lang} />);
+        lastIndex = match.index + match[0].length;
+      }
+      const postText = text.substring(lastIndex);
+      if (postText) {
+        parts.push(<span key={`post-${lastIndex}`}>{postText}</span>);
+      }
+      return <div className="flex flex-col gap-1">{parts}</div>;
+    }
+
+    return <div>{text}</div>;
   };
 
   return (
@@ -335,35 +378,32 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
 
       {/* 2. Messages List */}
       <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
-        {/* Parent Root Message Card */}
+        {/* Parent Root Message - Unboxed, clean message layout with larger typography */}
         {parentMessage ? (
-          <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-color)] flex flex-col gap-2 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <img
-                  src={parentMessage.senderAvatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png"}
-                  alt={parentMessage.senderDisplayName}
-                  className="w-6 h-6 rounded-lg object-cover border border-[var(--border-color)]"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-                <span className="text-xs font-bold text-[var(--text-primary)]">
+          <div className="px-1 py-2 flex gap-3 select-text border-b border-[var(--border-color)]/60 pb-3">
+            <img
+              src={parentMessage.senderAvatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png"}
+              alt={parentMessage.senderDisplayName}
+              className="w-9 h-9 rounded-xl object-cover shrink-0 border border-[var(--border-color)] shadow-2xs"
+              onError={(e) => {
+                e.currentTarget.src = "/default-avatar.png";
+              }}
+            />
+            <div className="flex-1 min-w-0 flex flex-col gap-1">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[0.92rem] font-bold text-[var(--text-primary)]">
                   {parentMessage.senderDisplayName}
                 </span>
-                <span className="text-[0.62rem] font-bold uppercase px-1.5 py-0.2 rounded bg-[var(--accent-soft)] text-[var(--accent-primary)]">
-                  ROOT
+                <span className="text-[0.72rem] text-[var(--text-muted)]">
+                  {new Date(parentMessage.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
                 </span>
               </div>
-              <span className="text-[0.68rem] text-[var(--text-muted)]">
-                {new Date(parentMessage.createdAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </span>
-            </div>
-            <div className="text-xs text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
-              {renderMessageContent(parentMessage.content)}
+              <div className="text-[0.95rem] font-medium text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
+                {renderMessageContent(parentMessage.content)}
+              </div>
             </div>
           </div>
         ) : (
@@ -390,8 +430,10 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
 
         {/* Empty replies state */}
         {!loading && replies.length === 0 && (
-          <div className="py-8 text-center text-[var(--text-muted)]">
-            <div className="text-2xl mb-1">💬</div>
+          <div className="flex flex-col items-center justify-center py-8 text-center text-[var(--text-muted)]">
+            <div className="mb-2 rounded-full bg-[var(--bg-muted)] p-3">
+              <Images size={28} weight="regular" />
+            </div>
             <p className="text-xs font-medium">Chưa có phản hồi nào trong thread này.</p>
             <p className="text-[0.72rem]">Hãy là người đầu tiên trả lời!</p>
           </div>
@@ -410,14 +452,14 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
           return (
             <div
               key={r.id}
-              className="group relative p-2.5 rounded-xl hover:bg-[var(--bg-surface)] transition-all flex gap-3"
+              className="group relative p-2.5 rounded-md hover:bg-[var(--bg-surface)] transition-all flex gap-3"
             >
               <img
                 src={avatarSrc}
                 alt={r.senderDisplayName}
-                className="w-[30px] h-[30px] rounded-lg object-cover shrink-0 border border-[var(--border-color)]"
+                className="w-8 h-8 rounded-xl object-cover shrink-0 border border-[var(--border-color)]"
                 onError={(e) => {
-                  e.currentTarget.style.display = "none";
+                  e.currentTarget.src = "/default-avatar.png";
                 }}
               />
               <div className="flex-1 min-w-0 flex flex-col gap-0.5">
@@ -425,9 +467,11 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                   <span className="text-xs font-bold text-[var(--text-primary)]">
                     {r.senderDisplayName}
                   </span>
-                  <span className="bg-[var(--accent-soft)] text-[var(--accent-primary)] text-[0.62rem] px-1.5 py-0.2 rounded font-bold uppercase">
-                    {isMe ? "YOU" : "DEV"}
-                  </span>
+                  {isMe && (
+                    <span className="bg-[var(--accent-soft)] text-[var(--accent-primary)] text-[0.62rem] px-1.5 py-0.2 rounded font-bold uppercase">
+                      YOU
+                    </span>
+                  )}
                   <span className="text-[0.68rem] text-[var(--text-muted)]">{timeStr}</span>
                   {r.isEdited && (
                     <span className="text-[0.65rem] text-[var(--text-muted)] italic select-none">
@@ -437,7 +481,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                 </div>
 
                 {isEditingThis ? (
-                  <div className="mt-1 flex flex-col gap-1.5 p-2 rounded-lg bg-[var(--bg-chat)] border border-[var(--accent-primary)]">
+                  <div className="mt-1 flex flex-col gap-1.5 p-2.5 rounded-md bg-[var(--bg-chat)] border border-[var(--accent-primary)] shadow-xs">
                     <textarea
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
@@ -475,11 +519,10 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                         type="button"
                         key={item.emoji}
                         onClick={() => toggleReaction(r.id, item.emoji)}
-                        className={`text-[0.72rem] px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${
-                          item.hasReacted
-                            ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-[var(--accent-primary)] font-bold"
-                            : "bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:border-[var(--border-hover)]"
-                        }`}
+                        className={`text-[0.72rem] px-2 py-0.5 rounded-md flex items-center gap-1 transition-all cursor-pointer ${item.hasReacted
+                          ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-[var(--accent-primary)] font-bold"
+                          : "bg-[var(--bg-surface)] text-[var(--text-secondary)] border border-[var(--border-color)] hover:border-[var(--border-hover)]"
+                          }`}
                       >
                         <span>{item.emoji}</span>
                         <span>{item.count}</span>
@@ -520,7 +563,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                     type="button"
                     className="p-1 px-1.5 text-rose-500 hover:bg-rose-500/10 rounded text-xs transition-colors cursor-pointer"
                     title="Xoá phản hồi"
-                    onClick={() => handleDeleteReply(r.id)}
+                    onClick={() => handleDeleteClick(r)}
                   >
                     <Trash size={13} />
                   </button>
@@ -534,9 +577,9 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
 
       {/* 3. Rich Chat Input Area for Thread */}
       <div className="p-3 shrink-0">
-        <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-xl p-2.5 px-3 flex flex-col gap-2 transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_4px_16px_var(--accent-glow)]">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-md p-2.5 px-3 flex flex-col gap-2 transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_4px_16px_var(--accent-glow)]">
           {showEmojiBar && (
-            <div className="flex items-center gap-2 p-1.5 mb-1 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-md animate-in slide-in-from-bottom-2 duration-150">
+            <div className="flex items-center gap-2 p-1.5 mb-1 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-md shadow-md animate-in slide-in-from-bottom-2 duration-150">
               <span className="text-[0.72rem] font-bold text-[var(--text-muted)] px-1">Gợi ý:</span>
               {["👍", "❤️", "🔥", "🚀", "👀", "🎉", "💡", "😂"].map((emoji) => (
                 <button
@@ -591,11 +634,10 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
               </button>
               <button
                 type="button"
-                className={`p-1.5 rounded-md transition-colors cursor-pointer inline-flex items-center justify-center ${
-                  showEmojiBar
-                    ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
-                }`}
+                className={`p-1.5 rounded-md transition-colors cursor-pointer inline-flex items-center justify-center ${showEmojiBar
+                  ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
+                  }`}
                 title="Thêm Emoji"
                 onClick={() => setShowEmojiBar(!showEmojiBar)}
               >
@@ -629,6 +671,15 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal for Thread */}
+      <DeleteMessageModal
+        isOpen={deleteModalState.isOpen}
+        onClose={() => setDeleteModalState({ isOpen: false, messageId: null, preview: "" })}
+        onConfirm={handleConfirmDelete}
+        messagePreview={deleteModalState.preview}
+        isDeleting={isDeletingReply}
+      />
     </aside>
   );
 };

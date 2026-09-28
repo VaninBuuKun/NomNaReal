@@ -123,16 +123,15 @@ export const JoinPage: React.FC = () => {
             </div>
 
             {/* Workspace Avatar */}
-            <div className="w-20 h-20 rounded-[8px] overflow-hidden border-2 border-[var(--border-color)] bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-black text-2xl shadow-md mb-3.5">
-              {workspace.iconUrl ? (
-                <img
-                  src={workspace.iconUrl}
-                  alt={workspace.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                workspace.name.charAt(0).toUpperCase()
-              )}
+            <div className="w-20 h-20 rounded-[8px] overflow-hidden border-2 border-[var(--border-color)] bg-[var(--bg-surface)] flex items-center justify-center shadow-md mb-3.5">
+              <img
+                src={workspace.iconUrl || '/default-avatar.png'}
+                alt={workspace.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.src = '/default-avatar.png';
+                }}
+              />
             </div>
 
             {/* Workspace Name & Info */}

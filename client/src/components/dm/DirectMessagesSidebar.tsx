@@ -139,12 +139,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
         ) : (
           filteredConversations.map((item) => {
             const isActive = activeConversationId === item.id;
-            const initials = item.user.displayName
-              .split(' ')
-              .map((w) => w[0])
-              .join('')
-              .slice(0, 2)
-              .toUpperCase();
+            const avatarSrc = item.user.avatarUrl || '/default-avatar.png';
 
             return (
               <div
@@ -157,16 +152,15 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
               >
                 {/* User Avatar with Status Indicator */}
                 <div className="relative shrink-0">
-                  <div className="w-9 h-9 rounded-[4px] bg-[var(--bg-surface)] flex items-center justify-center text-[var(--text-primary)] font-bold text-xs border border-[var(--border-color)] overflow-hidden shadow-2xs">
-                    {item.user.avatarUrl ? (
-                      <img
-                        src={item.user.avatarUrl}
-                        alt={item.user.displayName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      initials
-                    )}
+                  <div className="w-9 h-9 rounded-[4px] bg-[var(--bg-surface)] flex items-center justify-center border border-[var(--border-color)] overflow-hidden shadow-2xs">
+                    <img
+                      src={avatarSrc}
+                      alt={item.user.displayName}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = '/default-avatar.png';
+                      }}
+                    />
                   </div>
                   {/* Status dot */}
                   <span

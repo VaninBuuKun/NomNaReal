@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import React, { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { cn } from "../../utils/cn";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -20,20 +20,21 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       leftIcon,
       rightElement,
       showPasswordToggle = false,
-      type = 'text',
+      type = "text",
       className,
       id,
       ...props
     },
-    ref
+    ref,
   ) => {
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-    const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+    const inputId =
+      id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
 
     const computedType = showPasswordToggle
       ? isPasswordVisible
-        ? 'text'
-        : 'password'
+        ? "text"
+        : "password"
       : type;
 
     return (
@@ -59,14 +60,14 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             type={computedType}
             className={cn(
-              'w-full h-11 rounded-xl border border-[var(--border-color)] bg-[var(--bg-chat)] text-sm text-[var(--text-primary)] transition-all outline-none font-sans',
-              'px-4',
-              leftIcon && 'pl-10',
-              (showPasswordToggle || rightElement) && 'pr-11',
-              'focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] focus:shadow-sm focus:shadow-[var(--accent-glow)]',
-              error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
-              'placeholder:text-[var(--text-muted)]',
-              className
+              "w-full h-11 rounded-md border border-[var(--border-color)] bg-[var(--bg-chat)] text-sm text-[var(--text-primary)] transition-all outline-none font-sans",
+              "px-4",
+              leftIcon && "pl-10",
+              (showPasswordToggle || rightElement) && "pr-11",
+              "focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] focus:shadow-sm focus:shadow-[var(--accent-glow)]",
+              error && "border-red-500 focus:border-red-500 focus:ring-red-500",
+              "placeholder:text-[var(--text-muted)]",
+              className,
             )}
             {...props}
           />
@@ -77,7 +78,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               onClick={() => setIsPasswordVisible(!isPasswordVisible)}
               className="absolute right-3 p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
               tabIndex={-1}
-              title={isPasswordVisible ? 'Hide password' : 'Show password'}
+              title={isPasswordVisible ? "Hide password" : "Show password"}
             >
               {isPasswordVisible ? <EyeOff size={17} /> : <Eye size={17} />}
             </button>
@@ -100,7 +101,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         )}
       </div>
     );
-  }
+  },
 );
 
-Input.displayName = 'Input';
+Input.displayName = "Input";

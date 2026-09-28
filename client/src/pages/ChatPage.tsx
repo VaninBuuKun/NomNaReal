@@ -17,6 +17,7 @@ export const ChatPage: React.FC = () => {
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
@@ -213,16 +214,24 @@ export const ChatPage: React.FC = () => {
 
   // Switch Active Workspace
   const handleSelectWorkspace = async (workspaceId: string) => {
+    if (workspaceId === activeWorkspaceId) return;
+    setIsSwitchingWorkspace(true);
     setActiveWorkspaceId(workspaceId);
     navigate(`/workspace/${workspaceId}`, { replace: true });
-    const { channels: chs } = await loadWorkspaceData(workspaceId, currentUser?.id);
-    if (chs.length > 0) {
-      const defaultCh = chs.find((c) => c.name?.toLowerCase() === 'general') || chs[0];
-      handleSelectChannel(defaultCh.id);
-    } else {
-      setActiveChannelId(null);
-      setMessages([]);
-      setHasMoreMessages(false);
+    try {
+      const { channels: chs } = await loadWorkspaceData(workspaceId, currentUser?.id);
+      if (chs.length > 0) {
+        const defaultCh = chs.find((c) => c.name?.toLowerCase() === 'general') || chs[0];
+        await handleSelectChannel(defaultCh.id);
+      } else {
+        setActiveChannelId(null);
+        setMessages([]);
+        setHasMoreMessages(false);
+      }
+    } finally {
+      setTimeout(() => {
+        setIsSwitchingWorkspace(false);
+      }, 120);
     }
   };
 
@@ -598,14 +607,24 @@ export const ChatPage: React.FC = () => {
 
   if (isInitializing && !currentUser) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-chat)] text-[var(--text-primary)] select-none">
-        <div className="relative flex items-center justify-center mb-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white shadow-[0_0_30px_var(--accent-glow)] animate-pulse">
-            <span className="text-2xl font-black">N</span>
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-rail)] text-[var(--text-primary)] select-none animate-in fade-in duration-200">
+        <div className="relative flex flex-col items-center p-8 rounded-2xl bg-[var(--bg-surface)]/80 border border-[var(--border-color)] shadow-2xl backdrop-blur-md animate-in zoom-in-95 duration-200 max-w-sm text-center">
+          <div className="relative flex items-center justify-center mb-4">
+            <img
+              src="/default-avatar.png"
+              alt="NomNa Logo"
+              className="w-16 h-16 rounded-2xl object-cover border border-[var(--border-color)] shadow-[0_0_30px_var(--accent-glow)] animate-pulse"
+            />
+          </div>
+          <div className="text-base font-bold text-[var(--text-primary)]">Đang kết nối NomNa...</div>
+          <div className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
+            Đang tải không gian làm việc và đồng bộ tin nhắn
+          </div>
+          <div className="mt-4 flex items-center gap-2 text-xs text-[var(--accent-primary)] font-medium">
+            <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-ping" />
+            <span>Sẵn sàng sau giây lát</span>
           </div>
         </div>
-        <div className="text-base font-bold text-[var(--text-primary)]">Đang kết nối NomNa...</div>
-        <div className="text-xs text-[var(--text-muted)] mt-1">Đang tải không gian làm việc và tin nhắn</div>
       </div>
     );
   }
@@ -614,7 +633,9 @@ export const ChatPage: React.FC = () => {
     <>
       <main
         id="appLayout"
-        className="flex-1 min-h-0 flex overflow-hidden h-screen h-[100dvh] w-screen relative"
+        className={`flex-1 min-h-0 flex overflow-hidden h-screen h-[100dvh] w-screen relative animate-in fade-in duration-200 ${
+          isSwitchingWorkspace ? 'opacity-70 transition-opacity duration-150 pointer-events-none' : 'opacity-100 transition-opacity duration-150'
+        }`}
         style={{
           userSelect: isResizingChannel || isResizingThread ? 'none' : 'auto',
           cursor: isResizingChannel || isResizingThread ? 'col-resize' : 'auto',
@@ -710,6 +731,7 @@ export const ChatPage: React.FC = () => {
           isLoadingMore={isLoadingMoreMessages}
           isLoadingMessages={isLoadingMessages}
           onLoadMoreMessages={handleLoadMoreMessages}
+          workspaceMembers={workspaceMembers}
         />
 
         {/* 3.5 Resizer Divider */}

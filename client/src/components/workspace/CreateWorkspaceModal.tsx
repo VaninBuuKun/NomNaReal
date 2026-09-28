@@ -114,9 +114,12 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
             {/* Current Selected Avatar Preview */}
             <div className="relative group shrink-0">
               <img
-                src={iconUrl}
+                src={iconUrl || '/default-avatar.png'}
                 alt="Workspace Icon Preview"
                 className="w-16 h-16 rounded-[4px] object-cover border-2 border-[var(--border-color)] group-hover:border-[var(--accent-primary)] transition-all shadow-sm"
+                onError={(e) => {
+                  e.currentTarget.src = '/default-avatar.png';
+                }}
               />
               {isUploading && (
                 <div className="absolute inset-0 bg-black/50 rounded-[4px] flex items-center justify-center">
