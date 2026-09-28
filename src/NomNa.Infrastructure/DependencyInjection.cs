@@ -24,6 +24,10 @@ public static class DependencyInjection
         services.AddSingleton<IJwtService, JwtService>();
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
         services.AddScoped<IFileStorageService, S3FileStorageService>();
+        services.AddScoped<IEmailService, EmailService>();
+        services.AddSingleton<IUserPresenceTracker, UserPresenceTracker>();
+        services.AddMemoryCache();
+        services.AddSingleton<IUserProfileCache, UserProfileCache>();
 
         // Configure ASP.NET Core Identity Core for Web API
         services.AddIdentityCore<User>(options =>

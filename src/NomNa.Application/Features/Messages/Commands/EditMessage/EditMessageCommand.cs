@@ -7,4 +7,4 @@ namespace NomNa.Application.Features.Messages.Commands.EditMessage;
 public record EditMessageCommand(
     Guid MessageId,
     string Content
-) : IRequest<Result<MessageDto>>;
+) : IRequest<Result<MessageEditedDto>>;

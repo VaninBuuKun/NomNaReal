@@ -11,11 +11,16 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserProfileCache _userProfileCache;
 
-    public SendMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public SendMessageCommandHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IUserProfileCache userProfileCache)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _userProfileCache = userProfileCache;
     }
 
     public async Task<Result<MessageDto>> Handle(SendMessageCommand request, CancellationToken cancellationToken)
@@ -25,14 +30,29 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         var channel = await _context.Channels
-            .Include(c => c.Workspace)
             .FirstOrDefaultAsync(c => c.Id == request.ChannelId, cancellationToken);
 
         if (channel == null)
             return Error.NotFound("Channel.NotFound", $"Channel {request.ChannelId} not found.");
 
-        var user = await _context.Users
-            .FirstOrDefaultAsync(u => u.Id == userId.Value, cancellationToken);
+        // Rule: Private channels verify ChannelMember; public channels verify WorkspaceMember.
+        if (channel.IsPrivate || channel.Type == Domain.Enums.ChannelType.DirectMessage)
+        {
+            var isMember = await _context.ChannelMembers
+                .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId.Value, cancellationToken);
+            if (!isMember)
+                return Error.Forbidden("Channel.Forbidden", "You do not have permission to send messages in this private channel.");
+        }
+        else
+        {
+            var isMember = await _context.WorkspaceMembers
+                .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+            if (!isMember)
+                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+        }
+
+        // Fast In-Memory Cache Lookup (0 DB queries)
+        var user = await _userProfileCache.GetAsync(userId.Value, cancellationToken);
 
         if (user == null)
             return Error.Unauthorized("Auth.Unauthorized", "User not found.");
@@ -45,6 +65,8 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
             ThreadId = request.ThreadId
         };
 
+        channel.LastMessageAt = message.CreatedAt;
+
         _context.Messages.Add(message);
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -53,7 +75,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
             message.ChannelId,
             message.SenderId,
             user.DisplayName,
-            user.UserName,
+            user.UserName ?? string.Empty,
             user.AvatarUrl,
             message.Content,
             message.ThreadId,

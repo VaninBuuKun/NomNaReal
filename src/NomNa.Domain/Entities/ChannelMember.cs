@@ -11,5 +11,4 @@ public class ChannelMember : BaseEntity
     public User User { get; set; } = null!;
 
     public DateTime? LastReadAt { get; set; }
-    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 }

@@ -1,10 +1,11 @@
 import { httpClient } from './httpClient';
-import type { Message, ThreadDetails } from '../types';
+import type { Message, MessageEdited, ThreadDetails, MessagesResponse } from '../types';
 
 export const messageApi = {
-  getMessages: async (channelId: string, before?: string): Promise<Message[]> => {
-    const params = before ? { before } : {};
-    const res = await httpClient.get<Message[]>(`/channels/${channelId}/messages`, { params });
+  getMessages: async (channelId: string, before?: string, limit: number = 50): Promise<MessagesResponse> => {
+    const params: Record<string, any> = { limit };
+    if (before) params.before = before;
+    const res = await httpClient.get<MessagesResponse>(`/channels/${channelId}/messages`, { params });
     return res.data;
   },
 
@@ -13,8 +14,8 @@ export const messageApi = {
     return res.data;
   },
 
-  editMessage: async (messageId: string, content: string): Promise<Message> => {
-    const res = await httpClient.put<Message>(`/messages/${messageId}`, { content });
+  editMessage: async (messageId: string, content: string): Promise<MessageEdited> => {
+    const res = await httpClient.put<MessageEdited>(`/messages/${messageId}`, { content });
     return res.data;
   },
 

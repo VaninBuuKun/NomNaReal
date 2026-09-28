@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Domain.Common;
 using NomNa.Domain.Entities;
 
 namespace NomNa.Infrastructure.Persistence;
@@ -17,6 +18,39 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<MessageReaction> MessageReactions => Set<MessageReaction>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        UpdateTimestamps();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public override int SaveChanges()
+    {
+        UpdateTimestamps();
+        return base.SaveChanges();
+    }
+
+    private void UpdateTimestamps()
+    {
+        var entries = ChangeTracker.Entries<BaseEntity>();
+        var now = DateTime.UtcNow;
+
+        foreach (var entry in entries)
+        {
+            if (entry.State == EntityState.Added)
+            {
+                if (entry.Entity.CreatedAt == default)
+                {
+                    entry.Entity.CreatedAt = now;
+                }
+            }
+            else if (entry.State == EntityState.Modified)
+            {
+                entry.Entity.UpdatedAt = now;
+            }
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -76,8 +110,11 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         {
             entity.ToTable("channels");
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.WorkspaceId, e.Name }).IsUnique();
-            entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
+            entity.HasIndex(e => new { e.WorkspaceId, e.Name })
+                .IsUnique()
+                .HasFilter("\"Name\" IS NOT NULL");
+            entity.HasIndex(e => e.LastMessageAt);
+            entity.Property(e => e.Name).HasMaxLength(50);
 
             entity.HasOne(e => e.Workspace)
                 .WithMany(w => w.Channels)
@@ -113,6 +150,11 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             entity.HasIndex(e => new { e.ThreadId, e.CreatedAt });
             entity.HasIndex(e => e.SenderId);
             entity.Property(e => e.Content).HasMaxLength(4000).IsRequired();
+            entity.Property(e => e.ReplyCount).HasDefaultValue(0);
+
+            entity.HasIndex(e => new { e.ChannelId, e.CreatedAt })
+                .HasDatabaseName("idx_messages_channel_root_created")
+                .HasFilter("\"DeletedAt\" IS NULL AND \"ThreadId\" IS NULL");
 
             entity.HasOne(e => e.Channel)
                 .WithMany(c => c.Messages)

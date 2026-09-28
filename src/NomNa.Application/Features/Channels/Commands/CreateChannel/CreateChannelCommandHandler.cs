@@ -4,6 +4,7 @@ using NomNa.Application.Common.Interfaces;
 using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Channels.DTOs;
 using NomNa.Domain.Entities;
+using NomNa.Domain.Enums;
 
 namespace NomNa.Application.Features.Channels.Commands.CreateChannel;
 
@@ -41,16 +42,19 @@ public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand,
         {
             WorkspaceId = request.WorkspaceId,
             Name = channelName,
-            Topic = request.Topic?.Trim(),
             Type = request.Type,
             IsPrivate = request.IsPrivate,
             CreatedById = userId.Value
         };
 
-        channel.Members.Add(new ChannelMember
+        // Discord Model: ChannelMember is only created for private channels and DMs
+        if (request.IsPrivate || request.Type == ChannelType.DirectMessage)
         {
-            UserId = userId.Value
-        });
+            channel.Members.Add(new ChannelMember
+            {
+                UserId = userId.Value
+            });
+        }
 
         _context.Channels.Add(channel);
         await _context.SaveChangesAsync(cancellationToken);
@@ -59,7 +63,6 @@ public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand,
             channel.Id,
             channel.WorkspaceId,
             channel.Name,
-            channel.Topic,
             channel.Type,
             channel.IsPrivate
         );

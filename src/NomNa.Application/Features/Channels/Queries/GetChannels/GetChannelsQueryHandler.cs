@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Channels.DTOs;
+using NomNa.Domain.Enums;
 
 namespace NomNa.Application.Features.Channels.Queries.GetChannels;
 
@@ -30,15 +31,19 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
         if (!isMember)
             return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
 
+
+        // Avoid N+1 queries: c.Members.Any translates to EXISTS (SELECT 1 FROM ChannelMembers ...) in SQL
+        // Exists in Sql where statment:  
         return await _context.Channels
             .AsNoTracking()
-            .Where(c => c.WorkspaceId == request.WorkspaceId)
+            .Where(c => c.WorkspaceId == request.WorkspaceId 
+                     && c.Type != ChannelType.DirectMessage
+                     && (!c.IsPrivate || c.Members.Any(m => m.UserId == userId.Value)))
             .OrderBy(c => c.CreatedAt)
             .Select(c => new ChannelDto(
                 c.Id,
                 c.WorkspaceId,
                 c.Name,
-                c.Topic,
                 c.Type,
                 c.IsPrivate
             ))

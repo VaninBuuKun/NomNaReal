@@ -6,7 +6,7 @@ using NomNa.Application.Features.Messages.DTOs;
 
 namespace NomNa.Application.Features.Messages.Commands.EditMessage;
 
-public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, Result<MessageDto>>
+public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, Result<MessageEditedDto>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -17,7 +17,7 @@ public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, Res
         _currentUserService = currentUserService;
     }
 
-    public async Task<Result<MessageDto>> Handle(EditMessageCommand request, CancellationToken cancellationToken)
+    public async Task<Result<MessageEditedDto>> Handle(EditMessageCommand request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId;
         if (!userId.HasValue)
@@ -26,9 +26,6 @@ public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, Res
         }
 
         var message = await _context.Messages
-            .Include(m => m.Sender)
-            .Include(m => m.Replies)
-            .Include(m => m.Reactions)
             .FirstOrDefaultAsync(m => m.Id == request.MessageId && m.DeletedAt == null, cancellationToken);
 
         if (message == null)
@@ -47,33 +44,13 @@ public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, Res
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        var reactions = message.Reactions
-            .GroupBy(r => r.Emoji)
-            .Select(g => new ReactionGroupDto(
-                g.Key,
-                g.Count(),
-                g.Select(r => r.UserId).ToList(),
-                g.Any(r => r.UserId == userId.Value)
-            ))
-            .ToList();
-
-        var replyCount = message.Replies.Count(r => r.DeletedAt == null);
-        var lastReplyAt = message.Replies.Where(r => r.DeletedAt == null).Max(r => (DateTime?)r.CreatedAt);
-
-        return new MessageDto(
+        return new MessageEditedDto(
             message.Id,
             message.ChannelId,
-            message.SenderId,
-            message.Sender.DisplayName,
-            message.Sender.UserName,
-            message.Sender.AvatarUrl,
-            message.Content,
             message.ThreadId,
+            message.Content,
             message.IsEdited,
-            message.CreatedAt,
-            replyCount,
-            lastReplyAt,
-            reactions
+            message.EditedAt.Value
         );
     }
 }

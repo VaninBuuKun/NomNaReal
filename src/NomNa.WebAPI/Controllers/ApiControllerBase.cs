@@ -30,15 +30,21 @@ public abstract class ApiControllerBase : ControllerBase
 
     private IActionResult HandleError(Error error)
     {
-        return error.Type switch
+        var statusCode = error.Type switch
         {
-            ErrorType.NotFound => NotFound(new { code = error.Code, message = error.Message }),
-            ErrorType.Conflict => Conflict(new { code = error.Code, message = error.Message }),
-            ErrorType.Unauthorized => Unauthorized(new { code = error.Code, message = error.Message }),
-            ErrorType.Forbidden => StatusCode(StatusCodes.Status403Forbidden, new { code = error.Code, message = error.Message }),
-            ErrorType.Validation => BadRequest(new { code = error.Code, message = error.Message }),
-            _ => BadRequest(new { code = error.Code, message = error.Message })
+            ErrorType.NotFound => StatusCodes.Status404NotFound,
+            ErrorType.Conflict => StatusCodes.Status409Conflict,
+            ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+            ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+            ErrorType.Validation => StatusCodes.Status400BadRequest,
+            _ => StatusCodes.Status400BadRequest
         };
+
+        return Problem(
+            statusCode: statusCode,
+            title: error.Code,
+            detail: error.Message
+        );
     }
 }
 

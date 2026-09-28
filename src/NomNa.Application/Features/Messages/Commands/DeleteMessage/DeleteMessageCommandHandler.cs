@@ -51,6 +51,17 @@ public class DeleteMessageCommandHandler : IRequestHandler<DeleteMessageCommand,
         }
 
         message.DeletedAt = DateTime.UtcNow;
+
+        if (message.ThreadId.HasValue)
+        {
+            var parent = await _context.Messages
+                .FirstOrDefaultAsync(m => m.Id == message.ThreadId.Value && m.DeletedAt == null, cancellationToken);
+            if (parent != null && parent.ReplyCount > 0)
+            {
+                parent.ReplyCount--;
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return new DeletedMessageDto(

@@ -33,12 +33,21 @@ public class GetThreadRepliesQueryHandler : IRequestHandler<GetThreadRepliesQuer
         if (parent == null)
             return Error.NotFound("Message.NotFound", $"Parent message {request.ParentMessageId} not found.");
 
-        // 2. Check workspace membership
-        var isMember = await _context.WorkspaceMembers
-            .AnyAsync(wm => wm.WorkspaceId == parent.Channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
-
-        if (!isMember)
-            return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+        // 2. Check channel/workspace membership according to channel privacy
+        if (parent.Channel.IsPrivate || parent.Channel.Type == Domain.Enums.ChannelType.DirectMessage)
+        {
+            var isMember = await _context.ChannelMembers
+                .AnyAsync(cm => cm.ChannelId == parent.ChannelId && cm.UserId == userId.Value, cancellationToken);
+            if (!isMember)
+                return Error.Forbidden("Channel.Forbidden", "You do not have access to this private channel thread.");
+        }
+        else
+        {
+            var isMember = await _context.WorkspaceMembers
+                .AnyAsync(wm => wm.WorkspaceId == parent.Channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+            if (!isMember)
+                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+        }
 
         // 3. Query all replies for this thread
         var replies = await _context.Messages
@@ -50,14 +59,13 @@ public class GetThreadRepliesQueryHandler : IRequestHandler<GetThreadRepliesQuer
                 m.ChannelId,
                 m.SenderId,
                 m.Sender.DisplayName,
-                m.Sender.UserName,
+                m.Sender.UserName ?? string.Empty,
                 m.Sender.AvatarUrl,
                 m.Content,
                 m.ThreadId,
                 m.IsEdited,
                 m.CreatedAt,
                 0,
-                null,
                 m.Reactions
                     .GroupBy(r => r.Emoji)
                     .Select(g => new ReactionGroupDto(
@@ -86,14 +94,13 @@ public class GetThreadRepliesQueryHandler : IRequestHandler<GetThreadRepliesQuer
             parent.ChannelId,
             parent.SenderId,
             parent.Sender.DisplayName,
-            parent.Sender.UserName,
+            parent.Sender.UserName ?? string.Empty,
             parent.Sender.AvatarUrl,
             parent.Content,
             parent.ThreadId,
             parent.IsEdited,
             parent.CreatedAt,
-            replies.Count,
-            replies.Count > 0 ? replies[^1].CreatedAt : null,
+            parent.ReplyCount,
             parentReactions
         );
 

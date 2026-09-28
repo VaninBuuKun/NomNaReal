@@ -167,13 +167,12 @@ namespace NomNa.Infrastructure.Migrations
                     b.Property<bool>("IsPrivate")
                         .HasColumnType("boolean");
 
+                    b.Property<DateTime?>("LastMessageAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Name")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Topic")
-                        .HasColumnType("text");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer");
@@ -186,8 +185,11 @@ namespace NomNa.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("LastMessageAt");
+
                     b.HasIndex("WorkspaceId", "Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"Name\" IS NOT NULL");
 
                     b.ToTable("channels", (string)null);
                 });
@@ -202,9 +204,6 @@ namespace NomNa.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("JoinedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime?>("LastReadAt")
@@ -252,6 +251,11 @@ namespace NomNa.Infrastructure.Migrations
                     b.Property<bool>("IsEdited")
                         .HasColumnType("boolean");
 
+                    b.Property<int>("ReplyCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<Guid>("SenderId")
                         .HasColumnType("uuid");
 
@@ -265,7 +269,9 @@ namespace NomNa.Infrastructure.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.HasIndex("ChannelId", "CreatedAt");
+                    b.HasIndex("ChannelId", "CreatedAt")
+                        .HasDatabaseName("idx_messages_channel_root_created")
+                        .HasFilter("\"DeletedAt\" IS NULL AND \"ThreadId\" IS NULL");
 
                     b.HasIndex("ThreadId", "CreatedAt");
 
@@ -477,9 +483,6 @@ namespace NomNa.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("JoinedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Nickname")

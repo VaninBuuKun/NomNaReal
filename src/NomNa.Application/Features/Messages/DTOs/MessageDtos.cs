@@ -12,7 +12,6 @@ public record MessageDto(
     bool IsEdited,
     DateTime CreatedAt,
     int ReplyCount = 0,
-    DateTime? LastReplyAt = null,
     List<ReactionGroupDto>? Reactions = null
 );
 
@@ -38,8 +37,16 @@ public record ThreadDetailsDto(
 public record ThreadReplyCountUpdateDto(
     Guid ParentMessageId,
     Guid ChannelId,
-    int ReplyCount,
-    DateTime LastReplyAt
+    int ReplyCount
+);
+
+public record MessageEditedDto(
+    Guid Id,
+    Guid ChannelId,
+    Guid? ThreadId,
+    string Content,
+    bool IsEdited,
+    DateTime EditedAt
 );
 
 public record DeletedMessageDto(
@@ -47,3 +54,10 @@ public record DeletedMessageDto(
     Guid ChannelId,
     Guid? ThreadId
 );
+
+public record MessagesResponseDto(
+    List<MessageDto> Messages,
+    bool HasMore,
+    DateTime? NextCursor
+);
+

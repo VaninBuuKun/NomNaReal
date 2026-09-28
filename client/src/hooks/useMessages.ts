@@ -1,28 +1,49 @@
 import { useState, useEffect, useCallback } from 'react';
 import { messageApi } from '../services/messageApi';
-import type { Message, ReactionUpdate, DeletedMessage } from '../types';
+import type { Message, MessageEdited, ReactionUpdate, DeletedMessage } from '../types';
 
 export function useMessages(channelId?: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState<boolean>(false);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
   const fetchMessages = useCallback(async () => {
     if (!channelId) {
       setMessages([]);
+      setHasMore(false);
       return;
     }
 
     try {
       setIsLoading(true);
       const data = await messageApi.getMessages(channelId);
-      // Backend returns newest first, reverse for chat chronological display
-      setMessages(data.reverse());
+      setMessages(data.messages);
+      setHasMore(data.hasMore);
     } catch (err) {
       console.error('Failed to fetch messages:', err);
     } finally {
       setIsLoading(false);
     }
   }, [channelId]);
+
+  const loadMoreMessages = useCallback(async () => {
+    if (!channelId || isLoadingMore || !hasMore || messages.length === 0) {
+      return;
+    }
+
+    try {
+      setIsLoadingMore(true);
+      const oldestMessage = messages[0];
+      const data = await messageApi.getMessages(channelId, oldestMessage.createdAt);
+      setMessages((prev) => [...data.messages, ...prev]);
+      setHasMore(data.hasMore);
+    } catch (err) {
+      console.error('Failed to load more messages:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [channelId, isLoadingMore, hasMore, messages]);
 
   useEffect(() => {
     fetchMessages();
@@ -37,7 +58,7 @@ export function useMessages(channelId?: string) {
     return msg;
   };
 
-  const editMessage = async (messageId: string, content: string): Promise<Message> => {
+  const editMessage = async (messageId: string, content: string): Promise<MessageEdited> => {
     const updated = await messageApi.editMessage(messageId, content);
     setMessages((prev) =>
       prev.map((m) => (m.id === messageId ? { ...m, content: updated.content, isEdited: true } : m))
@@ -78,14 +99,13 @@ export function useMessages(channelId?: string) {
   }, []);
 
   const handleThreadReplyCountUpdated = useCallback(
-    (data: { parentMessageId: string; channelId: string; replyId: string; createdAt: string }) => {
+    (data: { parentMessageId: string; channelId: string; replyId?: string; replyCount?: number }) => {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === data.parentMessageId
             ? {
                 ...m,
-                replyCount: (m.replyCount || 0) + 1,
-                lastReplyAt: data.createdAt,
+                replyCount: data.replyCount !== undefined ? data.replyCount : (m.replyCount || 0) + 1,
               }
             : m
         )
@@ -98,7 +118,10 @@ export function useMessages(channelId?: string) {
     messages,
     setMessages,
     isLoading,
+    hasMore,
+    isLoadingMore,
     fetchMessages,
+    loadMoreMessages,
     sendMessage,
     editMessage,
     deleteMessage,

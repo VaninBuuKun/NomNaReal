@@ -30,6 +30,21 @@ public class WorkspacesController : ApiControllerBase
         return HandleResult(result);
     }
 
+    [HttpPost("join")]
+    public async Task<IActionResult> JoinWorkspace([FromBody] NomNa.Application.Features.Workspaces.Commands.JoinWorkspace.JoinWorkspaceCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [AllowAnonymous]
+    [HttpGet("invite/{inviteCode}")]
+    public async Task<IActionResult> GetWorkspaceByInviteCode([FromRoute] string inviteCode)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Workspaces.Queries.GetWorkspaceByInviteCode.GetWorkspaceByInviteCodeQuery(inviteCode));
+        return HandleResult(result);
+    }
+
     [HttpGet("{workspaceId}/channels")]
     public async Task<IActionResult> GetChannels([FromRoute] Guid workspaceId)
     {
@@ -40,8 +55,22 @@ public class WorkspacesController : ApiControllerBase
     [HttpPost("{workspaceId}/channels")]
     public async Task<IActionResult> CreateChannel([FromRoute] Guid workspaceId, [FromBody] CreateChannelRequest request)
     {
-        var command = new CreateChannelCommand(workspaceId, request.Name, request.Topic, request.Type, request.IsPrivate);
+        var command = new CreateChannelCommand(workspaceId, request.Name, request.Type, request.IsPrivate);
         var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [HttpGet("{workspaceId}/members")]
+    public async Task<IActionResult> GetMembers([FromRoute] Guid workspaceId)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Workspaces.Queries.GetWorkspaceMembers.GetWorkspaceMembersQuery(workspaceId));
+        return HandleResult(result);
+    }
+
+    [HttpGet("{workspaceId}/dm")]
+    public async Task<IActionResult> GetDirectMessages([FromRoute] Guid workspaceId)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Channels.Queries.GetDirectMessages.GetDirectMessagesQuery(workspaceId));
         return HandleResult(result);
     }
 
@@ -52,7 +81,17 @@ public class WorkspacesController : ApiControllerBase
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
+
+    [HttpPost("{workspaceId}/invite-emails")]
+    public async Task<IActionResult> SendEmailInvites([FromRoute] Guid workspaceId, [FromBody] SendWorkspaceInvitesRequest request)
+    {
+        var command = new NomNa.Application.Features.Workspaces.Commands.SendWorkspaceInvites.SendWorkspaceInvitesCommand(workspaceId, request.Emails);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
 }
 
-public record CreateChannelRequest(string Name, string? Topic, Domain.Enums.ChannelType Type = Domain.Enums.ChannelType.Text, bool IsPrivate = false);
+public record CreateChannelRequest(string Name, Domain.Enums.ChannelType Type = Domain.Enums.ChannelType.Text, bool IsPrivate = false);
 public record CreateDmRequest(Guid TargetUserId);
+public record SendWorkspaceInvitesRequest(List<string> Emails);
+

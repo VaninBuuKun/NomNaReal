@@ -8,7 +8,6 @@ namespace NomNa.Application.Features.Channels.Commands.CreateChannel;
 public record CreateChannelCommand(
     Guid WorkspaceId,
     string Name,
-    string? Topic,
     ChannelType Type = ChannelType.Text,
     bool IsPrivate = false
 ) : IRequest<Result<ChannelDto>>;

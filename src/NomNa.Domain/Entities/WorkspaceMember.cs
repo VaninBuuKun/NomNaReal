@@ -13,5 +13,4 @@ public class WorkspaceMember : BaseEntity
 
     public WorkspaceRole Role { get; set; } = WorkspaceRole.Member;
     public string? Nickname { get; set; }
-    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 }

@@ -54,22 +54,20 @@ public class CreateOrGetDmChannelCommandHandler : IRequestHandler<CreateOrGetDmC
                 existingDmChannel.Id,
                 existingDmChannel.WorkspaceId,
                 targetUser.DisplayName,
-                $"Direct message with {targetUser.DisplayName}",
                 existingDmChannel.Type,
                 existingDmChannel.IsPrivate
             );
         }
 
-        // Create new DM channel
-        var channelName = $"dm-{Guid.CreateVersion7():N}";
+        // Create new DM channel (Slack model: DMs have no name in DB, derived from participants)
         var newChannel = new Channel
         {
             WorkspaceId = request.WorkspaceId,
-            Name = channelName,
-            Topic = $"Direct message with {targetUser.DisplayName}",
+            Name = null,
             Type = ChannelType.DirectMessage,
             IsPrivate = true,
-            CreatedById = currentUserId.Value
+            CreatedById = currentUserId.Value,
+            LastMessageAt = DateTime.UtcNow
         };
 
         newChannel.Members.Add(new ChannelMember { UserId = currentUserId.Value });
@@ -82,7 +80,6 @@ public class CreateOrGetDmChannelCommandHandler : IRequestHandler<CreateOrGetDmC
             newChannel.Id,
             newChannel.WorkspaceId,
             targetUser.DisplayName,
-            newChannel.Topic,
             newChannel.Type,
             newChannel.IsPrivate
         );

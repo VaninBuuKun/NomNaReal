@@ -18,6 +18,15 @@ export interface DeletedMessage {
   threadId?: string | null;
 }
 
+export interface MessageEdited {
+  id: string;
+  channelId: string;
+  threadId?: string | null;
+  content: string;
+  isEdited: boolean;
+  editedAt: string;
+}
+
 export interface Message {
   id: string;
   channelId: string;
@@ -30,7 +39,6 @@ export interface Message {
   isEdited: boolean;
   createdAt: string;
   replyCount?: number;
-  lastReplyAt?: string | null;
   reactions?: ReactionGroup[];
 }
 
@@ -38,3 +46,10 @@ export interface ThreadDetails {
   parentMessage: Message;
   replies: Message[];
 }
+
+export interface MessagesResponse {
+  messages: Message[];
+  hasMore: boolean;
+  nextCursor?: string | null;
+}
+

@@ -19,6 +19,7 @@ import { ChannelType, type Channel, type Message, type User } from "../../types"
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
 import { formatDateDivider, isDifferentDay } from "../../utils/formatDate";
+import { ChatAreaSkeleton } from "./ChatAreaSkeleton";
 
 interface ChatAreaProps {
   currentChannel: Channel | null;
@@ -34,6 +35,10 @@ interface ChatAreaProps {
   onToggleThread: () => void;
   onOpenThread?: (message: Message) => void;
   onStartDmWithUser?: (user: { id: string; displayName: string; username: string; avatarUrl?: string }) => void;
+  hasMoreMessages?: boolean;
+  isLoadingMore?: boolean;
+  isLoadingMessages?: boolean;
+  onLoadMoreMessages?: () => Promise<void>;
 }
 
 const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
@@ -60,11 +65,32 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onToggleThread,
   onOpenThread,
   onStartDmWithUser,
+  hasMoreMessages = false,
+  isLoadingMore = false,
+  isLoadingMessages = false,
+  onLoadMoreMessages,
 }) => {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+
+  // Skeleton threshold delay (150ms) to prevent UI flicker on fast responses
+  const [showSkeleton, setShowSkeleton] = useState(false);
+
+  useEffect(() => {
+    let timer: any;
+    if (isLoadingMessages) {
+      timer = setTimeout(() => {
+        setShowSkeleton(true);
+      }, 150);
+    } else {
+      setShowSkeleton(false);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isLoadingMessages]);
 
   // Smart user profile dropdown state
   const [selectedProfile, setSelectedProfile] = useState<SelectedUserProfile | null>(null);
@@ -76,14 +102,60 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageStreamRef = useRef<HTMLDivElement>(null);
+  const previousScrollHeightRef = useRef<number>(0);
+  const isPrependingRef = useRef<boolean>(false);
+  const lastChannelIdRef = useRef<string | null>(null);
+  const isSwitchingChannelRef = useRef<boolean>(false);
+  const prevMessagesLengthRef = useRef<number>(0);
+
   const typingTimeoutRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto scroll to bottom on new messages
+  // Detect channel change and trigger instant positioning
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (lastChannelIdRef.current !== currentChannel?.id) {
+      lastChannelIdRef.current = currentChannel?.id || null;
+      isSwitchingChannelRef.current = true;
+      if (messageStreamRef.current) {
+        messageStreamRef.current.scrollTop = messageStreamRef.current.scrollHeight;
+      }
+    }
+  }, [currentChannel?.id]);
+
+  // Auto scroll: Instant on channel change, smooth on new incoming message, maintain on prepending
+  useEffect(() => {
+    if (isPrependingRef.current && messageStreamRef.current) {
+      const newScrollHeight = messageStreamRef.current.scrollHeight;
+      messageStreamRef.current.scrollTop = newScrollHeight - previousScrollHeightRef.current;
+      isPrependingRef.current = false;
+      prevMessagesLengthRef.current = messages.length;
+      return;
+    }
+
+    if (!messageStreamRef.current) return;
+
+    if (isSwitchingChannelRef.current) {
+      // Switched channels: INSTANT jump to bottom (no smooth animation from top to bottom)
+      messageStreamRef.current.scrollTop = messageStreamRef.current.scrollHeight;
+      isSwitchingChannelRef.current = false;
+    } else if (messages.length > prevMessagesLengthRef.current) {
+      // New message arrived/sent: smooth scroll down
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+
+    prevMessagesLengthRef.current = messages.length;
   }, [messages]);
+
+  const handleStreamScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    if (container.scrollTop < 50 && hasMoreMessages && !isLoadingMore && onLoadMoreMessages) {
+      previousScrollHeightRef.current = container.scrollHeight;
+      isPrependingRef.current = true;
+      onLoadMoreMessages();
+    }
+  };
 
   // Handle clicking outside or pressing Escape to close profile dropdown
   useEffect(() => {
@@ -377,12 +449,46 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         </div>
       </div>
 
-      {/* Message Stream Area */}
-      <div className="flex-1 min-h-0 px-5 pt-4 pb-1 overflow-y-auto flex flex-col gap-2.5" id="messageStream">
+      {/* Message Stream Area or Skeleton */}
+      {showSkeleton ? (
+        <ChatAreaSkeleton />
+      ) : (
+        <div
+          ref={messageStreamRef}
+          onScroll={handleStreamScroll}
+          className="flex-1 min-h-0 px-5 pt-4 pb-1 overflow-y-auto flex flex-col gap-2.5"
+          id="messageStream"
+        >
         <div className="mt-auto" />
 
-        {/* Channel Welcome Header (Discord / Slack style) */}
-        {currentChannel ? (
+        {/* Loading more spinner or load more trigger */}
+        {isLoadingMore && (
+          <div className="py-2.5 flex items-center justify-center gap-2 text-xs text-[var(--text-muted)] select-none">
+            <CircleNotch size={16} className="animate-spin text-[var(--accent-primary)]" />
+            <span>Đang tải tin nhắn cũ hơn...</span>
+          </div>
+        )}
+
+        {!isLoadingMore && hasMoreMessages && (
+          <div className="py-2 text-center select-none">
+            <button
+              type="button"
+              onClick={() => {
+                if (messageStreamRef.current && onLoadMoreMessages) {
+                  previousScrollHeightRef.current = messageStreamRef.current.scrollHeight;
+                  isPrependingRef.current = true;
+                  onLoadMoreMessages();
+                }
+              }}
+              className="text-xs text-[var(--accent-primary)] hover:underline font-medium cursor-pointer px-3 py-1 rounded-md hover:bg-[var(--accent-soft)] transition-colors"
+            >
+              ↑ Tải thêm tin nhắn cũ
+            </button>
+          </div>
+        )}
+
+        {/* Channel Welcome Header (only shown when user reaches the beginning of chat history) */}
+        {!hasMoreMessages && currentChannel ? (
           <div className="pt-6 pb-4 px-2 select-none flex flex-col gap-2 border-b border-[var(--border-color)]/50 mb-1">
             <div className="w-12 h-12 rounded-2xl bg-[var(--accent-primary)] flex items-center justify-center text-white shadow-md shadow-[var(--accent-glow)]">
               <HandWaving size={26} weight="fill" className="text-white" />
@@ -398,11 +504,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 : `Điểm bắt đầu cho cuộc trò chuyện. Nơi mọi người làm việc với nhau.`}
             </p>
           </div>
-        ) : (
+        ) : !hasMoreMessages && !currentChannel ? (
           <div className="p-8 text-center text-xs text-[var(--text-muted)]">
             Chọn một kênh để bắt đầu trò chuyện.
           </div>
-        )}
+        ) : null}
 
         {messages.map((msg, index) => {
           const prevMsg = index > 0 ? messages[index - 1] : undefined;
@@ -617,6 +723,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           })}
         <div ref={messagesEndRef} />
       </div>
+      )}
 
       {/* Typing indicator & Upload Progress */}
       {(Boolean(typingUser) || uploading) && (

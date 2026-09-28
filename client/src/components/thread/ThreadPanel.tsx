@@ -11,7 +11,7 @@ import {
   CircleNotch,
   FileText,
 } from "@phosphor-icons/react";
-import type { Message, User, ReactionUpdate, DeletedMessage } from "../../types";
+import type { Message, MessageEdited, User, ReactionUpdate, DeletedMessage } from "../../types";
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
 import { signalRService } from "../../services/signalr";
@@ -105,9 +105,9 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
     };
 
     // 4. Listen for realtime edits in thread
-    const handleMessageEdited = (edited: Message) => {
+    const handleMessageEdited = (edited: MessageEdited) => {
       setReplies((prev) =>
-        prev.map((r) => (r.id === edited.id ? edited : r))
+        prev.map((r) => (r.id === edited.id ? { ...r, ...edited } : r))
       );
     };
 

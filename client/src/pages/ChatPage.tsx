@@ -109,15 +109,43 @@ export const ChatPage: React.FC = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [hasMoreMessages, setHasMoreMessages] = useState<boolean>(false);
+  const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState<boolean>(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
   const [typingUser, setTypingUser] = useState<string | null>(null);
 
   // Fetch Channel Messages
   const loadMessages = async (channelId: string) => {
     try {
-      const msgs = await messageApi.getMessages(channelId);
-      setMessages(msgs);
+      setIsLoadingMessages(true);
+      const res = await messageApi.getMessages(channelId);
+      setMessages(res.messages);
+      setHasMoreMessages(res.hasMore);
     } catch (err) {
       console.error('Failed to load messages:', err);
+      setMessages([]);
+      setHasMoreMessages(false);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  // Load older messages (infinite scroll up)
+  const handleLoadMoreMessages = async () => {
+    if (!activeChannelId || isLoadingMoreMessages || !hasMoreMessages || messages.length === 0) {
+      return;
+    }
+
+    try {
+      setIsLoadingMoreMessages(true);
+      const oldestMessage = messages[0];
+      const res = await messageApi.getMessages(activeChannelId, oldestMessage.createdAt);
+      setMessages((prev) => [...res.messages, ...prev]);
+      setHasMoreMessages(res.hasMore);
+    } catch (err) {
+      console.error('Failed to load older messages:', err);
+    } finally {
+      setIsLoadingMoreMessages(false);
     }
   };
 
@@ -150,7 +178,7 @@ export const ChatPage: React.FC = () => {
           username: d.targetUsername,
           avatarUrl: d.targetAvatarUrl,
           email: d.targetEmail || '',
-          status: (d.targetStatus as any) || 'online',
+          status: (d.targetStatus as any) || 'offline',
         },
         lastMessage: d.lastMessage || 'Cuộc trò chuyện mới',
         lastMessageTime: d.lastMessageAt
@@ -171,7 +199,7 @@ export const ChatPage: React.FC = () => {
           username: m.username,
           email: m.email || '',
           avatarUrl: m.avatarUrl,
-          status: (m.status as any) || 'online',
+          status: (m.status as any) || 'offline',
           role: m.role,
         }));
       setWorkspaceMembers(formattedMembers);
@@ -189,10 +217,12 @@ export const ChatPage: React.FC = () => {
     navigate(`/workspace/${workspaceId}`, { replace: true });
     const { channels: chs } = await loadWorkspaceData(workspaceId, currentUser?.id);
     if (chs.length > 0) {
-      handleSelectChannel(chs[0].id);
+      const defaultCh = chs.find((c) => c.name?.toLowerCase() === 'general') || chs[0];
+      handleSelectChannel(defaultCh.id);
     } else {
       setActiveChannelId(null);
       setMessages([]);
+      setHasMoreMessages(false);
     }
   };
 
@@ -259,7 +289,6 @@ export const ChatPage: React.FC = () => {
               return {
                 ...m,
                 replyCount: typeof data.replyCount === 'number' ? data.replyCount : (m.replyCount || 0) + 1,
-                lastReplyAt: data.createdAt,
               };
             }
             return m;
@@ -279,13 +308,32 @@ export const ChatPage: React.FC = () => {
       // Listen for realtime message edits
       signalRService.onMessageEdited((edited) => {
         setMessages((prev) =>
-          prev.map((m) => (m.id === edited.id ? edited : m))
+          prev.map((m) => (m.id === edited.id ? { ...m, ...edited } : m))
         );
       });
 
       // Listen for realtime message deletions
       signalRService.onMessageDeleted((deleted) => {
         setMessages((prev) => prev.filter((m) => m.id !== deleted.messageId));
+      });
+
+      // Listen for realtime user presence changes
+      signalRService.onUserStatusChanged((data) => {
+        const normalizedStatus = data.status.toLowerCase() as 'online' | 'offline' | 'away' | 'dnd';
+        setWorkspaceMembers((prev) =>
+          prev.map((m) =>
+            m.id.toLowerCase() === data.userId.toLowerCase()
+              ? { ...m, status: normalizedStatus }
+              : m
+          )
+        );
+        setDmConversations((prev) =>
+          prev.map((c) =>
+            c.user.id.toLowerCase() === data.userId.toLowerCase()
+              ? { ...c, user: { ...c.user, status: normalizedStatus } }
+              : c
+          )
+        );
       });
 
       // Load Workspaces from backend
@@ -299,11 +347,33 @@ export const ChatPage: React.FC = () => {
         // Load Channels, DMs, and Members of target workspace
         const { channels: chList } = await loadWorkspaceData(targetWs.id, user.id);
 
+        // Sync active online presence
+        try {
+          const onlineUserIds = await signalRService.getOnlineUsers();
+          if (onlineUserIds.length > 0) {
+            const onlineSet = new Set(onlineUserIds.map((id) => id.toLowerCase()));
+            setWorkspaceMembers((prev) =>
+              prev.map((m) =>
+                onlineSet.has(m.id.toLowerCase()) ? { ...m, status: 'online' } : m
+              )
+            );
+            setDmConversations((prev) =>
+              prev.map((c) =>
+                onlineSet.has(c.user.id.toLowerCase())
+                  ? { ...c, user: { ...c.user, status: 'online' } }
+                  : c
+              )
+            );
+          }
+        } catch (presenceErr) {
+          console.warn('Could not sync online users:', presenceErr);
+        }
+
         if (chList.length > 0) {
-          const firstChId = chList[0].id;
-          setActiveChannelId(firstChId);
-          await loadMessages(firstChId);
-          await signalRService.joinChannel(firstChId);
+          const defaultCh = chList.find((c) => c.name?.toLowerCase() === 'general') || chList[0];
+          setActiveChannelId(defaultCh.id);
+          await loadMessages(defaultCh.id);
+          await signalRService.joinChannel(defaultCh.id);
         }
       } else {
         navigate('/', { replace: true });
@@ -508,11 +578,11 @@ export const ChatPage: React.FC = () => {
     try {
       const updated = await signalRService.editMessage(messageId, content);
       if (updated) {
-        setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+        setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
       }
     } catch {
       const updated = await messageApi.editMessage(messageId, content);
-      setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
     }
   };
 
@@ -636,6 +706,10 @@ export const ChatPage: React.FC = () => {
           }}
           onOpenThread={handleOpenThread}
           onStartDmWithUser={handleStartDmWithUser}
+          hasMoreMessages={hasMoreMessages}
+          isLoadingMore={isLoadingMoreMessages}
+          isLoadingMessages={isLoadingMessages}
+          onLoadMoreMessages={handleLoadMoreMessages}
         />
 
         {/* 3.5 Resizer Divider */}

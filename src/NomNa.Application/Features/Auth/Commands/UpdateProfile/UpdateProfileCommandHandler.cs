@@ -10,11 +10,16 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserProfileCache _userProfileCache;
 
-    public UpdateProfileCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public UpdateProfileCommandHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IUserProfileCache userProfileCache)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _userProfileCache = userProfileCache;
     }
 
     public async Task<Result<UserDto>> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
@@ -46,10 +51,17 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        _userProfileCache.Set(new UserProfileDto(
+            user.Id,
+            user.DisplayName,
+            user.UserName ?? string.Empty,
+            user.AvatarUrl
+        ));
+
         return new UserDto(
             user.Id,
             user.Email ?? string.Empty,
-            user.UserName,
+            user.UserName ?? string.Empty,
             user.DisplayName,
             user.AvatarUrl,
             user.Bio,

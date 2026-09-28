@@ -8,4 +8,5 @@ public record GetMessagesQuery(
     Guid ChannelId,
     DateTime? Before = null,
     int Limit = 50
-) : IRequest<Result<List<MessageDto>>>;
+) : IRequest<Result<MessagesResponseDto>>;
+

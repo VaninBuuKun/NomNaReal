@@ -18,6 +18,8 @@ public class Message : BaseEntity
     public DateTime? EditedAt { get; set; }
     public DateTime? DeletedAt { get; set; } // Soft delete
 
+    public int ReplyCount { get; set; } = 0;
+
     public ICollection<Message> Replies { get; set; } = new List<Message>();
     public ICollection<MessageReaction> Reactions { get; set; } = new List<MessageReaction>();
 }

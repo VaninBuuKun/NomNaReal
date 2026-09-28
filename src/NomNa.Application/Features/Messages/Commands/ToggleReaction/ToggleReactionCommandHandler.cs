@@ -27,11 +27,28 @@ public class ToggleReactionCommandHandler : IRequestHandler<ToggleReactionComman
         }
 
         var message = await _context.Messages
+            .Include(m => m.Channel)
             .FirstOrDefaultAsync(m => m.Id == request.MessageId && m.DeletedAt == null, cancellationToken);
 
         if (message == null)
         {
             return Error.NotFound("Message.NotFound", "Message not found or has been deleted.");
+        }
+
+        // Verify membership according to channel privacy
+        if (message.Channel.IsPrivate || message.Channel.Type == Domain.Enums.ChannelType.DirectMessage)
+        {
+            var isMember = await _context.ChannelMembers
+                .AnyAsync(cm => cm.ChannelId == message.ChannelId && cm.UserId == userId.Value, cancellationToken);
+            if (!isMember)
+                return Error.Forbidden("Channel.Forbidden", "You do not have permission to react in this private channel.");
+        }
+        else
+        {
+            var isMember = await _context.WorkspaceMembers
+                .AnyAsync(wm => wm.WorkspaceId == message.Channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+            if (!isMember)
+                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
         }
 
         var emoji = request.Emoji.Trim();

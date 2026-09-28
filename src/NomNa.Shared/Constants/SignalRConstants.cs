@@ -30,5 +30,6 @@ public static class SignalRConstants
         public const string SendThreadReply = "SendThreadReply";
         public const string StartTyping = "StartTyping";
         public const string StopTyping = "StopTyping";
+        public const string GetOnlineUsers = "GetOnlineUsers";
     }
 }

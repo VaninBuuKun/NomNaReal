@@ -91,7 +91,6 @@ public class ApplicationDbContextInitializer
         var generalChannel = new Channel
         {
             Name = "general",
-            Topic = "Kênh trao đổi chung cho toàn bộ thành viên",
             Type = ChannelType.Text,
             CreatedById = alex.Id,
             Workspace = workspace
@@ -100,7 +99,6 @@ public class ApplicationDbContextInitializer
         var backendChannel = new Channel
         {
             Name = "backend-net9",
-            Topic = "Kiến trúc .NET 9, SignalR Hub & Performance",
             Type = ChannelType.Text,
             CreatedById = minh.Id,
             Workspace = workspace
@@ -109,7 +107,6 @@ public class ApplicationDbContextInitializer
         var frontendChannel = new Channel
         {
             Name = "react-frontend",
-            Topic = "React + Vite UI with Warm White Orange Theme",
             Type = ChannelType.Text,
             CreatedById = van.Id,
             Workspace = workspace
