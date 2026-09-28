@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { WorkspaceRail, CreateWorkspaceModal } from '../components/workspace';
 import { ChannelSidebar, UserFooterBar, CreateChannelModal } from '../components/channel';
@@ -109,6 +109,8 @@ export const ChatPage: React.FC = () => {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const activeChannelIdRef = useRef<string | null>(null);
+  activeChannelIdRef.current = activeChannelId;
   const [messages, setMessages] = useState<Message[]>([]);
   const [hasMoreMessages, setHasMoreMessages] = useState<boolean>(false);
   const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState<boolean>(false);
@@ -153,7 +155,17 @@ export const ChatPage: React.FC = () => {
   // Switch Active Channel
   const handleSelectChannel = async (channelId: string) => {
     setActiveChannelId(channelId);
+    activeChannelIdRef.current = channelId;
     setActiveDmId(null);
+
+    // Immediately mark unread state as false on client
+    setChannels((prev) =>
+      prev.map((c) => (c.id === channelId ? { ...c, hasUnread: false } : c))
+    );
+
+    // Asynchronously update backend read status
+    channelApi.markAsRead(channelId);
+
     await loadMessages(channelId);
     await signalRService.joinChannel(channelId);
   };
@@ -242,10 +254,25 @@ export const ChatPage: React.FC = () => {
 
   // SignalR message handler callback
   const handleIncomingMessage = useCallback((msg: Message) => {
+    // Only append to active messages stream if it matches the current active channel
     setMessages((prev) => {
+      if (msg.channelId !== activeChannelIdRef.current) return prev;
       if (prev.some((m) => m.id === msg.id)) return prev;
       return [...prev, msg];
     });
+
+    // Live update channel unread status and lastMessageAt
+    setChannels((prev) =>
+      prev.map((c) =>
+        c.id === msg.channelId
+          ? {
+              ...c,
+              lastMessageAt: msg.createdAt,
+              hasUnread: c.id !== activeChannelIdRef.current,
+            }
+          : c
+      )
+    );
 
     // Live update DM snippet if incoming message belongs to a DM conversation
     setDmConversations((prev) =>

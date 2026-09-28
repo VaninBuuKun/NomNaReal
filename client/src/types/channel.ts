@@ -13,4 +13,5 @@ export interface Channel {
   type: ChannelType | number; // 0 = Text, 1 = Voice, 2 = DirectMessage
   isPrivate: boolean;
   lastMessageAt?: string | null;
+  hasUnread?: boolean;
 }

@@ -23,4 +23,12 @@ export const channelApi = {
     const res = await httpClient.post<Channel>(`/workspaces/${workspaceId}/dm`, { targetUserId });
     return res.data;
   },
+
+  markAsRead: async (channelId: string): Promise<void> => {
+    try {
+      await httpClient.post(`/channels/${channelId}/read`);
+    } catch {
+      // Ignore background read sync errors
+    }
+  },
 };

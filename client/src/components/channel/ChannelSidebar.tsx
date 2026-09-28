@@ -215,24 +215,33 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             <ul className="list-none flex flex-col gap-0.5 m-0 p-0">
               {textChannels.map((ch) => {
                 const isActive = activeChannelId === ch.id;
+                const isUnread = !!ch.hasUnread && !isActive;
                 return (
                   <li
                     key={ch.id}
                     onClick={() => onSelectChannel(ch.id)}
-                    className={`flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] font-medium cursor-pointer transition-all duration-150 border-none w-full text-left ${
+                    className={`relative flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] cursor-pointer transition-all duration-150 border-none w-full text-left ${
                       isActive
                         ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                        : isUnread
+                        ? 'text-[var(--text-primary)] font-bold hover:bg-[var(--bg-surface)]'
+                        : 'text-[var(--text-secondary)] font-medium hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     <span className="flex items-center gap-2 min-w-0">
+                      {isUnread && (
+                        <span className="absolute -left-1.5 w-1 h-2.5 rounded-r-full bg-[var(--text-primary)] shadow-xs" />
+                      )}
                       {ch.isPrivate ? (
                         <Key size={15} weight="bold" className="text-amber-500/90 shrink-0" />
                       ) : (
-                        <Hash size={16} weight="bold" className="opacity-65 font-semibold shrink-0" />
+                        <Hash size={16} weight="bold" className={`shrink-0 ${isUnread ? 'opacity-100 text-[var(--text-primary)]' : 'opacity-65'}`} />
                       )}
                       <span className="truncate">{ch.name}</span>
                     </span>
+                    {isUnread && (
+                      <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] shrink-0 shadow-xs" title="Có tin mới" />
+                    )}
                   </li>
                 );
               })}
@@ -270,17 +279,23 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             <ul className="list-none flex flex-col gap-0.5 m-0 p-0">
               {voiceChannels.map((ch) => {
                 const isActive = activeChannelId === ch.id;
+                const isUnread = !!ch.hasUnread && !isActive;
                 return (
                   <li
                     key={ch.id}
                     onClick={() => onSelectChannel(ch.id)}
-                    className={`flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] font-medium cursor-pointer transition-all duration-150 border-none w-full text-left ${
+                    className={`relative flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] cursor-pointer transition-all duration-150 border-none w-full text-left ${
                       isActive
                         ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
-                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                        : isUnread
+                        ? 'text-[var(--text-primary)] font-bold hover:bg-[var(--bg-surface)]'
+                        : 'text-[var(--text-secondary)] font-medium hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
                     }`}
                   >
                     <span className="flex items-center gap-2 min-w-0">
+                      {isUnread && (
+                        <span className="absolute -left-1.5 w-1 h-2.5 rounded-r-full bg-[var(--text-primary)] shadow-xs" />
+                      )}
                       {ch.isPrivate ? (
                         <Key size={15} weight="bold" className="text-amber-500/90 shrink-0" />
                       ) : (
@@ -288,6 +303,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                       )}
                       <span className="truncate">{ch.name}</span>
                     </span>
+                    {isUnread && (
+                      <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] shrink-0 shadow-xs" title="Có tin mới" />
+                    )}
                   </li>
                 );
               })}
