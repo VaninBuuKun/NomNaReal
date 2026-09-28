@@ -43,6 +43,8 @@ interface ChatAreaProps {
   isLoadingMessages?: boolean;
   onLoadMoreMessages?: () => Promise<void>;
   workspaceMembers?: { id: string; displayName?: string; username?: string; role?: string }[];
+  isMemberListOpen?: boolean;
+  onToggleMemberList?: () => void;
 }
 
 const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
@@ -74,6 +76,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   isLoadingMessages = false,
   onLoadMoreMessages,
   workspaceMembers = [],
+  isMemberListOpen = false,
+  onToggleMemberList,
 }) => {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
@@ -431,10 +435,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </button>
           <button
             type="button"
-            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-            title="Thành viên"
+            onClick={onToggleMemberList}
+            className={`p-1.5 rounded-md transition-colors cursor-pointer inline-flex items-center justify-center ${
+              isMemberListOpen
+                ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
+            }`}
+            title={isMemberListOpen ? "Ẩn danh sách thành viên" : "Hiển thị danh sách thành viên"}
           >
-            <Users size={17} />
+            <Users size={17} weight={isMemberListOpen ? "bold" : "regular"} />
           </button>
           <button
             type="button"

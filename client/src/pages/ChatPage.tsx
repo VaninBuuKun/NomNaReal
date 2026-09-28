@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { WorkspaceRail, CreateWorkspaceModal } from '../components/workspace';
-import { ChannelSidebar, UserFooterBar, CreateChannelModal } from '../components/channel';
+import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel } from '../components/channel';
 import { DirectMessagesSidebar, NewDirectMessageModal, type DirectMessageItem, type DirectMessageUser } from '../components/dm';
 import { ChatArea } from '../components/chat';
 import { ThreadPanel } from '../components/thread';
@@ -31,7 +31,17 @@ export const ChatPage: React.FC = () => {
   const [activeDmId, setActiveDmId] = useState<string | null>(null);
   const [dmConversations, setDmConversations] = useState<DirectMessageItem[]>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<DirectMessageUser[]>([]);
+  const [isMemberListOpen, setIsMemberListOpen] = useState<boolean>(() => {
+    return localStorage.getItem('nomna_member_list_open') !== 'false';
+  });
 
+  const handleToggleMemberList = () => {
+    setIsMemberListOpen((prev) => {
+      const next = !prev;
+      localStorage.setItem('nomna_member_list_open', String(next));
+      return next;
+    });
+  };
   // Resizable Sidebars Bounds & State
   const MIN_CHANNEL_WIDTH = 200;
   const MAX_CHANNEL_WIDTH = 450;
@@ -171,7 +181,7 @@ export const ChatPage: React.FC = () => {
   };
 
   // Fetch Workspace Channels, DMs, and Members in parallel
-  const loadWorkspaceData = async (wsId: string, currentUid?: string) => {
+  const loadWorkspaceData = async (wsId: string, _currentUid?: string) => {
     try {
       const [chs, dms, members] = await Promise.all([
         channelApi.getChannels(wsId),
@@ -202,19 +212,16 @@ export const ChatPage: React.FC = () => {
       }));
       setDmConversations(formattedDms);
 
-      // Format members (exclude current user so we don't start DM with ourselves)
-      const uid = currentUid || currentUser?.id;
-      const formattedMembers: DirectMessageUser[] = (members || [])
-        .filter((m) => m.userId !== uid)
-        .map((m) => ({
-          id: m.userId,
-          displayName: m.displayName,
-          username: m.username,
-          email: m.email || '',
-          avatarUrl: m.avatarUrl,
-          status: (m.status as any) || 'offline',
-          role: m.role,
-        }));
+      // Format members (including current user for MemberListPanel)
+      const formattedMembers: DirectMessageUser[] = (members || []).map((m) => ({
+        id: m.userId,
+        displayName: m.displayName,
+        username: m.username,
+        email: m.email || '',
+        avatarUrl: m.avatarUrl,
+        status: (m.status as any) || 'offline',
+        role: m.role,
+      }));
       setWorkspaceMembers(formattedMembers);
 
       return { channels: chs, dms: formattedDms };
@@ -759,6 +766,8 @@ export const ChatPage: React.FC = () => {
           isLoadingMessages={isLoadingMessages}
           onLoadMoreMessages={handleLoadMoreMessages}
           workspaceMembers={workspaceMembers}
+          isMemberListOpen={isMemberListOpen}
+          onToggleMemberList={handleToggleMemberList}
         />
 
         {/* 3.5 Resizer Divider */}
@@ -789,6 +798,16 @@ export const ChatPage: React.FC = () => {
           onEditMessage={handleEditMessage}
           onDeleteMessage={handleDeleteMessage}
         />
+
+        {/* 5. Collapsible Member List Panel */}
+        <MemberListPanel
+          isOpen={isMemberListOpen}
+          onClose={() => setIsMemberListOpen(false)}
+          members={workspaceMembers}
+          currentUser={currentUser}
+          onStartDmWithUser={handleStartDmWithUser}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
       </main>
 
       {/* Create Workspace Modal */}
@@ -813,7 +832,7 @@ export const ChatPage: React.FC = () => {
         onClose={() => setIsNewDmOpen(false)}
         onStartDm={handleStartDm}
         existingDmUserIds={dmConversations.map((c) => c.user.id)}
-        members={workspaceMembers}
+        members={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
       />
 
       {/* Settings Modal */}
