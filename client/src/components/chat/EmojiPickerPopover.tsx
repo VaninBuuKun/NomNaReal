@@ -87,10 +87,10 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
   return (
     <div
       ref={popoverRef}
-      className="absolute bottom-14 left-4 z-50 w-72 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3 flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
+      className="absolute bottom-14 left-4 z-50 w-80 h-[360px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3 flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
     >
       {/* Search Input */}
-      <div className="relative flex items-center">
+      <div className="relative flex items-center shrink-0">
         <MagnifyingGlass
           size={14}
           className="absolute left-2.5 text-[var(--text-muted)] pointer-events-none"
@@ -107,7 +107,7 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
 
       {/* Category Tabs */}
       {!search.trim() && (
-        <div className="flex items-center gap-1 border-b border-[var(--border-color)] pb-1.5">
+        <div className="flex items-center gap-1 border-b border-[var(--border-color)] pb-1.5 shrink-0">
           {EMOJI_CATEGORIES.map((cat) => {
             const Icon = cat.icon;
             const isActive = activeCategory === cat.id;
@@ -130,21 +130,29 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
         </div>
       )}
 
-      {/* Emojis Grid */}
-      <div className="max-h-52 overflow-y-auto grid grid-cols-8 gap-1 p-0.5 custom-scrollbar">
-        {currentEmojis.map((emoji, idx) => (
-          <button
-            key={`${emoji}-${idx}`}
-            type="button"
-            onClick={() => {
-              onSelectEmoji(emoji);
-              onClose();
-            }}
-            className="w-7 h-7 flex items-center justify-center text-lg hover:bg-[var(--bg-surface-active)] rounded-md hover:scale-125 transition-transform cursor-pointer"
-          >
-            {emoji}
-          </button>
-        ))}
+      {/* Emojis Grid - Fixed flex container preventing any layout shift */}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5">
+        {currentEmojis.length > 0 ? (
+          <div className="grid grid-cols-8 gap-1">
+            {currentEmojis.map((emoji, idx) => (
+              <button
+                key={`${emoji}-${idx}`}
+                type="button"
+                onClick={() => {
+                  onSelectEmoji(emoji);
+                  onClose();
+                }}
+                className="w-7 h-7 flex items-center justify-center text-lg hover:bg-[var(--bg-surface-active)] rounded-md hover:scale-125 transition-transform cursor-pointer"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-xs text-[var(--text-muted)] gap-1">
+            <span>Không tìm thấy biểu cảm nào</span>
+          </div>
+        )}
       </div>
     </div>
   );

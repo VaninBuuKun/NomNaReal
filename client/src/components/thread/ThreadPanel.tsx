@@ -9,14 +9,13 @@ import {
   PencilSimple,
   Trash,
   CircleNotch,
-  FileText,
   Images,
 } from "@phosphor-icons/react";
 import type { Message, MessageEdited, User, ReactionUpdate, DeletedMessage } from "../../types";
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
 import { signalRService } from "../../services/signalr";
-import { CodeBlock } from "../chat/CodeBlock";
+import { MessageContent } from "../chat/MessageContent";
 import { DeleteMessageModal } from "../chat/DeleteMessageModal";
 
 interface ThreadPanelProps {
@@ -285,70 +284,9 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
     }
   };
 
-  // Render message content with video/image preview
+  // Render message content with markdown, code blocks, and media preview
   const renderMessageContent = (text: string) => {
-    const videoMatch = text.match(/\[video:(.*?)\]\((.*?)\)/);
-    if (videoMatch) {
-      const fileName = videoMatch[1];
-      const videoUrl = videoMatch[2];
-      return (
-        <div className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-black/60 my-1">
-          <video src={videoUrl} controls preload="metadata" className="w-full max-h-56 object-contain" />
-          <div className="p-1.5 px-2 bg-[var(--bg-surface)] text-[11px] text-[var(--text-secondary)] truncate">
-            {fileName}
-          </div>
-        </div>
-      );
-    }
-
-    const imageMatch = text.match(/!\[(.*?)\]\((.*?)\)/);
-    if (imageMatch) {
-      const altText = imageMatch[1];
-      const imageUrl = imageMatch[2];
-      return (
-        <div className="rounded-xl overflow-hidden border border-[var(--border-color)] my-1 max-w-xs">
-          <img src={imageUrl} alt={altText} className="w-full max-h-52 object-cover cursor-pointer" onClick={() => window.open(imageUrl, "_blank")} />
-        </div>
-      );
-    }
-
-    const fileMatch = text.match(/\[file:(.*?)\]\((.*?)\)/);
-    if (fileMatch) {
-      const fileName = fileMatch[1];
-      const fileUrl = fileMatch[2];
-      return (
-        <a href={fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 p-2 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-color)] text-xs text-[var(--accent-primary)] font-medium my-1">
-          <FileText size={16} /> <span className="truncate">{fileName}</span>
-        </a>
-      );
-    }
-
-    // Code blocks parser
-    const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g;
-    if (codeBlockRegex.test(text)) {
-      const parts: React.ReactNode[] = [];
-      let lastIndex = 0;
-      let match: RegExpExecArray | null;
-
-      codeBlockRegex.lastIndex = 0;
-      while ((match = codeBlockRegex.exec(text)) !== null) {
-        const preText = text.substring(lastIndex, match.index);
-        if (preText) {
-          parts.push(<span key={`pre-${lastIndex}`}>{preText}</span>);
-        }
-        const lang = match[1] || "";
-        const code = match[2];
-        parts.push(<CodeBlock key={`code-${match.index}`} code={code} language={lang} />);
-        lastIndex = match.index + match[0].length;
-      }
-      const postText = text.substring(lastIndex);
-      if (postText) {
-        parts.push(<span key={`post-${lastIndex}`}>{postText}</span>);
-      }
-      return <div className="flex flex-col gap-1">{parts}</div>;
-    }
-
-    return <div>{text}</div>;
+    return <MessageContent content={text} />;
   };
 
   return (

@@ -5,3 +5,4 @@ export * from './CodeBlock';
 export * from './EmojiPickerPopover';
 export * from './GifPicker';
 export * from './DeleteMessageModal';
+export * from './MessageContent';

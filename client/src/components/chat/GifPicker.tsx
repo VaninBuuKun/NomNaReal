@@ -149,10 +149,10 @@ export const GifPicker: React.FC<GifPickerProps> = ({ isOpen, onClose, onSelectG
   return (
     <div
       ref={popoverRef}
-      className="absolute bottom-14 left-16 z-50 w-80 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3.5 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
+      className="absolute bottom-14 left-16 z-50 w-88 h-[420px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3.5 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
     >
       {/* Header */}
-      <div className="flex items-center justify-between pb-1 border-b border-[var(--border-color)]">
+      <div className="flex items-center justify-between pb-1 border-b border-[var(--border-color)] shrink-0">
         <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--accent-primary)] uppercase tracking-wider">
           <Fire size={15} weight="fill" />
           <span>Thư viện ảnh GIF</span>
@@ -167,7 +167,7 @@ export const GifPicker: React.FC<GifPickerProps> = ({ isOpen, onClose, onSelectG
       </div>
 
       {/* Search Input */}
-      <div className="relative flex items-center">
+      <div className="relative flex items-center shrink-0">
         <MagnifyingGlass
           size={14}
           className="absolute left-2.5 text-[var(--text-muted)] pointer-events-none"
@@ -184,7 +184,7 @@ export const GifPicker: React.FC<GifPickerProps> = ({ isOpen, onClose, onSelectG
 
       {/* Category Filter Chips */}
       {!search.trim() && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar shrink-0">
           {CATEGORY_TABS.map((tab) => (
             <button
               key={tab.id}
@@ -202,34 +202,36 @@ export const GifPicker: React.FC<GifPickerProps> = ({ isOpen, onClose, onSelectG
         </div>
       )}
 
-      {/* GIF Grid */}
-      <div className="max-h-60 overflow-y-auto grid grid-cols-2 gap-2 p-0.5 custom-scrollbar">
+      {/* GIF Grid - Fixed flex container preventing any layout shift */}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-0.5">
         {filteredGifs.length > 0 ? (
-          filteredGifs.map((gif) => (
-            <div
-              key={gif.id}
-              onClick={() => {
-                onSelectGif(gif.url, gif.title);
-                onClose();
-              }}
-              className="group relative h-24 rounded-lg overflow-hidden border border-[var(--border-color)] cursor-pointer bg-black/40 hover:border-[var(--accent-primary)] hover:scale-102 transition-all shadow-2xs"
-            >
-              <img
-                src={gif.url}
-                alt={gif.title}
-                className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
-                loading="lazy"
-              />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                <span className="text-[10px] text-white font-medium truncate block">
-                  {gif.title}
-                </span>
+          <div className="grid grid-cols-2 gap-2">
+            {filteredGifs.map((gif) => (
+              <div
+                key={gif.id}
+                onClick={() => {
+                  onSelectGif(gif.url, gif.title);
+                  onClose();
+                }}
+                className="group relative h-24 rounded-lg overflow-hidden border border-[var(--border-color)] cursor-pointer bg-black/40 hover:border-[var(--accent-primary)] hover:scale-102 transition-all shadow-2xs"
+              >
+                <img
+                  src={gif.url}
+                  alt={gif.title}
+                  className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                  loading="lazy"
+                />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+                  <span className="text-[10px] text-white font-medium truncate block">
+                    {gif.title}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         ) : (
-          <div className="col-span-2 py-6 text-center text-xs text-[var(--text-muted)]">
-            Không tìm thấy GIF phù hợp.
+          <div className="h-full flex flex-col items-center justify-center text-xs text-[var(--text-muted)] gap-1">
+            <span>Không tìm thấy GIF phù hợp.</span>
           </div>
         )}
       </div>

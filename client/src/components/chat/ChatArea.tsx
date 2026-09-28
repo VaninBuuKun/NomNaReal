@@ -11,7 +11,6 @@ import {
   ChatTeardropDots,
   PencilSimple,
   Trash,
-  FileText,
   CircleNotch,
   HandWaving,
 } from "@phosphor-icons/react";
@@ -20,7 +19,7 @@ import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
 import { formatDateDivider, isDifferentDay } from "../../utils/formatDate";
 import { ChatAreaSkeleton } from "./ChatAreaSkeleton";
-import { CodeBlock } from "./CodeBlock";
+import { MessageContent } from "./MessageContent";
 import { EmojiPickerPopover } from "./EmojiPickerPopover";
 import { GifPicker } from "./GifPicker";
 import { DeleteMessageModal } from "./DeleteMessageModal";
@@ -406,110 +405,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   // Render message content with markdown, code blocks, GIF/images, and video player
   const renderMessageBody = (text: string) => {
-    // 1. Video attachment: [video:fileName](url)
-    const videoMatch = text.match(/\[video:(.*?)\]\((.*?)\)/);
-    if (videoMatch) {
-      const fileName = videoMatch[1];
-      const videoUrl = videoMatch[2];
-      const restText = text.replace(/\[video:.*?\]\(.*?\)/, "").trim();
-
-      return (
-        <div className="flex flex-col gap-2">
-          {restText && renderMessageBody(restText)}
-          <div className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-black/60 max-w-lg shadow-md my-1">
-            <video
-              src={videoUrl}
-              controls
-              preload="metadata"
-              className="w-full max-h-[340px] rounded-lg object-contain"
-            />
-            <div className="p-2 px-3 bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] flex items-center justify-between">
-              <span className="truncate">{fileName}</span>
-              <span className="text-[10px] uppercase font-bold text-[var(--accent-primary)]">Video</span>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // 2. Generic file: [file:fileName](url)
-    const fileMatch = text.match(/\[file:(.*?)\]\((.*?)\)/);
-    if (fileMatch) {
-      const fileName = fileMatch[1];
-      const fileUrl = fileMatch[2];
-      const restText = text.replace(/\[file:.*?\]\(.*?\)/, "").trim();
-
-      return (
-        <div className="flex flex-col gap-2">
-          {restText && renderMessageBody(restText)}
-          <a
-            href={fileUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2.5 p-2.5 px-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-xs text-[var(--accent-primary)] font-medium transition-all group my-1 max-w-sm"
-          >
-            <FileText size={18} className="shrink-0 text-[var(--accent-primary)]" />
-            <span className="truncate group-hover:underline text-[var(--text-primary)]">{fileName}</span>
-          </a>
-        </div>
-      );
-    }
-
-    // 3. Image / GIF attachment: ![alt](url)
-    const imageMatch = text.match(/!\[(.*?)\]\((.*?)\)/);
-    if (imageMatch) {
-      const altText = imageMatch[1];
-      const imageUrl = imageMatch[2];
-      const restText = text.replace(/!\[.*?\]\(.*?\)/, "").trim();
-      const isGif = /\.gif($|\?)/i.test(imageUrl) || altText.toLowerCase().includes("gif");
-
-      return (
-        <div className="flex flex-col gap-2">
-          {restText && renderMessageBody(restText)}
-          <div className="max-w-md rounded-xl overflow-hidden border border-[var(--border-color)] shadow-sm my-1 bg-black/10">
-            <img
-              src={imageUrl}
-              alt={altText}
-              className="w-full max-h-[340px] object-contain cursor-pointer hover:opacity-95 transition-opacity"
-              onClick={() => window.open(imageUrl, "_blank")}
-              loading="lazy"
-            />
-            {isGif && (
-              <div className="px-2 py-0.5 bg-black/60 text-[10px] font-bold text-white w-fit rounded-tr-md">
-                GIF
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    // 4. Code Blocks: ```[lang]?\n code \n```
-    const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g;
-    if (codeBlockRegex.test(text)) {
-      const parts: React.ReactNode[] = [];
-      let lastIndex = 0;
-      let match: RegExpExecArray | null;
-
-      codeBlockRegex.lastIndex = 0;
-      while ((match = codeBlockRegex.exec(text)) !== null) {
-        const preText = text.substring(lastIndex, match.index);
-        if (preText) {
-          parts.push(<span key={`pre-${lastIndex}`}>{preText}</span>);
-        }
-        const lang = match[1] || "";
-        const code = match[2];
-        parts.push(<CodeBlock key={`code-${match.index}`} code={code} language={lang} />);
-        lastIndex = match.index + match[0].length;
-      }
-      const postText = text.substring(lastIndex);
-      if (postText) {
-        parts.push(<span key={`post-${lastIndex}`}>{postText}</span>);
-      }
-      return <div className="flex flex-col gap-1">{parts}</div>;
-    }
-
-    return <div>{text}</div>;
+    return <MessageContent content={text} />;
   };
 
   return (
