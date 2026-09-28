@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { WorkspaceRail, CreateWorkspaceModal } from '../components/workspace';
-import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel } from '../components/channel';
+import { WorkspaceRail, CreateWorkspaceModal, EditWorkspaceModal } from '../components/workspace';
+import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel, EditChannelModal } from '../components/channel';
 import { DirectMessagesSidebar, NewDirectMessageModal, type DirectMessageItem, type DirectMessageUser } from '../components/dm';
 import { ChatArea } from '../components/chat';
 import { ThreadPanel } from '../components/thread';
@@ -20,7 +20,9 @@ export const ChatPage: React.FC = () => {
   const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
   const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
+  const [channelToEdit, setChannelToEdit] = useState<Channel | null>(null);
   const [createChannelType, setCreateChannelType] = useState<ChannelType>(ChannelType.Text);
   const [isThreadOpen, setIsThreadOpen] = useState(false);
   const [activeThreadMessage, setActiveThreadMessage] = useState<Message | null>(null);
@@ -591,6 +593,77 @@ export const ChatPage: React.FC = () => {
 
   const activeDm = dmConversations.find((d) => d.id === activeChannelId);
   const currentWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || null;
+  const currentUserMember = workspaceMembers.find((m) => m.id === currentUser?.id);
+  const currentUserRole = currentUserMember?.role || (currentWorkspace?.ownerId === currentUser?.id ? 'Owner' : 'Member');
+  const isOwner = currentWorkspace?.ownerId === currentUser?.id || currentUserRole?.toLowerCase() === 'owner';
+
+  const handleWorkspaceUpdated = (updated: Workspace) => {
+    setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+  };
+
+  const handleWorkspaceDeleted = (deletedId: string) => {
+    const remaining = workspaces.filter((w) => w.id !== deletedId);
+    setWorkspaces(remaining);
+    if (remaining.length > 0) {
+      handleSelectWorkspace(remaining[0].id);
+    } else {
+      setActiveWorkspaceId(null);
+      setChannels([]);
+      setMessages([]);
+      navigate('/', { replace: true });
+    }
+  };
+
+  const handleLeaveWorkspace = async () => {
+    if (!activeWorkspaceId) return;
+    if (isOwner) {
+      alert('Bạn là chủ sở hữu của không gian này. Bạn không thể rời nhóm trừ khi chuyển quyền hoặc xóa không gian.');
+      return;
+    }
+    if (!confirm(`Bạn có chắc chắn muốn rời khỏi "${currentWorkspace?.name || 'Workspace'}"?`)) {
+      return;
+    }
+    try {
+      await workspaceApi.leaveWorkspace(activeWorkspaceId);
+      handleWorkspaceDeleted(activeWorkspaceId);
+    } catch (err) {
+      console.error('Failed to leave workspace:', err);
+      alert('Không thể rời không gian làm việc. Vui lòng thử lại sau.');
+    }
+  };
+
+  const handleKickMember = async (member: DirectMessageUser) => {
+    if (!activeWorkspaceId) return;
+    try {
+      await workspaceApi.kickMember(activeWorkspaceId, member.id);
+      setWorkspaceMembers((prev) => prev.filter((m) => m.id !== member.id));
+    } catch (err: unknown) {
+      console.error('Failed to kick member:', err);
+      const errorObj = err as { response?: { data?: { message?: string } } };
+      const msg = errorObj?.response?.data?.message || 'Không thể đuổi thành viên khỏi không gian làm việc.';
+      alert(msg);
+      throw err;
+    }
+  };
+
+  const handleChannelUpdated = (updated: Channel) => {
+    setChannels((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  };
+
+  const handleChannelDeleted = (deletedId: string) => {
+    const remaining = channels.filter((c) => c.id !== deletedId);
+    setChannels(remaining);
+    if (activeChannelId === deletedId) {
+      const generalCh = remaining.find((c) => c.name?.toLowerCase() === 'general') || remaining[0];
+      if (generalCh) {
+        handleSelectChannel(generalCh.id);
+      } else {
+        setActiveChannelId(null);
+        setMessages([]);
+      }
+    }
+  };
+
   const currentChannel: Channel | null =
     channels.find((c) => c.id === activeChannelId) ||
     (activeDm
@@ -699,6 +772,10 @@ export const ChatPage: React.FC = () => {
                 onSelectChannel={handleSelectChannel}
                 onCreateChannel={handleCreateChannel}
                 onOpenSettings={() => setIsSettingsOpen(true)}
+                isOwner={isOwner}
+                onOpenEditWorkspace={() => setIsEditWorkspaceOpen(true)}
+                onLeaveWorkspace={handleLeaveWorkspace}
+                onOpenEditChannel={(ch) => setChannelToEdit(ch)}
               />
             ) : (
               <DirectMessagesSidebar
@@ -805,8 +882,10 @@ export const ChatPage: React.FC = () => {
           onClose={() => setIsMemberListOpen(false)}
           members={workspaceMembers}
           currentUser={currentUser}
+          currentUserRole={currentUserRole}
           onStartDmWithUser={handleStartDmWithUser}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onKickMember={handleKickMember}
         />
       </main>
 
@@ -817,6 +896,16 @@ export const ChatPage: React.FC = () => {
         onWorkspaceCreated={handleWorkspaceCreated}
       />
 
+      {/* Edit Workspace Modal */}
+      <EditWorkspaceModal
+        isOpen={isEditWorkspaceOpen}
+        onClose={() => setIsEditWorkspaceOpen(false)}
+        workspace={currentWorkspace}
+        isOwner={isOwner}
+        onWorkspaceUpdated={handleWorkspaceUpdated}
+        onWorkspaceDeleted={handleWorkspaceDeleted}
+      />
+
       {/* Create Channel Modal */}
       <CreateChannelModal
         isOpen={isCreateChannelOpen}
@@ -824,6 +913,15 @@ export const ChatPage: React.FC = () => {
         workspaceId={activeWorkspaceId}
         channelType={createChannelType}
         onChannelCreated={handleChannelCreated}
+      />
+
+      {/* Edit Channel Modal */}
+      <EditChannelModal
+        isOpen={!!channelToEdit}
+        onClose={() => setChannelToEdit(null)}
+        channel={channelToEdit}
+        onChannelUpdated={handleChannelUpdated}
+        onChannelDeleted={handleChannelDeleted}
       />
 
       {/* New Direct Message Modal */}

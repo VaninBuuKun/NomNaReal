@@ -7,5 +7,7 @@ public record ChannelDto(
     Guid WorkspaceId,
     string? Name,
     ChannelType Type,
-    bool IsPrivate
+    bool IsPrivate,
+    DateTime? LastMessageAt = null,
+    bool HasUnread = false
 );

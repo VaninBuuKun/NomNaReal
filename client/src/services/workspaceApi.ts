@@ -73,4 +73,24 @@ export const workspaceApi = {
     const res = await httpClient.get(`/workspaces/${workspaceId}/dm`);
     return res.data;
   },
+
+  updateWorkspace: async (
+    workspaceId: string,
+    data: { name: string; description?: string; iconUrl?: string }
+  ): Promise<Workspace> => {
+    const res = await httpClient.put<Workspace>(`/workspaces/${workspaceId}`, data);
+    return res.data;
+  },
+
+  deleteWorkspace: async (workspaceId: string): Promise<void> => {
+    await httpClient.delete(`/workspaces/${workspaceId}`);
+  },
+
+  leaveWorkspace: async (workspaceId: string): Promise<void> => {
+    await httpClient.post(`/workspaces/${workspaceId}/leave`);
+  },
+
+  kickMember: async (workspaceId: string, memberUserId: string): Promise<void> => {
+    await httpClient.delete(`/workspaces/${workspaceId}/members/${memberUserId}`);
+  },
 };

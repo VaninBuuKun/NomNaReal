@@ -28,6 +28,28 @@ public class ChannelsController : ApiControllerBase
         var result = await Mediator.Send(new SendMessageCommand(channelId, request.Content, request.ThreadId));
         return HandleResult(result);
     }
+
+    [HttpPost("{channelId}/read")]
+    public async Task<IActionResult> MarkAsRead([FromRoute] Guid channelId)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Channels.Commands.MarkChannelAsRead.MarkChannelAsReadCommand(channelId));
+        return HandleResult(result);
+    }
+
+    [HttpPut("{channelId}")]
+    public async Task<IActionResult> UpdateChannel([FromRoute] Guid channelId, [FromBody] UpdateChannelRequest request)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Channels.Commands.UpdateChannel.UpdateChannelCommand(channelId, request.Name));
+        return HandleResult(result);
+    }
+
+    [HttpDelete("{channelId}")]
+    public async Task<IActionResult> DeleteChannel([FromRoute] Guid channelId)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Channels.Commands.DeleteChannel.DeleteChannelCommand(channelId));
+        return HandleResult(result);
+    }
 }
 
 public record SendMessageRequest(string Content, Guid? ThreadId = null);
+public record UpdateChannelRequest(string Name);

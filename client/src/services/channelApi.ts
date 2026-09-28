@@ -31,4 +31,13 @@ export const channelApi = {
       // Ignore background read sync errors
     }
   },
+
+  updateChannel: async (channelId: string, name: string): Promise<Channel> => {
+    const res = await httpClient.put<Channel>(`/channels/${channelId}`, { name });
+    return res.data;
+  },
+
+  deleteChannel: async (channelId: string): Promise<void> => {
+    await httpClient.delete(`/channels/${channelId}`);
+  },
 };

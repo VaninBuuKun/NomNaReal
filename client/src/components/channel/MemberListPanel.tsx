@@ -6,6 +6,7 @@ import {
   Crown,
   ShieldCheck,
   Gear,
+  UserMinus,
 } from "@phosphor-icons/react";
 import type { DirectMessageUser } from "../dm";
 import type { User } from "../../types";
@@ -15,6 +16,7 @@ interface MemberListPanelProps {
   onClose: () => void;
   members: DirectMessageUser[];
   currentUser: User | null;
+  currentUserRole?: string;
   onStartDmWithUser?: (user: {
     id: string;
     displayName: string;
@@ -22,6 +24,7 @@ interface MemberListPanelProps {
     avatarUrl?: string;
   }) => void;
   onOpenSettings?: () => void;
+  onKickMember?: (member: DirectMessageUser) => Promise<void>;
 }
 
 interface ActivePopoverUser {
@@ -34,11 +37,14 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
   onClose,
   members,
   currentUser,
+  currentUserRole,
   onStartDmWithUser,
   onOpenSettings,
+  onKickMember,
 }) => {
   const [search, setSearch] = useState("");
   const [selectedUserPopover, setSelectedUserPopover] = useState<ActivePopoverUser | null>(null);
+  const [isKicking, setIsKicking] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -343,7 +349,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
           )}
 
           {/* Action Button */}
-          <div className="pt-1 border-t border-[var(--border-color)]">
+          <div className="pt-1 border-t border-[var(--border-color)] flex flex-col gap-1.5">
             {currentUser && (selectedUserPopover.user.id === currentUser.id || selectedUserPopover.user.username === currentUser.username) ? (
               <button
                 type="button"
@@ -377,6 +383,47 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
                 <span>Nhắn tin riêng</span>
               </button>
             )}
+
+            {/* Kick Member button for Owner / Admin */}
+            {(() => {
+              const target = selectedUserPopover.user;
+              const isSelf = currentUser && (target.id === currentUser.id || target.username === currentUser.username);
+              const callerRole = (currentUserRole || "").toLowerCase();
+              const targetRole = (target.role || "").toLowerCase();
+              const canKick = !isSelf && onKickMember && (
+                callerRole === "owner" || (callerRole === "admin" && targetRole !== "owner" && targetRole !== "admin")
+              );
+
+              if (!canKick) return null;
+
+              return (
+                <button
+                  type="button"
+                  disabled={isKicking}
+                  onClick={async () => {
+                    if (
+                      confirm(
+                        `Bạn có chắc chắn muốn đuổi @${target.displayName || target.username} khỏi không gian làm việc này?`
+                      )
+                    ) {
+                      setIsKicking(true);
+                      try {
+                        await onKickMember(target);
+                        setSelectedUserPopover(null);
+                      } catch {
+                        // handled in parent
+                      } finally {
+                        setIsKicking(false);
+                      }
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-1.75 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-semibold transition-all border border-red-500/25 cursor-pointer active:scale-98 disabled:opacity-50"
+                >
+                  <UserMinus size={15} weight="bold" />
+                  <span>{isKicking ? "Đang xử lý..." : "Đuổi khỏi nhóm (Kick)"}</span>
+                </button>
+              );
+            })()}
           </div>
         </div>
       )}

@@ -45,7 +45,12 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
                 c.WorkspaceId,
                 c.Name,
                 c.Type,
-                c.IsPrivate
+                c.IsPrivate,
+                c.LastMessageAt,
+                c.LastMessageAt != null && (
+                    c.Members.Where(m => m.UserId == userId.Value).Select(m => m.LastReadAt).FirstOrDefault() == null ||
+                    c.LastMessageAt > c.Members.Where(m => m.UserId == userId.Value).Select(m => m.LastReadAt).FirstOrDefault()
+                )
             ))
             .ToListAsync(cancellationToken);
     }

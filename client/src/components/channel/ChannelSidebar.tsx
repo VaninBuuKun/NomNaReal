@@ -21,6 +21,10 @@ interface ChannelSidebarProps {
   onSelectChannel: (id: string) => void;
   onCreateChannel: (type: ChannelType) => void;
   onOpenSettings?: () => void;
+  isOwner?: boolean;
+  onOpenEditWorkspace?: () => void;
+  onLeaveWorkspace?: () => void;
+  onOpenEditChannel?: (ch: Channel) => void;
 }
 
 export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
@@ -30,6 +34,10 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onSelectChannel,
   onCreateChannel,
   onOpenSettings,
+  isOwner,
+  onOpenEditWorkspace,
+  onLeaveWorkspace,
+  onOpenEditChannel,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -86,8 +94,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             <CaretDown
               size={13}
               weight="bold"
-              className={`text-[var(--text-muted)] group-hover:text-[var(--text-primary)] shrink-0 transition-transform duration-200 ${isMenuOpen ? 'rotate-180 text-[var(--accent-primary)]' : ''
-                }`}
+              className={`text-[var(--text-muted)] group-hover:text-[var(--text-primary)] shrink-0 transition-transform duration-200 ${
+                isMenuOpen ? 'rotate-180 text-[var(--accent-primary)]' : ''
+              }`}
             />
           </button>
 
@@ -150,6 +159,20 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   <span>Mời thêm thành viên</span>
                 </button>
 
+                {onOpenEditWorkspace && (isOwner === undefined || isOwner) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onOpenEditWorkspace();
+                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-[3px] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left"
+                  >
+                    <Gear size={16} weight="bold" className="shrink-0 text-[var(--text-muted)]" />
+                    <span>Cài đặt Workspace</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -168,14 +191,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   type="button"
                   onClick={() => {
                     setIsMenuOpen(false);
-                    if (confirm('Bạn có chắc chắn muốn rời khỏi nhóm này không?')) {
-                      alert('Đã rời khỏi nhóm thành công.');
-                    }
+                    onLeaveWorkspace?.();
                   }}
                   className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-[3px] text-xs font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer text-left"
                 >
                   <SignOut size={16} weight="bold" className="shrink-0 text-red-500" />
-                  <span>Rời nhóm</span>
+                  <span>Rời Workspace</span>
                 </button>
               </div>
             </>,
@@ -220,7 +241,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   <li
                     key={ch.id}
                     onClick={() => onSelectChannel(ch.id)}
-                    className={`relative flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] cursor-pointer transition-all duration-150 border-none w-full text-left ${
+                    className={`group/ch relative flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] cursor-pointer transition-all duration-150 border-none w-full text-left ${
                       isActive
                         ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
                         : isUnread
@@ -228,7 +249,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                         : 'text-[var(--text-secondary)] font-medium hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    <span className="flex items-center gap-2 min-w-0">
+                    <span className="flex items-center gap-2 min-w-0 flex-1">
                       {isUnread && (
                         <span className="absolute -left-1.5 w-1 h-2.5 rounded-r-full bg-[var(--text-primary)] shadow-xs" />
                       )}
@@ -239,9 +260,24 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                       )}
                       <span className="truncate">{ch.name}</span>
                     </span>
-                    {isUnread && (
-                      <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] shrink-0 shadow-xs" title="Có tin mới" />
-                    )}
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {onOpenEditChannel && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenEditChannel(ch);
+                          }}
+                          title="Cài đặt kênh"
+                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] rounded transition-all cursor-pointer text-[var(--text-muted)]"
+                        >
+                          <Gear size={13} weight="bold" />
+                        </button>
+                      )}
+                      {isUnread && (
+                        <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] shrink-0 shadow-xs" title="Có tin mới" />
+                      )}
+                    </span>
                   </li>
                 );
               })}
@@ -284,7 +320,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   <li
                     key={ch.id}
                     onClick={() => onSelectChannel(ch.id)}
-                    className={`relative flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] cursor-pointer transition-all duration-150 border-none w-full text-left ${
+                    className={`group/ch relative flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] cursor-pointer transition-all duration-150 border-none w-full text-left ${
                       isActive
                         ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
                         : isUnread
@@ -292,7 +328,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                         : 'text-[var(--text-secondary)] font-medium hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    <span className="flex items-center gap-2 min-w-0">
+                    <span className="flex items-center gap-2 min-w-0 flex-1">
                       {isUnread && (
                         <span className="absolute -left-1.5 w-1 h-2.5 rounded-r-full bg-[var(--text-primary)] shadow-xs" />
                       )}
@@ -303,9 +339,24 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                       )}
                       <span className="truncate">{ch.name}</span>
                     </span>
-                    {isUnread && (
-                      <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] shrink-0 shadow-xs" title="Có tin mới" />
-                    )}
+                    <span className="flex items-center gap-1.5 shrink-0">
+                      {onOpenEditChannel && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenEditChannel(ch);
+                          }}
+                          title="Cài đặt kênh"
+                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] rounded transition-all cursor-pointer text-[var(--text-muted)]"
+                        >
+                          <Gear size={13} weight="bold" />
+                        </button>
+                      )}
+                      {isUnread && (
+                        <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] shrink-0 shadow-xs" title="Có tin mới" />
+                      )}
+                    </span>
                   </li>
                 );
               })}

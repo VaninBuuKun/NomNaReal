@@ -89,9 +89,43 @@ public class WorkspacesController : ApiControllerBase
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
+
+    [HttpPut("{workspaceId}")]
+    public async Task<IActionResult> UpdateWorkspace([FromRoute] Guid workspaceId, [FromBody] UpdateWorkspaceRequest request)
+    {
+        var command = new NomNa.Application.Features.Workspaces.Commands.UpdateWorkspace.UpdateWorkspaceCommand(
+            workspaceId, request.Name, request.Description, request.IconUrl);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [HttpDelete("{workspaceId}")]
+    public async Task<IActionResult> DeleteWorkspace([FromRoute] Guid workspaceId)
+    {
+        var command = new NomNa.Application.Features.Workspaces.Commands.DeleteWorkspace.DeleteWorkspaceCommand(workspaceId);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [HttpPost("{workspaceId}/leave")]
+    public async Task<IActionResult> LeaveWorkspace([FromRoute] Guid workspaceId)
+    {
+        var command = new NomNa.Application.Features.Workspaces.Commands.LeaveWorkspace.LeaveWorkspaceCommand(workspaceId);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [HttpDelete("{workspaceId}/members/{memberUserId}")]
+    public async Task<IActionResult> KickMember([FromRoute] Guid workspaceId, [FromRoute] Guid memberUserId)
+    {
+        var command = new NomNa.Application.Features.Workspaces.Commands.KickWorkspaceMember.KickWorkspaceMemberCommand(workspaceId, memberUserId);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
 }
 
 public record CreateChannelRequest(string Name, Domain.Enums.ChannelType Type = Domain.Enums.ChannelType.Text, bool IsPrivate = false);
 public record CreateDmRequest(Guid TargetUserId);
 public record SendWorkspaceInvitesRequest(List<string> Emails);
+public record UpdateWorkspaceRequest(string Name, string? Description = null, string? IconUrl = null);
 
