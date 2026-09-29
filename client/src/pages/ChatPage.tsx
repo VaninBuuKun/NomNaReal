@@ -8,75 +8,124 @@ import { ThreadPanel } from '../components/thread';
 import { SettingsModal } from '../components/settings';
 import { authApi, workspaceApi, channelApi, messageApi, signalRService } from '../services';
 import { useTheme } from '../hooks/useTheme';
-import { ChannelType, type User, type Workspace, type Channel, type Message } from '../types';
+import { ChannelType, type User, type Workspace, type Channel, type Message, type ReactionGroup } from '../types';
+import {
+  useWorkspaceStore,
+  useChatStore,
+  useDmStore,
+  useUiStore,
+  MIN_CHANNEL_WIDTH,
+  MAX_CHANNEL_WIDTH,
+  MIN_THREAD_WIDTH,
+  MAX_THREAD_WIDTH,
+  MIN_MEMBER_WIDTH,
+  MAX_MEMBER_WIDTH,
+} from '../stores';
 
 export const ChatPage: React.FC = () => {
   const navigate = useNavigate();
   const { workspaceId: paramWorkspaceId } = useParams<{ workspaceId?: string }>();
   const { theme, changeTheme } = useTheme();
 
+  // Local Session State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [isSwitchingWorkspace, setIsSwitchingWorkspace] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [isCreateChannelOpen, setIsCreateChannelOpen] = useState(false);
-  const [channelToEdit, setChannelToEdit] = useState<Channel | null>(null);
-  const [createChannelType, setCreateChannelType] = useState<ChannelType>(ChannelType.Text);
-  const [isThreadOpen, setIsThreadOpen] = useState(false);
-  const [activeThreadMessage, setActiveThreadMessage] = useState<Message | null>(null);
 
-  // Direct Messages & Sidebar View States
-  const [activeSidebarView, setActiveSidebarView] = useState<'channels' | 'dms'>('channels');
-  const [isNewDmOpen, setIsNewDmOpen] = useState(false);
-  const [activeDmId, setActiveDmId] = useState<string | null>(null);
-  const [dmConversations, setDmConversations] = useState<DirectMessageItem[]>([]);
-  const [workspaceMembers, setWorkspaceMembers] = useState<DirectMessageUser[]>([]);
-  const [memberToKick, setMemberToKick] = useState<DirectMessageUser | null>(null);
-  const [isMemberListOpen, setIsMemberListOpen] = useState<boolean>(() => {
-    return localStorage.getItem('nomna_member_list_open') !== 'false';
-  });
-
-  const handleToggleMemberList = () => {
-    setIsMemberListOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        setIsThreadOpen(false);
-        setActiveThreadMessage(null);
-      }
-      localStorage.setItem('nomna_member_list_open', String(next));
-      return next;
-    });
-  };
-  // Resizable Sidebars Bounds & State
-  const MIN_CHANNEL_WIDTH = 200;
-  const MAX_CHANNEL_WIDTH = 450;
-  const MIN_THREAD_WIDTH = 360;
-  const MAX_THREAD_WIDTH = 720;
-  const DEFAULT_THREAD_WIDTH = 480;
-  const MIN_MEMBER_WIDTH = 260;
-  const MAX_MEMBER_WIDTH = 480;
-  const DEFAULT_MEMBER_WIDTH = 270;
-
-  const [channelWidth, setChannelWidth] = useState<number>(() => {
-    const saved = localStorage.getItem('nomna_channel_width');
-    return saved ? Math.max(MIN_CHANNEL_WIDTH, Math.min(MAX_CHANNEL_WIDTH, parseInt(saved, 10))) : 240;
-  });
-
-  const [threadWidth, setThreadWidth] = useState<number>(() => {
-    const saved = localStorage.getItem('nomna_thread_width');
-    return saved ? Math.max(MIN_THREAD_WIDTH, Math.min(MAX_THREAD_WIDTH, parseInt(saved, 10))) : DEFAULT_THREAD_WIDTH;
-  });
-
-  const [memberWidth, setMemberWidth] = useState<number>(() => {
-    const saved = localStorage.getItem('nomna_member_width');
-    return saved ? Math.max(MIN_MEMBER_WIDTH, Math.min(MAX_MEMBER_WIDTH, parseInt(saved, 10))) : DEFAULT_MEMBER_WIDTH;
-  });
-
+  // Resize Drag State
   const [isResizingChannel, setIsResizingChannel] = useState(false);
   const [isResizingThread, setIsResizingThread] = useState(false);
   const [isResizingMember, setIsResizingMember] = useState(false);
+
+  // 1. Workspace Store
+  const {
+    workspaces,
+    activeWorkspaceId,
+    isSwitchingWorkspace,
+    setWorkspaces,
+    setActiveWorkspaceId,
+    addWorkspace,
+    updateWorkspace,
+    removeWorkspace,
+    setIsSwitchingWorkspace,
+  } = useWorkspaceStore();
+
+  // 2. Chat Store
+  const {
+    channels,
+    activeChannelId,
+    messages,
+    hasMoreMessages,
+    isLoadingMessages,
+    isLoadingMoreMessages,
+    typingUser,
+    setChannels,
+    setActiveChannelId,
+    setMessages,
+    appendOlderMessages,
+    addMessage,
+    updateMessage,
+    deleteMessage,
+    setReactions,
+    updateReplyCount,
+    markChannelRead,
+    setChannelUnread,
+    setHasMoreMessages,
+    setIsLoadingMessages,
+    setIsLoadingMoreMessages,
+    setTypingUser,
+  } = useChatStore();
+
+  const activeChannelIdRef = useRef<string | null>(null);
+  activeChannelIdRef.current = activeChannelId;
+
+  // 3. DM Store
+  const {
+    dmConversations,
+    activeDmId,
+    workspaceMembers,
+    setDmConversations,
+    setActiveDmId,
+    setWorkspaceMembers,
+    updateUserStatus,
+    updateDmSnippet,
+    upgradePendingDm,
+    updateMemberProfile,
+  } = useDmStore();
+
+  // 4. UI Store
+  const {
+    activeSidebarView,
+    isThreadOpen,
+    activeThreadMessage,
+    isMemberListOpen,
+    channelWidth,
+    threadWidth,
+    memberWidth,
+    isSettingsOpen,
+    isCreateWorkspaceOpen,
+    isEditWorkspaceOpen,
+    isCreateChannelOpen,
+    createChannelType,
+    channelToEdit,
+    isNewDmOpen,
+    memberToKick,
+    setActiveSidebarView,
+    openThread,
+    closeThread,
+    toggleMemberList,
+    setMemberListOpen,
+    setSettingsOpen,
+    setCreateWorkspaceOpen,
+    setEditWorkspaceOpen,
+    setCreateChannelOpen,
+    setChannelToEdit,
+    setNewDmOpen,
+    setMemberToKick,
+    setChannelWidth,
+    setThreadWidth,
+    setMemberWidth,
+    expandThread,
+  } = useUiStore();
 
   // Resize Drag Handlers
   const handleChannelResizeStart = (e: React.MouseEvent) => {
@@ -86,9 +135,11 @@ export const ChatPage: React.FC = () => {
     const startWidth = channelWidth;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(MIN_CHANNEL_WIDTH, Math.min(MAX_CHANNEL_WIDTH, startWidth + (moveEvent.clientX - startX)));
+      const newWidth = Math.max(
+        MIN_CHANNEL_WIDTH,
+        Math.min(MAX_CHANNEL_WIDTH, startWidth + (moveEvent.clientX - startX))
+      );
       setChannelWidth(newWidth);
-      localStorage.setItem('nomna_channel_width', newWidth.toString());
     };
 
     const onMouseUp = () => {
@@ -108,9 +159,11 @@ export const ChatPage: React.FC = () => {
     const startWidth = threadWidth;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(MIN_THREAD_WIDTH, Math.min(MAX_THREAD_WIDTH, startWidth + (startX - moveEvent.clientX)));
+      const newWidth = Math.max(
+        MIN_THREAD_WIDTH,
+        Math.min(MAX_THREAD_WIDTH, startWidth + (startX - moveEvent.clientX))
+      );
       setThreadWidth(newWidth);
-      localStorage.setItem('nomna_thread_width', newWidth.toString());
     };
 
     const onMouseUp = () => {
@@ -130,9 +183,11 @@ export const ChatPage: React.FC = () => {
     const startWidth = memberWidth;
 
     const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(MIN_MEMBER_WIDTH, Math.min(MAX_MEMBER_WIDTH, startWidth + (startX - moveEvent.clientX)));
+      const newWidth = Math.max(
+        MIN_MEMBER_WIDTH,
+        Math.min(MAX_MEMBER_WIDTH, startWidth + (startX - moveEvent.clientX))
+      );
       setMemberWidth(newWidth);
-      localStorage.setItem('nomna_member_width', newWidth.toString());
     };
 
     const onMouseUp = () => {
@@ -144,26 +199,6 @@ export const ChatPage: React.FC = () => {
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
   };
-
-  const handleExpandThread = () => {
-    if (threadWidth < DEFAULT_THREAD_WIDTH) {
-      setThreadWidth(DEFAULT_THREAD_WIDTH);
-      localStorage.setItem('nomna_thread_width', DEFAULT_THREAD_WIDTH.toString());
-    }
-  };
-
-  // App Data State
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
-  const activeChannelIdRef = useRef<string | null>(null);
-  activeChannelIdRef.current = activeChannelId;
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [hasMoreMessages, setHasMoreMessages] = useState<boolean>(false);
-  const [isLoadingMoreMessages, setIsLoadingMoreMessages] = useState<boolean>(false);
-  const [isLoadingMessages, setIsLoadingMessages] = useState<boolean>(false);
-  const [typingUser, setTypingUser] = useState<string | null>(null);
 
   // Fetch Channel Messages
   const loadMessages = async (channelId: string) => {
@@ -191,7 +226,7 @@ export const ChatPage: React.FC = () => {
       setIsLoadingMoreMessages(true);
       const oldestMessage = messages[0];
       const res = await messageApi.getMessages(activeChannelId, oldestMessage.createdAt);
-      setMessages((prev) => [...res.messages, ...prev]);
+      appendOlderMessages(res.messages);
       setHasMoreMessages(res.hasMore);
     } catch (err) {
       console.error('Failed to load older messages:', err);
@@ -206,12 +241,10 @@ export const ChatPage: React.FC = () => {
     activeChannelIdRef.current = channelId;
     setActiveDmId(null);
 
-    // Immediately mark unread state as false on client
-    setChannels((prev) =>
-      prev.map((c) => (c.id === channelId ? { ...c, hasUnread: false } : c))
-    );
+    // Optimistically clear unread on client immediately
+    markChannelRead(channelId);
 
-    // Asynchronously update backend read status
+    // Asynchronously notify server
     channelApi.markAsRead(channelId);
 
     await loadMessages(channelId);
@@ -250,7 +283,7 @@ export const ChatPage: React.FC = () => {
       }));
       setDmConversations(formattedDms);
 
-      // Format members (including current user for MemberListPanel)
+      // Format members
       const formattedMembers: DirectMessageUser[] = (members || []).map((m) => ({
         id: m.userId,
         displayName: m.displayName,
@@ -293,50 +326,48 @@ export const ChatPage: React.FC = () => {
   };
 
   const handleWorkspaceCreated = (ws: Workspace) => {
-    setWorkspaces((prev) => [...prev, ws]);
+    addWorkspace(ws);
     handleSelectWorkspace(ws.id);
   };
 
-  // SignalR message handler callback
-  const handleIncomingMessage = useCallback((msg: Message) => {
-    // Only append to active messages stream if it matches the current active channel
-    setMessages((prev) => {
-      if (msg.channelId !== activeChannelIdRef.current) return prev;
-      if (prev.some((m) => m.id === msg.id)) return prev;
-      return [...prev, msg];
-    });
+  // SignalR message handler callback with Optimistic reconciliation
+  const handleIncomingMessage = useCallback(
+    (msg: Message) => {
+      // Append or replace optimistic temp message
+      setMessages((prev) => {
+        if (msg.channelId !== activeChannelIdRef.current) return prev;
+        if (prev.some((m) => m.id === msg.id)) return prev;
 
-    // Live update channel unread status and lastMessageAt
-    setChannels((prev) =>
-      prev.map((c) =>
-        c.id === msg.channelId
-          ? {
-              ...c,
-              lastMessageAt: msg.createdAt,
-              hasUnread: c.id !== activeChannelIdRef.current,
-            }
-          : c
-      )
-    );
+        // Reconcile optimistic temp message
+        const tempIndex = prev.findIndex(
+          (m) =>
+            m.id.startsWith('temp-') &&
+            m.senderId === msg.senderId &&
+            m.content === msg.content
+        );
+        if (tempIndex !== -1) {
+          const next = [...prev];
+          next[tempIndex] = msg;
+          return next;
+        }
 
-    // Live update DM snippet if incoming message belongs to a DM conversation
-    setDmConversations((prev) =>
-      prev.map((c) =>
-        c.id === msg.channelId
-          ? {
-              ...c,
-              lastMessage: msg.content,
-              lastMessageTime: new Date(msg.createdAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              }),
-            }
-          : c
-      )
-    );
-  }, []);
+        return [...prev, msg];
+      });
 
-  // Initialize Chat App & Verify User Session via Cookie
+      // Update channel unread status and lastMessageAt
+      setChannelUnread(msg.channelId, msg.createdAt, msg.channelId !== activeChannelIdRef.current);
+
+      // Update DM snippet
+      updateDmSnippet(
+        msg.channelId,
+        msg.content,
+        new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      );
+    },
+    [setMessages, setChannelUnread, updateDmSnippet]
+  );
+
+  // Initialize Chat App & Verify User Session
   const initApp = async () => {
     try {
       setIsInitializing(true);
@@ -344,7 +375,6 @@ export const ChatPage: React.FC = () => {
       try {
         user = await authApi.getMe();
       } catch {
-        // Attempt refresh via HttpOnly refresh_token cookie
         user = await authApi.refresh();
       }
 
@@ -354,70 +384,37 @@ export const ChatPage: React.FC = () => {
       // Connect SignalR
       await signalRService.startConnection(
         handleIncomingMessage,
-        (data) => {
-          setTypingUser(data.username);
-        },
-        () => {
-          setTypingUser(null);
-        }
+        (data) => setTypingUser(data.username),
+        () => setTypingUser(null)
       );
 
-      // Listen for thread reply count updates live
+      // Listen for thread replies count
       signalRService.onThreadReplyCountUpdated((data) => {
-        setMessages((prev) =>
-          prev.map((m) => {
-            if (m.id === data.parentMessageId) {
-              return {
-                ...m,
-                replyCount: typeof data.replyCount === 'number' ? data.replyCount : (m.replyCount || 0) + 1,
-              };
-            }
-            return m;
-          })
-        );
+        updateReplyCount(data.parentMessageId, typeof data.replyCount === 'number' ? data.replyCount : undefined);
       });
 
-      // Listen for realtime reaction updates
+      // Listen for reactions
       signalRService.onReactionUpdated((update) => {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === update.messageId ? { ...m, reactions: update.reactions } : m
-          )
-        );
+        setReactions(update.messageId, update.reactions);
       });
 
-      // Listen for realtime message edits
+      // Listen for edits
       signalRService.onMessageEdited((edited) => {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === edited.id ? { ...m, ...edited } : m))
-        );
+        updateMessage(edited);
       });
 
-      // Listen for realtime message deletions
+      // Listen for deletions
       signalRService.onMessageDeleted((deleted) => {
-        setMessages((prev) => prev.filter((m) => m.id !== deleted.messageId));
+        deleteMessage(deleted.messageId);
       });
 
-      // Listen for realtime user presence changes
+      // Listen for user presence
       signalRService.onUserStatusChanged((data) => {
-        const normalizedStatus = data.status.toLowerCase() as 'online' | 'offline' | 'away' | 'dnd';
-        setWorkspaceMembers((prev) =>
-          prev.map((m) =>
-            m.id.toLowerCase() === data.userId.toLowerCase()
-              ? { ...m, status: normalizedStatus }
-              : m
-          )
-        );
-        setDmConversations((prev) =>
-          prev.map((c) =>
-            c.user.id.toLowerCase() === data.userId.toLowerCase()
-              ? { ...c, user: { ...c.user, status: normalizedStatus } }
-              : c
-          )
-        );
+        const normalized = data.status.toLowerCase() as 'online' | 'offline' | 'away' | 'dnd';
+        updateUserStatus(data.userId, normalized);
       });
 
-      // Load Workspaces from backend
+      // Load Workspaces
       const wsList = await workspaceApi.getWorkspaces();
       setWorkspaces(wsList);
 
@@ -425,26 +422,13 @@ export const ChatPage: React.FC = () => {
         const targetWs = wsList.find((w) => w.id === paramWorkspaceId) || wsList[0];
         setActiveWorkspaceId(targetWs.id);
 
-        // Load Channels, DMs, and Members of target workspace
         const { channels: chList } = await loadWorkspaceData(targetWs.id, user.id);
 
-        // Sync active online presence
+        // Sync initial online presence
         try {
           const onlineUserIds = await signalRService.getOnlineUsers();
           if (onlineUserIds.length > 0) {
-            const onlineSet = new Set(onlineUserIds.map((id) => id.toLowerCase()));
-            setWorkspaceMembers((prev) =>
-              prev.map((m) =>
-                onlineSet.has(m.id.toLowerCase()) ? { ...m, status: 'online' } : m
-              )
-            );
-            setDmConversations((prev) =>
-              prev.map((c) =>
-                onlineSet.has(c.user.id.toLowerCase())
-                  ? { ...c, user: { ...c.user, status: 'online' } }
-                  : c
-              )
-            );
+            onlineUserIds.forEach((uid) => updateUserStatus(uid, 'online'));
           }
         } catch (presenceErr) {
           console.warn('Could not sync online users:', presenceErr);
@@ -488,35 +472,24 @@ export const ChatPage: React.FC = () => {
     setWorkspaces([]);
     setChannels([]);
     setMessages([]);
-    setIsSettingsOpen(false);
+    setSettingsOpen(false);
     navigate('/login');
   };
 
+  // Optimistic Message Sending
   const handleSendMessage = async (content: string) => {
-    if (!activeChannelId) return;
-
+    if (!activeChannelId || !currentUser) return;
     let targetChannelId = activeChannelId;
 
-    // Deferred DM creation: If this is a pending DM conversation, create it in DB on first message!
+    // Deferred DM creation
     const currentDm = dmConversations.find((c) => c.id === activeChannelId);
     if (currentDm?.isPending) {
       if (!activeWorkspaceId) return;
       try {
         const realDm = await channelApi.createOrGetDm(activeWorkspaceId, currentDm.user.id);
         targetChannelId = realDm.id;
-
-        // Upgrade pending conversation in state to real channel ID
-        setDmConversations((prev) =>
-          prev.map((c) =>
-            c.id === currentDm.id
-              ? { ...c, id: realDm.id, isPending: false }
-              : c
-          )
-        );
-        setActiveDmId(realDm.id);
+        upgradePendingDm(currentDm.id, realDm.id);
         setActiveChannelId(realDm.id);
-
-        // Join the newly created SignalR channel
         await signalRService.joinChannel(realDm.id);
       } catch (err) {
         console.error('Failed to create DM channel:', err);
@@ -525,39 +498,123 @@ export const ChatPage: React.FC = () => {
       }
     }
 
+    // 1. Optimistic Message creation
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: Message = {
+      id: tempId,
+      channelId: targetChannelId,
+      senderId: currentUser.id,
+      senderDisplayName: currentUser.displayName,
+      senderUsername: currentUser.username,
+      senderAvatarUrl: currentUser.avatarUrl,
+      content,
+      isEdited: false,
+      createdAt: new Date().toISOString(),
+      replyCount: 0,
+      reactions: [],
+    };
+
+    addMessage(optimisticMsg);
+    updateDmSnippet(
+      targetChannelId,
+      content,
+      new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    );
+
+    // 2. Dispatch to server
     try {
       const msg = await signalRService.sendMessage(targetChannelId, content);
       if (msg) {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)));
       }
     } catch {
-      const msg = await messageApi.sendMessage(targetChannelId, content);
-      setMessages((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
+      try {
+        const msg = await messageApi.sendMessage(targetChannelId, content);
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)));
+      } catch (sendErr) {
+        console.error('Failed to send message:', sendErr);
+        deleteMessage(tempId);
+        alert('Không thể gửi tin nhắn. Vui lòng thử lại.');
+      }
+    }
+  };
+
+  // Optimistic Reaction Toggle
+  const handleToggleReaction = async (messageId: string, emoji: string) => {
+    if (!currentUser) return;
+    const targetMsg = messages.find((m) => m.id === messageId);
+    if (!targetMsg) return;
+
+    const previousReactions = targetMsg.reactions || [];
+    const existingGroup = previousReactions.find((r) => r.emoji === emoji);
+    const userId = currentUser.id.toLowerCase();
+
+    let newReactions: ReactionGroup[];
+    if (existingGroup) {
+      const hasUser = existingGroup.userIds.some((id) => id.toLowerCase() === userId);
+      if (hasUser) {
+        const nextUserIds = existingGroup.userIds.filter((id) => id.toLowerCase() !== userId);
+        if (nextUserIds.length === 0) {
+          newReactions = previousReactions.filter((r) => r.emoji !== emoji);
+        } else {
+          newReactions = previousReactions.map((r) =>
+            r.emoji === emoji
+              ? { ...r, count: r.count - 1, userIds: nextUserIds, hasReacted: false }
+              : r
+          );
+        }
+      } else {
+        newReactions = previousReactions.map((r) =>
+          r.emoji === emoji
+            ? { ...r, count: r.count + 1, userIds: [...r.userIds, currentUser.id], hasReacted: true }
+            : r
+        );
+      }
+    } else {
+      newReactions = [
+        ...previousReactions,
+        { emoji, count: 1, userIds: [currentUser.id], hasReacted: true },
+      ];
     }
 
-    // If this is a DM, update lastMessage
-    setDmConversations((prev) =>
-      prev.map((c) =>
-        c.id === targetChannelId
-          ? {
-              ...c,
-              lastMessage: content,
-              lastMessageTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            }
-          : c
-      )
-    );
+    // Immediate optimistic update
+    setReactions(messageId, newReactions);
+
+    try {
+      await signalRService.toggleReaction(messageId, emoji);
+    } catch {
+      try {
+        await messageApi.toggleReaction(messageId, emoji);
+      } catch {
+        // Rollback
+        setReactions(messageId, previousReactions);
+      }
+    }
+  };
+
+  const handleEditMessage = async (messageId: string, content: string) => {
+    try {
+      const updated = await signalRService.editMessage(messageId, content);
+      if (updated) {
+        updateMessage(updated);
+      }
+    } catch {
+      const updated = await messageApi.editMessage(messageId, content);
+      updateMessage(updated);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    deleteMessage(messageId);
+    try {
+      await signalRService.deleteMessage(messageId);
+    } catch {
+      await messageApi.deleteMessage(messageId);
+    }
   };
 
   const handleCreateChannel = (type: ChannelType) => {
-    setCreateChannelType(type);
-    setIsCreateChannelOpen(true);
+    setCreateChannelOpen(true, type);
   };
 
   const handleChannelCreated = (newChannel: Channel) => {
@@ -570,10 +627,8 @@ export const ChatPage: React.FC = () => {
     setActiveChannelId(dm.id);
 
     if (dm.isPending) {
-      // Pending DM conversation not yet in DB; clear messages
       setMessages([]);
     } else {
-      // Real channel in DB
       await loadMessages(dm.id);
       await signalRService.joinChannel(dm.id);
     }
@@ -624,22 +679,26 @@ export const ChatPage: React.FC = () => {
 
   const handleStartDm = (targetUser: DirectMessageUser) => {
     handleStartDmWithUser(targetUser);
-    setIsNewDmOpen(false);
+    setNewDmOpen(false);
   };
 
   const activeDm = dmConversations.find((d) => d.id === activeChannelId);
   const currentWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || null;
   const currentUserMember = workspaceMembers.find((m) => m.id === currentUser?.id);
-  const currentUserRole = currentUserMember?.role || (currentWorkspace?.ownerId === currentUser?.id ? 'Owner' : 'Member');
-  const isOwner = currentWorkspace?.ownerId === currentUser?.id || currentUserRole?.toLowerCase() === 'owner';
+  const currentUserRole =
+    currentUserMember?.role ||
+    (currentWorkspace?.ownerId === currentUser?.id ? 'Owner' : 'Member');
+  const isOwner =
+    currentWorkspace?.ownerId === currentUser?.id ||
+    currentUserRole?.toLowerCase() === 'owner';
 
   const handleWorkspaceUpdated = (updated: Workspace) => {
-    setWorkspaces((prev) => prev.map((w) => (w.id === updated.id ? updated : w)));
+    updateWorkspace(updated);
   };
 
   const handleWorkspaceDeleted = (deletedId: string) => {
+    removeWorkspace(deletedId);
     const remaining = workspaces.filter((w) => w.id !== deletedId);
-    setWorkspaces(remaining);
     if (remaining.length > 0) {
       handleSelectWorkspace(remaining[0].id);
     } else {
@@ -670,14 +729,17 @@ export const ChatPage: React.FC = () => {
 
   const handleKickMember = async (member: DirectMessageUser) => {
     if (!activeWorkspaceId) return;
+    // Optimistic member removal
+    setWorkspaceMembers((prev) => prev.filter((m) => m.id !== member.id));
     try {
       await workspaceApi.kickMember(activeWorkspaceId, member.id);
-      setWorkspaceMembers((prev) => prev.filter((m) => m.id !== member.id));
     } catch (err: unknown) {
       console.error('Failed to kick member:', err);
+      // Re-fetch on error
+      const members = await workspaceApi.getMembers(activeWorkspaceId).catch(() => []);
+      setWorkspaceMembers(members as any);
       const errorObj = err as { response?: { data?: { message?: string } } };
-      const msg = errorObj?.response?.data?.message || 'Không thể đuổi thành viên khỏi không gian làm việc.';
-      alert(msg);
+      alert(errorObj?.response?.data?.message || 'Không thể đuổi thành viên.');
       throw err;
     }
   };
@@ -713,40 +775,8 @@ export const ChatPage: React.FC = () => {
       : null);
 
   const handleOpenThread = (msg: Message) => {
-    setIsMemberListOpen(false);
-    setActiveThreadMessage(msg);
-    setIsThreadOpen(true);
-    handleExpandThread();
-  };
-
-  const handleToggleReaction = async (messageId: string, emoji: string) => {
-    try {
-      await signalRService.toggleReaction(messageId, emoji);
-    } catch {
-      await messageApi.toggleReaction(messageId, emoji);
-    }
-  };
-
-  const handleEditMessage = async (messageId: string, content: string) => {
-    try {
-      const updated = await signalRService.editMessage(messageId, content);
-      if (updated) {
-        setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
-      }
-    } catch {
-      const updated = await messageApi.editMessage(messageId, content);
-      setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: string) => {
-    try {
-      await signalRService.deleteMessage(messageId);
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
-    } catch {
-      await messageApi.deleteMessage(messageId);
-      setMessages((prev) => prev.filter((m) => m.id !== messageId));
-    }
+    openThread(msg);
+    expandThread();
   };
 
   if (isInitializing && !currentUser) {
@@ -778,11 +808,13 @@ export const ChatPage: React.FC = () => {
       <main
         id="appLayout"
         className={`flex-1 min-h-0 flex overflow-hidden h-screen h-[100dvh] w-screen relative animate-in fade-in duration-200 ${
-          isSwitchingWorkspace ? 'opacity-70 transition-opacity duration-150 pointer-events-none' : 'opacity-100 transition-opacity duration-150'
+          isSwitchingWorkspace
+            ? 'opacity-70 transition-opacity duration-150 pointer-events-none'
+            : 'opacity-100 transition-opacity duration-150'
         }`}
         style={{
-          userSelect: isResizingChannel || isResizingThread ? 'none' : 'auto',
-          cursor: isResizingChannel || isResizingThread ? 'col-resize' : 'auto',
+          userSelect: isResizingChannel || isResizingThread || isResizingMember ? 'none' : 'auto',
+          cursor: isResizingChannel || isResizingThread || isResizingMember ? 'col-resize' : 'auto',
         }}
       >
         {/* 1 & 2. Unified Left Dock (Workspace Rail + Channel Sidebar + Spanning User Footer) */}
@@ -798,7 +830,7 @@ export const ChatPage: React.FC = () => {
               activeSidebarView={activeSidebarView}
               onSelectView={(view) => setActiveSidebarView(view)}
               onSelectWorkspace={handleSelectWorkspace}
-              onCreateWorkspace={() => setIsCreateWorkspaceOpen(true)}
+              onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
               onGoHome={() => navigate('/')}
             />
             {activeSidebarView === 'channels' ? (
@@ -808,9 +840,9 @@ export const ChatPage: React.FC = () => {
                 activeChannelId={activeChannelId}
                 onSelectChannel={handleSelectChannel}
                 onCreateChannel={handleCreateChannel}
-                onOpenSettings={() => setIsSettingsOpen(true)}
+                onOpenSettings={() => setSettingsOpen(true)}
                 isOwner={isOwner}
-                onOpenEditWorkspace={() => setIsEditWorkspaceOpen(true)}
+                onOpenEditWorkspace={() => setEditWorkspaceOpen(true)}
                 onLeaveWorkspace={handleLeaveWorkspace}
                 onOpenEditChannel={(ch) => setChannelToEdit(ch)}
               />
@@ -821,7 +853,7 @@ export const ChatPage: React.FC = () => {
                 )}
                 activeConversationId={activeDmId}
                 onSelectConversation={handleSelectDmConversation}
-                onOpenNewDm={() => setIsNewDmOpen(true)}
+                onOpenNewDm={() => setNewDmOpen(true)}
                 onRemoveConversation={(id, e) => {
                   e.stopPropagation();
                   setDmConversations((prev) => prev.filter((c) => c.id !== id));
@@ -836,10 +868,10 @@ export const ChatPage: React.FC = () => {
             )}
           </div>
 
-          {/* User Account Footer Bar (spans across both Workspace Rail & Channel Sidebar) */}
+          {/* User Account Footer Bar */}
           <UserFooterBar
             currentUser={currentUser}
-            onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         </div>
 
@@ -851,7 +883,7 @@ export const ChatPage: React.FC = () => {
               : 'bg-[var(--border-color)]'
           }`}
           onMouseDown={handleChannelResizeStart}
-          title="Kéo sang trái/phải để chỉnh kích thước Sidebar Kênh (Tối thiểu 200px)"
+          title="Kéo sang trái/phải để chỉnh kích thước Sidebar Kênh"
         />
 
         {/* 3. Active Chat Area */}
@@ -868,15 +900,12 @@ export const ChatPage: React.FC = () => {
           typingUser={typingUser}
           onToggleThread={() => {
             if (!isThreadOpen) {
-              setIsMemberListOpen(false);
               if (!activeThreadMessage && messages.length > 0) {
-                setActiveThreadMessage(messages[0]);
+                openThread(messages[0]);
               }
-              setIsThreadOpen(true);
-              handleExpandThread();
+              expandThread();
             } else {
-              setIsThreadOpen(false);
-              setActiveThreadMessage(null);
+              closeThread();
             }
           }}
           onOpenThread={handleOpenThread}
@@ -887,7 +916,7 @@ export const ChatPage: React.FC = () => {
           onLoadMoreMessages={handleLoadMoreMessages}
           workspaceMembers={workspaceMembers}
           isMemberListOpen={isMemberListOpen}
-          onToggleMemberList={handleToggleMemberList}
+          onToggleMemberList={toggleMemberList}
         />
 
         {/* 3.5 Resizer Divider & Thread Panel */}
@@ -900,18 +929,15 @@ export const ChatPage: React.FC = () => {
                   : 'bg-[var(--border-color)]'
               }`}
               onMouseDown={handleThreadResizeStart}
-              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thread (Tối thiểu 360px)"
+              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thread"
             />
             <ThreadPanel
               isOpen={isThreadOpen}
-              onClose={() => {
-                setIsThreadOpen(false);
-                setActiveThreadMessage(null);
-              }}
+              onClose={closeThread}
               currentUser={currentUser}
               parentMessage={activeThreadMessage}
               width={threadWidth}
-              onExpandWidth={handleExpandThread}
+              onExpandWidth={expandThread}
               onToggleReaction={handleToggleReaction}
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDeleteMessage}
@@ -919,7 +945,7 @@ export const ChatPage: React.FC = () => {
           </>
         )}
 
-        {/* 4. Resizer Divider & Member List Panel (Mutually Exclusive: only shown if Thread is closed) */}
+        {/* 4. Resizer Divider & Member List Panel (Mutually Exclusive) */}
         {!isThreadOpen && isMemberListOpen && (
           <>
             <div
@@ -933,20 +959,20 @@ export const ChatPage: React.FC = () => {
             />
             <MemberListPanel
               isOpen={isMemberListOpen}
-              onClose={() => setIsMemberListOpen(false)}
+              onClose={() => setMemberListOpen(false)}
               members={workspaceMembers}
               currentUser={currentUser}
               currentUserRole={currentUserRole}
               width={memberWidth}
               onStartDmWithUser={handleStartDmWithUser}
-              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenSettings={() => setSettingsOpen(true)}
               onRequestKickMember={(m) => setMemberToKick(m)}
             />
           </>
         )}
       </main>
 
-      {/* Kick Member Modal */}
+      {/* Modals */}
       <KickMemberModal
         isOpen={!!memberToKick}
         onClose={() => setMemberToKick(null)}
@@ -955,33 +981,29 @@ export const ChatPage: React.FC = () => {
         onConfirmKick={handleKickMember}
       />
 
-      {/* Create Workspace Modal */}
       <CreateWorkspaceModal
         isOpen={isCreateWorkspaceOpen}
-        onClose={() => setIsCreateWorkspaceOpen(false)}
+        onClose={() => setCreateWorkspaceOpen(false)}
         onWorkspaceCreated={handleWorkspaceCreated}
       />
 
-      {/* Edit Workspace Modal */}
       <EditWorkspaceModal
         isOpen={isEditWorkspaceOpen}
-        onClose={() => setIsEditWorkspaceOpen(false)}
+        onClose={() => setEditWorkspaceOpen(false)}
         workspace={currentWorkspace}
         isOwner={isOwner}
         onWorkspaceUpdated={handleWorkspaceUpdated}
         onWorkspaceDeleted={handleWorkspaceDeleted}
       />
 
-      {/* Create Channel Modal */}
       <CreateChannelModal
         isOpen={isCreateChannelOpen}
-        onClose={() => setIsCreateChannelOpen(false)}
+        onClose={() => setCreateChannelOpen(false)}
         workspaceId={activeWorkspaceId}
         channelType={createChannelType}
         onChannelCreated={handleChannelCreated}
       />
 
-      {/* Edit Channel Modal */}
       <EditChannelModal
         isOpen={!!channelToEdit}
         onClose={() => setChannelToEdit(null)}
@@ -990,24 +1012,40 @@ export const ChatPage: React.FC = () => {
         onChannelDeleted={handleChannelDeleted}
       />
 
-      {/* New Direct Message Modal */}
       <NewDirectMessageModal
         isOpen={isNewDmOpen}
-        onClose={() => setIsNewDmOpen(false)}
+        onClose={() => setNewDmOpen(false)}
         onStartDm={handleStartDm}
         existingDmUserIds={dmConversations.map((c) => c.user.id)}
         members={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
       />
 
-      {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={() => setSettingsOpen(false)}
         currentUser={currentUser}
         onLogout={handleLogout}
         currentTheme={theme}
         onThemeChange={changeTheme}
-        onUserUpdated={(u) => setCurrentUser(u)}
+        onUserUpdated={(u) => {
+          setCurrentUser(u);
+          // Optimistically update member list & messages without re-querying DB!
+          updateMemberProfile(u.id, {
+            displayName: u.displayName,
+            avatarUrl: u.avatarUrl || undefined,
+          });
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.senderId === u.id
+                ? {
+                    ...m,
+                    senderDisplayName: u.displayName,
+                    senderAvatarUrl: u.avatarUrl,
+                  }
+                : m
+            )
+          );
+        }}
       />
     </>
   );

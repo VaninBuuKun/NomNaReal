@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users,
   Plus,
   ArrowRight,
-  Sparkle,
   ShieldCheck,
   ChatTeardropText,
   CloudArrowUp,
@@ -15,12 +14,16 @@ import {
   LockKey,
   ShieldStar,
   SignIn,
-} from '@phosphor-icons/react';
-import { CreateWorkspaceModal, JoinWorkspaceModal } from '../components/workspace';
-import { SettingsModal } from '../components/settings';
-import { authApi, workspaceApi } from '../services';
-import { useTheme } from '../hooks/useTheme';
-import type { User, Workspace } from '../types';
+} from "@phosphor-icons/react";
+import {
+  CreateWorkspaceModal,
+  JoinWorkspaceModal,
+} from "../components/workspace";
+import { SettingsModal } from "../components/settings";
+import { authApi, workspaceApi } from "../services";
+import { useTheme } from "../hooks/useTheme";
+import type { User, Workspace } from "../types";
+import { LockKeyIcon } from "@phosphor-icons/react/dist/ssr";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -44,14 +47,14 @@ export const HomePage: React.FC = () => {
           user = await authApi.refresh();
         }
         setCurrentUser(user);
-        localStorage.setItem('nomna_logged_in', 'true');
+        localStorage.setItem("nomna_logged_in", "true");
 
         const wsList = await workspaceApi.getWorkspaces();
         setWorkspaces(wsList);
       } catch (err) {
-        console.error('Failed to load user or workspaces on home:', err);
-        localStorage.removeItem('nomna_logged_in');
-        navigate('/login', { replace: true });
+        console.error("Failed to load user or workspaces on home:", err);
+        localStorage.removeItem("nomna_logged_in");
+        navigate("/login", { replace: true });
       } finally {
         setIsLoading(false);
       }
@@ -66,10 +69,10 @@ export const HomePage: React.FC = () => {
     } catch {
       // ignore
     }
-    localStorage.removeItem('nomna_logged_in');
+    localStorage.removeItem("nomna_logged_in");
     setCurrentUser(null);
     setIsSettingsOpen(false);
-    navigate('/login');
+    navigate("/login");
   };
 
   const handleWorkspaceCreated = (newWs: Workspace) => {
@@ -85,7 +88,8 @@ export const HomePage: React.FC = () => {
     navigate(`/workspace/${joinedWs.id}`);
   };
 
-  const defaultAvatar = (import.meta.env.VITE_DEFAULT_AVATAR as string) || '/default-avatar.png';
+  const defaultAvatar =
+    (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png";
 
   if (isLoading) {
     return (
@@ -98,7 +102,9 @@ export const HomePage: React.FC = () => {
               className="w-16 h-16 rounded-2xl object-cover border border-[var(--border-color)] shadow-[0_0_30px_var(--accent-glow)] animate-pulse"
             />
           </div>
-          <div className="text-base font-bold text-[var(--text-primary)]">Đang tải NomNa...</div>
+          <div className="text-base font-bold text-[var(--text-primary)]">
+            Đang tải NomNa...
+          </div>
           <div className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
             Đang chuẩn bị không gian làm việc của bạn
           </div>
@@ -113,59 +119,75 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[var(--bg-chat)] text-[var(--text-primary)] flex flex-col selection:bg-[var(--accent-primary)] selection:text-white">
-      {/* 1. Header: Sleek, minimal, ultra-modern navigation */}
-      <header className="sticky top-0 z-40 h-[72px] border-b border-[var(--border-color)] bg-[var(--bg-chat)]/80 backdrop-blur-xl px-6 md:px-12 lg:px-16 flex items-center justify-between select-none transition-all shadow-xs">
-        {/* Brand Logo & App Identity */}
+      {/* 1. Header: Sleek, non-pill, dynamic navigation */}
+      <header className="sticky top-0 z-40 h-[72px] bg-[var(--bg-chat)]/85 backdrop-blur-md px-6 md:px-12 lg:px-16 flex items-center justify-between select-none transition-all relative border-b border-[var(--border-color)]/30">
+        {/* Dải sáng Ambient Glow mảnh siêu mờ chạy dọc mép dưới header */}
+        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[var(--accent-primary)]/40 to-transparent pointer-events-none" />
+
+        {/* Left: Brand Identity -> Logo bên TRÁI, Chữ NomNa bên PHẢI với hiệu ứng cực nổi bật */}
         <div
-          className="flex items-center gap-3 cursor-pointer group"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="relative z-10 flex items-center gap-3.5 cursor-pointer group py-2 rounded-none"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
         >
-          <div className="relative">
+          {/* Logo bên TRÁI + Hiệu ứng Glow & Rotate / Scale Nổi Bật */}
+          <div className="relative shrink-0">
+            {/* Vòng viền Gradient tỏa sáng khi hover */}
+            <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-[var(--accent-primary)] to-amber-500 opacity-0 group-hover:opacity-100 blur-xs transition-all duration-300 group-hover:scale-105" />
+
             <img
               src="/default-avatar.png"
               alt="NomNa Logo"
-              className="w-10 h-10 rounded-[10px] object-cover border border-[var(--border-color)] shadow-xs group-hover:scale-105 group-hover:border-[var(--accent-primary)]/50 transition-all duration-200"
+              className="relative w-10 h-10 rounded-xl object-cover border border-[var(--border-color)]/60 shadow-xs group-hover:scale-105 group-hover:rotate-3 transition-all duration-300"
             />
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--accent-primary)] ring-2 ring-[var(--bg-chat)]" />
+
+            {/* Chấm Status nhịp thở */}
+            {/* <span className="absolute -top-1 -right-1 z-10 w-3 h-3 rounded-full bg-[var(--accent-primary)] ring-2 ring-[var(--bg-chat)] shadow-[0_0_10px_var(--accent-glow)] animate-pulse" /> */}
           </div>
 
-          <span className="text-xl font-black tracking-tight text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
+          {/* Chữ NomNa bên PHẢI + Hiệu ứng Đẩy nhẹ & Tỏa sáng chữ */}
+          <span className="text-2xl font-black tracking-tight text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] group-hover:translate-x-1 transition-all duration-300 group-hover:drop-shadow-[0_0_12px_var(--accent-glow)]">
             NomNa
           </span>
         </div>
 
-        {/* Right: Modern, interactive User Profile Pill */}
-        <div className="flex items-center">
+        {/* Right: Modern User Profile -> Text trước (bên trái), Avatar sau (bên phải) */}
+        <div className="relative z-10 flex items-center">
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
-            className="group relative flex items-center gap-2.5 py-1.5 pl-1.5 pr-4 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-active)] border border-[var(--border-color)] hover:border-[var(--accent-primary)]/50 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-[0_0_16px_var(--accent-soft)] active:scale-98"
+            className="group flex items-center gap-3.5 py-2 px-1 transition-all duration-300 cursor-pointer rounded-none relative"
             title="Cài đặt & Tài khoản"
           >
+            {/* Cụm Text căn lề phải (bên trái Avatar) */}
+            <div className="flex flex-col text-right min-w-0">
+              <span className="text-sm font-bold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors duration-300 leading-tight max-w-[150px] truncate">
+                {currentUser?.displayName ||
+                  currentUser?.username ||
+                  "Tài khoản"}
+              </span>
+              <span className="text-xs text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors duration-300 leading-tight mt-1 max-w-[150px] truncate">
+                @{currentUser?.username || "user"}
+              </span>
+            </div>
+
+            {/* Avatar bên phải + Hiệu ứng Ring Glow khi hover */}
             <div className="relative shrink-0">
               <img
                 src={currentUser?.avatarUrl || defaultAvatar}
-                alt={currentUser?.displayName || 'User Avatar'}
-                className="w-9 h-9 rounded-full object-cover ring-2 ring-[var(--border-color)] group-hover:ring-[var(--accent-primary)] transition-all duration-200"
+                alt={currentUser?.displayName || "User Avatar"}
+                className="w-10 h-10 rounded-full object-cover ring-2 ring-[var(--border-color)]/60 group-hover:ring-[var(--accent-primary)] group-hover:scale-105 transition-all duration-300"
                 onError={(e) => {
                   e.currentTarget.src = defaultAvatar;
                 }}
               />
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-chat)] bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
+              <span className="absolute bottom-0 left-0 w-3 h-3 rounded-full border-2 border-[var(--bg-chat)] bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
             </div>
 
-            <div className="flex flex-col text-left min-w-0">
-              <span className="text-xs font-bold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors leading-tight max-w-[140px] truncate">
-                {currentUser?.displayName || currentUser?.username || 'Tài khoản'}
-              </span>
-              <span className="text-[10px] text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors leading-tight mt-0.5 max-w-[140px] truncate">
-                @{currentUser?.username || 'user'}
-              </span>
-            </div>
+            {/* Hiệu ứng gạch chân (Underline Accent) chạy mượt khi hover thay vì bọc khối */}
+            <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-[var(--accent-primary)] group-hover:w-full transition-all duration-300 rounded-full" />
           </button>
         </div>
       </header>
-
       {/* 2. Main Content Area */}
       <main className="flex-1 w-full max-w-6xl mx-auto px-6 md:px-12 py-10 flex flex-col gap-12">
         {/* Hero Section */}
@@ -176,7 +198,7 @@ export const HomePage: React.FC = () => {
 
           <div className="relative z-10 max-w-2xl flex flex-col gap-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent-soft)] border border-[var(--accent-primary)]/20 text-xs font-bold text-[var(--accent-primary)] w-fit shadow-2xs">
-              <Sparkle size={14} weight="fill" />
+              {/* <Sparkle size={14} weight="fill" /> */}
               <span>Chào mừng bạn đến với NomNa!</span>
             </div>
 
@@ -185,28 +207,45 @@ export const HomePage: React.FC = () => {
             </h1>
 
             <p className="text-sm md:text-base text-[var(--text-muted)] leading-relaxed">
-              Kết nối mọi thành viên qua các kênh thảo luận chuyên sâu, luồng thread tập trung và chia sẻ
-              tài liệu, video dung lượng lớn. Chọn một Không gian làm việc bên dưới để bắt đầu hoặc khởi tạo
-              không gian mới cho đội ngũ của bạn.
+              Kết nối mọi thành viên qua các kênh thảo luận chuyên sâu, luồng
+              thread tập trung và chia sẻ tài liệu, video dung lượng lớn. Chọn
+              một Không gian làm việc bên dưới để bắt đầu hoặc khởi tạo không
+              gian mới cho đội ngũ của bạn.
             </p>
 
             {/* Quick Feature Highlights */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-[var(--border-color)]/70 text-xs text-[var(--text-secondary)]">
               <div className="flex items-center gap-2">
-                <ChatTeardropText size={17} weight="duotone" className="text-[var(--accent-primary)] shrink-0" />
+                <ChatTeardropText
+                  size={17}
+                  weight="duotone"
+                  className="text-[var(--accent-primary)] shrink-0"
+                />
                 <span className="font-semibold">Kênh & Thread</span>
               </div>
               <div className="flex items-center gap-2">
-                <CloudArrowUp size={17} weight="duotone" className="text-amber-500 shrink-0" />
+                <CloudArrowUp
+                  size={17}
+                  weight="duotone"
+                  className="text-amber-500 shrink-0"
+                />
                 <span className="font-semibold">File & Video 100MB</span>
               </div>
               <div className="flex items-center gap-2">
-                <ShieldCheck size={17} weight="duotone" className="text-emerald-500 shrink-0" />
-                <span className="font-semibold">Realtime SignalR</span>
+                <ShieldCheck
+                  size={17}
+                  weight="duotone"
+                  className="text-emerald-500 shrink-0"
+                />
+                <span className="font-semibold">Chat Realtime</span>
               </div>
               <div className="flex items-center gap-2">
-                <LockKey size={17} weight="duotone" className="text-blue-500 shrink-0" />
-                <span className="font-semibold">Bảo mật đa tầng</span>
+                <LockKeyIcon
+                  size={17}
+                  weight="duotone"
+                  className="text-blue-500 shrink-0"
+                />
+                <span className="font-semibold">Bảo mật an toàn</span>
               </div>
             </div>
           </div>
@@ -235,7 +274,11 @@ export const HomePage: React.FC = () => {
                 onClick={() => setIsJoinWorkspaceOpen(true)}
                 className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-[4px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-xs font-bold hover:bg-[var(--bg-surface-active)] hover:border-[var(--accent-primary)] transition-all cursor-pointer group shrink-0"
               >
-                <SignIn size={16} weight="bold" className="text-[var(--accent-primary)]" />
+                <SignIn
+                  size={16}
+                  weight="bold"
+                  className="text-[var(--accent-primary)]"
+                />
                 <span>Tham gia bằng mã</span>
               </button>
 
@@ -244,7 +287,11 @@ export const HomePage: React.FC = () => {
                 onClick={() => setIsCreateWorkspaceOpen(true)}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[4px] bg-[var(--accent-primary)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all shadow-[0_2px_10px_var(--accent-glow)] cursor-pointer group shrink-0"
               >
-                <Plus size={16} weight="bold" className="group-hover:rotate-90 transition-transform duration-200" />
+                <Plus
+                  size={16}
+                  weight="bold"
+                  className="group-hover:rotate-90 transition-transform duration-200"
+                />
                 <span>Tạo Không gian mới</span>
               </button>
             </div>
@@ -289,13 +336,18 @@ export const HomePage: React.FC = () => {
 
                   {/* Description (if any) */}
                   <p className="text-xs text-[var(--text-muted)] line-clamp-2 leading-relaxed mb-4 min-h-[36px]">
-                    {ws.description || 'Không gian thảo luận, cập nhật tiến độ và làm việc nhóm của dự án.'}
+                    {ws.description ||
+                      "Không gian thảo luận, cập nhật tiến độ và làm việc nhóm của dự án."}
                   </p>
 
                   {/* Enter Button Indicator */}
                   <div className="pt-3 border-t border-[var(--border-color)]/60 flex items-center justify-between text-xs font-semibold text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors">
                     <span>Truy cập không gian</span>
-                    <ArrowRight size={14} weight="bold" className="group-hover:translate-x-1 transition-transform duration-200" />
+                    <ArrowRight
+                      size={14}
+                      weight="bold"
+                      className="group-hover:translate-x-1 transition-transform duration-200"
+                    />
                   </div>
                 </div>
               );
@@ -353,8 +405,9 @@ export const HomePage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-[var(--text-muted)] leading-relaxed max-w-sm">
-                Nền tảng làm việc nhóm và giao tiếp trực tiếp trong không gian riêng tư. Kết nối đồng đội,
-                chia sẻ ý tưởng và đẩy nhanh tiến độ dự án.
+                Nền tảng làm việc nhóm và giao tiếp trực tiếp trong không gian
+                riêng tư. Kết nối đồng đội, chia sẻ ý tưởng và đẩy nhanh tiến độ
+                dự án.
               </p>
               <div className="inline-flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse" />

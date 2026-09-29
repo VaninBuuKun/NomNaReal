@@ -206,7 +206,8 @@ public class ChatHub : Hub
         {
             await Clients.Group($"thread_{message.ThreadId.Value}").SendAsync(SignalRConstants.Events.MessageEdited, message);
         }
-        await Clients.Group($"thread_{message.Id}").SendAsync(SignalRConstants.Events.MessageEdited, message);
+        else
+            await Clients.Group($"thread_{message.Id}").SendAsync(SignalRConstants.Events.MessageEdited, message);
 
         return message;
     }

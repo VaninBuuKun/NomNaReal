@@ -6,3 +6,5 @@ export * from './EmojiPickerPopover';
 export * from './GifPicker';
 export * from './DeleteMessageModal';
 export * from './MessageContent';
+export * from './ImageLightboxModal';
+export * from './ImageGalleryGrid';

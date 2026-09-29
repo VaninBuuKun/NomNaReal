@@ -1,6 +1,7 @@
 import React from "react";
 import { FileText } from "@phosphor-icons/react";
 import { CodeBlock } from "./CodeBlock";
+import { ImageGalleryGrid, type GalleryImage } from "./ImageGalleryGrid";
 
 interface MessageContentProps {
   content: string;
@@ -103,110 +104,122 @@ function renderTextBlock(text: string): React.ReactNode {
   );
 }
 
-export const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
-  // 1. Video attachment: [video:fileName](url)
-  const videoMatch = content.match(/\[video:(.*?)\]\((.*?)\)/);
-  if (videoMatch) {
-    const fileName = videoMatch[1];
-    const videoUrl = videoMatch[2];
-    const restText = content.replace(/\[video:.*?\]\(.*?\)/, "").trim();
+function renderCodeBlocksAndText(text: string): React.ReactNode {
+  const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g;
+  if (!codeBlockRegex.test(text)) {
+    return renderTextBlock(text);
+  }
 
-    return (
-      <div className="flex flex-col gap-2">
-        {restText && <MessageContent content={restText} />}
-        <div className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-black/60 max-w-lg shadow-md my-1">
+  codeBlockRegex.lastIndex = 0;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    const preText = text.substring(lastIndex, match.index);
+    if (preText) {
+      parts.push(<React.Fragment key={`pre-${lastIndex}`}>{renderTextBlock(preText)}</React.Fragment>);
+    }
+    const lang = match[1] || "";
+    const code = match[2];
+    parts.push(<CodeBlock key={`code-${match.index}`} code={code} language={lang} />);
+    lastIndex = match.index + match[0].length;
+  }
+  const postText = text.substring(lastIndex);
+  if (postText) {
+    parts.push(<React.Fragment key={`post-${lastIndex}`}>{renderTextBlock(postText)}</React.Fragment>);
+  }
+  return <div className="flex flex-col gap-1">{parts}</div>;
+}
+
+export const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
+  // 1. Extract all images: ![alt](url)
+  const imageRegex = /!\[(.*?)\]\((.*?)\)/g;
+  const images: GalleryImage[] = [];
+  let imageMatch: RegExpExecArray | null;
+  while ((imageMatch = imageRegex.exec(content)) !== null) {
+    const alt = imageMatch[1];
+    const url = imageMatch[2];
+    images.push({
+      url,
+      alt,
+      isGif: /\.gif($|\?)/i.test(url) || alt.toLowerCase().includes("gif"),
+    });
+  }
+
+  // 2. Extract all videos: [video:fileName](url)
+  const videoRegex = /\[video:(.*?)\]\((.*?)\)/g;
+  const videos: { fileName: string; url: string }[] = [];
+  let videoMatch: RegExpExecArray | null;
+  while ((videoMatch = videoRegex.exec(content)) !== null) {
+    videos.push({
+      fileName: videoMatch[1],
+      url: videoMatch[2],
+    });
+  }
+
+  // 3. Extract all generic files: [file:fileName](url)
+  const fileRegex = /\[file:(.*?)\]\((.*?)\)/g;
+  const files: { fileName: string; url: string }[] = [];
+  let fileMatch: RegExpExecArray | null;
+  while ((fileMatch = fileRegex.exec(content)) !== null) {
+    files.push({
+      fileName: fileMatch[1],
+      url: fileMatch[2],
+    });
+  }
+
+  // Strip media tokens to get clean text
+  const cleanText = content
+    .replace(/!\[.*?\]\(.*?\)/g, "")
+    .replace(/\[video:.*?\]\(.*?\)/g, "")
+    .replace(/\[file:.*?\]\(.*?\)/g, "")
+    .trim();
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Text / Markdown / Code blocks */}
+      {cleanText && renderCodeBlocksAndText(cleanText)}
+
+      {/* Multiple Images Gallery Grid */}
+      {images.length > 0 && <ImageGalleryGrid images={images} />}
+
+      {/* Videos */}
+      {videos.map((vid, idx) => (
+        <div
+          key={idx}
+          className="rounded-xl overflow-hidden border border-[var(--border-color)] bg-black/60 max-w-lg shadow-md my-1"
+        >
           <video
-            src={videoUrl}
+            src={vid.url}
             controls
             preload="metadata"
             className="w-full max-h-[340px] rounded-lg object-contain"
           />
           <div className="p-2 px-3 bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] flex items-center justify-between">
-            <span className="truncate">{fileName}</span>
-            <span className="text-[10px] uppercase font-bold text-[var(--accent-primary)]">Video</span>
+            <span className="truncate">{vid.fileName}</span>
+            <span className="text-[10px] uppercase font-bold text-[var(--accent-primary)]">
+              Video
+            </span>
           </div>
         </div>
-      </div>
-    );
-  }
+      ))}
 
-  // 2. Generic file: [file:fileName](url)
-  const fileMatch = content.match(/\[file:(.*?)\]\((.*?)\)/);
-  if (fileMatch) {
-    const fileName = fileMatch[1];
-    const fileUrl = fileMatch[2];
-    const restText = content.replace(/\[file:.*?\]\(.*?\)/, "").trim();
-
-    return (
-      <div className="flex flex-col gap-2">
-        {restText && <MessageContent content={restText} />}
+      {/* Files */}
+      {files.map((f, idx) => (
         <a
-          href={fileUrl}
+          key={idx}
+          href={f.url}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-2.5 p-2.5 px-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-xs text-[var(--accent-primary)] font-medium transition-all group my-1 max-w-sm"
+          className="inline-flex items-center gap-2.5 p-2.5 px-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] text-xs text-[var(--accent-primary)] font-medium transition-all group my-0.5 max-w-sm"
         >
           <FileText size={18} className="shrink-0 text-[var(--accent-primary)]" />
-          <span className="truncate group-hover:underline text-[var(--text-primary)]">{fileName}</span>
+          <span className="truncate group-hover:underline text-[var(--text-primary)]">
+            {f.fileName}
+          </span>
         </a>
-      </div>
-    );
-  }
-
-  // 3. Image / GIF attachment: ![alt](url)
-  const imageMatch = content.match(/!\[(.*?)\]\((.*?)\)/);
-  if (imageMatch) {
-    const altText = imageMatch[1];
-    const imageUrl = imageMatch[2];
-    const restText = content.replace(/!\[.*?\]\(.*?\)/, "").trim();
-    const isGif = /\.gif($|\?)/i.test(imageUrl) || altText.toLowerCase().includes("gif");
-
-    return (
-      <div className="flex flex-col gap-2">
-        {restText && <MessageContent content={restText} />}
-        <div className="max-w-md rounded-xl overflow-hidden border border-[var(--border-color)] shadow-sm my-1 bg-black/10">
-          <img
-            src={imageUrl}
-            alt={altText}
-            className="w-full max-h-[340px] object-contain cursor-pointer hover:opacity-95 transition-opacity"
-            onClick={() => window.open(imageUrl, "_blank")}
-            loading="lazy"
-          />
-          {isGif && (
-            <div className="px-2 py-0.5 bg-black/60 text-[10px] font-bold text-white w-fit rounded-tr-md">
-              GIF
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  // 4. Multi-line Code Blocks: ```[lang]?\n[code]\n```
-  const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g;
-  if (codeBlockRegex.test(content)) {
-    const parts: React.ReactNode[] = [];
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    codeBlockRegex.lastIndex = 0;
-    while ((match = codeBlockRegex.exec(content)) !== null) {
-      const preText = content.substring(lastIndex, match.index);
-      if (preText) {
-        parts.push(<React.Fragment key={`pre-${lastIndex}`}>{renderTextBlock(preText)}</React.Fragment>);
-      }
-      const lang = match[1] || "";
-      const code = match[2];
-      parts.push(<CodeBlock key={`code-${match.index}`} code={code} language={lang} />);
-      lastIndex = match.index + match[0].length;
-    }
-    const postText = content.substring(lastIndex);
-    if (postText) {
-      parts.push(<React.Fragment key={`post-${lastIndex}`}>{renderTextBlock(postText)}</React.Fragment>);
-    }
-    return <div className="flex flex-col gap-1">{parts}</div>;
-  }
-
-  // 5. Default formatted markdown text block
-  return renderTextBlock(content);
+      ))}
+    </div>
+  );
 };

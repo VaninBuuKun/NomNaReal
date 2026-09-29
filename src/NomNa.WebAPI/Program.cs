@@ -114,6 +114,7 @@ using (var scope = app.Services.CreateScope())
 // 6. Middleware Pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors("CorsPolicy");
+app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();

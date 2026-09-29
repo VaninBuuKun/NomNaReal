@@ -13,6 +13,10 @@ import {
   Trash,
   CircleNotch,
   HandWaving,
+  X,
+  Plus,
+  Play,
+  FileText,
 } from "@phosphor-icons/react";
 import { ChannelType, type Channel, type Message, type User } from "../../types";
 import { messageApi } from "../../services/messageApi";
@@ -23,6 +27,23 @@ import { MessageContent } from "./MessageContent";
 import { EmojiPickerPopover } from "./EmojiPickerPopover";
 import { GifPicker } from "./GifPicker";
 import { DeleteMessageModal } from "./DeleteMessageModal";
+
+interface PendingAttachment {
+  id: string;
+  file: File;
+  previewUrl: string;
+  type: "image" | "video" | "file";
+  name: string;
+  size: number;
+  status: "uploading" | "ready" | "error";
+  uploadedUrl?: string;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 interface ChatAreaProps {
   currentChannel: Channel | null;
@@ -81,8 +102,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 }) => {
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
 
@@ -237,14 +257,52 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     }, 2000);
   };
 
+  const handleRemoveAttachment = (id: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((a) => a.id === id);
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((a) => a.id !== id);
+    });
+  };
+
   const handleSend = async () => {
     const text = content.trim();
-    if (!text || sending) return;
+    const hasAttachments = pendingAttachments.length > 0;
+    if ((!text && !hasAttachments) || sending) return;
+
+    // Check if any attachment is still uploading
+    const stillUploading = pendingAttachments.some((a) => a.status === "uploading");
+    if (stillUploading) {
+      alert("Đang tải tệp đính kèm lên, vui lòng chờ trong giây lát...");
+      return;
+    }
+
+    // Combine text and attachments
+    let messagePayload = text;
+    const readyAttachments = pendingAttachments.filter((a) => a.status === "ready" && a.uploadedUrl);
+
+    for (const att of readyAttachments) {
+      if (att.type === "image") {
+        messagePayload = `${messagePayload ? messagePayload + "\n" : ""}![${att.name}](${att.uploadedUrl})`;
+      } else if (att.type === "video") {
+        messagePayload = `${messagePayload ? messagePayload + "\n" : ""}[video:${att.name}](${att.uploadedUrl})`;
+      } else {
+        messagePayload = `${messagePayload ? messagePayload + "\n" : ""}[file:${att.name}](${att.uploadedUrl})`;
+      }
+    }
+
+    if (!messagePayload.trim()) return;
 
     setSending(true);
     try {
-      await onSendMessage(text);
+      await onSendMessage(messagePayload);
       setContent("");
+      pendingAttachments.forEach((a) => {
+        if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
+      });
+      setPendingAttachments([]);
       onStopTyping();
     } finally {
       setSending(false);
@@ -258,53 +316,64 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     }
   };
 
-  // File & Video Upload Handler (Supports up to 100MB AWS S3 storage)
+  // Staged File & Multiple Media Upload Handler (Does NOT auto-send)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
+    const fileList = Array.from(files);
     const MAX_SIZE = 100 * 1024 * 1024; // 100MB limit
-    if (file.size > MAX_SIZE) {
-      alert("Kích thước tệp vượt quá giới hạn 100MB. Vui lòng chọn tệp nhỏ hơn.");
-      return;
+
+    const newAttachments: PendingAttachment[] = [];
+
+    for (const file of fileList) {
+      if (file.size > MAX_SIZE) {
+        alert(`Tệp "${file.name}" vượt quá giới hạn 100MB.`);
+        continue;
+      }
+
+      const type: "image" | "video" | "file" = file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("video/")
+        ? "video"
+        : "file";
+
+      const previewUrl = type === "image" || type === "video" ? URL.createObjectURL(file) : "";
+      const attId = `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+      newAttachments.push({
+        id: attId,
+        file,
+        previewUrl,
+        type,
+        name: file.name,
+        size: file.size,
+        status: "uploading",
+      });
     }
 
-    try {
-      setUploading(true);
-      setUploadProgress(`Đang tải lên ${file.name}...`);
-      const folder = file.type.startsWith("video/")
-        ? "videos"
-        : file.type.startsWith("image/")
-        ? "uploads"
-        : "attachments";
+    if (newAttachments.length === 0) return;
 
-      const res = await fileApi.uploadFile(file, folder);
+    setPendingAttachments((prev) => [...prev, ...newAttachments]);
 
-      // Append file URL or send message directly
-      const fileUrl = res.url;
-      const isVideo = file.type.startsWith("video/") || /\.(mp4|webm|mov|mkv)$/i.test(res.fileName);
-      const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(res.fileName);
-
-      let messagePayload = "";
-      if (isImage) {
-        messagePayload = `${content ? content + "\n" : ""}![${res.fileName}](${fileUrl})`;
-      } else if (isVideo) {
-        messagePayload = `${content ? content + "\n" : ""}[video:${res.fileName}](${fileUrl})`;
-      } else {
-        messagePayload = `${content ? content + "\n" : ""}[file:${res.fileName}](${fileUrl})`;
+    // Start background upload for each attachment
+    newAttachments.forEach(async (att) => {
+      try {
+        const folder = att.type === "video" ? "videos" : att.type === "image" ? "uploads" : "attachments";
+        const res = await fileApi.uploadFile(att.file, folder);
+        setPendingAttachments((prev) =>
+          prev.map((item) => (item.id === att.id ? { ...item, status: "ready", uploadedUrl: res.url } : item))
+        );
+      } catch (err) {
+        console.error("Upload error for file:", att.name, err);
+        setPendingAttachments((prev) =>
+          prev.map((item) => (item.id === att.id ? { ...item, status: "error" } : item))
+        );
       }
+    });
 
-      await onSendMessage(messagePayload);
-      setContent("");
-    } catch (err: any) {
-      console.error("File upload error:", err);
-      alert(err.response?.data?.message || "Tải lên tệp tin thất bại. Vui lòng thử lại.");
-    } finally {
-      setUploading(false);
-      setUploadProgress(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -758,30 +827,19 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       </div>
       )}
 
-      {/* Typing indicator & Upload Progress */}
-      {(Boolean(typingUser) || uploading) && (
+      {/* Typing indicator */}
+      {Boolean(typingUser) && (
         <div className="px-5 py-1 text-xs text-[var(--text-muted)] flex items-center justify-between shrink-0 animate-in fade-in duration-150">
           <div className="flex items-center gap-2">
-            {typingUser && (
-              <>
-                <div className="typing-wave">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <span>
-                  <strong>{typingUser}</strong> đang soạn tin nhắn...
-                </span>
-              </>
-            )}
-          </div>
-
-          {uploading && (
-            <div className="flex items-center gap-1.5 text-[var(--accent-primary)] font-medium">
-              <CircleNotch size={14} className="animate-spin" />
-              <span>{uploadProgress || "Đang tải lên media S3 (tối đa 100MB)..."}</span>
+            <div className="typing-wave">
+              <span />
+              <span />
+              <span />
             </div>
-          )}
+            <span>
+              <strong>{typingUser}</strong> đang soạn tin nhắn...
+            </span>
+          </div>
         </div>
       )}
 
@@ -802,6 +860,86 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         />
 
         <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-md p-2.5 px-3.5 flex flex-col gap-2 transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_2px_12px_var(--accent-glow)]">
+          {/* Pending Attachments Preview Tray */}
+          {pendingAttachments.length > 0 && (
+            <div className="flex items-center gap-2.5 overflow-x-auto py-1 px-0.5 border-b border-[var(--border-color)]/70 pb-2.5 mb-1 scrollbar-thin">
+              {pendingAttachments.map((att) => (
+                <div
+                  key={att.id}
+                  className="relative group shrink-0 flex items-center gap-2 p-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--bg-chat)] shadow-2xs"
+                >
+                  {att.type === 'image' ? (
+                    <div className="relative w-14 h-14 rounded-md overflow-hidden bg-black/10">
+                      <img
+                        src={att.previewUrl}
+                        alt={att.name}
+                        className="w-full h-full object-cover"
+                      />
+                      {att.status === 'uploading' && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <CircleNotch size={18} className="animate-spin text-white" />
+                        </div>
+                      )}
+                      {att.status === 'error' && (
+                        <div className="absolute inset-0 bg-rose-600/80 flex items-center justify-center text-[10px] text-white font-bold">
+                          Lỗi
+                        </div>
+                      )}
+                    </div>
+                  ) : att.type === 'video' ? (
+                    <div className="relative w-14 h-14 rounded-md overflow-hidden bg-zinc-900 flex flex-col items-center justify-center text-white">
+                      <Play size={20} weight="fill" className="text-[var(--accent-primary)]" />
+                      <span className="text-[9px] truncate max-w-[50px] px-1 text-zinc-300">
+                        {att.name}
+                      </span>
+                      {att.status === 'uploading' && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <CircleNotch size={18} className="animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-2 py-1 max-w-[180px]">
+                      <FileText size={22} className="text-[var(--accent-primary)] shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-[var(--text-primary)] truncate font-medium">
+                          {att.name}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-muted)]">
+                          {formatFileSize(att.size)}
+                        </p>
+                      </div>
+                      {att.status === 'uploading' && (
+                        <CircleNotch size={14} className="animate-spin text-[var(--accent-primary)] shrink-0" />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Remove Attachment Button */}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttachment(att.id)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[var(--bg-chat)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-white hover:bg-rose-500 hover:border-rose-500 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                    title="Xóa tệp đính kèm"
+                  >
+                    <X size={12} weight="bold" />
+                  </button>
+                </div>
+              ))}
+
+              {/* Add more button */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-14 h-14 rounded-md border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)]/30 text-[var(--text-muted)] hover:text-[var(--accent-primary)] flex flex-col items-center justify-center transition-all shrink-0 cursor-pointer"
+                title="Thêm tệp khác"
+              >
+                <Plus size={18} />
+                <span className="text-[9px] font-bold">Thêm</span>
+              </button>
+            </div>
+          )}
+
           <textarea
             ref={textareaRef}
             className="bg-transparent border-none outline-none text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-[0.92rem] resize-none w-full leading-normal disabled:opacity-50"
@@ -812,17 +950,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             disabled={!currentChannel}
             placeholder={
               currentChannel
-                ? `Nhắn tin tới #${currentChannel.name}... (Enter để gửi, hỗ trợ video & file 100MB)`
+                ? `Nhắn tin tới #${currentChannel.name}... (Enter để gửi, hỗ trợ nhiều ảnh & file 100MB)`
                 : "Vui lòng chọn một kênh ở danh sách bên trái để nhắn tin..."
             }
           />
 
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-1">
-              {/* Hidden file picker supporting images, videos up to 100MB, and docs */}
+              {/* Hidden file picker supporting multiple images, videos up to 100MB, and docs */}
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept="image/*,video/mp4,video/webm,video/quicktime,video/x-matroska,application/pdf,.doc,.docx,.zip"
                 className="hidden"
                 onChange={handleFileUpload}
@@ -833,7 +972,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
                 title="Đính kèm tệp tin / Video (Tối đa 100MB)"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
               >
                 <Paperclip size={17} />
               </button>
@@ -887,9 +1025,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 type="button"
                 className="bg-[var(--accent-primary)] text-white border-none px-3.5 py-1.5 rounded-lg text-[0.82rem] font-semibold cursor-pointer transition-all duration-150 flex items-center gap-1.5 shadow-[0_2px_8px_var(--accent-glow)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_14px_var(--accent-glow)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 onClick={handleSend}
-                disabled={!content.trim() || sending || uploading}
+                disabled={(!content.trim() && pendingAttachments.length === 0) || sending || pendingAttachments.some((a) => a.status === 'uploading')}
               >
-                <span>{sending ? "Đang gửi..." : "Gửi tin"}</span>
+                <span>{sending ? "Đang gửi..." : pendingAttachments.some((a) => a.status === 'uploading') ? "Đang tải ảnh..." : "Gửi tin"}</span>
                 <PaperPlaneRight size={14} weight="fill" />
               </button>
             </div>

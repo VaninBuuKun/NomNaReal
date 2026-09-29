@@ -10,6 +10,9 @@ import {
   Trash,
   CircleNotch,
   Images,
+  Plus,
+  Play,
+  FileText,
 } from "@phosphor-icons/react";
 import type { Message, MessageEdited, User, ReactionUpdate, DeletedMessage } from "../../types";
 import { messageApi } from "../../services/messageApi";
@@ -17,6 +20,17 @@ import { fileApi } from "../../services/fileApi";
 import { signalRService } from "../../services/signalr";
 import { MessageContent } from "../chat/MessageContent";
 import { DeleteMessageModal } from "../chat/DeleteMessageModal";
+
+interface PendingAttachment {
+  id: string;
+  file: File;
+  previewUrl: string;
+  type: "image" | "video" | "file";
+  name: string;
+  size: number;
+  status: "uploading" | "ready" | "error";
+  uploadedUrl?: string;
+}
 
 interface ThreadPanelProps {
   isOpen: boolean;
@@ -48,7 +62,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   const [replies, setReplies] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
 
   // Inline edit state in thread
   const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
@@ -151,29 +165,69 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSendReply = async () => {
-    if (!replyText.trim() || !parentMessage || sending) return;
+  const handleRemoveAttachment = (id: string) => {
+    setPendingAttachments((prev) => {
+      const target = prev.find((a) => a.id === id);
+      if (target?.previewUrl) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((a) => a.id !== id);
+    });
+  };
 
-    const content = replyText.trim();
+  const handleSendReply = async () => {
+    const text = replyText.trim();
+    const hasAttachments = pendingAttachments.length > 0;
+    if ((!text && !hasAttachments) || !parentMessage || sending) return;
+
+    const stillUploading = pendingAttachments.some((a) => a.status === "uploading");
+    if (stillUploading) {
+      alert("Đang tải tệp đính kèm lên, vui lòng chờ trong giây lát...");
+      return;
+    }
+
+    let payload = text;
+    const readyAttachments = pendingAttachments.filter((a) => a.status === "ready" && a.uploadedUrl);
+
+    for (const att of readyAttachments) {
+      if (att.type === "image") {
+        payload = `${payload ? payload + "\n" : ""}![${att.name}](${att.uploadedUrl})`;
+      } else if (att.type === "video") {
+        payload = `${payload ? payload + "\n" : ""}[video:${att.name}](${att.uploadedUrl})`;
+      } else {
+        payload = `${payload ? payload + "\n" : ""}[file:${att.name}](${att.uploadedUrl})`;
+      }
+    }
+
+    if (!payload.trim()) return;
+
     setSending(true);
 
     try {
-      const res = await signalRService.sendThreadReply(parentMessage.id, content);
+      const res = await signalRService.sendThreadReply(parentMessage.id, payload);
       if (!res) {
-        const fallbackMsg = await messageApi.replyToThread(parentMessage.id, content);
+        const fallbackMsg = await messageApi.replyToThread(parentMessage.id, payload);
         setReplies((prev) =>
           prev.some((r) => r.id === fallbackMsg.id) ? prev : [...prev, fallbackMsg]
         );
       }
       setReplyText("");
+      pendingAttachments.forEach((a) => {
+        if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
+      });
+      setPendingAttachments([]);
       setShowEmojiBar(false);
     } catch {
       try {
-        const fallbackMsg = await messageApi.replyToThread(parentMessage.id, content);
+        const fallbackMsg = await messageApi.replyToThread(parentMessage.id, payload);
         setReplies((prev) =>
           prev.some((r) => r.id === fallbackMsg.id) ? prev : [...prev, fallbackMsg]
         );
         setReplyText("");
+        pendingAttachments.forEach((a) => {
+          if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
+        });
+        setPendingAttachments([]);
         setShowEmojiBar(false);
       } catch {
         alert("Không thể gửi tin nhắn trong thread. Vui lòng thử lại.");
@@ -252,36 +306,60 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !parentMessage) return;
+    const files = e.target.files;
+    if (!files || files.length === 0 || !parentMessage) return;
 
-    if (file.size > 100 * 1024 * 1024) {
-      alert("Kích thước tệp vượt quá giới hạn 100MB.");
-      return;
-    }
+    const fileList = Array.from(files);
+    const MAX_SIZE = 100 * 1024 * 1024; // 100MB limit
 
-    try {
-      setUploading(true);
-      const res = await fileApi.uploadFile(file, file.type.startsWith("video/") ? "videos" : "attachments");
-      const isVideo = file.type.startsWith("video/") || /\.(mp4|webm|mov|mkv)$/i.test(res.fileName);
-      const isImage = file.type.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(res.fileName);
+    const newAttachments: PendingAttachment[] = [];
 
-      let payload = "";
-      if (isImage) {
-        payload = `![${res.fileName}](${res.url})`;
-      } else if (isVideo) {
-        payload = `[video:${res.fileName}](${res.url})`;
-      } else {
-        payload = `[file:${res.fileName}](${res.url})`;
+    for (const file of fileList) {
+      if (file.size > MAX_SIZE) {
+        alert(`Tệp "${file.name}" vượt quá giới hạn 100MB.`);
+        continue;
       }
 
-      await messageApi.replyToThread(parentMessage.id, payload);
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Tải lên tệp thất bại.");
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      const type: "image" | "video" | "file" = file.type.startsWith("image/")
+        ? "image"
+        : file.type.startsWith("video/")
+        ? "video"
+        : "file";
+
+      const previewUrl = type === "image" || type === "video" ? URL.createObjectURL(file) : "";
+      const attId = `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+
+      newAttachments.push({
+        id: attId,
+        file,
+        previewUrl,
+        type,
+        name: file.name,
+        size: file.size,
+        status: "uploading",
+      });
     }
+
+    if (newAttachments.length === 0) return;
+
+    setPendingAttachments((prev) => [...prev, ...newAttachments]);
+
+    newAttachments.forEach(async (att) => {
+      try {
+        const folder = att.type === "video" ? "videos" : att.type === "image" ? "uploads" : "attachments";
+        const res = await fileApi.uploadFile(att.file, folder);
+        setPendingAttachments((prev) =>
+          prev.map((item) => (item.id === att.id ? { ...item, status: "ready", uploadedUrl: res.url } : item))
+        );
+      } catch (err) {
+        console.error("Upload error for file:", att.name, err);
+        setPendingAttachments((prev) =>
+          prev.map((item) => (item.id === att.id ? { ...item, status: "error" } : item))
+        );
+      }
+    });
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   // Render message content with markdown, code blocks, and media preview
@@ -516,6 +594,67 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
       {/* 3. Rich Chat Input Area for Thread */}
       <div className="p-3 shrink-0">
         <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-md p-2.5 px-3 flex flex-col gap-2 transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_4px_16px_var(--accent-glow)]">
+          {/* Pending Attachments Preview Tray */}
+          {pendingAttachments.length > 0 && (
+            <div className="flex items-center gap-2 overflow-x-auto py-1 border-b border-[var(--border-color)]/70 pb-2 mb-1 scrollbar-thin">
+              {pendingAttachments.map((att) => (
+                <div
+                  key={att.id}
+                  className="relative group shrink-0 flex items-center gap-1.5 p-1 rounded-md border border-[var(--border-color)] bg-[var(--bg-chat)] shadow-2xs"
+                >
+                  {att.type === 'image' ? (
+                    <div className="relative w-12 h-12 rounded overflow-hidden bg-black/10">
+                      <img
+                        src={att.previewUrl}
+                        alt={att.name}
+                        className="w-full h-full object-cover"
+                      />
+                      {att.status === 'uploading' && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <CircleNotch size={16} className="animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
+                  ) : att.type === 'video' ? (
+                    <div className="relative w-12 h-12 rounded overflow-hidden bg-zinc-900 flex flex-col items-center justify-center text-white">
+                      <Play size={16} weight="fill" className="text-[var(--accent-primary)]" />
+                      {att.status === 'uploading' && (
+                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                          <CircleNotch size={16} className="animate-spin text-white" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 px-1.5 py-0.5 max-w-[140px]">
+                      <FileText size={18} className="text-[var(--accent-primary)] shrink-0" />
+                      <span className="text-[11px] text-[var(--text-primary)] truncate font-medium">
+                        {att.name}
+                      </span>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAttachment(att.id)}
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-[var(--bg-chat)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-white hover:bg-rose-500 hover:border-rose-500 flex items-center justify-center transition-all cursor-pointer shadow-xs"
+                    title="Xóa tệp đính kèm"
+                  >
+                    <X size={10} weight="bold" />
+                  </button>
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-12 h-12 rounded border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)]/30 text-[var(--text-muted)] hover:text-[var(--accent-primary)] flex flex-col items-center justify-center transition-all shrink-0 cursor-pointer"
+                title="Thêm tệp khác"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+          )}
+
           {showEmojiBar && (
             <div className="flex items-center gap-2 p-1.5 mb-1 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-md shadow-md animate-in slide-in-from-bottom-2 duration-150">
               <span className="text-[0.72rem] font-bold text-[var(--text-muted)] px-1">Gợi ý:</span>
@@ -557,6 +696,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept="image/*,video/mp4,video/webm,video/quicktime,video/x-matroska,application/pdf"
                 className="hidden"
                 onChange={handleFileUpload}
@@ -566,7 +706,6 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                 className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
                 title="Đính kèm tệp / video trong thread"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
               >
                 <Paperclip size={15} />
               </button>
@@ -596,9 +735,9 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                 type="button"
                 className="bg-[var(--accent-primary)] text-white border-none px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all duration-150 flex items-center gap-1.5 shadow-[0_2px_8px_var(--accent-glow)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_14px_var(--accent-glow)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 onClick={handleSendReply}
-                disabled={!replyText.trim() || !parentMessage || sending || uploading}
+                disabled={(!replyText.trim() && pendingAttachments.length === 0) || !parentMessage || sending || pendingAttachments.some((a) => a.status === 'uploading')}
               >
-                {sending || uploading ? (
+                {sending || pendingAttachments.some((a) => a.status === 'uploading') ? (
                   <CircleNotch size={13} className="animate-spin" />
                 ) : (
                   <PaperPlaneRight size={13} weight="fill" />

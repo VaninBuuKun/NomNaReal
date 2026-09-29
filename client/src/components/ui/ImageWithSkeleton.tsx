@@ -30,7 +30,7 @@ export const ImageWithSkeleton: React.FC<ImageWithSkeletonProps> = ({
   return (
     <div
       className={cn(
-        "relative overflow-hidden shrink-0 flex items-center justify-center",
+        "relative w-full h-full overflow-hidden shrink-0 flex items-center justify-center",
         containerClassName
       )}
     >
