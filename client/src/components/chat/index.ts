@@ -8,3 +8,4 @@ export * from './DeleteMessageModal';
 export * from './MessageContent';
 export * from './ImageLightboxModal';
 export * from './ImageGalleryGrid';
+export * from './SearchSidebar';

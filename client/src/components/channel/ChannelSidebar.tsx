@@ -25,6 +25,7 @@ interface ChannelSidebarProps {
   onOpenEditWorkspace?: () => void;
   onLeaveWorkspace?: () => void;
   onOpenEditChannel?: (ch: Channel) => void;
+  onOpenAddChannelMember?: (ch: Channel) => void;
 }
 
 export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
@@ -38,6 +39,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onOpenEditWorkspace,
   onLeaveWorkspace,
   onOpenEditChannel,
+  onOpenAddChannelMember,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -261,6 +263,19 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                       <span className="truncate">{ch.name}</span>
                     </span>
                     <span className="flex items-center gap-1.5 shrink-0">
+                      {ch.isPrivate && onOpenAddChannelMember && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenAddChannelMember(ch);
+                          }}
+                          title="Thêm thành viên vào kênh riêng tư"
+                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] rounded transition-all cursor-pointer text-[var(--text-muted)]"
+                        >
+                          <UserPlus size={13} weight="bold" />
+                        </button>
+                      )}
                       {onOpenEditChannel && (
                         <button
                           type="button"
@@ -340,6 +355,19 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                       <span className="truncate">{ch.name}</span>
                     </span>
                     <span className="flex items-center gap-1.5 shrink-0">
+                      {ch.isPrivate && onOpenAddChannelMember && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenAddChannelMember(ch);
+                          }}
+                          title="Thêm thành viên vào kênh riêng tư"
+                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] rounded transition-all cursor-pointer text-[var(--text-muted)]"
+                        >
+                          <UserPlus size={13} weight="bold" />
+                        </button>
+                      )}
                       {onOpenEditChannel && (
                         <button
                           type="button"

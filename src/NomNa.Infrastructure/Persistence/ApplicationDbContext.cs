@@ -115,6 +115,8 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .HasFilter("\"Name\" IS NOT NULL");
             entity.HasIndex(e => e.LastMessageAt);
             entity.Property(e => e.Name).HasMaxLength(50);
+            entity.Property(e => e.LastMessageContent).HasMaxLength(500);
+            entity.Property(e => e.LastMessageSenderId);
 
             entity.HasOne(e => e.Workspace)
                 .WithMany(w => w.Channels)
@@ -151,6 +153,8 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             entity.HasIndex(e => e.SenderId);
             entity.Property(e => e.Content).HasMaxLength(4000).IsRequired();
             entity.Property(e => e.ReplyCount).HasDefaultValue(0);
+
+            entity.OwnsMany(e => e.Attachments, a => a.ToJson());
 
             entity.HasIndex(e => new { e.ChannelId, e.CreatedAt })
                 .HasDatabaseName("idx_messages_channel_root_created")

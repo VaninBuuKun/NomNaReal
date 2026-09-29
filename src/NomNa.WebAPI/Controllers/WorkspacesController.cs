@@ -1,17 +1,27 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using NomNa.Application.Features.Channels.Commands.CreateChannel;
 using NomNa.Application.Features.Channels.DTOs;
 using NomNa.Application.Features.Channels.Queries.GetChannels;
 using NomNa.Application.Features.Workspaces.Commands.CreateWorkspace;
 using NomNa.Application.Features.Workspaces.DTOs;
 using NomNa.Application.Features.Workspaces.Queries.GetWorkspaces;
+using NomNa.Shared.Constants;
+using NomNa.WebAPI.Hubs;
 
 namespace NomNa.WebAPI.Controllers;
 
 [Authorize]
 public class WorkspacesController : ApiControllerBase
 {
+    private readonly IHubContext<ChatHub> _hubContext;
+
+    public WorkspacesController(IHubContext<ChatHub> hubContext)
+    {
+        _hubContext = hubContext;
+    }
+
     [HttpGet]
     public async Task<IActionResult> GetWorkspaces()
     {
@@ -34,6 +44,15 @@ public class WorkspacesController : ApiControllerBase
     public async Task<IActionResult> JoinWorkspace([FromBody] NomNa.Application.Features.Workspaces.Commands.JoinWorkspace.JoinWorkspaceCommand command)
     {
         var result = await Mediator.Send(command);
+        if (result.IsSuccess && result.Value != null)
+        {
+            var ws = result.Value;
+            await _hubContext.Clients.All.SendAsync(SignalRConstants.Events.WorkspaceMemberJoined, new
+            {
+                workspaceId = ws.Id,
+                memberCount = ws.MemberCount
+            });
+        }
         return HandleResult(result);
     }
 

@@ -11,3 +11,17 @@ public record ChannelDto(
     DateTime? LastMessageAt = null,
     bool HasUnread = false
 );
+
+public record ChannelMemberDto(
+    Guid UserId,
+    string DisplayName,
+    string Username,
+    string? AvatarUrl
+);
+
+public record AddChannelMemberResultDto(
+    Guid ChannelId,
+    Guid UserId,
+    string DisplayName,
+    ChannelDto Channel
+);

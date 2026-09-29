@@ -1,8 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using NomNa.Application.Features.Channels.Commands.AddChannelMember;
+using NomNa.Application.Features.Channels.Queries.GetChannelMembers;
 using NomNa.Application.Features.Messages.Commands.SendMessage;
 using NomNa.Application.Features.Messages.DTOs;
 using NomNa.Application.Features.Messages.Queries.GetMessages;
+using NomNa.Shared.Constants;
+using NomNa.WebAPI.Hubs;
 
 namespace NomNa.WebAPI.Controllers;
 
@@ -10,6 +15,44 @@ namespace NomNa.WebAPI.Controllers;
 [Route("api/[controller]")]
 public class ChannelsController : ApiControllerBase
 {
+    private readonly IHubContext<ChatHub> _hubContext;
+
+    public ChannelsController(IHubContext<ChatHub> hubContext)
+    {
+        _hubContext = hubContext;
+    }
+
+    [HttpGet("{channelId}/members")]
+    public async Task<IActionResult> GetMembers([FromRoute] Guid channelId)
+    {
+        var result = await Mediator.Send(new GetChannelMembersQuery(channelId));
+        return HandleResult(result);
+    }
+
+    [HttpPost("{channelId}/members")]
+    public async Task<IActionResult> AddMember(
+        [FromRoute] Guid channelId,
+        [FromBody] AddChannelMemberRequest request)
+    {
+        var result = await Mediator.Send(new AddChannelMemberCommand(channelId, request.UserId));
+        if (result.IsSuccess && result.Value != null)
+        {
+            var res = result.Value;
+            // 1. Realtime notify the added user so the private channel appears on their sidebar immediately
+            await _hubContext.Clients.User(request.UserId.ToString())
+                .SendAsync(SignalRConstants.Events.AddedToChannel, res.Channel);
+
+            // 2. Realtime notify all current members inside the private channel
+            await _hubContext.Clients.Group(channelId.ToString())
+                .SendAsync(SignalRConstants.Events.ChannelMemberAdded, new
+                {
+                    channelId,
+                    userId = request.UserId,
+                    displayName = res.DisplayName
+                });
+        }
+        return HandleResult(result);
+    }
     [HttpGet("{channelId}/messages")]
     public async Task<IActionResult> GetMessages(
         [FromRoute] Guid channelId,
@@ -25,7 +68,7 @@ public class ChannelsController : ApiControllerBase
         [FromRoute] Guid channelId,
         [FromBody] SendMessageRequest request)
     {
-        var result = await Mediator.Send(new SendMessageCommand(channelId, request.Content, request.ThreadId));
+        var result = await Mediator.Send(new SendMessageCommand(channelId, request.Content, request.ThreadId, request.Attachments));
         return HandleResult(result);
     }
 
@@ -51,5 +94,6 @@ public class ChannelsController : ApiControllerBase
     }
 }
 
-public record SendMessageRequest(string Content, Guid? ThreadId = null);
+public record SendMessageRequest(string? Content, Guid? ThreadId = null, List<NomNa.Application.Features.Messages.DTOs.AttachmentInputDto>? Attachments = null);
 public record UpdateChannelRequest(string Name);
+public record AddChannelMemberRequest(Guid UserId);

@@ -57,18 +57,61 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
         if (user == null)
             return Error.Unauthorized("Auth.Unauthorized", "User not found.");
 
+        var content = (request.Content ?? string.Empty).Trim();
+
         var message = new Message
         {
             ChannelId = request.ChannelId,
             SenderId = userId.Value,
-            Content = request.Content.Trim(),
-            ThreadId = request.ThreadId
+            Content = content,
+            ThreadId = request.ThreadId,
+            Attachments = request.Attachments != null && request.Attachments.Count > 0
+                ? request.Attachments.Select(a => new MessageAttachmentItem
+                {
+                    Url = a.Url,
+                    FileName = a.FileName,
+                    FileSize = a.FileSize,
+                    ContentType = a.ContentType,
+                    Type = a.Type
+                }).ToList()
+                : new List<MessageAttachmentItem>()
         };
 
-        channel.LastMessageAt = message.CreatedAt;
+        if (request.ThreadId == null)
+        {
+            channel.LastMessageAt = DateTime.UtcNow;
+            channel.LastMessageSenderId = userId.Value;
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                channel.LastMessageContent = content.Length > 200 ? content.Substring(0, 197) + "..." : content;
+            }
+            else if (message.Attachments.Count > 0)
+            {
+                channel.LastMessageContent = message.Attachments.Any(a => a.Type == "image" || a.ContentType.StartsWith("image/"))
+                    ? "[Hình ảnh]"
+                    : "[Tệp đính kèm]";
+            }
+        }
+        else
+        {
+            var parentMessage = await _context.Messages
+                .FirstOrDefaultAsync(m => m.Id == request.ThreadId.Value, cancellationToken);
+            if (parentMessage != null)
+            {
+                parentMessage.ReplyCount++;
+            }
+        }
 
         _context.Messages.Add(message);
         await _context.SaveChangesAsync(cancellationToken);
+
+        var attachmentDtos = message.Attachments.Select(a => new MessageAttachmentDto(
+            a.Url,
+            a.FileName,
+            a.FileSize,
+            a.ContentType,
+            a.Type
+        )).ToList();
 
         return new MessageDto(
             message.Id,
@@ -80,7 +123,10 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
             message.Content,
             message.ThreadId,
             message.IsEdited,
-            message.CreatedAt
+            message.CreatedAt,
+            message.ReplyCount,
+            null,
+            attachmentDtos
         );
     }
 }

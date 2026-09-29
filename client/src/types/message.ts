@@ -5,11 +5,31 @@ export interface ReactionGroup {
   hasReacted: boolean;
 }
 
+export interface ReactionToggled {
+  messageId: string;
+  channelId: string;
+  threadId?: string | null;
+  userId: string;
+  emoji: string;
+  isAdded: boolean;
+}
+
 export interface ReactionUpdate {
   messageId: string;
   channelId: string;
   threadId?: string | null;
-  reactions: ReactionGroup[];
+  reactions?: ReactionGroup[];
+  userId?: string;
+  emoji?: string;
+  isAdded?: boolean;
+}
+
+export interface MessageAttachment {
+  url: string;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+  type: 'image' | 'video' | 'file';
 }
 
 export interface DeletedMessage {
@@ -40,6 +60,7 @@ export interface Message {
   createdAt: string;
   replyCount?: number;
   reactions?: ReactionGroup[];
+  attachments?: MessageAttachment[];
 }
 
 export interface ThreadDetails {

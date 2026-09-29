@@ -15,6 +15,9 @@ public static class SignalRConstants
         public const string UserTyping = "UserTyping";
         public const string UserStoppedTyping = "UserStoppedTyping";
         public const string UserStatusChanged = "UserStatusChanged";
+        public const string AddedToChannel = "AddedToChannel";
+        public const string ChannelMemberAdded = "ChannelMemberAdded";
+        public const string WorkspaceMemberJoined = "WorkspaceMemberJoined";
     }
 
     public static class Methods

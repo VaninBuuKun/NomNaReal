@@ -7,4 +7,4 @@ namespace NomNa.Application.Features.Messages.Commands.ToggleReaction;
 public record ToggleReactionCommand(
     Guid MessageId,
     string Emoji
-) : IRequest<Result<ReactionUpdateDto>>;
+) : IRequest<Result<ReactionToggledDto>>;

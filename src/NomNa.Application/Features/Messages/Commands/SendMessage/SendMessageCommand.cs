@@ -6,6 +6,7 @@ namespace NomNa.Application.Features.Messages.Commands.SendMessage;
 
 public record SendMessageCommand(
     Guid ChannelId,
-    string Content,
-    Guid? ThreadId = null
+    string? Content,
+    Guid? ThreadId = null,
+    List<AttachmentInputDto>? Attachments = null
 ) : IRequest<Result<MessageDto>>;

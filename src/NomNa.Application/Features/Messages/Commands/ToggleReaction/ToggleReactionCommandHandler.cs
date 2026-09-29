@@ -7,7 +7,7 @@ using NomNa.Domain.Entities;
 
 namespace NomNa.Application.Features.Messages.Commands.ToggleReaction;
 
-public class ToggleReactionCommandHandler : IRequestHandler<ToggleReactionCommand, Result<ReactionUpdateDto>>
+public class ToggleReactionCommandHandler : IRequestHandler<ToggleReactionCommand, Result<ReactionToggledDto>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -18,7 +18,7 @@ public class ToggleReactionCommandHandler : IRequestHandler<ToggleReactionComman
         _currentUserService = currentUserService;
     }
 
-    public async Task<Result<ReactionUpdateDto>> Handle(ToggleReactionCommand request, CancellationToken cancellationToken)
+    public async Task<Result<ReactionToggledDto>> Handle(ToggleReactionCommand request, CancellationToken cancellationToken)
     {
         var userId = _currentUserService.UserId;
         if (!userId.HasValue)
@@ -56,9 +56,11 @@ public class ToggleReactionCommandHandler : IRequestHandler<ToggleReactionComman
         var existingReaction = await _context.MessageReactions
             .FirstOrDefaultAsync(r => r.MessageId == request.MessageId && r.UserId == userId.Value && r.Emoji == emoji, cancellationToken);
 
+        bool isAdded;
         if (existingReaction != null)
         {
             _context.MessageReactions.Remove(existingReaction);
+            isAdded = false;
         }
         else
         {
@@ -69,30 +71,18 @@ public class ToggleReactionCommandHandler : IRequestHandler<ToggleReactionComman
                 Emoji = emoji
             };
             _context.MessageReactions.Add(newReaction);
+            isAdded = true;
         }
 
         await _context.SaveChangesAsync(cancellationToken);
 
-        // Fetch updated reaction groups for this message
-        var reactions = await _context.MessageReactions
-            .Where(r => r.MessageId == request.MessageId)
-            .ToListAsync(cancellationToken);
-
-        var reactionGroups = reactions
-            .GroupBy(r => r.Emoji)
-            .Select(g => new ReactionGroupDto(
-                g.Key,
-                g.Count(),
-                g.Select(r => r.UserId).ToList(),
-                g.Any(r => r.UserId == userId.Value)
-            ))
-            .ToList();
-
-        return new ReactionUpdateDto(
+        return new ReactionToggledDto(
             message.Id,
             message.ChannelId,
             message.ThreadId,
-            reactionGroups
+            userId.Value,
+            emoji,
+            isAdded
         );
     }
 }

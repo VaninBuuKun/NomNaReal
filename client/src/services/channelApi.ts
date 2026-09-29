@@ -40,4 +40,17 @@ export const channelApi = {
   deleteChannel: async (channelId: string): Promise<void> => {
     await httpClient.delete(`/channels/${channelId}`);
   },
+
+  getMembers: async (
+    channelId: string
+  ): Promise<Array<{ userId: string; displayName: string; username: string; avatarUrl?: string }>> => {
+    const res = await httpClient.get<Array<{ userId: string; displayName: string; username: string; avatarUrl?: string }>>(
+      `/channels/${channelId}/members`
+    );
+    return res.data;
+  },
+
+  addMember: async (channelId: string, userId: string): Promise<void> => {
+    await httpClient.post(`/channels/${channelId}/members`, { userId });
+  },
 };

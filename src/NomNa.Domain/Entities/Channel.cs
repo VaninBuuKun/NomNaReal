@@ -13,6 +13,8 @@ public class Channel : BaseEntity
     public bool IsPrivate { get; set; } = false;
     public Guid CreatedById { get; set; }
     public DateTime? LastMessageAt { get; set; }
+    public string? LastMessageContent { get; set; }
+    public Guid? LastMessageSenderId { get; set; }
 
     public ICollection<ChannelMember> Members { get; set; } = new List<ChannelMember>();
     public ICollection<Message> Messages { get; set; } = new List<Message>();

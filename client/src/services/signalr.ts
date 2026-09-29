@@ -1,5 +1,5 @@
 import * as signalR from '@microsoft/signalr';
-import type { Message, MessageEdited, ReactionUpdate, DeletedMessage } from '../types';
+import type { Message, MessageEdited, ReactionUpdate, DeletedMessage, Channel } from '../types';
 
 export class SignalRService {
   private connection: signalR.HubConnection | null = null;
@@ -154,6 +154,42 @@ export class SignalRService {
     }
   }
 
+  public onAddedToChannel(callback: (channel: Channel) => void): void {
+    if (this.connection) {
+      this.connection.on('AddedToChannel', callback);
+    }
+  }
+
+  public offAddedToChannel(callback: (channel: Channel) => void): void {
+    if (this.connection) {
+      this.connection.off('AddedToChannel', callback);
+    }
+  }
+
+  public onChannelMemberAdded(callback: (data: { channelId: string; userId: string; displayName: string }) => void): void {
+    if (this.connection) {
+      this.connection.on('ChannelMemberAdded', callback);
+    }
+  }
+
+  public offChannelMemberAdded(callback: (data: any) => void): void {
+    if (this.connection) {
+      this.connection.off('ChannelMemberAdded', callback);
+    }
+  }
+
+  public onWorkspaceMemberJoined(callback: (data: { workspaceId: string; memberCount: number }) => void): void {
+    if (this.connection) {
+      this.connection.on('WorkspaceMemberJoined', callback);
+    }
+  }
+
+  public offWorkspaceMemberJoined(callback: (data: any) => void): void {
+    if (this.connection) {
+      this.connection.off('WorkspaceMemberJoined', callback);
+    }
+  }
+
   public async getOnlineUsers(): Promise<string[]> {
     if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
       return [];
@@ -166,11 +202,16 @@ export class SignalRService {
     }
   }
 
-  public async sendMessage(channelId: string, content: string, threadId?: string): Promise<Message | null> {
+  public async sendMessage(
+    channelId: string,
+    content: string,
+    threadId?: string,
+    attachments?: Array<{ url: string; fileName: string; fileSize: number; contentType: string; type: string }>
+  ): Promise<Message | null> {
     if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
       return null;
     }
-    return await this.connection.invoke('SendMessage', channelId, content, threadId || null);
+    return await this.connection.invoke('SendMessage', channelId, content, threadId || null, attachments || null);
   }
 
   public async editMessage(messageId: string, content: string): Promise<MessageEdited | null> {

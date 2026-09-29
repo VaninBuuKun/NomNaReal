@@ -7,6 +7,7 @@ import {
   WechatLogoIcon,
 } from '@phosphor-icons/react';
 import type { DirectMessageUser } from './NewDirectMessageModal';
+import { useChatStore } from '../../stores';
 
 export interface DirectMessageItem {
   id: string; // DM channel ID or temporary conversation ID
@@ -34,6 +35,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
   onRemoveConversation: _onRemoveConversation,
 }) => {
   const [filterQuery, setFilterQuery] = useState('');
+  const drafts = useChatStore((state) => state.drafts);
 
   const filteredConversations = useMemo(() => {
     const term = filterQuery.trim().toLowerCase();
@@ -190,7 +192,18 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
 
                   <div className="flex items-center justify-between gap-1 mt-0.5">
                     <span className="text-[11px] text-[var(--text-muted)] truncate">
-                      {item.lastMessage || 'Bắt đầu cuộc trò chuyện'}
+                      {(() => {
+                        const draft = (drafts[item.id] || '').trim();
+                        if (draft) {
+                          return (
+                            <span className="text-amber-500 italic">
+                              <span className="font-semibold not-italic">Bản nháp: </span>
+                              {draft}
+                            </span>
+                          );
+                        }
+                        return item.lastMessage || 'Bắt đầu cuộc trò chuyện';
+                      })()}
                     </span>
 
                     {/* Unread badge */}

@@ -1,5 +1,21 @@
 namespace NomNa.Application.Features.Messages.DTOs;
 
+public record MessageAttachmentDto(
+    string Url,
+    string FileName,
+    long FileSize,
+    string ContentType,
+    string Type
+);
+
+public record AttachmentInputDto(
+    string Url,
+    string FileName,
+    long FileSize,
+    string ContentType,
+    string Type
+);
+
 public record MessageDto(
     Guid Id,
     Guid ChannelId,
@@ -12,7 +28,17 @@ public record MessageDto(
     bool IsEdited,
     DateTime CreatedAt,
     int ReplyCount = 0,
-    List<ReactionGroupDto>? Reactions = null
+    List<ReactionGroupDto>? Reactions = null,
+    List<MessageAttachmentDto>? Attachments = null
+);
+
+public record ReactionToggledDto(
+    Guid MessageId,
+    Guid ChannelId,
+    Guid? ThreadId,
+    Guid UserId,
+    string Emoji,
+    bool IsAdded
 );
 
 public record ReactionGroupDto(

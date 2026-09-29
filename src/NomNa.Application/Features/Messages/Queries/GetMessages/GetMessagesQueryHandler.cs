@@ -75,7 +75,8 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
                 m.ThreadId,
                 m.IsEdited,
                 m.CreatedAt,
-                m.ReplyCount
+                m.ReplyCount,
+                m.Attachments
             })
             .ToListAsync(cancellationToken);
 
@@ -125,7 +126,16 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
             m.IsEdited,
             m.CreatedAt,
             m.ReplyCount,
-            reactionsByMessage.GetValueOrDefault(m.Id) ?? new List<ReactionGroupDto>()
+            reactionsByMessage.GetValueOrDefault(m.Id) ?? new List<ReactionGroupDto>(),
+            m.Attachments != null
+                ? m.Attachments.Select(a => new MessageAttachmentDto(
+                    a.Url,
+                    a.FileName,
+                    a.FileSize,
+                    a.ContentType,
+                    a.Type
+                )).ToList()
+                : new List<MessageAttachmentDto>()
         )).ToList();
 
         // Reverse so client receives chronological order (oldest to newest)

@@ -22,4 +22,5 @@ public class Message : BaseEntity
 
     public ICollection<Message> Replies { get; set; } = new List<Message>();
     public ICollection<MessageReaction> Reactions { get; set; } = new List<MessageReaction>();
+    public List<MessageAttachmentItem> Attachments { get; set; } = new();
 }

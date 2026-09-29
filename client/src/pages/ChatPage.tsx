@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { WorkspaceRail, CreateWorkspaceModal, EditWorkspaceModal, KickMemberModal } from '../components/workspace';
-import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel, EditChannelModal } from '../components/channel';
+import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel, EditChannelModal, AddChannelMemberModal } from '../components/channel';
 import { DirectMessagesSidebar, NewDirectMessageModal, type DirectMessageItem, type DirectMessageUser } from '../components/dm';
-import { ChatArea } from '../components/chat';
+import { ChatArea, SearchSidebar } from '../components/chat';
 import { ThreadPanel } from '../components/thread';
 import { SettingsModal } from '../components/settings';
 import { authApi, workspaceApi, channelApi, messageApi, signalRService } from '../services';
@@ -20,6 +20,8 @@ import {
   MAX_THREAD_WIDTH,
   MIN_MEMBER_WIDTH,
   MAX_MEMBER_WIDTH,
+  MIN_SEARCH_WIDTH,
+  MAX_SEARCH_WIDTH,
 } from '../stores';
 
 export const ChatPage: React.FC = () => {
@@ -66,6 +68,7 @@ export const ChatPage: React.FC = () => {
     updateMessage,
     deleteMessage,
     setReactions,
+    applyReactionDelta,
     updateReplyCount,
     markChannelRead,
     setChannelUnread,
@@ -77,6 +80,9 @@ export const ChatPage: React.FC = () => {
 
   const activeChannelIdRef = useRef<string | null>(null);
   activeChannelIdRef.current = activeChannelId;
+
+  const activeWorkspaceIdRef = useRef<string | null>(null);
+  activeWorkspaceIdRef.current = activeWorkspaceId;
 
   // 3. DM Store
   const {
@@ -98,15 +104,18 @@ export const ChatPage: React.FC = () => {
     isThreadOpen,
     activeThreadMessage,
     isMemberListOpen,
+    isSearchOpen,
     channelWidth,
     threadWidth,
     memberWidth,
+    searchWidth,
     isSettingsOpen,
     isCreateWorkspaceOpen,
     isEditWorkspaceOpen,
     isCreateChannelOpen,
     createChannelType,
     channelToEdit,
+    channelToAddMember,
     isNewDmOpen,
     memberToKick,
     setActiveSidebarView,
@@ -114,20 +123,49 @@ export const ChatPage: React.FC = () => {
     closeThread,
     toggleMemberList,
     setMemberListOpen,
+    closeSearch,
     setSettingsOpen,
     setCreateWorkspaceOpen,
     setEditWorkspaceOpen,
     setCreateChannelOpen,
     setChannelToEdit,
+    setChannelToAddMember,
     setNewDmOpen,
     setMemberToKick,
     setChannelWidth,
     setThreadWidth,
     setMemberWidth,
+    setSearchWidth,
     expandThread,
   } = useUiStore();
 
+  const [isResizingSearch, setIsResizingSearch] = useState(false);
+
   // Resize Drag Handlers
+  const handleSearchResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingSearch(true);
+    const startX = e.clientX;
+    const startWidth = searchWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(
+        MIN_SEARCH_WIDTH,
+        Math.min(MAX_SEARCH_WIDTH, startWidth + (startX - moveEvent.clientX))
+      );
+      setSearchWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      setIsResizingSearch(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
   const handleChannelResizeStart = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsResizingChannel(true);
@@ -395,7 +433,11 @@ export const ChatPage: React.FC = () => {
 
       // Listen for reactions
       signalRService.onReactionUpdated((update) => {
-        setReactions(update.messageId, update.reactions);
+        if ('isAdded' in update && update.emoji) {
+          applyReactionDelta(update as any, currentUser?.id);
+        } else if (update.reactions) {
+          setReactions(update.messageId, update.reactions);
+        }
       });
 
       // Listen for edits
@@ -412,6 +454,24 @@ export const ChatPage: React.FC = () => {
       signalRService.onUserStatusChanged((data) => {
         const normalized = data.status.toLowerCase() as 'online' | 'offline' | 'away' | 'dnd';
         updateUserStatus(data.userId, normalized);
+      });
+
+      // Listen for being added to a private channel
+      signalRService.onAddedToChannel((newChannel) => {
+        if (newChannel.workspaceId === activeWorkspaceIdRef.current) {
+          setChannels((prev) => {
+            if (prev.some((c) => c.id === newChannel.id)) return prev;
+            return [...prev, newChannel];
+          });
+        }
+      });
+
+      // Listen for new workspace members joining
+      signalRService.onWorkspaceMemberJoined((data) => {
+        const currentWs = useWorkspaceStore.getState().workspaces.find((w) => w.id === data.workspaceId);
+        if (currentWs) {
+          updateWorkspace({ ...currentWs, memberCount: data.memberCount });
+        }
       });
 
       // Load Workspaces
@@ -477,7 +537,10 @@ export const ChatPage: React.FC = () => {
   };
 
   // Optimistic Message Sending
-  const handleSendMessage = async (content: string) => {
+  const handleSendMessage = async (
+    content: string,
+    attachments?: Array<{ url: string; fileName: string; fileSize: number; contentType: string; type: 'image' | 'video' | 'file' }>
+  ) => {
     if (!activeChannelId || !currentUser) return;
     let targetChannelId = activeChannelId;
 
@@ -512,24 +575,26 @@ export const ChatPage: React.FC = () => {
       createdAt: new Date().toISOString(),
       replyCount: 0,
       reactions: [],
+      attachments: attachments || [],
     };
 
     addMessage(optimisticMsg);
+    const snippetText = content || (attachments && attachments.length > 0 ? '[Hình ảnh]' : '');
     updateDmSnippet(
       targetChannelId,
-      content,
+      snippetText,
       new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     );
 
     // 2. Dispatch to server
     try {
-      const msg = await signalRService.sendMessage(targetChannelId, content);
+      const msg = await signalRService.sendMessage(targetChannelId, content, undefined, attachments);
       if (msg) {
         setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)));
       }
     } catch {
       try {
-        const msg = await messageApi.sendMessage(targetChannelId, content);
+        const msg = await messageApi.sendMessage(targetChannelId, content, undefined, attachments);
         setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)));
       } catch (sendErr) {
         console.error('Failed to send message:', sendErr);
@@ -845,6 +910,7 @@ export const ChatPage: React.FC = () => {
                 onOpenEditWorkspace={() => setEditWorkspaceOpen(true)}
                 onLeaveWorkspace={handleLeaveWorkspace}
                 onOpenEditChannel={(ch) => setChannelToEdit(ch)}
+                onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
               />
             ) : (
               <DirectMessagesSidebar
@@ -970,6 +1036,42 @@ export const ChatPage: React.FC = () => {
             />
           </>
         )}
+
+        {/* 5. Resizer Divider & Search Sidebar (Mutually Exclusive) */}
+        {!isThreadOpen && !isMemberListOpen && isSearchOpen && (
+          <>
+            <div
+              className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+                isResizingSearch
+                  ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
+                  : 'bg-[var(--border-color)]'
+              }`}
+              onMouseDown={handleSearchResizeStart}
+              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tìm kiếm"
+            />
+            <SearchSidebar
+              isOpen={isSearchOpen}
+              onClose={closeSearch}
+              width={searchWidth}
+              currentChannel={currentChannel}
+              workspaceId={activeWorkspaceId}
+              workspaceMembers={workspaceMembers}
+              onJumpToMessage={(channelId, messageId) => {
+                if (channelId !== activeChannelId) {
+                  setActiveChannelId(channelId);
+                }
+                setTimeout(() => {
+                  const el = document.getElementById(`msg-${messageId}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('bg-[var(--accent-soft)]');
+                    setTimeout(() => el.classList.remove('bg-[var(--accent-soft)]'), 2000);
+                  }
+                }, 300);
+              }}
+            />
+          </>
+        )}
       </main>
 
       {/* Modals */}
@@ -1010,6 +1112,13 @@ export const ChatPage: React.FC = () => {
         channel={channelToEdit}
         onChannelUpdated={handleChannelUpdated}
         onChannelDeleted={handleChannelDeleted}
+      />
+
+      <AddChannelMemberModal
+        isOpen={!!channelToAddMember}
+        onClose={() => setChannelToAddMember(null)}
+        channel={channelToAddMember}
+        members={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
       />
 
       <NewDirectMessageModal

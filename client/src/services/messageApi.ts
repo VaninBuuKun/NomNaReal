@@ -9,8 +9,30 @@ export const messageApi = {
     return res.data;
   },
 
-  sendMessage: async (channelId: string, content: string, threadId?: string): Promise<Message> => {
-    const res = await httpClient.post<Message>(`/channels/${channelId}/messages`, { content, threadId });
+  sendMessage: async (
+    channelId: string,
+    content?: string,
+    threadId?: string | null,
+    attachments?: Array<{ url: string; fileName: string; fileSize: number; contentType: string; type: string }>
+  ): Promise<Message> => {
+    const res = await httpClient.post<Message>(`/channels/${channelId}/messages`, {
+      content: content || '',
+      threadId,
+      attachments,
+    });
+    return res.data;
+  },
+
+  searchMessages: async (params: {
+    workspaceId: string;
+    keyword?: string;
+    channelId?: string;
+    senderId?: string;
+    fromDate?: string;
+    toDate?: string;
+    limit?: number;
+  }): Promise<Message[]> => {
+    const res = await httpClient.get<Message[]>('/messages/search', { params });
     return res.data;
   },
 

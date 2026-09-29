@@ -10,12 +10,16 @@ export const DEFAULT_THREAD_WIDTH = 480;
 export const MIN_MEMBER_WIDTH = 260;
 export const MAX_MEMBER_WIDTH = 480;
 export const DEFAULT_MEMBER_WIDTH = 270;
+export const MIN_SEARCH_WIDTH = 320;
+export const MAX_SEARCH_WIDTH = 600;
+export const DEFAULT_SEARCH_WIDTH = 380;
 
 interface UiState {
   activeSidebarView: 'channels' | 'dms';
   isThreadOpen: boolean;
   activeThreadMessage: Message | null;
   isMemberListOpen: boolean;
+  isSearchOpen: boolean;
 
   // Modals
   isSettingsOpen: boolean;
@@ -24,6 +28,7 @@ interface UiState {
   isCreateChannelOpen: boolean;
   createChannelType: ChannelType;
   channelToEdit: Channel | null;
+  channelToAddMember: Channel | null;
   isNewDmOpen: boolean;
   memberToKick: DirectMessageUser | null;
 
@@ -31,6 +36,7 @@ interface UiState {
   channelWidth: number;
   threadWidth: number;
   memberWidth: number;
+  searchWidth: number;
 
   // Actions
   setActiveSidebarView: (view: 'channels' | 'dms') => void;
@@ -38,12 +44,17 @@ interface UiState {
   closeThread: () => void;
   toggleMemberList: () => void;
   setMemberListOpen: (open: boolean) => void;
+  openSearch: () => void;
+  closeSearch: () => void;
+  toggleSearch: () => void;
+  setSearchWidth: (width: number) => void;
 
   setSettingsOpen: (open: boolean) => void;
   setCreateWorkspaceOpen: (open: boolean) => void;
   setEditWorkspaceOpen: (open: boolean) => void;
   setCreateChannelOpen: (open: boolean, type?: ChannelType) => void;
   setChannelToEdit: (channel: Channel | null) => void;
+  setChannelToAddMember: (channel: Channel | null) => void;
   setNewDmOpen: (open: boolean) => void;
   setMemberToKick: (member: DirectMessageUser | null) => void;
 
@@ -58,6 +69,7 @@ export const useUiStore = create<UiState>((set) => ({
   isThreadOpen: false,
   activeThreadMessage: null,
   isMemberListOpen: localStorage.getItem('nomna_member_list_open') !== 'false',
+  isSearchOpen: false,
 
   isSettingsOpen: false,
   isCreateWorkspaceOpen: false,
@@ -65,6 +77,7 @@ export const useUiStore = create<UiState>((set) => ({
   isCreateChannelOpen: false,
   createChannelType: ChannelType.Text,
   channelToEdit: null,
+  channelToAddMember: null,
   isNewDmOpen: false,
   memberToKick: null,
 
@@ -89,14 +102,22 @@ export const useUiStore = create<UiState>((set) => ({
       : DEFAULT_MEMBER_WIDTH;
   })(),
 
+  searchWidth: (() => {
+    const saved = localStorage.getItem('nomna_search_width');
+    return saved
+      ? Math.max(MIN_SEARCH_WIDTH, Math.min(MAX_SEARCH_WIDTH, parseInt(saved, 10)))
+      : DEFAULT_SEARCH_WIDTH;
+  })(),
+
   setActiveSidebarView: (view) => set({ activeSidebarView: view }),
 
   openThread: (message) =>
     set({
       isThreadOpen: true,
       activeThreadMessage: message,
-      // Mutual exclusivity: opening thread closes member list
+      // Mutual exclusivity: opening thread closes member list and search
       isMemberListOpen: false,
+      isSearchOpen: false,
     }),
 
   closeThread: () =>
@@ -111,8 +132,8 @@ export const useUiStore = create<UiState>((set) => ({
       localStorage.setItem('nomna_member_list_open', String(next));
       return {
         isMemberListOpen: next,
-        // Mutual exclusivity: opening member list closes thread
-        ...(next ? { isThreadOpen: false, activeThreadMessage: null } : {}),
+        // Mutual exclusivity: opening member list closes thread and search
+        ...(next ? { isThreadOpen: false, activeThreadMessage: null, isSearchOpen: false } : {}),
       };
     }),
 
@@ -121,12 +142,43 @@ export const useUiStore = create<UiState>((set) => ({
     set({ isMemberListOpen: open });
   },
 
+  openSearch: () =>
+    set({
+      isSearchOpen: true,
+      isThreadOpen: false,
+      activeThreadMessage: null,
+      isMemberListOpen: false,
+    }),
+
+  closeSearch: () => set({ isSearchOpen: false }),
+
+  toggleSearch: () =>
+    set((state) => {
+      const next = !state.isSearchOpen;
+      return {
+        isSearchOpen: next,
+        ...(next
+          ? {
+              isThreadOpen: false,
+              activeThreadMessage: null,
+              isMemberListOpen: false,
+            }
+          : {}),
+      };
+    }),
+
+  setSearchWidth: (width) => {
+    localStorage.setItem('nomna_search_width', width.toString());
+    set({ searchWidth: width });
+  },
+
   setSettingsOpen: (open) => set({ isSettingsOpen: open }),
   setCreateWorkspaceOpen: (open) => set({ isCreateWorkspaceOpen: open }),
   setEditWorkspaceOpen: (open) => set({ isEditWorkspaceOpen: open }),
   setCreateChannelOpen: (open, type = ChannelType.Text) =>
     set({ isCreateChannelOpen: open, createChannelType: type }),
   setChannelToEdit: (channel) => set({ channelToEdit: channel }),
+  setChannelToAddMember: (channel) => set({ channelToAddMember: channel }),
   setNewDmOpen: (open) => set({ isNewDmOpen: open }),
   setMemberToKick: (member) => set({ memberToKick: member }),
 

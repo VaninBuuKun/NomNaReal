@@ -74,7 +74,14 @@ public class GetThreadRepliesQueryHandler : IRequestHandler<GetThreadRepliesQuer
                         g.Select(r => r.UserId).ToList(),
                         g.Any(r => r.UserId == userId.Value)
                     ))
-                    .ToList()
+                    .ToList(),
+                m.Attachments.Select(a => new MessageAttachmentDto(
+                    a.Url,
+                    a.FileName,
+                    a.FileSize,
+                    a.ContentType,
+                    a.Type
+                )).ToList()
             ))
             .ToListAsync(cancellationToken);
 
@@ -101,7 +108,14 @@ public class GetThreadRepliesQueryHandler : IRequestHandler<GetThreadRepliesQuer
             parent.IsEdited,
             parent.CreatedAt,
             parent.ReplyCount,
-            parentReactions
+            parentReactions,
+            parent.Attachments.Select(a => new MessageAttachmentDto(
+                a.Url,
+                a.FileName,
+                a.FileSize,
+                a.ContentType,
+                a.Type
+            )).ToList()
         );
 
         return new ThreadDetailsDto(parentDto, replies);

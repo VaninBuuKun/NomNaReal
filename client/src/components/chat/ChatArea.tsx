@@ -27,6 +27,8 @@ import { MessageContent } from "./MessageContent";
 import { EmojiPickerPopover } from "./EmojiPickerPopover";
 import { GifPicker } from "./GifPicker";
 import { DeleteMessageModal } from "./DeleteMessageModal";
+import { ImageGalleryGrid } from "./ImageGalleryGrid";
+import { useChatStore, useUiStore } from "../../stores";
 
 interface PendingAttachment {
   id: string;
@@ -49,7 +51,10 @@ interface ChatAreaProps {
   currentChannel: Channel | null;
   messages: Message[];
   currentUser: User | null;
-  onSendMessage: (content: string) => Promise<void>;
+  onSendMessage: (
+    content: string,
+    attachments?: Array<{ url: string; fileName: string; fileSize: number; contentType: string; type: "image" | "video" | "file" }>
+  ) => Promise<void>;
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
   onToggleReaction?: (messageId: string, emoji: string) => Promise<void>;
@@ -100,11 +105,28 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   isMemberListOpen = false,
   onToggleMemberList,
 }) => {
+  const drafts = useChatStore((state) => state.drafts);
+  const setDraft = useChatStore((state) => state.setDraft);
+  const clearDraft = useChatStore((state) => state.clearDraft);
+
+  const isSearchOpen = useUiStore((state) => state.isSearchOpen);
+  const toggleSearch = useUiStore((state) => state.toggleSearch);
+
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
+
+  // Sync draft when active channel changes
+  useEffect(() => {
+    if (currentChannel?.id) {
+      setContent(drafts[currentChannel.id] || "");
+    } else {
+      setContent("");
+    }
+    setPendingAttachments([]);
+  }, [currentChannel?.id]);
 
   // Delete message modal state
   const [deleteModalState, setDeleteModalState] = useState<{
@@ -246,7 +268,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
+    const val = e.target.value;
+    setContent(val);
+    if (currentChannel?.id) {
+      if (val.trim()) {
+        setDraft(currentChannel.id, val);
+      } else {
+        clearDraft(currentChannel.id);
+      }
+    }
     onStartTyping();
 
     if (typingTimeoutRef.current) {
@@ -279,26 +309,25 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       return;
     }
 
-    // Combine text and attachments
-    let messagePayload = text;
-    const readyAttachments = pendingAttachments.filter((a) => a.status === "ready" && a.uploadedUrl);
+    const readyAttachments = pendingAttachments
+      .filter((a) => a.status === "ready" && a.uploadedUrl)
+      .map((a) => ({
+        url: a.uploadedUrl!,
+        fileName: a.name,
+        fileSize: a.size,
+        contentType: a.file.type || "application/octet-stream",
+        type: a.type as "image" | "video" | "file",
+      }));
 
-    for (const att of readyAttachments) {
-      if (att.type === "image") {
-        messagePayload = `${messagePayload ? messagePayload + "\n" : ""}![${att.name}](${att.uploadedUrl})`;
-      } else if (att.type === "video") {
-        messagePayload = `${messagePayload ? messagePayload + "\n" : ""}[video:${att.name}](${att.uploadedUrl})`;
-      } else {
-        messagePayload = `${messagePayload ? messagePayload + "\n" : ""}[file:${att.name}](${att.uploadedUrl})`;
-      }
-    }
-
-    if (!messagePayload.trim()) return;
+    if (!text && readyAttachments.length === 0) return;
 
     setSending(true);
     try {
-      await onSendMessage(messagePayload);
+      await onSendMessage(text, readyAttachments);
       setContent("");
+      if (currentChannel?.id) {
+        clearDraft(currentChannel.id);
+      }
       pendingAttachments.forEach((a) => {
         if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
       });
@@ -497,10 +526,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-            title="Tìm kiếm"
+            onClick={toggleSearch}
+            className={`p-1.5 rounded-md transition-colors cursor-pointer inline-flex items-center justify-center ${
+              isSearchOpen
+                ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
+            }`}
+            title={isSearchOpen ? "Đóng tìm kiếm" : "Tìm kiếm tin nhắn"}
           >
-            <MagnifyingGlass size={17} />
+            <MagnifyingGlass size={17} weight={isSearchOpen ? "bold" : "regular"} />
           </button>
           <button
             type="button"
@@ -588,6 +622,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         {messages.map((msg, index) => {
           const prevMsg = index > 0 ? messages[index - 1] : undefined;
           const showDateDivider = isDifferentDay(msg.createdAt, prevMsg?.createdAt);
+          const isSameSender = prevMsg && prevMsg.senderId === msg.senderId;
+          const timeDiffMin = prevMsg
+            ? (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) / 60000
+            : 999;
+          const isConsecutive = !showDateDivider && isSameSender && timeDiffMin <= 5;
           const isMe = currentUser && (msg.senderId === currentUser.id || msg.senderUsername === currentUser.username);
           const isEditingThis = editingMessageId === msg.id;
           const timeStr = new Date(msg.createdAt).toLocaleTimeString([], {
@@ -610,9 +649,19 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               )}
 
               <div
-                className="group relative flex gap-3 px-3 py-2 rounded-md transition-all duration-150 hover:bg-[var(--bg-surface)]"
+                id={`msg-${msg.id}`}
+                className={`group relative flex gap-3 px-3 rounded-md transition-all duration-150 hover:bg-[var(--bg-surface)] ${
+                  isConsecutive ? "py-0.5" : "py-1.5 mt-1"
+                }`}
               >
-                  {/* Sender Avatar */}
+                {/* Left Gutter: Avatar (if new block) OR hover timestamp (if consecutive) */}
+                {isConsecutive ? (
+                  <div className="w-9 shrink-0 flex items-center justify-end select-none">
+                    <span className="opacity-0 group-hover:opacity-100 text-[10px] text-[var(--text-muted)] font-mono pr-1.5 transition-opacity">
+                      {timeStr}
+                    </span>
+                  </div>
+                ) : (
                   <div
                     onClick={(e) => {
                       if (currentChannel?.type === ChannelType.DirectMessage) return;
@@ -642,9 +691,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                       }}
                     />
                   </div>
+                )}
 
-                  <div className="flex-1 min-w-0 flex flex-col gap-0.75">
-                    {/* Header: Name, Badge, Time, Edited Tag */}
+                <div className="flex-1 min-w-0 flex flex-col gap-0.75">
+                  {/* Header: Name, Badge, Time, Edited Tag (ONLY if !isConsecutive) */}
+                  {!isConsecutive && (
                     <div className="flex items-baseline gap-2">
                       <span className="text-[0.9rem] font-semibold text-[var(--text-primary)]">
                         {msg.senderDisplayName}
@@ -687,53 +738,108 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                         </span>
                       )}
                     </div>
+                  )}
 
-                    {/* Message Content or Inline Edit Box */}
-                    {isEditingThis ? (
-                      <div className="mt-1 flex flex-col gap-2 p-2 rounded-md bg-[var(--bg-chat)] border border-[var(--accent-primary)] shadow-sm">
-                        <textarea
-                          value={editContent}
-                          onChange={(e) => setEditContent(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              saveEdit();
-                            } else if (e.key === "Escape") {
-                              setEditingMessageId(null);
-                            }
-                          }}
-                          rows={2}
-                          autoFocus
-                          className="bg-transparent border-none outline-none text-[0.92rem] text-[var(--text-primary)] resize-none w-full"
-                        />
-                        <div className="flex items-center justify-between text-xs pt-1 border-t border-[var(--border-color)]">
-                          <span className="text-[11px] text-[var(--text-muted)]">
-                            Enter để lưu · Escape để huỷ
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setEditingMessageId(null)}
-                              className="px-2.5 py-1 rounded text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] cursor-pointer"
-                            >
-                              Huỷ
-                            </button>
-                            <button
-                              type="button"
-                              onClick={saveEdit}
-                              disabled={isSavingEdit || !editContent.trim()}
-                              className="px-3 py-1 rounded text-xs font-semibold bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] cursor-pointer disabled:opacity-50"
-                            >
-                              {isSavingEdit ? "Đang lưu..." : "Lưu thay đổi"}
-                            </button>
-                          </div>
+                  {/* Message Content or Inline Edit Box */}
+                  {isEditingThis ? (
+                    <div className="mt-1 flex flex-col gap-2 p-2 rounded-md bg-[var(--bg-chat)] border border-[var(--accent-primary)] shadow-sm">
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            saveEdit();
+                          } else if (e.key === "Escape") {
+                            setEditingMessageId(null);
+                          }
+                        }}
+                        rows={2}
+                        autoFocus
+                        className="bg-transparent border-none outline-none text-[0.92rem] text-[var(--text-primary)] resize-none w-full"
+                      />
+                      <div className="flex items-center justify-between text-xs pt-1 border-t border-[var(--border-color)]">
+                        <span className="text-[11px] text-[var(--text-muted)]">
+                          Enter để lưu · Escape để huỷ
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditingMessageId(null)}
+                            className="px-2.5 py-1 rounded text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] cursor-pointer"
+                          >
+                            Huỷ
+                          </button>
+                          <button
+                            type="button"
+                            onClick={saveEdit}
+                            disabled={isSavingEdit || !editContent.trim()}
+                            className="px-3 py-1 rounded text-xs font-semibold bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] cursor-pointer disabled:opacity-50"
+                          >
+                            {isSavingEdit ? "Đang lưu..." : "Lưu thay đổi"}
+                          </button>
                         </div>
                       </div>
-                    ) : (
-                      <div className="text-[0.92rem] leading-relaxed text-[var(--text-primary)] break-words whitespace-pre-wrap">
-                        {renderMessageBody(msg.content)}
-                      </div>
-                    )}
+                    </div>
+                  ) : (
+                    <>
+                      {msg.content ? (
+                        <div className="text-[0.92rem] leading-relaxed text-[var(--text-primary)] break-words whitespace-pre-wrap">
+                          {renderMessageBody(msg.content)}
+                        </div>
+                      ) : null}
+
+                      {/* Structured Attachments (JSONB) */}
+                      {msg.attachments && msg.attachments.length > 0 && (() => {
+                        const imageAttachments = msg.attachments.filter(
+                          (a) => a.type === "image" || a.contentType?.startsWith("image/")
+                        );
+                        const fileAttachments = msg.attachments.filter(
+                          (a) => a.type !== "image" && !a.contentType?.startsWith("image/")
+                        );
+
+                        return (
+                          <div className="flex flex-col gap-2 mt-1">
+                            {imageAttachments.length > 0 && (
+                              <ImageGalleryGrid
+                                images={imageAttachments.map((img) => ({
+                                  url: img.url,
+                                  alt: img.fileName,
+                                }))}
+                              />
+                            )}
+
+                            {fileAttachments.length > 0 && (
+                              <div className="flex flex-col gap-1.5">
+                                {fileAttachments.map((file, fIdx) => (
+                                  <a
+                                    key={fIdx}
+                                    href={file.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download={file.fileName}
+                                    className="flex items-center gap-2.5 p-2 rounded-lg bg-[var(--bg-chat)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] max-w-sm transition-all group/file text-left"
+                                  >
+                                    <div className="w-8 h-8 rounded-md bg-[var(--bg-surface)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] group-hover/file:text-[var(--accent-primary)] shrink-0">
+                                      <FileText size={18} />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-xs font-medium text-[var(--text-primary)] truncate">
+                                        {file.fileName}
+                                      </div>
+                                      <div className="text-[10px] text-[var(--text-muted)]">
+                                        {formatFileSize(file.fileSize)}
+                                      </div>
+                                    </div>
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
 
                     {/* Reactions Row */}
                     {msg.reactions && msg.reactions.length > 0 && (

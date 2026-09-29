@@ -55,14 +55,6 @@ public class GetDirectMessagesQueryHandler : IRequestHandler<GetDirectMessagesQu
 
             if (otherMember == null) continue;
 
-            // Fetch the last message in this DM channel
-            var lastMessage = await _context.Messages
-                .AsNoTracking()
-                .Where(m => m.ChannelId == ch.Id && m.ThreadId == null)
-                .OrderByDescending(m => m.CreatedAt)
-                .Select(m => new { m.Content, m.CreatedAt })
-                .FirstOrDefaultAsync(cancellationToken);
-
             var status = onlineUsers.Contains(otherMember.Id) ? "online" : otherMember.Status.ToString().ToLower();
 
             result.Add(new DirectMessageChannelDto(
@@ -74,8 +66,8 @@ public class GetDirectMessagesQueryHandler : IRequestHandler<GetDirectMessagesQu
                 otherMember.AvatarUrl,
                 otherMember.Email,
                 status,
-                lastMessage?.Content,
-                lastMessage?.CreatedAt ?? ch.LastMessageAt,
+                ch.LastMessageContent,
+                ch.LastMessageAt ?? ch.CreatedAt,
                 0
             ));
         }

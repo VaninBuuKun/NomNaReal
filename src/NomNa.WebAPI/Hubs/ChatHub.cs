@@ -130,10 +130,10 @@ public class ChatHub : Hub
     /// Endpoint Client gọi qua WebSocket RPC để gửi tin nhắn chính.
     /// Xử lý theo mô hình Command Pattern qua MediatR, sau đó Broadcast tới Group Channel.
     /// </summary>
-    public async Task<MessageDto> SendMessage(Guid channelId, string content, Guid? threadId = null)
+    public async Task<MessageDto> SendMessage(Guid channelId, string? content, Guid? threadId = null, List<AttachmentInputDto>? attachments = null)
     {
         // Execute Business Logic qua Application Layer (CQRS Command)
-        var command = new SendMessageCommand(channelId, content, threadId);
+        var command = new SendMessageCommand(channelId, content, threadId, attachments);
         var result = await _mediator.Send(command);
 
         if (!result.IsSuccess)
@@ -241,7 +241,7 @@ public class ChatHub : Hub
     /// <summary>
     /// Thêm/Gỡ Reaction (Cảm xúc emoji) trên tin nhắn Realtime.
     /// </summary>
-    public async Task<ReactionUpdateDto> ToggleReaction(Guid messageId, string emoji)
+    public async Task<ReactionToggledDto> ToggleReaction(Guid messageId, string emoji)
     {
         var command = new Application.Features.Messages.Commands.ToggleReaction.ToggleReactionCommand(messageId, emoji);
         var result = await _mediator.Send(command);

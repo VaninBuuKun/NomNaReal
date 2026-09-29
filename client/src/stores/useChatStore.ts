@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Channel, Message } from '../types';
+import type { Channel, Message, ReactionToggled } from '../types';
 
 interface ChatState {
   channels: Channel[];
@@ -9,6 +9,7 @@ interface ChatState {
   isLoadingMessages: boolean;
   isLoadingMoreMessages: boolean;
   typingUser: string | null;
+  drafts: Record<string, string>;
 
   // Actions
   setChannels: (channels: Channel[] | ((prev: Channel[]) => Channel[])) => void;
@@ -19,6 +20,9 @@ interface ChatState {
   updateMessage: (edited: Partial<Message> & { id: string }) => void;
   deleteMessage: (messageId: string) => void;
   setReactions: (messageId: string, reactions: Message['reactions']) => void;
+  applyReactionDelta: (delta: ReactionToggled, currentUserId?: string) => void;
+  setDraft: (channelId: string, text: string) => void;
+  clearDraft: (channelId: string) => void;
   updateReplyCount: (parentMessageId: string, count?: number) => void;
   markChannelRead: (channelId: string) => void;
   setChannelUnread: (channelId: string, lastMessageAt: string, hasUnread: boolean) => void;
@@ -39,6 +43,14 @@ export const useChatStore = create<ChatState>((set) => ({
   isLoadingMessages: false,
   isLoadingMoreMessages: false,
   typingUser: null,
+  drafts: (() => {
+    try {
+      const saved = localStorage.getItem('nomna_drafts');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  })(),
 
   setChannels: (channels) =>
     set((state) => ({
@@ -84,6 +96,76 @@ export const useChatStore = create<ChatState>((set) => ({
         m.id === messageId ? { ...m, reactions } : m
       ),
     })),
+
+  applyReactionDelta: (delta, currentUserId) =>
+    set((state) => ({
+      messages: state.messages.map((m) => {
+        if (m.id !== delta.messageId) return m;
+        const currentReactions = m.reactions ? [...m.reactions] : [];
+        const groupIndex = currentReactions.findIndex((r) => r.emoji === delta.emoji);
+
+        if (delta.isAdded) {
+          if (groupIndex >= 0) {
+            const group = currentReactions[groupIndex];
+            const newUserIds = group.userIds.includes(delta.userId)
+              ? group.userIds
+              : [...group.userIds, delta.userId];
+            currentReactions[groupIndex] = {
+              ...group,
+              count: newUserIds.length,
+              userIds: newUserIds,
+              hasReacted: currentUserId ? newUserIds.includes(currentUserId) : group.hasReacted,
+            };
+          } else {
+            currentReactions.push({
+              emoji: delta.emoji,
+              count: 1,
+              userIds: [delta.userId],
+              hasReacted: currentUserId === delta.userId,
+            });
+          }
+        } else {
+          if (groupIndex >= 0) {
+            const group = currentReactions[groupIndex];
+            const newUserIds = group.userIds.filter((id) => id !== delta.userId);
+            if (newUserIds.length === 0) {
+              currentReactions.splice(groupIndex, 1);
+            } else {
+              currentReactions[groupIndex] = {
+                ...group,
+                count: newUserIds.length,
+                userIds: newUserIds,
+                hasReacted: currentUserId ? newUserIds.includes(currentUserId) : false,
+              };
+            }
+          }
+        }
+        return { ...m, reactions: currentReactions };
+      }),
+    })),
+
+  setDraft: (channelId, text) =>
+    set((state) => {
+      const nextDrafts = { ...state.drafts, [channelId]: text };
+      try {
+        localStorage.setItem('nomna_drafts', JSON.stringify(nextDrafts));
+      } catch (e) {
+        console.error('Failed to save drafts:', e);
+      }
+      return { drafts: nextDrafts };
+    }),
+
+  clearDraft: (channelId) =>
+    set((state) => {
+      const nextDrafts = { ...state.drafts };
+      delete nextDrafts[channelId];
+      try {
+        localStorage.setItem('nomna_drafts', JSON.stringify(nextDrafts));
+      } catch (e) {
+        console.error('Failed to clear draft:', e);
+      }
+      return { drafts: nextDrafts };
+    }),
 
   updateReplyCount: (parentMessageId, count) =>
     set((state) => ({

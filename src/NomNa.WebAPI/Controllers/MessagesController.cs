@@ -7,6 +7,7 @@ using NomNa.Application.Features.Messages.Commands.ReplyToMessage;
 using NomNa.Application.Features.Messages.Commands.ToggleReaction;
 using NomNa.Application.Features.Messages.DTOs;
 using NomNa.Application.Features.Messages.Queries.GetThreadReplies;
+using NomNa.Application.Features.Messages.Queries.SearchMessages;
 using NomNa.Shared.Constants;
 using NomNa.WebAPI.Hubs;
 
@@ -99,9 +100,32 @@ public class MessagesController : ApiControllerBase
         }
         return HandleResult(result);
     }
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchMessages([FromQuery] SearchMessagesRequest request)
+    {
+        var result = await Mediator.Send(new SearchMessagesQuery(
+            request.WorkspaceId,
+            request.Keyword,
+            request.ChannelId,
+            request.SenderId,
+            request.FromDate,
+            request.ToDate,
+            request.Limit ?? 30
+        ));
+        return HandleResult(result);
+    }
 }
 
 public record ReplyToThreadRequest(string Content);
 public record EditMessageRequest(string Content);
 public record ToggleReactionRequest(string Emoji);
+public record SearchMessagesRequest(
+    Guid WorkspaceId,
+    string? Keyword,
+    Guid? ChannelId,
+    Guid? SenderId,
+    DateTime? FromDate,
+    DateTime? ToDate,
+    int? Limit
+);
 
