@@ -15,8 +15,6 @@ import {
   LockKey,
   ShieldStar,
   SignIn,
-  Gear,
-  CaretDown,
 } from '@phosphor-icons/react';
 import { CreateWorkspaceModal, JoinWorkspaceModal } from '../components/workspace';
 import { SettingsModal } from '../components/settings';
@@ -115,108 +113,52 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[var(--bg-chat)] text-[var(--text-primary)] flex flex-col selection:bg-[var(--accent-primary)] selection:text-white">
-      {/* 1. Header: Modern, spacious, premium navigation */}
-      <header className="sticky top-0 z-40 h-[78px] border-b border-[var(--border-color)] bg-[var(--bg-chat)]/85 backdrop-blur-xl px-6 md:px-12 lg:px-16 flex items-center justify-between select-none transition-all shadow-xs">
+      {/* 1. Header: Sleek, minimal, ultra-modern navigation */}
+      <header className="sticky top-0 z-40 h-[72px] border-b border-[var(--border-color)] bg-[var(--bg-chat)]/80 backdrop-blur-xl px-6 md:px-12 lg:px-16 flex items-center justify-between select-none transition-all shadow-xs">
         {/* Brand Logo & App Identity */}
-        <div className="flex items-center gap-6">
-          <div
-            className="flex items-center gap-3.5 cursor-pointer group"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          >
-            <div className="relative">
-              <img
-                src="/default-avatar.png"
-                alt="NomNa Logo"
-                className="w-11 h-11 rounded-[12px] object-cover border border-[var(--border-color)] shadow-xs group-hover:scale-105 group-hover:border-[var(--accent-primary)]/50 transition-all duration-200"
-              />
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[var(--accent-primary)] ring-2 ring-[var(--bg-chat)]" />
-            </div>
-
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-black tracking-tight text-[var(--text-primary)]">
-                  NomNa
-                </span>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide uppercase bg-[var(--accent-soft)] text-[var(--accent-primary)] border border-[var(--accent-primary)]/20">
-                  Workspace
-                </span>
-              </div>
-              <span className="text-[11px] text-[var(--text-muted)] font-medium hidden md:block">
-                Nền tảng làm việc & giao tiếp nhóm
-              </span>
-            </div>
+        <div
+          className="flex items-center gap-3 cursor-pointer group"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        >
+          <div className="relative">
+            <img
+              src="/default-avatar.png"
+              alt="NomNa Logo"
+              className="w-10 h-10 rounded-[10px] object-cover border border-[var(--border-color)] shadow-xs group-hover:scale-105 group-hover:border-[var(--accent-primary)]/50 transition-all duration-200"
+            />
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--accent-primary)] ring-2 ring-[var(--bg-chat)]" />
           </div>
+
+          <span className="text-xl font-black tracking-tight text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
+            NomNa
+          </span>
         </div>
 
-        {/* Center / Navigation Indicators */}
-        <div className="hidden lg:flex items-center gap-1.5 p-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border-color)] text-xs text-[var(--text-secondary)] shadow-2xs">
-          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold shadow-2xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
-            <span>Không gian của bạn</span>
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[var(--accent-primary)] text-white">
-              {workspaces.length}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsJoinWorkspaceOpen(true)}
-            className="px-3.5 py-1.5 rounded-full hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] transition-colors cursor-pointer font-medium"
-          >
-            Nhập mã mời
-          </button>
-        </div>
-
-        {/* Right: Actions & User Account Card */}
-        <div className="flex items-center gap-3 md:gap-4">
-          {/* Quick Create Button in Header */}
-          <button
-            type="button"
-            onClick={() => setIsCreateWorkspaceOpen(true)}
-            className="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 rounded-[6px] bg-[var(--accent-primary)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all shadow-[0_2px_10px_var(--accent-glow)] cursor-pointer"
-          >
-            <Plus size={15} weight="bold" />
-            <span>Tạo không gian</span>
-          </button>
-
-          {/* Quick Settings Icon Button */}
+        {/* Right: Modern, interactive User Profile Pill */}
+        <div className="flex items-center">
           <button
             type="button"
             onClick={() => setIsSettingsOpen(true)}
-            title="Cài đặt & Giao diện"
-            className="w-10 h-10 rounded-[8px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-active)] border border-[var(--border-color)] transition-all cursor-pointer shadow-2xs"
-          >
-            <Gear size={19} weight="bold" />
-          </button>
-
-          <div className="h-6 w-px bg-[var(--border-color)] hidden sm:block" />
-
-          {/* User Account Button */}
-          <button
-            type="button"
-            onClick={() => setIsSettingsOpen(true)}
-            className="flex items-center gap-3 p-1.5 pr-3 rounded-[10px] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-active)] border border-[var(--border-color)]/80 hover:border-[var(--accent-primary)]/50 transition-all cursor-pointer group text-left shadow-2xs"
-            title="Tài khoản cá nhân"
+            className="group relative flex items-center gap-2.5 py-1.5 pl-1.5 pr-4 rounded-full bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-active)] border border-[var(--border-color)] hover:border-[var(--accent-primary)]/50 transition-all duration-200 cursor-pointer shadow-xs hover:shadow-[0_0_16px_var(--accent-soft)] active:scale-98"
+            title="Cài đặt & Tài khoản"
           >
             <div className="relative shrink-0">
               <img
                 src={currentUser?.avatarUrl || defaultAvatar}
                 alt={currentUser?.displayName || 'User Avatar'}
-                className="w-10 h-10 rounded-[8px] object-cover border border-[var(--border-color)] group-hover:border-[var(--accent-primary)]/50 transition-all"
+                className="w-9 h-9 rounded-full object-cover ring-2 ring-[var(--border-color)] group-hover:ring-[var(--accent-primary)] transition-all duration-200"
                 onError={(e) => {
                   e.currentTarget.src = defaultAvatar;
                 }}
               />
-              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-chat)] bg-emerald-500 shadow-xs" />
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-chat)] bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
             </div>
 
-            <div className="hidden sm:flex flex-col min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-extrabold text-[var(--text-primary)] max-w-[130px] truncate group-hover:text-[var(--accent-primary)] transition-colors leading-tight">
-                  {currentUser?.displayName || currentUser?.username || 'Tài khoản'}
-                </span>
-                <CaretDown size={12} weight="bold" className="text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-colors" />
-              </div>
-              <span className="text-[11px] text-[var(--text-muted)] leading-tight mt-0.5 truncate">
+            <div className="flex flex-col text-left min-w-0">
+              <span className="text-xs font-bold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors leading-tight max-w-[140px] truncate">
+                {currentUser?.displayName || currentUser?.username || 'Tài khoản'}
+              </span>
+              <span className="text-[10px] text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors leading-tight mt-0.5 max-w-[140px] truncate">
                 @{currentUser?.username || 'user'}
               </span>
             </div>

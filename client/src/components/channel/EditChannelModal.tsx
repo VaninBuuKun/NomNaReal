@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { Hash, SpeakerHigh } from "@phosphor-icons/react";
 import { Trash } from "lucide-react";
 import { Modal, Button, Input } from "../ui";
 import { channelApi } from "../../services/channelApi";
-import type { Channel } from "../../types";
+import { ChannelType, type Channel } from "../../types";
 
 interface EditChannelModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const isGeneralChannel = channel?.name?.toLowerCase() === "general";
+  const isVoice = channel?.type === ChannelType.Voice;
 
   useEffect(() => {
     if (channel) {
@@ -43,7 +45,7 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
       .toLowerCase()
       .trim()
       .replace(/\s+/g, "-")
-      .replace(/[^a-z0-9-]/g, "");
+      .replace(/[^a-z0-9-_]/g, "");
 
     if (!formattedName) {
       setError("Tên kênh chỉ được chứa chữ cái thường, số và dấu gạch nối.");
@@ -84,35 +86,64 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
   if (!channel) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Cài đặt Kênh" size="md">
-      <form onSubmit={handleSave} className="flex flex-col gap-4">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Cài đặt Kênh"
+      subtitle="Tùy chỉnh thông tin tên kênh hoặc cấu hình cài đặt nâng cao."
+      className="max-w-[480px]"
+    >
+      <form onSubmit={handleSave} className="p-6 space-y-5">
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
+          <div className="p-3 text-xs rounded-[3px] bg-rose-500/10 border border-rose-500/20 text-rose-500 font-medium">
             {error}
           </div>
         )}
 
-        <Input
-          label="Tên kênh"
-          value={name}
-          onChange={(e) => {
-            const val = e.target.value.toLowerCase().replace(/\s+/g, "-");
-            setName(val);
-          }}
-          placeholder="vd: du-an-moi"
-          required
-          maxLength={50}
-          disabled={isGeneralChannel}
-        />
-        {isGeneralChannel && (
-          <p className="text-[11px] text-[var(--text-muted)] -mt-2">
-            Kênh mặc định #general không thể đổi tên hoặc xóa.
-          </p>
-        )}
+        {/* Channel Indicator Badge */}
+        <div className="flex items-center gap-2.5 p-2.5 rounded-[4px] bg-[var(--bg-surface)] border border-[var(--border-color)]">
+          <div className="w-8 h-8 rounded-[3px] bg-[var(--accent-soft)] flex items-center justify-center text-[var(--accent-primary)] shrink-0">
+            {isVoice ? <SpeakerHigh size={18} weight="bold" /> : <Hash size={18} weight="bold" />}
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs font-bold text-[var(--text-primary)] truncate">
+              {isVoice ? channel.name : `#${channel.name}`}
+            </div>
+            <div className="text-[10px] text-[var(--text-muted)]">
+              {isVoice ? "Kênh thoại âm thanh" : "Kênh văn bản thảo luận"}
+            </div>
+          </div>
+        </div>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-color)]">
-          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
-            Huỷ
+        {/* Input Name */}
+        <div className="space-y-1.5">
+          <Input
+            label="Tên kênh"
+            value={name}
+            onChange={(e) => {
+              const val = e.target.value.toLowerCase().replace(/\s+/g, "-");
+              setName(val);
+            }}
+            placeholder="vd: du-an-moi"
+            required
+            maxLength={50}
+            disabled={isGeneralChannel}
+          />
+          {isGeneralChannel ? (
+            <p className="text-[11px] text-[var(--text-muted)]">
+              Kênh mặc định #general không thể đổi tên hoặc xóa.
+            </p>
+          ) : (
+            <p className="text-[11px] text-[var(--text-muted)]">
+              Tên kênh chỉ được chứa chữ cái thường, số và dấu gạch nối.
+            </p>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border-color)]">
+          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            Huỷ bỏ
           </Button>
           <Button
             type="submit"
@@ -127,28 +158,36 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
 
         {/* Delete Channel Option */}
         {!isGeneralChannel && (
-          <div className="mt-2 pt-4 border-t border-red-500/20 flex flex-col gap-2">
-            <div className="text-xs font-bold text-red-500">Xóa kênh</div>
+          <div className="pt-4 border-t border-red-500/20 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-xs font-bold text-red-500">Vùng nguy hiểm</div>
+                <div className="text-[11px] text-[var(--text-muted)]">
+                  Xóa kênh này và toàn bộ lịch sử tin nhắn bên trong.
+                </div>
+              </div>
+            </div>
+
             {!showDeleteConfirm ? (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="text-red-500 hover:bg-red-500/10 border-red-500/30"
+                className="text-red-500 hover:bg-red-500/10 border-red-500/30 w-full justify-start"
                 leftIcon={<Trash size={14} />}
               >
                 Xóa kênh #{channel.name}
               </Button>
             ) : (
-              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex flex-col gap-2">
-                <p className="text-xs text-red-400 font-medium">
-                  Hành động này sẽ xóa vĩnh viễn kênh #{channel.name} và toàn bộ tin nhắn bên trong.
+              <div className="p-3.5 bg-red-500/10 border border-red-500/25 rounded-[4px] space-y-3">
+                <p className="text-xs text-red-400 font-medium leading-relaxed">
+                  Hành động này sẽ xóa vĩnh viễn kênh #{channel.name} cùng toàn bộ tin nhắn. Bạn có chắc chắn muốn xóa?
                 </p>
-                <div className="flex gap-2 justify-end">
+                <div className="flex items-center justify-end gap-2">
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="ghost"
                     size="sm"
                     onClick={() => setShowDeleteConfirm(false)}
                   >

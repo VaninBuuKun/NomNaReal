@@ -17,6 +17,7 @@ interface MemberListPanelProps {
   members: DirectMessageUser[];
   currentUser: User | null;
   currentUserRole?: string;
+  width?: number;
   onStartDmWithUser?: (user: {
     id: string;
     displayName: string;
@@ -24,6 +25,7 @@ interface MemberListPanelProps {
     avatarUrl?: string;
   }) => void;
   onOpenSettings?: () => void;
+  onRequestKickMember?: (member: DirectMessageUser) => void;
   onKickMember?: (member: DirectMessageUser) => Promise<void>;
 }
 
@@ -38,13 +40,14 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
   members,
   currentUser,
   currentUserRole,
+  width,
   onStartDmWithUser,
   onOpenSettings,
+  onRequestKickMember,
   onKickMember,
 }) => {
   const [search, setSearch] = useState("");
   const [selectedUserPopover, setSelectedUserPopover] = useState<ActivePopoverUser | null>(null);
-  const [isKicking, setIsKicking] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -161,7 +164,10 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
     <aside
       ref={panelRef}
       id="memberListPanel"
-      className="w-[240px] shrink-0 h-full min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col select-none relative z-20 animate-in fade-in slide-in-from-right-2 duration-150"
+      style={width ? { width: `${width}px` } : undefined}
+      className={`shrink-0 h-full min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col select-none relative z-20 animate-in fade-in slide-in-from-right-2 duration-150 ${
+        width ? '' : 'w-[270px]'
+      }`}
     >
       {/* 1. Header */}
       <div className="h-[54px] border-b border-[var(--border-color)] px-3.5 flex items-center justify-between shrink-0 bg-[var(--bg-sidebar)]">
@@ -310,7 +316,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
         <div
           ref={popoverRef}
           style={{ top: `${selectedUserPopover.top}px` }}
-          className="absolute right-[248px] w-64 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md flex flex-col gap-3"
+          className="absolute right-[calc(100%+8px)] w-64 bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3.5 z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md flex flex-col gap-3"
         >
           {/* Card Header & Avatar */}
           <div className="flex items-center gap-3">
@@ -390,7 +396,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
               const isSelf = currentUser && (target.id === currentUser.id || target.username === currentUser.username);
               const callerRole = (currentUserRole || "").toLowerCase();
               const targetRole = (target.role || "").toLowerCase();
-              const canKick = !isSelf && onKickMember && (
+              const canKick = !isSelf && (onRequestKickMember || onKickMember) && (
                 callerRole === "owner" || (callerRole === "admin" && targetRole !== "owner" && targetRole !== "admin")
               );
 
@@ -399,28 +405,18 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
               return (
                 <button
                   type="button"
-                  disabled={isKicking}
-                  onClick={async () => {
-                    if (
-                      confirm(
-                        `Bạn có chắc chắn muốn đuổi @${target.displayName || target.username} khỏi không gian làm việc này?`
-                      )
-                    ) {
-                      setIsKicking(true);
-                      try {
-                        await onKickMember(target);
-                        setSelectedUserPopover(null);
-                      } catch {
-                        // handled in parent
-                      } finally {
-                        setIsKicking(false);
-                      }
+                  onClick={() => {
+                    setSelectedUserPopover(null);
+                    if (onRequestKickMember) {
+                      onRequestKickMember(target);
+                    } else if (onKickMember) {
+                      onKickMember(target);
                     }
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-1.75 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-semibold transition-all border border-red-500/25 cursor-pointer active:scale-98 disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 py-1.75 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-semibold transition-all border border-red-500/25 cursor-pointer active:scale-98"
                 >
                   <UserMinus size={15} weight="bold" />
-                  <span>{isKicking ? "Đang xử lý..." : "Đuổi khỏi nhóm (Kick)"}</span>
+                  <span>Đuổi khỏi nhóm (Kick)</span>
                 </button>
               );
             })()}

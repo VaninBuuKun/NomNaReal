@@ -40,6 +40,15 @@ public class MarkChannelAsReadCommandHandler : IRequestHandler<MarkChannelAsRead
                 .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId.Value, cancellationToken);
             if (!isMember)
                 return Error.Forbidden("Channel.Forbidden", "You do not have access to this private channel.");
+
+            var member = await _context.ChannelMembers
+                .FirstOrDefaultAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId.Value, cancellationToken);
+
+            if (member != null)
+            {
+                member.LastReadAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync(cancellationToken);
+            }
         }
         else
         {
@@ -47,27 +56,11 @@ public class MarkChannelAsReadCommandHandler : IRequestHandler<MarkChannelAsRead
                 .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
             if (!isWorkspaceMember)
                 return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+
+            // Public channels: avoid creating fake ChannelMember rows.
+            // Client-side real-time SignalR handles UI unread indicators efficiently.
         }
 
-        // Update or insert ChannelMember with LastReadAt = UtcNow
-        var member = await _context.ChannelMembers
-            .FirstOrDefaultAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId.Value, cancellationToken);
-
-        if (member != null)
-        {
-            member.LastReadAt = DateTime.UtcNow;
-        }
-        else
-        {
-            _context.ChannelMembers.Add(new ChannelMember
-            {
-                ChannelId = channel.Id,
-                UserId = userId.Value,
-                LastReadAt = DateTime.UtcNow
-            });
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
         return Result<Unit>.Success(Unit.Value);
     }
 }

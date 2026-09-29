@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { WorkspaceRail, CreateWorkspaceModal, EditWorkspaceModal } from '../components/workspace';
+import { WorkspaceRail, CreateWorkspaceModal, EditWorkspaceModal, KickMemberModal } from '../components/workspace';
 import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel, EditChannelModal } from '../components/channel';
 import { DirectMessagesSidebar, NewDirectMessageModal, type DirectMessageItem, type DirectMessageUser } from '../components/dm';
 import { ChatArea } from '../components/chat';
@@ -33,6 +33,7 @@ export const ChatPage: React.FC = () => {
   const [activeDmId, setActiveDmId] = useState<string | null>(null);
   const [dmConversations, setDmConversations] = useState<DirectMessageItem[]>([]);
   const [workspaceMembers, setWorkspaceMembers] = useState<DirectMessageUser[]>([]);
+  const [memberToKick, setMemberToKick] = useState<DirectMessageUser | null>(null);
   const [isMemberListOpen, setIsMemberListOpen] = useState<boolean>(() => {
     return localStorage.getItem('nomna_member_list_open') !== 'false';
   });
@@ -40,6 +41,10 @@ export const ChatPage: React.FC = () => {
   const handleToggleMemberList = () => {
     setIsMemberListOpen((prev) => {
       const next = !prev;
+      if (next) {
+        setIsThreadOpen(false);
+        setActiveThreadMessage(null);
+      }
       localStorage.setItem('nomna_member_list_open', String(next));
       return next;
     });
@@ -50,6 +55,9 @@ export const ChatPage: React.FC = () => {
   const MIN_THREAD_WIDTH = 360;
   const MAX_THREAD_WIDTH = 720;
   const DEFAULT_THREAD_WIDTH = 480;
+  const MIN_MEMBER_WIDTH = 260;
+  const MAX_MEMBER_WIDTH = 480;
+  const DEFAULT_MEMBER_WIDTH = 270;
 
   const [channelWidth, setChannelWidth] = useState<number>(() => {
     const saved = localStorage.getItem('nomna_channel_width');
@@ -61,8 +69,14 @@ export const ChatPage: React.FC = () => {
     return saved ? Math.max(MIN_THREAD_WIDTH, Math.min(MAX_THREAD_WIDTH, parseInt(saved, 10))) : DEFAULT_THREAD_WIDTH;
   });
 
+  const [memberWidth, setMemberWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('nomna_member_width');
+    return saved ? Math.max(MIN_MEMBER_WIDTH, Math.min(MAX_MEMBER_WIDTH, parseInt(saved, 10))) : DEFAULT_MEMBER_WIDTH;
+  });
+
   const [isResizingChannel, setIsResizingChannel] = useState(false);
   const [isResizingThread, setIsResizingThread] = useState(false);
+  const [isResizingMember, setIsResizingMember] = useState(false);
 
   // Resize Drag Handlers
   const handleChannelResizeStart = (e: React.MouseEvent) => {
@@ -101,6 +115,28 @@ export const ChatPage: React.FC = () => {
 
     const onMouseUp = () => {
       setIsResizingThread(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleMemberResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingMember(true);
+    const startX = e.clientX;
+    const startWidth = memberWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(MIN_MEMBER_WIDTH, Math.min(MAX_MEMBER_WIDTH, startWidth + (startX - moveEvent.clientX)));
+      setMemberWidth(newWidth);
+      localStorage.setItem('nomna_member_width', newWidth.toString());
+    };
+
+    const onMouseUp = () => {
+      setIsResizingMember(false);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
@@ -677,6 +713,7 @@ export const ChatPage: React.FC = () => {
       : null);
 
   const handleOpenThread = (msg: Message) => {
+    setIsMemberListOpen(false);
     setActiveThreadMessage(msg);
     setIsThreadOpen(true);
     handleExpandThread();
@@ -830,11 +867,17 @@ export const ChatPage: React.FC = () => {
           onStopTyping={() => activeChannelId && signalRService.stopTyping(activeChannelId)}
           typingUser={typingUser}
           onToggleThread={() => {
-            if (!activeThreadMessage && messages.length > 0) {
-              setActiveThreadMessage(messages[0]);
+            if (!isThreadOpen) {
+              setIsMemberListOpen(false);
+              if (!activeThreadMessage && messages.length > 0) {
+                setActiveThreadMessage(messages[0]);
+              }
+              setIsThreadOpen(true);
+              handleExpandThread();
+            } else {
+              setIsThreadOpen(false);
+              setActiveThreadMessage(null);
             }
-            setIsThreadOpen(true);
-            handleExpandThread();
           }}
           onOpenThread={handleOpenThread}
           onStartDmWithUser={handleStartDmWithUser}
@@ -847,47 +890,70 @@ export const ChatPage: React.FC = () => {
           onToggleMemberList={handleToggleMemberList}
         />
 
-        {/* 3.5 Resizer Divider */}
+        {/* 3.5 Resizer Divider & Thread Panel */}
         {isThreadOpen && (
-          <div
-            className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
-              isResizingThread
-                ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
-                : 'bg-[var(--border-color)]'
-            }`}
-            onMouseDown={handleThreadResizeStart}
-            title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thread (Tối thiểu 360px)"
-          />
+          <>
+            <div
+              className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+                isResizingThread
+                  ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
+                  : 'bg-[var(--border-color)]'
+              }`}
+              onMouseDown={handleThreadResizeStart}
+              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thread (Tối thiểu 360px)"
+            />
+            <ThreadPanel
+              isOpen={isThreadOpen}
+              onClose={() => {
+                setIsThreadOpen(false);
+                setActiveThreadMessage(null);
+              }}
+              currentUser={currentUser}
+              parentMessage={activeThreadMessage}
+              width={threadWidth}
+              onExpandWidth={handleExpandThread}
+              onToggleReaction={handleToggleReaction}
+              onEditMessage={handleEditMessage}
+              onDeleteMessage={handleDeleteMessage}
+            />
+          </>
         )}
 
-        {/* 4. Collapsible Thread Panel */}
-        <ThreadPanel
-          isOpen={isThreadOpen}
-          onClose={() => {
-            setIsThreadOpen(false);
-            setActiveThreadMessage(null);
-          }}
-          currentUser={currentUser}
-          parentMessage={activeThreadMessage}
-          width={threadWidth}
-          onExpandWidth={handleExpandThread}
-          onToggleReaction={handleToggleReaction}
-          onEditMessage={handleEditMessage}
-          onDeleteMessage={handleDeleteMessage}
-        />
-
-        {/* 5. Collapsible Member List Panel */}
-        <MemberListPanel
-          isOpen={isMemberListOpen}
-          onClose={() => setIsMemberListOpen(false)}
-          members={workspaceMembers}
-          currentUser={currentUser}
-          currentUserRole={currentUserRole}
-          onStartDmWithUser={handleStartDmWithUser}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          onKickMember={handleKickMember}
-        />
+        {/* 4. Resizer Divider & Member List Panel (Mutually Exclusive: only shown if Thread is closed) */}
+        {!isThreadOpen && isMemberListOpen && (
+          <>
+            <div
+              className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+                isResizingMember
+                  ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
+                  : 'bg-[var(--border-color)]'
+              }`}
+              onMouseDown={handleMemberResizeStart}
+              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thành viên"
+            />
+            <MemberListPanel
+              isOpen={isMemberListOpen}
+              onClose={() => setIsMemberListOpen(false)}
+              members={workspaceMembers}
+              currentUser={currentUser}
+              currentUserRole={currentUserRole}
+              width={memberWidth}
+              onStartDmWithUser={handleStartDmWithUser}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+              onRequestKickMember={(m) => setMemberToKick(m)}
+            />
+          </>
+        )}
       </main>
+
+      {/* Kick Member Modal */}
+      <KickMemberModal
+        isOpen={!!memberToKick}
+        onClose={() => setMemberToKick(null)}
+        member={memberToKick}
+        workspaceName={currentWorkspace?.name}
+        onConfirmKick={handleKickMember}
+      />
 
       {/* Create Workspace Modal */}
       <CreateWorkspaceModal
