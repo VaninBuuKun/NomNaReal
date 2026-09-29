@@ -42,7 +42,11 @@ public class ChannelsController : ApiControllerBase
             await _hubContext.Clients.User(request.UserId.ToString())
                 .SendAsync(SignalRConstants.Events.AddedToChannel, res.Channel);
 
-            // 2. Realtime notify all current members inside the private channel
+            // 2. Realtime broadcast the message into the channel so all members see "@UserA đã thêm @UserB vào kênh"
+            await _hubContext.Clients.Group(channelId.ToString())
+                .SendAsync(SignalRConstants.Events.ReceiveMessage, res.SystemMessage);
+
+            // 3. Realtime notify all current members inside the private channel
             await _hubContext.Clients.Group(channelId.ToString())
                 .SendAsync(SignalRConstants.Events.ChannelMemberAdded, new
                 {

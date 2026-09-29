@@ -40,6 +40,7 @@ public class GetChannelMembersQueryHandler : IRequestHandler<GetChannelMembersQu
 
         if (channel.IsPrivate)
         {
+            var isCreator = channel.CreatedById == currentUserId.Value;
             var isChannelMember = await _context.ChannelMembers
                 .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == currentUserId.Value, cancellationToken);
 
@@ -47,7 +48,7 @@ public class GetChannelMembersQueryHandler : IRequestHandler<GetChannelMembersQu
                 .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == currentUserId.Value &&
                                (wm.Role == WorkspaceRole.Owner || wm.Role == WorkspaceRole.Admin), cancellationToken);
 
-            if (!isChannelMember && !isWorkspaceAdmin)
+            if (!isChannelMember && !isWorkspaceAdmin && !isCreator)
                 return Error.Forbidden("Channel.Forbidden", "Bạn không có quyền xem thành viên của kênh riêng tư này.");
 
             var members = await _context.ChannelMembers
@@ -61,6 +62,26 @@ public class GetChannelMembersQueryHandler : IRequestHandler<GetChannelMembersQu
                     cm.User.AvatarUrl
                 ))
                 .ToListAsync(cancellationToken);
+
+            // Self-healing: if creator is missing from ChannelMembers, include creator
+            if (!members.Any(m => m.UserId == channel.CreatedById))
+            {
+                var creator = await _context.Users
+                    .AsNoTracking()
+                    .Where(u => u.Id == channel.CreatedById)
+                    .Select(u => new ChannelMemberDto(
+                        u.Id,
+                        u.DisplayName,
+                        u.UserName ?? string.Empty,
+                        u.AvatarUrl
+                    ))
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (creator != null)
+                {
+                    members.Insert(0, creator);
+                }
+            }
 
             return members;
         }

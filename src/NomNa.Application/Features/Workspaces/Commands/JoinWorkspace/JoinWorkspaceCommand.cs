@@ -4,4 +4,4 @@ using NomNa.Application.Features.Workspaces.DTOs;
 
 namespace NomNa.Application.Features.Workspaces.Commands.JoinWorkspace;
 
-public record JoinWorkspaceCommand(string InviteCode) : IRequest<Result<WorkspaceDto>>;
+public record JoinWorkspaceCommand(string InviteCode) : IRequest<Result<JoinWorkspaceResultDto>>;

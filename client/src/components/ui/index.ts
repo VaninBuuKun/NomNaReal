@@ -5,3 +5,4 @@ export * from './Input';
 export * from './Modal';
 export * from './Spinner';
 export * from './ImageWithSkeleton';
+export * from './Toast';

@@ -37,7 +37,7 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
         {
             var isMember = await _context.ChannelMembers
                 .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId.Value, cancellationToken);
-            if (!isMember)
+            if (!isMember && channel.CreatedById != userId.Value)
                 return Error.Forbidden("Channel.Forbidden", "You do not have access to this private channel.");
         }
         else

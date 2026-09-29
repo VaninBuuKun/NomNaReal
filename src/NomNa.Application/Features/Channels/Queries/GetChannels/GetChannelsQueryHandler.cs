@@ -38,7 +38,7 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
             .AsNoTracking()
             .Where(c => c.WorkspaceId == request.WorkspaceId 
                      && c.Type != ChannelType.DirectMessage
-                     && (!c.IsPrivate || c.Members.Any(m => m.UserId == userId.Value)))
+                     && (!c.IsPrivate || c.CreatedById == userId.Value || c.Members.Any(m => m.UserId == userId.Value)))
             .OrderBy(c => c.CreatedAt)
             .Select(c => new ChannelDto(
                 c.Id,

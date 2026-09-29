@@ -70,7 +70,7 @@ public class ChatHub : Hub
             {
                 var isMember = await db.ChannelMembers
                     .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId);
-                if (!isMember)
+                if (!isMember && channel.CreatedById != userId)
                 {
                     throw new HubException("Access denied to this private channel.");
                 }

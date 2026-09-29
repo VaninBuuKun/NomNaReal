@@ -1,3 +1,4 @@
+using NomNa.Application.Features.Messages.DTOs;
 using NomNa.Domain.Enums;
 
 namespace NomNa.Application.Features.Channels.DTOs;
@@ -23,5 +24,7 @@ public record AddChannelMemberResultDto(
     Guid ChannelId,
     Guid UserId,
     string DisplayName,
-    ChannelDto Channel
+    ChannelDto Channel,
+    MessageDto SystemMessage
 );
+

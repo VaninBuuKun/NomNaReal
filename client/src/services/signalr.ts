@@ -178,7 +178,7 @@ export class SignalRService {
     }
   }
 
-  public onWorkspaceMemberJoined(callback: (data: { workspaceId: string; memberCount: number }) => void): void {
+  public onWorkspaceMemberJoined(callback: (data: { workspaceId: string; member?: any; memberCount: number }) => void): void {
     if (this.connection) {
       this.connection.on('WorkspaceMemberJoined', callback);
     }

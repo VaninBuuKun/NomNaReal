@@ -7,7 +7,10 @@ import {
   ShieldCheck,
   Gear,
   UserMinus,
+  Lock,
+  UserPlus,
 } from "@phosphor-icons/react";
+import { Spinner } from "../ui";
 import type { DirectMessageUser } from "../dm";
 import type { User } from "../../types";
 
@@ -27,6 +30,10 @@ interface MemberListPanelProps {
   onOpenSettings?: () => void;
   onRequestKickMember?: (member: DirectMessageUser) => void;
   onKickMember?: (member: DirectMessageUser) => Promise<void>;
+  channelName?: string;
+  isPrivateChannel?: boolean;
+  isLoading?: boolean;
+  onOpenAddMember?: () => void;
 }
 
 interface ActivePopoverUser {
@@ -41,6 +48,10 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
   currentUser,
   currentUserRole,
   width,
+  channelName,
+  isPrivateChannel,
+  isLoading,
+  onOpenAddMember,
   onStartDmWithUser,
   onOpenSettings,
   onRequestKickMember,
@@ -171,20 +182,37 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
     >
       {/* 1. Header */}
       <div className="h-[54px] border-b border-[var(--border-color)] px-3.5 flex items-center justify-between shrink-0 bg-[var(--bg-sidebar)]">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-sm text-[var(--text-primary)]">Thành viên</span>
-          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[var(--accent-soft)] text-[var(--accent-primary)]">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {isPrivateChannel && (
+            <Lock size={15} weight="bold" className="text-amber-500 shrink-0" />
+          )}
+          <span className="font-bold text-sm text-[var(--text-primary)] truncate">
+            {isPrivateChannel && channelName ? `#${channelName}` : 'Thành viên'}
+          </span>
+          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[var(--accent-soft)] text-[var(--accent-primary)] shrink-0">
             {members.length}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
-          title="Đóng danh sách thành viên"
-        >
-          <X size={15} />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {isPrivateChannel && onOpenAddMember && (
+            <button
+              type="button"
+              onClick={onOpenAddMember}
+              className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+              title="Thêm thành viên vào kênh"
+            >
+              <UserPlus size={15} weight="bold" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+            title="Đóng danh sách thành viên"
+          >
+            <X size={15} />
+          </button>
+        </div>
       </div>
 
       {/* 2. Search Box */}
@@ -304,11 +332,26 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
           </div>
         )}
 
-        {onlineMembers.length === 0 && offlineMembers.length === 0 && (
-          <div className="py-8 text-center text-xs text-[var(--text-muted)]">
-            Không tìm thấy thành viên nào.
+        {isLoading ? (
+          <div className="py-12 flex flex-col items-center justify-center gap-2.5 text-xs text-[var(--text-muted)] animate-pulse">
+            <Spinner size="sm" />
+            <span>Đang tải thành viên...</span>
           </div>
-        )}
+        ) : onlineMembers.length === 0 && offlineMembers.length === 0 ? (
+          <div className="py-12 px-4 text-center text-xs text-[var(--text-muted)] flex flex-col items-center gap-2">
+            <span>Không tìm thấy thành viên nào.</span>
+            {isPrivateChannel && onOpenAddMember && (
+              <button
+                type="button"
+                onClick={onOpenAddMember}
+                className="mt-1 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--accent-primary)] hover:underline cursor-pointer"
+              >
+                <UserPlus size={14} weight="bold" />
+                <span>Thêm thành viên vào kênh</span>
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {/* 4. Sleek Profile Popover Card */}

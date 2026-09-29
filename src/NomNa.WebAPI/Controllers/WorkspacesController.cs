@@ -46,12 +46,25 @@ public class WorkspacesController : ApiControllerBase
         var result = await Mediator.Send(command);
         if (result.IsSuccess && result.Value != null)
         {
-            var ws = result.Value;
-            await _hubContext.Clients.All.SendAsync(SignalRConstants.Events.WorkspaceMemberJoined, new
+            var res = result.Value;
+
+            if (res.NewMember != null)
             {
-                workspaceId = ws.Id,
-                memberCount = ws.MemberCount
-            });
+                await _hubContext.Clients.All.SendAsync(SignalRConstants.Events.WorkspaceMemberJoined, new
+                {
+                    workspaceId = res.Workspace.Id,
+                    member = res.NewMember,
+                    memberCount = res.Workspace.MemberCount
+                });
+            }
+
+            if (res.WelcomeMessage != null)
+            {
+                await _hubContext.Clients.Group(res.WelcomeMessage.ChannelId.ToString())
+                    .SendAsync(SignalRConstants.Events.ReceiveMessage, res.WelcomeMessage);
+            }
+
+            return Ok(res.Workspace);
         }
         return HandleResult(result);
     }

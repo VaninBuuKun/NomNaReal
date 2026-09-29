@@ -47,7 +47,9 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
         var isChannelMember = await _context.ChannelMembers
             .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == currentUserId.Value, cancellationToken);
 
-        if (!isChannelMember && !isWorkspaceAdminOrOwner)
+        var isCreator = channel.CreatedById == currentUserId.Value;
+
+        if (!isChannelMember && !isWorkspaceAdminOrOwner && !isCreator)
             return Error.Forbidden("Channel.Forbidden", "Bạn không có quyền thêm thành viên vào kênh riêng tư này.");
 
         // 3. Verify người được thêm (Target User) có thuộc Workspace hay không
@@ -73,7 +75,40 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
         };
         _context.ChannelMembers.Add(newChannelMember);
 
+        // 6. Tạo tin nhắn thông báo vào khung chat dưới danh nghĩa người thêm
+        var currentUser = await _context.Users
+            .FirstOrDefaultAsync(u => u.Id == currentUserId.Value, cancellationToken);
+
+        var joinMessage = new Message
+        {
+            ChannelId = channel.Id,
+            SenderId = currentUserId.Value,
+            Content = $"đã thêm @{targetWorkspaceMember.User.DisplayName} vào kênh riêng tư.",
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.Messages.Add(joinMessage);
+
+        channel.LastMessageAt = joinMessage.CreatedAt;
+        channel.LastMessageContent = joinMessage.Content;
+        channel.LastMessageSenderId = currentUserId.Value;
+
         await _context.SaveChangesAsync(cancellationToken);
+
+        var messageDto = new NomNa.Application.Features.Messages.DTOs.MessageDto(
+            joinMessage.Id,
+            joinMessage.ChannelId,
+            currentUserId.Value,
+            currentUser?.DisplayName ?? "Thành viên",
+            currentUser?.UserName ?? string.Empty,
+            currentUser?.AvatarUrl,
+            joinMessage.Content,
+            null,
+            false,
+            joinMessage.CreatedAt,
+            0,
+            null,
+            null
+        );
 
         var channelDto = new ChannelDto(
             channel.Id,
@@ -89,7 +124,8 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
             channel.Id,
             request.UserId,
             targetWorkspaceMember.User.DisplayName,
-            channelDto
+            channelDto,
+            messageDto
         );
     }
 }

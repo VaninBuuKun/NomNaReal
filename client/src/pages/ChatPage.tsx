@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { WorkspaceRail, CreateWorkspaceModal, EditWorkspaceModal, KickMemberModal } from '../components/workspace';
 import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel, EditChannelModal, AddChannelMemberModal } from '../components/channel';
@@ -6,6 +6,7 @@ import { DirectMessagesSidebar, NewDirectMessageModal, type DirectMessageItem, t
 import { ChatArea, SearchSidebar } from '../components/chat';
 import { ThreadPanel } from '../components/thread';
 import { SettingsModal } from '../components/settings';
+import { Toast } from '../components/ui';
 import { authApi, workspaceApi, channelApi, messageApi, signalRService } from '../services';
 import { useTheme } from '../hooks/useTheme';
 import { ChannelType, type User, type Workspace, type Channel, type Message, type ReactionGroup } from '../types';
@@ -140,6 +141,61 @@ export const ChatPage: React.FC = () => {
   } = useUiStore();
 
   const [isResizingSearch, setIsResizingSearch] = useState(false);
+  const [toast, setToast] = useState<{
+    id: string;
+    title: string;
+    description?: string;
+    actionLabel?: string;
+    onAction?: () => void;
+  } | null>(null);
+  const [channelMemberIdsMap, setChannelMemberIdsMap] = useState<Record<string, string[]>>({});
+  const [loadingChannelMemberIds, setLoadingChannelMemberIds] = useState<Record<string, boolean>>({});
+
+  // Fetch members of a private channel (with cache check & merging)
+  const fetchChannelMembers = useCallback(
+    async (channelId: string, force = false) => {
+      if (!channelId) return;
+      if (!force && channelMemberIdsMap[channelId]) return;
+
+      setLoadingChannelMemberIds((prev) => ({ ...prev, [channelId]: true }));
+      try {
+        const data = await channelApi.getMembers(channelId);
+        const memberIds = data.map((m) => m.userId);
+        setChannelMemberIdsMap((prev) => ({
+          ...prev,
+          [channelId]: memberIds,
+        }));
+
+        // Augment workspaceMembers if any channel member profile is missing
+        if (data.length > 0) {
+          setWorkspaceMembers((prev) => {
+            const existingIds = new Set(prev.map((m) => m.id));
+            const newMembers: DirectMessageUser[] = [];
+            for (const m of data) {
+              if (!existingIds.has(m.userId)) {
+                newMembers.push({
+                  id: m.userId,
+                  displayName: m.displayName,
+                  username: m.username,
+                  email: '',
+                  avatarUrl: m.avatarUrl,
+                  status: 'offline',
+                  role: 'Thành viên',
+                });
+              }
+            }
+            if (newMembers.length === 0) return prev;
+            return [...prev, ...newMembers];
+          });
+        }
+      } catch (err) {
+        console.error(`Failed to load members for channel ${channelId}:`, err);
+      } finally {
+        setLoadingChannelMemberIds((prev) => ({ ...prev, [channelId]: false }));
+      }
+    },
+    [channelMemberIdsMap, setWorkspaceMembers]
+  );
 
   // Resize Drag Handlers
   const handleSearchResizeStart = (e: React.MouseEvent) => {
@@ -284,6 +340,12 @@ export const ChatPage: React.FC = () => {
 
     // Asynchronously notify server
     channelApi.markAsRead(channelId);
+
+    // If channel is private, eagerly trigger members fetch
+    const targetCh = channels.find((c) => c.id === channelId);
+    if (targetCh?.isPrivate) {
+      fetchChannelMembers(channelId);
+    }
 
     await loadMessages(channelId);
     await signalRService.joinChannel(channelId);
@@ -464,6 +526,21 @@ export const ChatPage: React.FC = () => {
             return [...prev, newChannel];
           });
         }
+
+        // Show Toast popup for the added user
+        setToast({
+          id: newChannel.id,
+          title: 'Kênh riêng tư mới',
+          description: `Bạn vừa được thêm vào #${newChannel.name}`,
+          actionLabel: 'Xem ngay',
+          onAction: () => {
+            if (newChannel.workspaceId !== activeWorkspaceIdRef.current) {
+              setActiveWorkspaceId(newChannel.workspaceId);
+            }
+            handleSelectChannel(newChannel.id);
+            setToast(null);
+          },
+        });
       });
 
       // Listen for new workspace members joining
@@ -472,6 +549,35 @@ export const ChatPage: React.FC = () => {
         if (currentWs) {
           updateWorkspace({ ...currentWs, memberCount: data.memberCount });
         }
+
+        // Realtime update member list in MemberListPanel without F5
+        if (data.workspaceId === activeWorkspaceIdRef.current && data.member) {
+          const newMem: DirectMessageUser = {
+            id: data.member.userId,
+            displayName: data.member.displayName,
+            username: data.member.username,
+            email: data.member.email || '',
+            avatarUrl: data.member.avatarUrl,
+            status: 'online',
+            role: data.member.role === 'Admin' ? 'Quản trị viên' : data.member.role === 'Owner' ? 'Chủ phòng' : 'Thành viên',
+          };
+          setWorkspaceMembers((prev) => {
+            if (prev.some((m) => m.id === newMem.id)) return prev;
+            return [...prev, newMem];
+          });
+        }
+      });
+
+      // Listen for members being added to private channels
+      signalRService.onChannelMemberAdded((data) => {
+        setChannelMemberIdsMap((prev) => {
+          const existing = prev[data.channelId] || [];
+          if (existing.includes(data.userId)) return prev;
+          return {
+            ...prev,
+            [data.channelId]: [...existing, data.userId],
+          };
+        });
       });
 
       // Load Workspaces
@@ -684,6 +790,12 @@ export const ChatPage: React.FC = () => {
 
   const handleChannelCreated = (newChannel: Channel) => {
     setChannels((prev) => [...prev, newChannel]);
+    if (newChannel.isPrivate && currentUser?.id) {
+      setChannelMemberIdsMap((prev) => ({
+        ...prev,
+        [newChannel.id]: [currentUser.id],
+      }));
+    }
     handleSelectChannel(newChannel.id);
   };
 
@@ -838,6 +950,45 @@ export const ChatPage: React.FC = () => {
           isPrivate: true,
         }
       : null);
+
+  // Reset channel members map when workspace switches
+  useEffect(() => {
+    setChannelMemberIdsMap({});
+  }, [activeWorkspaceId]);
+
+  // Fetch private channel members when current channel is private
+  useEffect(() => {
+    if (!currentChannel || !currentChannel.isPrivate || currentChannel.type === ChannelType.DirectMessage) {
+      return;
+    }
+
+    fetchChannelMembers(currentChannel.id);
+  }, [currentChannel?.id, currentChannel?.isPrivate, currentChannel?.type, fetchChannelMembers]);
+
+  // Filter members displayed in MemberListPanel
+  const displayedMembers = useMemo(() => {
+    if (!currentChannel) return workspaceMembers;
+
+    if (currentChannel.type === ChannelType.DirectMessage && activeDm) {
+      const dmOtherUser = workspaceMembers.find((m) => m.id === activeDm.user.id) || activeDm.user;
+      return [
+        ...(currentUserMember ? [currentUserMember] : []),
+        ...(dmOtherUser && dmOtherUser.id !== currentUser?.id ? [dmOtherUser] : []),
+      ];
+    }
+
+    if (!currentChannel.isPrivate) {
+      return workspaceMembers;
+    }
+
+    const memberIds = channelMemberIdsMap[currentChannel.id];
+    if (!memberIds) {
+      return workspaceMembers.filter((m) => m.id === currentUser?.id);
+    }
+
+    const idSet = new Set(memberIds);
+    return workspaceMembers.filter((m) => idSet.has(m.id));
+  }, [currentChannel, activeDm, workspaceMembers, channelMemberIdsMap, currentUser?.id, currentUserMember]);
 
   const handleOpenThread = (msg: Message) => {
     openThread(msg);
@@ -1026,10 +1177,14 @@ export const ChatPage: React.FC = () => {
             <MemberListPanel
               isOpen={isMemberListOpen}
               onClose={() => setMemberListOpen(false)}
-              members={workspaceMembers}
+              members={displayedMembers}
               currentUser={currentUser}
               currentUserRole={currentUserRole}
               width={memberWidth}
+              channelName={currentChannel?.name || undefined}
+              isPrivateChannel={!!(currentChannel?.isPrivate && currentChannel.type !== ChannelType.DirectMessage)}
+              isLoading={!!(currentChannel?.isPrivate && currentChannel.type !== ChannelType.DirectMessage && loadingChannelMemberIds[currentChannel.id])}
+              onOpenAddMember={() => currentChannel && setChannelToAddMember(currentChannel)}
               onStartDmWithUser={handleStartDmWithUser}
               onOpenSettings={() => setSettingsOpen(true)}
               onRequestKickMember={(m) => setMemberToKick(m)}
@@ -1119,6 +1274,16 @@ export const ChatPage: React.FC = () => {
         onClose={() => setChannelToAddMember(null)}
         channel={channelToAddMember}
         members={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
+        onMemberAdded={(userId) => {
+          if (channelToAddMember) {
+            const chId = channelToAddMember.id;
+            setChannelMemberIdsMap((prev) => {
+              const existing = prev[chId] || [];
+              if (existing.includes(userId)) return prev;
+              return { ...prev, [chId]: [...existing, userId] };
+            });
+          }
+        }}
       />
 
       <NewDirectMessageModal
@@ -1156,6 +1321,18 @@ export const ChatPage: React.FC = () => {
           );
         }}
       />
+
+      {/* Floating Toast Notification */}
+      {toast && (
+        <Toast
+          id={toast.id}
+          title={toast.title}
+          description={toast.description}
+          actionLabel={toast.actionLabel}
+          onAction={toast.onAction}
+          onClose={() => setToast(null)}
+        />
+      )}
     </>
   );
 };

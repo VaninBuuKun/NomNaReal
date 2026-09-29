@@ -40,7 +40,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
         {
             var isMember = await _context.ChannelMembers
                 .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId.Value, cancellationToken);
-            if (!isMember)
+            if (!isMember && channel.CreatedById != userId.Value)
                 return Error.Forbidden("Channel.Forbidden", "You do not have permission to send messages in this private channel.");
         }
         else
