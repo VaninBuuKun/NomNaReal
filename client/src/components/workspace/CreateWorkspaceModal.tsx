@@ -60,11 +60,11 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError('Vui lòng nhập tên Không gian làm việc.');
+      setError('Vui lòng nhập tên Workspace.');
       return;
     }
     if (!iconUrl.trim()) {
-      setError('Vui lòng chọn hoặc tải lên ảnh đại diện không gian làm việc.');
+      setError('Vui lòng chọn hoặc tải lên ảnh đại diện Workspace.');
       return;
     }
 
@@ -76,7 +76,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
       handleClose();
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
-      setError(errorObj?.response?.data?.message || 'Tạo máy chủ thất bại.');
+      setError(errorObj?.response?.data?.message || 'Tạo Workspace thất bại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -93,8 +93,8 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Tạo Không gian làm việc"
-      subtitle="Không gian là nơi nhóm của bạn trò chuyện, gọi điện và chia sẻ tài liệu."
+      title="Tạo Workspace mới"
+      subtitle="Workspace là nơi nhóm của bạn cùng trò chuyện, kết nối và cộng tác."
       className="max-w-[480px]"
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -107,7 +107,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
         {/* Avatar Selection (Mandatory) */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
-            Ảnh đại diện Không gian <span className="text-[var(--accent-primary)]">*</span>
+            Ảnh đại diện Workspace <span className="text-[var(--accent-primary)]">*</span>
           </label>
 
           <div className="flex items-center gap-4">
@@ -195,7 +195,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
         {/* Workspace Name (Mandatory) */}
         <div>
           <Input
-            label="Tên không gian làm việc *"
+            label="Tên Workspace *"
             placeholder="VD: NomNa Devs, Anime Lounge..."
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -216,7 +216,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
             isLoading={isSubmitting}
             disabled={!name.trim() || !iconUrl.trim() || isUploading}
           >
-            Tạo không gian
+            Tạo Workspace
           </Button>
         </div>
       </form>

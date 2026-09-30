@@ -38,6 +38,9 @@ services:
   # 2. NomNa Fullstack Application (.NET 9 + React SPA)
   # ============================================
   app:
+    # CI/CD: set APP_IMAGE=ghcr.io/vaninbuukun/nomnareal:latest
+    # Manual: leave APP_IMAGE empty → falls back to local build
+    image: ${APP_IMAGE:-nomna-app:latest}
     build:
       context: .
       dockerfile: Dockerfile
@@ -45,7 +48,6 @@ services:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_DEFAULT_AVATAR: ${VITE_DEFAULT_AVATAR:-/default-avatar.png}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
-    image: nomna-app:latest
     container_name: nomna_app
     restart: unless-stopped
     environment:

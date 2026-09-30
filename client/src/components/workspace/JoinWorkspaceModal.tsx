@@ -45,7 +45,7 @@ export const JoinWorkspaceModal: React.FC<JoinWorkspaceModalProps> = ({
       const errorObj = err as { response?: { data?: { message?: string } } };
       setError(
         errorObj?.response?.data?.message ||
-          'Không thể tham gia không gian làm việc. Mã mời không đúng hoặc đã hết hạn.'
+          'Không thể tham gia Workspace. Mã mời không đúng hoặc đã hết hạn.'
       );
     } finally {
       setIsSubmitting(false);
@@ -62,8 +62,8 @@ export const JoinWorkspaceModal: React.FC<JoinWorkspaceModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Tham gia Không gian làm việc"
-      subtitle="Nhập mã mời hoặc liên kết bạn nhận được từ đồng nghiệp để gia nhập không gian."
+      title="Tham gia Workspace"
+      subtitle="Nhập mã mời hoặc liên kết bạn nhận được từ đồng nghiệp để gia nhập Workspace."
       className="max-w-[460px]"
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -118,7 +118,7 @@ export const JoinWorkspaceModal: React.FC<JoinWorkspaceModalProps> = ({
             leftIcon={<SignIn size={14} weight="bold" />}
             className="text-xs py-2 px-4 rounded-[3px]"
           >
-            Tham gia không gian
+            Tham gia Workspace
           </Button>
         </div>
       </form>

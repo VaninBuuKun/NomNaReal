@@ -30,7 +30,7 @@ public class GetWorkspaceByInviteCodeQueryHandler : IRequestHandler<GetWorkspace
 
         if (workspace == null)
         {
-            return Error.NotFound("Workspace.NotFound", "Không tìm thấy không gian làm việc với mã mời này.");
+            return Error.NotFound("Workspace.NotFound", "Không tìm thấy Workspace với mã mời này.");
         }
 
         return new WorkspaceDto(

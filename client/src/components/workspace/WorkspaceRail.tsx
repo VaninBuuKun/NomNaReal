@@ -55,7 +55,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
       <button
         ref={buttonRef}
         type="button"
-        title="Danh sách không gian & Điều hướng"
+        title="Danh sách Workspace & Điều hướng"
         onClick={() => setIsMenuOpen((prev) => !prev)}
         className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs ${isMenuOpen
           ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
@@ -76,7 +76,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
           )}
 
           <div
-            title={`Không gian: ${activeWorkspace.name} (Kênh thảo luận)`}
+            title={`Workspace: ${activeWorkspace.name}`}
             onClick={() => onSelectView?.('channels')}
             className={`w-11 h-11 rounded-[14px] flex items-center justify-center cursor-pointer transition-all duration-200 border overflow-hidden shadow-xs ${activeSidebarView === 'channels'
               ? 'border-[var(--accent-primary)] shadow-[0_4px_14px_var(--accent-glow)] ring-2 ring-[var(--accent-primary)]/40'
@@ -150,7 +150,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
 
               {/* Label */}
               <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Không gian làm việc ({workspaces.length})
+                Workspace ({workspaces.length})
               </div>
 
               {/* Workspaces List */}
@@ -208,7 +208,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
                 className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[3px] text-xs font-semibold text-[var(--accent-primary)] hover:bg-[var(--accent-soft)] transition-colors cursor-pointer text-left"
               >
                 <Plus size={16} weight="bold" className="shrink-0" />
-                <span>Thêm không gian mới</span>
+                <span>Thêm Workspace mới</span>
               </button>
             </div>
           </>,

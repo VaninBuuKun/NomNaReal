@@ -14,10 +14,17 @@ export class SignalRService {
       return;
     }
 
-    const baseHubUrl = (import.meta.env.VITE_API_URL as string)?.replace(/\/api\/?$/, '') || 'http://localhost:5000';
+    const rawApiUrl = (import.meta.env.VITE_API_URL as string)?.trim() || '';
+    let hubUrl = '/hubs/chat';
+
+    // If VITE_API_URL is an absolute URL (e.g. http://localhost:5000/api in local dev), use its origin
+    if (rawApiUrl.startsWith('http://') || rawApiUrl.startsWith('https://')) {
+      const origin = rawApiUrl.replace(/\/api\/?$/, '');
+      hubUrl = `${origin}/hubs/chat`;
+    }
 
     this.connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${baseHubUrl}/hubs/chat`, {
+      .withUrl(hubUrl, {
         withCredentials: true,
         transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling,
       })

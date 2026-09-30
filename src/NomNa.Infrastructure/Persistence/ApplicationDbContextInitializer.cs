@@ -41,7 +41,7 @@ public class ApplicationDbContextInitializer
         // 1. Seed Users via UserManager for proper Identity password hashing
         var alex = new User
         {
-            Email = "alex@pulsechat.io",
+            Email = "alex@nomna.local",
             UserName = "alexrivers",
             DisplayName = "Alex Rivers",
             Status = UserStatus.Online,
@@ -51,7 +51,7 @@ public class ApplicationDbContextInitializer
 
         var minh = new User
         {
-            Email = "minh@pulsechat.io",
+            Email = "minh@nomna.local",
             UserName = "minhdev",
             DisplayName = "Minh Dev",
             Status = UserStatus.Online,
@@ -61,7 +61,7 @@ public class ApplicationDbContextInitializer
 
         var van = new User
         {
-            Email = "van@pulsechat.io",
+            Email = "van@nomna.local",
             UserName = "vannguyen",
             DisplayName = "Van Nguyen",
             Status = UserStatus.Online,

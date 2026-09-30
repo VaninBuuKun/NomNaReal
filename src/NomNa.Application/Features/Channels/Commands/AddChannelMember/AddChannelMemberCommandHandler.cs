@@ -40,7 +40,7 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
             .FirstOrDefaultAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == currentUserId.Value, cancellationToken);
 
         if (workspaceMember == null)
-            return Error.Forbidden("Workspace.Forbidden", "Bạn không thuộc không gian làm việc này.");
+            return Error.Forbidden("Workspace.Forbidden", "Bạn không thuộc workspace này.");
 
         var isWorkspaceAdminOrOwner = workspaceMember.Role == WorkspaceRole.Owner || workspaceMember.Role == WorkspaceRole.Admin;
 
@@ -58,7 +58,7 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
             .FirstOrDefaultAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == request.UserId, cancellationToken);
 
         if (targetWorkspaceMember == null)
-            return Error.NotFound("Workspace.UserNotFound", "Người dùng không thuộc không gian làm việc này.");
+            return Error.NotFound("Workspace.UserNotFound", "Người dùng không thuộc workspace này.");
 
         // 4. Check xem Target User đã có sẵn trong Channel chưa (Query AnyAsync trực tiếp xuống DB)
         var isTargetAlreadyMember = await _context.ChannelMembers

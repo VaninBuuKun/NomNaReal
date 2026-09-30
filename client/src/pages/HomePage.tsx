@@ -106,7 +106,7 @@ export const HomePage: React.FC = () => {
             Đang tải NomNa...
           </div>
           <div className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
-            Đang chuẩn bị không gian làm việc của bạn
+            Đang chuẩn bị Workspace của bạn
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs text-[var(--accent-primary)] font-medium">
             <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-ping" />
@@ -203,14 +203,14 @@ export const HomePage: React.FC = () => {
             </div>
 
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-[var(--text-primary)] leading-tight">
-              Không gian làm việc & giao tiếp thời gian thực hiện đại
+              Nền tảng Workspace & giao tiếp thời gian thực hiện đại
             </h1>
 
             <p className="text-sm md:text-base text-[var(--text-muted)] leading-relaxed">
               Kết nối mọi thành viên qua các kênh thảo luận chuyên sâu, luồng
               thread tập trung và chia sẻ tài liệu, video dung lượng lớn. Chọn
-              một Không gian làm việc bên dưới để bắt đầu hoặc khởi tạo không
-              gian mới cho đội ngũ của bạn.
+              một Workspace bên dưới để bắt đầu hoặc khởi tạo Workspace mới
+              cho đội ngũ của bạn.
             </p>
 
             {/* Quick Feature Highlights */}
@@ -257,14 +257,14 @@ export const HomePage: React.FC = () => {
             <div>
               <div className="flex items-center gap-2.5">
                 <h2 className="text-xl font-black tracking-tight text-[var(--text-primary)]">
-                  Không gian làm việc của bạn
+                  Danh sách Workspace của bạn
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent-primary)] border border-[var(--accent-primary)]/20">
                   {workspaces.length}
                 </span>
               </div>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                Nhấp vào một không gian để mở khung chat và bắt đầu làm việc
+                Nhấp vào một Workspace để mở khung chat và bắt đầu làm việc
               </p>
             </div>
 
@@ -292,7 +292,7 @@ export const HomePage: React.FC = () => {
                   weight="bold"
                   className="group-hover:rotate-90 transition-transform duration-200"
                 />
-                <span>Tạo Không gian mới</span>
+                <span>Tạo Workspace mới</span>
               </button>
             </div>
           </div>
@@ -337,12 +337,12 @@ export const HomePage: React.FC = () => {
                   {/* Description (if any) */}
                   <p className="text-xs text-[var(--text-muted)] line-clamp-2 leading-relaxed mb-4 min-h-[36px]">
                     {ws.description ||
-                      "Không gian thảo luận, cập nhật tiến độ và làm việc nhóm của dự án."}
+                      "Workspace thảo luận, cập nhật tiến độ và làm việc nhóm của dự án."}
                   </p>
 
                   {/* Enter Button Indicator */}
                   <div className="pt-3 border-t border-[var(--border-color)]/60 flex items-center justify-between text-xs font-semibold text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors">
-                    <span>Truy cập không gian</span>
+                    <span>Truy cập Workspace</span>
                     <ArrowRight
                       size={14}
                       weight="bold"
@@ -362,10 +362,10 @@ export const HomePage: React.FC = () => {
                 <Plus size={22} weight="bold" />
               </div>
               <h3 className="font-bold text-sm text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
-                Tạo thêm không gian mới
+                Tạo thêm Workspace mới
               </h3>
               <p className="text-xs text-[var(--text-muted)] mt-1 max-w-[200px] leading-relaxed">
-                Tạo một không gian riêng cho phòng ban hoặc nhóm mới
+                Tạo một Workspace riêng cho phòng ban hoặc nhóm mới
               </p>
             </div>
 
@@ -381,7 +381,7 @@ export const HomePage: React.FC = () => {
                 Tham gia bằng mã mời
               </h3>
               <p className="text-xs text-[var(--text-muted)] mt-1 max-w-[200px] leading-relaxed">
-                Nhập mã mời hoặc liên kết để tham gia vào không gian có sẵn
+                Nhập mã mời hoặc liên kết để tham gia vào Workspace có sẵn
               </p>
             </div>
           </div>

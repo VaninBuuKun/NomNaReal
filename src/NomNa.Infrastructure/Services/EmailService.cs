@@ -34,7 +34,7 @@ public class EmailService : IEmailService
         var senderEmail = _configuration["Email:SenderEmail"] ?? "no-reply@nomna.app";
         var senderName = _configuration["Email:SenderName"] ?? "NomNa Chat";
 
-        var subject = $"[NomNa] {inviterName} đã mời bạn tham gia không gian \"{workspaceName}\"";
+        var subject = $"[NomNa] {inviterName} đã mời bạn tham gia workspace \"{workspaceName}\"";
 
         var bodyHtml = $@"
 <!DOCTYPE html>
@@ -59,17 +59,17 @@ public class EmailService : IEmailService
   <div class=""container"">
     <div class=""header"">
       <div class=""logo"">NomNa</div>
-      <div class=""title"">Lời mời tham gia không gian làm việc</div>
+      <div class=""title"">Lời mời tham gia Workspace</div>
     </div>
     <div class=""content"">
       Xin chào,<br><br>
-      <strong>{inviterName}</strong> vừa gửi lời mời bạn cùng tham gia trò chuyện và làm việc tại không gian <strong>""{workspaceName}""</strong> trên NomNa.
+      <strong>{inviterName}</strong> vừa gửi lời mời bạn cùng tham gia trò chuyện và làm việc tại workspace <strong>""{workspaceName}""</strong> trên NomNa.
     </div>
     <div class=""code-box"">
       <span class=""code-label"">Mã tham gia trực tiếp</span>
       <span class=""code"" select-all>{inviteCode}</span>
     </div>
-    <a href=""{effectiveJoinUrl}"" class=""btn"" target=""_blank"">Tham gia không gian ngay</a>
+    <a href=""{effectiveJoinUrl}"" class=""btn"" target=""_blank"">Tham gia Workspace ngay</a>
     <div class=""footer"">
       Nếu bạn không biết người gửi hoặc không yêu cầu lời mời này, bạn có thể yên tâm bỏ qua email.<br>
       NomNa — Nền tảng giao tiếp theo thời gian thực.

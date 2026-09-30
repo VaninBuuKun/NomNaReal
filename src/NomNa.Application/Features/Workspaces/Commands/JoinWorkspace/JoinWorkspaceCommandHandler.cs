@@ -41,7 +41,7 @@ public class JoinWorkspaceCommandHandler : IRequestHandler<JoinWorkspaceCommand,
 
         if (workspace == null)
         {
-            return Error.NotFound("Workspace.NotFound", "Mã mời không chính xác hoặc không gian làm việc không tồn tại.");
+            return Error.NotFound("Workspace.NotFound", "Mã mời không chính xác hoặc Workspace không tồn tại.");
         }
 
         var isAlreadyMember = workspace.Members.Any(m => m.UserId == userId.Value);

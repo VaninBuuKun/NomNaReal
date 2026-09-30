@@ -31,7 +31,7 @@ public class LeaveWorkspaceCommandHandler : IRequestHandler<LeaveWorkspaceComman
             return Error.NotFound("Workspace.NotFound", "Workspace not found.");
 
         if (workspace.OwnerId == userId.Value)
-            return Error.Conflict("Workspace.OwnerCannotLeave", "Chủ sở hữu không thể rời khỏi không gian làm việc. Bạn phải chuyển quyền sở hữu hoặc xóa không gian.");
+            return Error.Conflict("Workspace.OwnerCannotLeave", "Chủ sở hữu không thể rời khỏi workspace. Bạn phải chuyển quyền sở hữu hoặc xóa workspace.");
 
         var member = await _context.WorkspaceMembers
             .FirstOrDefaultAsync(m => m.WorkspaceId == request.WorkspaceId && m.UserId == userId.Value, cancellationToken);

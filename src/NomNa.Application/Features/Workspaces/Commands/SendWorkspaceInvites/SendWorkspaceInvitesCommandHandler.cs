@@ -31,14 +31,14 @@ public class SendWorkspaceInvitesCommandHandler : IRequestHandler<SendWorkspaceI
             .FirstOrDefaultAsync(w => w.Id == request.WorkspaceId, cancellationToken);
 
         if (workspace == null)
-            return Error.NotFound("Workspace.NotFound", "Không gian làm việc không tồn tại.");
+            return Error.NotFound("Workspace.NotFound", "Workspace không tồn tại.");
 
         // Verify current user is a member of the workspace
         var isMember = await _context.WorkspaceMembers
             .AnyAsync(m => m.WorkspaceId == request.WorkspaceId && m.UserId == currentUserId.Value, cancellationToken);
 
         if (!isMember)
-            return Error.Forbidden("Workspace.Forbidden", "Bạn không có quyền mời thành viên vào không gian này.");
+            return Error.Forbidden("Workspace.Forbidden", "Bạn không có quyền mời thành viên vào Workspace này.");
 
         // Get sender profile for email signature
         var sender = await _context.Users

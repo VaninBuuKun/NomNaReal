@@ -98,8 +98,8 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Mời thành viên vào không gian"
-      subtitle={`Mời bạn bè và đồng nghiệp tham gia ${workspace?.name || 'không gian làm việc'}.`}
+      title="Mời thành viên vào Workspace"
+      subtitle={`Mời bạn bè và đồng nghiệp tham gia ${workspace?.name || 'Workspace'}.`}
       className="max-w-[480px]"
     >
       <div className="p-5 flex flex-col gap-4">
@@ -199,7 +199,7 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
             <div className="flex items-start gap-2 p-2.5 rounded-[4px] bg-[var(--accent-soft)] border border-[var(--accent-primary)]/20 text-[11px] text-[var(--text-secondary)] leading-relaxed">
               <Info size={16} weight="bold" className="text-[var(--accent-primary)] shrink-0 mt-0.5" />
               <span>
-                Bất kỳ ai có đường link hoặc mã mời này đều có thể tham gia vào không gian làm việc{' '}
+                Bất kỳ ai có đường link hoặc mã mời này đều có thể tham gia vào Workspace{' '}
                 <strong className="text-[var(--text-primary)]">{workspace?.name || 'Nexus Hub'}</strong>.
               </span>
             </div>

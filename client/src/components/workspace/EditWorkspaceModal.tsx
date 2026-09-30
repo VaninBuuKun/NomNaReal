@@ -85,7 +85,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
       onClose();
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
-      setError(errorObj?.response?.data?.message || "Không thể cập nhật không gian làm việc.");
+      setError(errorObj?.response?.data?.message || "Không thể cập nhật workspace.");
     } finally {
       setIsSubmitting(false);
     }
@@ -102,7 +102,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
       onClose();
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
-      setError(errorObj?.response?.data?.message || "Không thể xóa không gian làm việc.");
+      setError(errorObj?.response?.data?.message || "Không thể xóa workspace.");
     } finally {
       setIsDeleting(false);
     }
@@ -111,7 +111,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
   if (!workspace) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Cài đặt Không gian làm việc" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title="Cài đặt Workspace" size="md">
       <form onSubmit={handleSave} className="flex flex-col gap-4">
         {error && (
           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400">
@@ -163,7 +163,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
 
         {/* Name */}
         <Input
-          label="Tên không gian làm việc"
+          label="Tên Workspace"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nhập tên workspace..."
@@ -179,7 +179,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Mô tả mục đích của không gian này..."
+            placeholder="Mô tả mục đích của workspace này..."
             rows={2}
             className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg p-2.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors resize-none"
             maxLength={500}
@@ -215,12 +215,12 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
                 className="text-red-500 hover:bg-red-500/10 border-red-500/30"
                 leftIcon={<Trash size={14} />}
               >
-                Xóa không gian làm việc này
+                Xóa Workspace này
               </Button>
             ) : (
               <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex flex-col gap-2">
                 <p className="text-xs text-red-400 font-medium">
-                  Hành động này sẽ xóa vĩnh viễn không gian làm việc cùng toàn bộ kênh và tin nhắn. Không thể khôi phục!
+                  Hành động này sẽ xóa vĩnh viễn workspace cùng toàn bộ kênh và tin nhắn. Không thể khôi phục!
                 </p>
                 <div className="flex gap-2 justify-end">
                   <Button

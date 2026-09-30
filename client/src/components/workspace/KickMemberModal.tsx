@@ -42,7 +42,7 @@ export const KickMemberModal: React.FC<KickMemberModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Đuổi thành viên"
-      subtitle="Xác nhận thu hồi quyền truy cập không gian làm việc của thành viên."
+      subtitle="Xác nhận thu hồi quyền truy cập workspace của thành viên."
       className="max-w-[440px]"
     >
       <div className="p-6 space-y-5">
@@ -75,7 +75,7 @@ export const KickMemberModal: React.FC<KickMemberModalProps> = ({
         <div className="flex gap-2.5 p-3.5 rounded-[4px] bg-amber-500/10 border border-amber-500/25 text-amber-500 text-xs">
           <WarningCircle size={18} weight="fill" className="shrink-0 mt-0.5" />
           <div className="leading-relaxed">
-            Bạn có chắc chắn muốn đuổi <strong className="text-[var(--text-primary)] font-bold">@{member.username}</strong> khỏi <strong className="text-[var(--text-primary)] font-bold">{workspaceName || "không gian này"}</strong>? Họ sẽ mất toàn bộ quyền truy cập vào các kênh và tin nhắn.
+            Bạn có chắc chắn muốn đuổi <strong className="text-[var(--text-primary)] font-bold">@{member.username}</strong> khỏi <strong className="text-[var(--text-primary)] font-bold">{workspaceName || "workspace này"}</strong>? Họ sẽ mất toàn bộ quyền truy cập vào các kênh và tin nhắn.
           </div>
         </div>
 

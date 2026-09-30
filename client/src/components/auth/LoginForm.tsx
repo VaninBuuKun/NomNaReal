@@ -26,17 +26,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      emailOrUsername: 'alex@pulsechat.io',
-      password: 'Password123!',
+      emailOrUsername: '',
+      password: '',
       rememberMe: true,
     },
   });
-
-  const quickFillAccount = (user: string, pass: string) => {
-    loginForm.setValue('emailOrUsername', user, { shouldValidate: true });
-    loginForm.setValue('password', pass, { shouldValidate: true });
-    setLocalError(null);
-  };
 
   const onSubmit = async (data: LoginFormData) => {
     setLocalError(null);
@@ -68,7 +62,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
       <Input
         label="Email hoặc Tên tài khoản"
         type="text"
-        placeholder="alex@pulsechat.io hoặc alexrivers"
+        placeholder="user@example.com hoặc username"
         {...loginForm.register('emailOrUsername')}
         error={loginForm.formState.errors.emailOrUsername?.message}
       />
@@ -102,26 +96,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
           />
           <span>Ghi nhớ đăng nhập</span>
         </label>
-
-        {/* Demo Account Quick Links */}
-        <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-          <span>Mẫu:</span>
-          <button
-            type="button"
-            onClick={() => quickFillAccount('alex@pulsechat.io', 'Password123!')}
-            className="hover:text-[var(--accent-primary)] font-semibold cursor-pointer underline underline-offset-2"
-          >
-            Alex
-          </button>
-          <span>•</span>
-          <button
-            type="button"
-            onClick={() => quickFillAccount('minh@pulsechat.io', 'Password123!')}
-            className="hover:text-[var(--accent-primary)] font-semibold cursor-pointer underline underline-offset-2"
-          >
-            Minh
-          </button>
-        </div>
       </div>
 
       <Button

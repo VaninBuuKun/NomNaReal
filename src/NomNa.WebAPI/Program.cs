@@ -42,10 +42,21 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy.SetIsOriginAllowed(origin =>
+        {
+            if (string.IsNullOrEmpty(origin)) return false;
+            if (builder.Environment.IsDevelopment())
+            {
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    if (uri.Host == "localhost" || uri.Host == "127.0.0.1") return true;
+                }
+            }
+            return allowedOrigins.Contains(origin);
+        })
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
     });
 });
 
@@ -108,7 +119,10 @@ using (var scope = app.Services.CreateScope())
 {
     var initializer = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitializer>();
     await initializer.InitializeAsync();
-    await initializer.SeedAsync();
+    if (app.Environment.IsDevelopment())
+    {
+        await initializer.SeedAsync();
+    }
 }
 
 // 6. Middleware Pipeline

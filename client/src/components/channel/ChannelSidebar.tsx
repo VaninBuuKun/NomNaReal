@@ -106,7 +106,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           <button
             type="button"
             onClick={() => setIsInviteModalOpen(true)}
-            title="Mời thêm thành viên vào không gian làm việc"
+            title="Mời thêm thành viên vào Workspace"
             className="w-8 h-8 rounded-[4px] bg-[var(--accent-soft)] hover:bg-[var(--accent-primary)] text-[var(--accent-primary)] hover:text-white flex items-center justify-center shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
           >
             <UserPlus size={17} weight="bold" />
@@ -142,7 +142,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                       {currentWorkspace?.name || 'Nexus Hub'}
                     </div>
                     <div className="text-[0.68rem] text-[var(--text-muted)] font-normal truncate mt-0.5">
-                      {currentWorkspace?.memberCount ? `${currentWorkspace.memberCount} thành viên` : 'Không gian làm việc'}
+                      {currentWorkspace?.memberCount ? `${currentWorkspace.memberCount} thành viên` : 'Workspace'}
                     </div>
                   </div>
                 </div>

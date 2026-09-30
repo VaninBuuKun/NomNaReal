@@ -75,7 +75,7 @@ export const NewDirectMessageModal: React.FC<NewDirectMessageModalProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       title="Tin Nhắn Trực Tiếp Mới"
-      subtitle="Tìm kiếm thành viên trong không gian làm việc để bắt đầu cuộc trò chuyện riêng tư."
+      subtitle="Tìm kiếm thành viên trong Workspace để bắt đầu cuộc trò chuyện riêng tư."
       className="max-w-[500px]"
     >
       <div className="p-5 flex flex-col gap-4">

@@ -83,7 +83,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError }
       <Input
         label="Địa chỉ Email"
         type="email"
-        placeholder="alex@pulsechat.io"
+        placeholder="user@example.com"
         {...registerForm.register('email')}
         error={registerForm.formState.errors.email?.message}
       />

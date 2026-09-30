@@ -36,7 +36,7 @@ public class GetChannelMembersQueryHandler : IRequestHandler<GetChannelMembersQu
             .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == currentUserId.Value, cancellationToken);
 
         if (!isWorkspaceMember)
-            return Error.Forbidden("Workspace.Forbidden", "Bạn không thuộc không gian làm việc này.");
+            return Error.Forbidden("Workspace.Forbidden", "Bạn không thuộc workspace này.");
 
         if (channel.IsPrivate)
         {
