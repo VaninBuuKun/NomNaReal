@@ -96,14 +96,26 @@ jobs:
             echo "📦 Pulling latest image: ${IMAGE_REF}..."
             docker pull "${IMAGE_REF}"
 
+            # Tag locally as nomna-app:latest so both references point to the new image
+            docker tag "${IMAGE_REF}" nomna-app:latest
+
             echo "🔄 Updating application..."
             cd ${{ vars.DEPLOY_PATH || '~/nomna' }}
 
-            # Update the image reference in docker-compose
-            export APP_IMAGE="${IMAGE_REF}"
+            # Update repository files on VPS (docker-compose, configs, scripts)
+            if [ -d ".git" ]; then
+              git pull origin main || true
+            fi
 
-            # Pull all service images and restart
-            docker compose -f docker-compose.prod.yml pull app
+            # Export APP_IMAGE and update .env if present
+            export APP_IMAGE="${IMAGE_REF}"
+            if grep -q "^APP_IMAGE=" .env 2>/dev/null; then
+              sed -i "s|^APP_IMAGE=.*|APP_IMAGE=${IMAGE_REF}|" .env
+            elif [ -f ".env" ]; then
+              echo "APP_IMAGE=${IMAGE_REF}" >> .env
+            fi
+
+            # Recreate and restart app container with the new image
             docker compose -f docker-compose.prod.yml up -d --no-deps app
 
             echo "🧹 Cleaning old images..."
