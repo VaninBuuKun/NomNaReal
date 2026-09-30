@@ -16,7 +16,10 @@ echo "Email:  ${EMAIL}"
 echo "=========================================="
 
 echo "[1/3] 📡 Đang gửi yêu cầu cấp chứng chỉ SSL tới Let's Encrypt..."
-docker compose -f "${PROJECT_DIR}/docker-compose.prod.yml" run --rm certbot certonly \
+# Đảm bảo Nginx đang chạy để Let's Encrypt xác thực qua cổng 80 HTTP
+docker compose -f "${PROJECT_DIR}/docker-compose.prod.yml" up -d nginx
+
+docker compose -f "${PROJECT_DIR}/docker-compose.prod.yml" run --rm --entrypoint "certbot" certbot certonly \
   --webroot \
   --webroot-path=/var/lib/letsencrypt \
   -d "${DOMAIN}" \
