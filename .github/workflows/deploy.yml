@@ -89,14 +89,18 @@ jobs:
           script: |
             set -e
 
-            echo "📦 Pulling latest image..."
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            # Docker requires all repository and image names to be lowercase
+            REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE_REF="${{ env.REGISTRY }}/${REPO_LOWER}:latest"
+
+            echo "📦 Pulling latest image: ${IMAGE_REF}..."
+            docker pull "${IMAGE_REF}"
 
             echo "🔄 Updating application..."
             cd ${{ vars.DEPLOY_PATH || '~/nomna' }}
 
             # Update the image reference in docker-compose
-            export APP_IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+            export APP_IMAGE="${IMAGE_REF}"
 
             # Pull all service images and restart
             docker compose -f docker-compose.prod.yml pull app

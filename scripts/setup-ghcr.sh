@@ -27,5 +27,6 @@ echo ""
 echo "Your VPS can now pull images from ghcr.io"
 echo "Next: set APP_IMAGE in your .env file:"
 echo ""
-echo "  echo 'APP_IMAGE=ghcr.io/${GH_USERNAME}/nomnareal:latest' >> .env"
+GH_USERNAME_LOWER=$(echo "$GH_USERNAME" | tr '[:upper:]' '[:lower:]')
+echo "  echo 'APP_IMAGE=ghcr.io/${GH_USERNAME_LOWER}/nomnareal:latest' >> .env"
 echo ""
