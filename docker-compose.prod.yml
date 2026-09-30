@@ -21,6 +21,19 @@ services:
       - nomna-net
 
   # ============================================
+  # 1.5 Certbot (SSL Auto-Renew)
+  # ============================================
+  certbot:
+    image: certbot/certbot:latest
+    container_name: nomna_certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do sleep 12h & wait $${!}; certbot renew --quiet; done'"
+    networks:
+      - nomna-net
+
+  # ============================================
   # 2. NomNa Fullstack Application (.NET 9 + React SPA)
   # ============================================
   app:
