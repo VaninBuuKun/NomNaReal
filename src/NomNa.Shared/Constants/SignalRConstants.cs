@@ -18,6 +18,8 @@ public static class SignalRConstants
         public const string AddedToChannel = "AddedToChannel";
         public const string ChannelMemberAdded = "ChannelMemberAdded";
         public const string WorkspaceMemberJoined = "WorkspaceMemberJoined";
+        public const string MessagePinned = "MessagePinned";
+        public const string MessageUnpinned = "MessageUnpinned";
     }
 
     public static class Methods

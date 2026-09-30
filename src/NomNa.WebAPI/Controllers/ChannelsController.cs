@@ -96,6 +96,13 @@ public class ChannelsController : ApiControllerBase
         var result = await Mediator.Send(new NomNa.Application.Features.Channels.Commands.DeleteChannel.DeleteChannelCommand(channelId));
         return HandleResult(result);
     }
+
+    [HttpGet("{channelId}/pinned")]
+    public async Task<IActionResult> GetPinnedMessages([FromRoute] Guid channelId)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Messages.Queries.GetPinnedMessages.GetPinnedMessagesQuery(channelId));
+        return HandleResult(result);
+    }
 }
 
 public record SendMessageRequest(string? Content, Guid? ThreadId = null, List<NomNa.Application.Features.Messages.DTOs.AttachmentInputDto>? Attachments = null);

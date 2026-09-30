@@ -9,3 +9,5 @@ export * from './MessageContent';
 export * from './ImageLightboxModal';
 export * from './ImageGalleryGrid';
 export * from './SearchSidebar';
+export * from './StickyPinBar';
+export * from './PinnedMessagesSidebar';

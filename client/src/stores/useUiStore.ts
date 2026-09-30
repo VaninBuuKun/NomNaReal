@@ -13,6 +13,9 @@ export const DEFAULT_MEMBER_WIDTH = 270;
 export const MIN_SEARCH_WIDTH = 320;
 export const MAX_SEARCH_WIDTH = 600;
 export const DEFAULT_SEARCH_WIDTH = 380;
+export const MIN_PINNED_WIDTH = 300;
+export const MAX_PINNED_WIDTH = 550;
+export const DEFAULT_PINNED_WIDTH = 360;
 
 interface UiState {
   activeSidebarView: 'channels' | 'dms';
@@ -20,6 +23,7 @@ interface UiState {
   activeThreadMessage: Message | null;
   isMemberListOpen: boolean;
   isSearchOpen: boolean;
+  isPinnedSidebarOpen: boolean;
 
   // Modals
   isSettingsOpen: boolean;
@@ -37,6 +41,7 @@ interface UiState {
   threadWidth: number;
   memberWidth: number;
   searchWidth: number;
+  pinnedSidebarWidth: number;
 
   // Actions
   setActiveSidebarView: (view: 'channels' | 'dms') => void;
@@ -48,6 +53,10 @@ interface UiState {
   closeSearch: () => void;
   toggleSearch: () => void;
   setSearchWidth: (width: number) => void;
+  openPinnedSidebar: () => void;
+  closePinnedSidebar: () => void;
+  togglePinnedSidebar: () => void;
+  setPinnedSidebarWidth: (width: number) => void;
 
   setSettingsOpen: (open: boolean) => void;
   setCreateWorkspaceOpen: (open: boolean) => void;
@@ -109,15 +118,25 @@ export const useUiStore = create<UiState>((set) => ({
       : DEFAULT_SEARCH_WIDTH;
   })(),
 
+  pinnedSidebarWidth: (() => {
+    const saved = localStorage.getItem('nomna_pinned_width');
+    return saved
+      ? Math.max(MIN_PINNED_WIDTH, Math.min(MAX_PINNED_WIDTH, parseInt(saved, 10)))
+      : DEFAULT_PINNED_WIDTH;
+  })(),
+
+  isPinnedSidebarOpen: false,
+
   setActiveSidebarView: (view) => set({ activeSidebarView: view }),
 
   openThread: (message) =>
     set({
       isThreadOpen: true,
       activeThreadMessage: message,
-      // Mutual exclusivity: opening thread closes member list and search
+      // Mutual exclusivity: opening thread closes other sidebars
       isMemberListOpen: false,
       isSearchOpen: false,
+      isPinnedSidebarOpen: false,
     }),
 
   closeThread: () =>
@@ -132,8 +151,7 @@ export const useUiStore = create<UiState>((set) => ({
       localStorage.setItem('nomna_member_list_open', String(next));
       return {
         isMemberListOpen: next,
-        // Mutual exclusivity: opening member list closes thread and search
-        ...(next ? { isThreadOpen: false, activeThreadMessage: null, isSearchOpen: false } : {}),
+        ...(next ? { isThreadOpen: false, activeThreadMessage: null, isSearchOpen: false, isPinnedSidebarOpen: false } : {}),
       };
     }),
 
@@ -148,6 +166,7 @@ export const useUiStore = create<UiState>((set) => ({
       isThreadOpen: false,
       activeThreadMessage: null,
       isMemberListOpen: false,
+      isPinnedSidebarOpen: false,
     }),
 
   closeSearch: () => set({ isSearchOpen: false }),
@@ -162,6 +181,7 @@ export const useUiStore = create<UiState>((set) => ({
               isThreadOpen: false,
               activeThreadMessage: null,
               isMemberListOpen: false,
+              isPinnedSidebarOpen: false,
             }
           : {}),
       };
@@ -170,6 +190,38 @@ export const useUiStore = create<UiState>((set) => ({
   setSearchWidth: (width) => {
     localStorage.setItem('nomna_search_width', width.toString());
     set({ searchWidth: width });
+  },
+
+  openPinnedSidebar: () =>
+    set({
+      isPinnedSidebarOpen: true,
+      isThreadOpen: false,
+      activeThreadMessage: null,
+      isMemberListOpen: false,
+      isSearchOpen: false,
+    }),
+
+  closePinnedSidebar: () => set({ isPinnedSidebarOpen: false }),
+
+  togglePinnedSidebar: () =>
+    set((state) => {
+      const next = !state.isPinnedSidebarOpen;
+      return {
+        isPinnedSidebarOpen: next,
+        ...(next
+          ? {
+              isThreadOpen: false,
+              activeThreadMessage: null,
+              isMemberListOpen: false,
+              isSearchOpen: false,
+            }
+          : {}),
+      };
+    }),
+
+  setPinnedSidebarWidth: (width) => {
+    localStorage.setItem('nomna_pinned_width', width.toString());
+    set({ pinnedSidebarWidth: width });
   },
 
   setSettingsOpen: (open) => set({ isSettingsOpen: open }),

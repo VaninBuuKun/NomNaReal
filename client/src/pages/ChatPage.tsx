@@ -3,13 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { WorkspaceRail, CreateWorkspaceModal, EditWorkspaceModal, KickMemberModal } from '../components/workspace';
 import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel, EditChannelModal, AddChannelMemberModal } from '../components/channel';
 import { DirectMessagesSidebar, NewDirectMessageModal, type DirectMessageItem, type DirectMessageUser } from '../components/dm';
-import { ChatArea, SearchSidebar } from '../components/chat';
+import { ChatArea, SearchSidebar, PinnedMessagesSidebar } from '../components/chat';
 import { ThreadPanel } from '../components/thread';
 import { SettingsModal } from '../components/settings';
 import { Toast } from '../components/ui';
 import { authApi, workspaceApi, channelApi, messageApi, signalRService } from '../services';
 import { useTheme } from '../hooks/useTheme';
-import { ChannelType, type User, type Workspace, type Channel, type Message, type ReactionGroup } from '../types';
+import { ChannelType, type User, type Workspace, type Channel, type Message, type ReactionGroup, type PinnedMessage } from '../types';
 import {
   useWorkspaceStore,
   useChatStore,
@@ -23,6 +23,8 @@ import {
   MAX_MEMBER_WIDTH,
   MIN_SEARCH_WIDTH,
   MAX_SEARCH_WIDTH,
+  MIN_PINNED_WIDTH,
+  MAX_PINNED_WIDTH,
 } from '../stores';
 
 export const ChatPage: React.FC = () => {
@@ -106,10 +108,12 @@ export const ChatPage: React.FC = () => {
     activeThreadMessage,
     isMemberListOpen,
     isSearchOpen,
+    isPinnedSidebarOpen,
     channelWidth,
     threadWidth,
     memberWidth,
     searchWidth,
+    pinnedSidebarWidth,
     isSettingsOpen,
     isCreateWorkspaceOpen,
     isEditWorkspaceOpen,
@@ -125,6 +129,9 @@ export const ChatPage: React.FC = () => {
     toggleMemberList,
     setMemberListOpen,
     closeSearch,
+    togglePinnedSidebar,
+    closePinnedSidebar,
+    setPinnedSidebarWidth,
     setSettingsOpen,
     setCreateWorkspaceOpen,
     setEditWorkspaceOpen,
@@ -141,6 +148,8 @@ export const ChatPage: React.FC = () => {
   } = useUiStore();
 
   const [isResizingSearch, setIsResizingSearch] = useState(false);
+  const [isResizingPinned, setIsResizingPinned] = useState(false);
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [toast, setToast] = useState<{
     id: string;
     title: string;
@@ -214,6 +223,30 @@ export const ChatPage: React.FC = () => {
 
     const onMouseUp = () => {
       setIsResizingSearch(false);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handlePinnedResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingPinned(true);
+    const startX = e.clientX;
+    const startWidth = pinnedSidebarWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(
+        MIN_PINNED_WIDTH,
+        Math.min(MAX_PINNED_WIDTH, startWidth + (startX - moveEvent.clientX))
+      );
+      setPinnedSidebarWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      setIsResizingPinned(false);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
     };
@@ -349,6 +382,65 @@ export const ChatPage: React.FC = () => {
 
     await loadMessages(channelId);
     await signalRService.joinChannel(channelId);
+  };
+
+  const loadPinnedMessages = async (channelId: string) => {
+    try {
+      const pins = await messageApi.getPinnedMessages(channelId);
+      setPinnedMessages(pins);
+    } catch (err) {
+      console.error('Failed to load pinned messages:', err);
+      setPinnedMessages([]);
+    }
+  };
+
+  useEffect(() => {
+    if (activeChannelId) {
+      loadPinnedMessages(activeChannelId);
+    } else {
+      setPinnedMessages([]);
+    }
+  }, [activeChannelId]);
+
+  const handlePinMessage = async (messageId: string) => {
+    try {
+      const pinned = await messageApi.pinMessage(messageId);
+      setPinnedMessages((prev) => {
+        if (prev.some((p) => p.messageId === messageId)) return prev;
+        return [...prev, pinned];
+      });
+      setToast({
+        id: Date.now().toString(),
+        title: 'Đã ghim tin nhắn',
+        description: 'Tin nhắn đã được ghim lên đầu kênh thành công.',
+      });
+    } catch (err) {
+      console.error('Failed to pin message:', err);
+      setToast({
+        id: Date.now().toString(),
+        title: 'Lỗi ghim tin nhắn',
+        description: 'Không thể ghim tin nhắn này. Vui lòng thử lại!',
+      });
+    }
+  };
+
+  const handleUnpinMessage = async (messageId: string) => {
+    try {
+      await messageApi.unpinMessage(messageId);
+      setPinnedMessages((prev) => prev.filter((p) => p.messageId !== messageId));
+      setToast({
+        id: Date.now().toString(),
+        title: 'Đã bỏ ghim',
+        description: 'Tin nhắn đã được gỡ khỏi danh sách ghim.',
+      });
+    } catch (err) {
+      console.error('Failed to unpin message:', err);
+      setToast({
+        id: Date.now().toString(),
+        title: 'Lỗi bỏ ghim',
+        description: 'Không thể bỏ ghim tin nhắn. Vui lòng thử lại!',
+      });
+    }
   };
 
   // Fetch Workspace Channels, DMs, and Members in parallel
@@ -578,6 +670,23 @@ export const ChatPage: React.FC = () => {
             [data.channelId]: [...existing, data.userId],
           };
         });
+      });
+
+      // Listen for message pinned event
+      signalRService.onMessagePinned((pinned: any) => {
+        if (pinned.channelId === activeChannelIdRef.current) {
+          setPinnedMessages((prev) => {
+            if (prev.some((p) => p.messageId === pinned.messageId)) return prev;
+            return [...prev, pinned];
+          });
+        }
+      });
+
+      // Listen for message unpinned event
+      signalRService.onMessageUnpinned((data: { channelId: string; messageId: string }) => {
+        if (data.channelId === activeChannelIdRef.current) {
+          setPinnedMessages((prev) => prev.filter((p) => p.messageId !== data.messageId));
+        }
       });
 
       // Load Workspaces
@@ -1134,6 +1243,11 @@ export const ChatPage: React.FC = () => {
           workspaceMembers={workspaceMembers}
           isMemberListOpen={isMemberListOpen}
           onToggleMemberList={toggleMemberList}
+          pinnedMessages={pinnedMessages}
+          onPinMessage={handlePinMessage}
+          onUnpinMessage={handleUnpinMessage}
+          isPinnedSidebarOpen={isPinnedSidebarOpen}
+          onTogglePinnedSidebar={togglePinnedSidebar}
         />
 
         {/* 3.5 Resizer Divider & Thread Panel */}
@@ -1224,6 +1338,36 @@ export const ChatPage: React.FC = () => {
                   }
                 }, 300);
               }}
+            />
+          </>
+        )}
+
+        {/* 6. Resizer Divider & Pinned Messages Sidebar (Mutually Exclusive) */}
+        {!isThreadOpen && !isMemberListOpen && !isSearchOpen && isPinnedSidebarOpen && (
+          <>
+            <div
+              className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+                isResizingPinned
+                  ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
+                  : 'bg-[var(--border-color)]'
+              }`}
+              onMouseDown={handlePinnedResizeStart}
+              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tin nhắn đã ghim"
+            />
+            <PinnedMessagesSidebar
+              isOpen={isPinnedSidebarOpen}
+              onClose={closePinnedSidebar}
+              width={pinnedSidebarWidth}
+              pinnedMessages={pinnedMessages}
+              onJumpToMessage={(messageId) => {
+                const el = document.getElementById(`msg-${messageId}`);
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.classList.add('bg-[var(--accent-soft)]', 'ring-2', 'ring-amber-400/60');
+                  setTimeout(() => el.classList.remove('bg-[var(--accent-soft)]', 'ring-2', 'ring-amber-400/60'), 2500);
+                }
+              }}
+              onUnpinMessage={handleUnpinMessage}
             />
           </>
         )}

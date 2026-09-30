@@ -74,3 +74,14 @@ export interface MessagesResponse {
   nextCursor?: string | null;
 }
 
+export interface PinnedMessage {
+  id: string;
+  channelId: string;
+  messageId: string;
+  pinnedById: string;
+  pinnedByName: string;
+  pinnedAt: string;
+  orderIndex: number;
+  message: Message;
+}
+

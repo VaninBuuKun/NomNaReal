@@ -12,6 +12,7 @@ public interface IApplicationDbContext
     DbSet<ChannelMember> ChannelMembers { get; }
     DbSet<Message> Messages { get; }
     DbSet<MessageReaction> MessageReactions { get; }
+    DbSet<ChannelPinnedMessage> ChannelPinnedMessages { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

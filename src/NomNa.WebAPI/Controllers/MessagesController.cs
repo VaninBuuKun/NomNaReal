@@ -114,6 +114,36 @@ public class MessagesController : ApiControllerBase
         ));
         return HandleResult(result);
     }
+
+    [HttpPost("{messageId}/pin")]
+    public async Task<IActionResult> PinMessage([FromRoute] Guid messageId)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Messages.Commands.PinMessage.PinMessageCommand(messageId));
+        if (result.IsSuccess && result.Value != null)
+        {
+            var pinned = result.Value;
+            await _hubContext.Clients.Group(pinned.ChannelId.ToString())
+                .SendAsync(SignalRConstants.Events.MessagePinned, pinned);
+        }
+        return HandleResult(result);
+    }
+
+    [HttpDelete("{messageId}/pin")]
+    public async Task<IActionResult> UnpinMessage([FromRoute] Guid messageId)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Messages.Commands.UnpinMessage.UnpinMessageCommand(messageId));
+        if (result.IsSuccess && result.Value != null)
+        {
+            var unpinned = result.Value;
+            await _hubContext.Clients.Group(unpinned.ChannelId.ToString())
+                .SendAsync(SignalRConstants.Events.MessageUnpinned, new
+                {
+                    channelId = unpinned.ChannelId,
+                    messageId = unpinned.MessageId
+                });
+        }
+        return HandleResult(result);
+    }
 }
 
 public record ReplyToThreadRequest(string Content);

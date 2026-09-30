@@ -87,3 +87,14 @@ public record MessagesResponseDto(
     DateTime? NextCursor
 );
 
+public record PinnedMessageDto(
+    Guid Id,
+    Guid ChannelId,
+    Guid MessageId,
+    Guid PinnedById,
+    string PinnedByName,
+    DateTime PinnedAt,
+    int OrderIndex,
+    MessageDto Message
+);
+

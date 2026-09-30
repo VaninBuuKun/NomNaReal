@@ -197,6 +197,30 @@ export class SignalRService {
     }
   }
 
+  public onMessagePinned(callback: (pinnedMessage: any) => void): void {
+    if (this.connection) {
+      this.connection.on('MessagePinned', callback);
+    }
+  }
+
+  public offMessagePinned(callback: (pinnedMessage: any) => void): void {
+    if (this.connection) {
+      this.connection.off('MessagePinned', callback);
+    }
+  }
+
+  public onMessageUnpinned(callback: (data: { channelId: string; messageId: string }) => void): void {
+    if (this.connection) {
+      this.connection.on('MessageUnpinned', callback);
+    }
+  }
+
+  public offMessageUnpinned(callback: (data: { channelId: string; messageId: string }) => void): void {
+    if (this.connection) {
+      this.connection.off('MessageUnpinned', callback);
+    }
+  }
+
   public async getOnlineUsers(): Promise<string[]> {
     if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
       return [];

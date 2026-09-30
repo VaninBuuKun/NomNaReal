@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   MagnifyingGlass,
   Users,
@@ -18,7 +18,7 @@ import {
   Play,
   FileText,
 } from "@phosphor-icons/react";
-import { ChannelType, type Channel, type Message, type User } from "../../types";
+import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
 import { formatDateDivider, isDifferentDay } from "../../utils/formatDate";
@@ -28,6 +28,7 @@ import { EmojiPickerPopover } from "./EmojiPickerPopover";
 import { GifPicker } from "./GifPicker";
 import { DeleteMessageModal } from "./DeleteMessageModal";
 import { ImageGalleryGrid } from "./ImageGalleryGrid";
+import { StickyPinBar } from "./StickyPinBar";
 import { useChatStore, useUiStore } from "../../stores";
 
 interface PendingAttachment {
@@ -71,6 +72,11 @@ interface ChatAreaProps {
   workspaceMembers?: { id: string; displayName?: string; username?: string; role?: string }[];
   isMemberListOpen?: boolean;
   onToggleMemberList?: () => void;
+  pinnedMessages?: PinnedMessage[];
+  onPinMessage?: (messageId: string) => Promise<void>;
+  onUnpinMessage?: (messageId: string) => Promise<void>;
+  isPinnedSidebarOpen?: boolean;
+  onTogglePinnedSidebar?: () => void;
 }
 
 const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
@@ -104,6 +110,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   workspaceMembers = [],
   isMemberListOpen = false,
   onToggleMemberList,
+  pinnedMessages = [],
+  onPinMessage,
+  onUnpinMessage,
+  isPinnedSidebarOpen = false,
+  onTogglePinnedSidebar,
 }) => {
   const drafts = useChatStore((state) => state.drafts);
   const setDraft = useChatStore((state) => state.setDraft);
@@ -111,6 +122,28 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const isSearchOpen = useUiStore((state) => state.isSearchOpen);
   const toggleSearch = useUiStore((state) => state.toggleSearch);
+
+  const [isStickyDismissed, setIsStickyDismissed] = useState(false);
+
+  // Reset dismissed state when channel changes
+  useEffect(() => {
+    setIsStickyDismissed(false);
+  }, [currentChannel?.id]);
+
+  const pinnedMessageIds = useMemo(() => {
+    return new Set(pinnedMessages.map((p) => p.messageId));
+  }, [pinnedMessages]);
+
+  const handleJumpToMessage = (messageId: string) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("bg-[var(--accent-soft)]", "ring-2", "ring-amber-400/60");
+      setTimeout(() => {
+        el.classList.remove("bg-[var(--accent-soft)]", "ring-2", "ring-amber-400/60");
+      }, 2500);
+    }
+  };
 
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
@@ -550,13 +583,35 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </button>
           <button
             type="button"
-            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-            title="Ghim"
+            onClick={onTogglePinnedSidebar}
+            className={`p-1.5 rounded-md transition-colors cursor-pointer relative inline-flex items-center justify-center ${
+              isPinnedSidebarOpen
+                ? "text-amber-500 bg-amber-500/15"
+                : pinnedMessages && pinnedMessages.length > 0
+                ? "text-amber-500 hover:bg-[var(--bg-surface-active)]"
+                : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
+            }`}
+            title={isPinnedSidebarOpen ? "Đóng danh sách ghim" : "Xem tin nhắn đã ghim"}
           >
-            <PushPin size={17} />
+            <PushPin size={17} weight={isPinnedSidebarOpen || (pinnedMessages && pinnedMessages.length > 0) ? "fill" : "regular"} />
+            {pinnedMessages && pinnedMessages.length > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-amber-500 text-black text-[9px] font-black rounded-full flex items-center justify-center shadow">
+                {pinnedMessages.length}
+              </span>
+            )}
           </button>
         </div>
       </div>
+
+      {/* Sticky Pin Bar (Zalo Style) */}
+      {!isStickyDismissed && pinnedMessages && pinnedMessages.length > 0 && (
+        <StickyPinBar
+          pinnedMessages={pinnedMessages}
+          onJumpToMessage={handleJumpToMessage}
+          onOpenSidebar={() => onTogglePinnedSidebar?.()}
+          onDismiss={() => setIsStickyDismissed(true)}
+        />
+      )}
 
       {/* Message Stream Area or Skeleton */}
       {showSkeleton ? (
@@ -737,6 +792,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                           (đã chỉnh sửa)
                         </span>
                       )}
+                      {pinnedMessageIds.has(msg.id) && (
+                        <span
+                          className="inline-flex items-center gap-0.5 text-[0.7rem] text-amber-500 font-semibold px-1 rounded bg-amber-500/10 border border-amber-500/20"
+                          title="Tin nhắn đã ghim"
+                        >
+                          <PushPin size={10} weight="fill" />
+                          <span>Đã ghim</span>
+                        </span>
+                      )}
                     </div>
                   )}
 
@@ -899,6 +963,24 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                       onClick={() => (onOpenThread ? onOpenThread(msg) : onToggleThread())}
                     >
                       <ChatCenteredDots size={15} />
+                    </button>
+
+                    {/* Pin / Unpin Message */}
+                    <button
+                      type="button"
+                      className={`p-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                        pinnedMessageIds.has(msg.id)
+                          ? "text-amber-500 bg-amber-500/10 hover:bg-amber-500/20"
+                          : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-amber-500"
+                      }`}
+                      title={pinnedMessageIds.has(msg.id) ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn"}
+                      onClick={() =>
+                        pinnedMessageIds.has(msg.id)
+                          ? onUnpinMessage?.(msg.id)
+                          : onPinMessage?.(msg.id)
+                      }
+                    >
+                      <PushPin size={15} weight={pinnedMessageIds.has(msg.id) ? "fill" : "regular"} />
                     </button>
 
                     {/* Edit Message (Sender Only) */}

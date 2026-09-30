@@ -17,6 +17,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public DbSet<ChannelMember> ChannelMembers => Set<ChannelMember>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<MessageReaction> MessageReactions => Set<MessageReaction>();
+    public DbSet<ChannelPinnedMessage> ChannelPinnedMessages => Set<ChannelPinnedMessage>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -207,6 +208,30 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ChannelPinnedMessage Configuration
+        builder.Entity<ChannelPinnedMessage>(entity =>
+        {
+            entity.ToTable("channel_pinned_messages");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ChannelId, e.MessageId }).IsUnique();
+            entity.HasIndex(e => new { e.ChannelId, e.OrderIndex });
+
+            entity.HasOne(e => e.Channel)
+                .WithMany()
+                .HasForeignKey(e => e.ChannelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Message)
+                .WithMany()
+                .HasForeignKey(e => e.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.PinnedBy)
+                .WithMany()
+                .HasForeignKey(e => e.PinnedById)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

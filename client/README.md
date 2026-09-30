@@ -1,32 +1,29 @@
-# React + TypeScript + Vite
+# 💻 NomNa Client — Frontend Reference
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 18 Single Page Application built with TypeScript, Vite, Tailwind CSS, and Zustand.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## 🚀 Quick Start
+```bash
+npm install
+npm run dev      # Khởi chạy dev server tại http://localhost:5173
+npm run build    # Type-check (tsc) và bundle production vào dist/
+npm run lint     # Chạy ESLint
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+## 📁 Cấu Trúc Mã Nguồn (Component-Group Pattern)
+- `src/components/<domain>/`: Chia nhóm theo nghiệp vụ (`auth`, `workspace`, `channel`, `chat`, `thread`, `dm`, `settings`) kèm `index.ts`.
+- `src/components/ui/`: Atomic UI primitives dùng chung (`Button`, `Input`, `Modal`, `Avatar`, `Badge`, `Spinner`, `Toast`).
+- `src/services/`: API clients Axios (`withCredentials: true`) tương ứng từng Controller backend + `signalr.ts`.
+- `src/hooks/`: Custom hooks đóng gói logic nghiệp vụ (`useAuth`, `useMessages`, `useSignalR`, `useTheme`).
+- `src/styles/`: Tailwind CSS base và hệ thống theme tokens (6 bộ màu CSS variables).
+
+---
+
+## 🔐 Nguyên Tắc Phát Triển
+1. **Token Security**: Tokens lưu trong HttpOnly Cookie từ backend, tuyệt đối không lưu access/refresh token vào `localStorage`.
+2. **Avatar Uniformity**: Luôn dùng thẻ `<img>` với fallback `/default-avatar.png` có xử lý `onError`, không dùng initials text trên nền gradient.
+3. **UI Consistency**: Sử dụng primitives từ `components/ui/` và tuân thủ chuẩn `rounded-md` cho chat input & toolbar.
