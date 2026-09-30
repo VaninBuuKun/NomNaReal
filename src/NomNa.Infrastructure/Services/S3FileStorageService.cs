@@ -4,6 +4,7 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNa.Application.Common.Interfaces;
 
@@ -17,6 +18,7 @@ public class S3FileStorageService : IFileStorageService
     private readonly string? _serviceUrl;
     private readonly string? _publicBaseUrl;
     private readonly FileStorageService _fallbackLocalStorage;
+    private readonly IWebHostEnvironment _environment;
     private readonly ILogger<S3FileStorageService> _logger;
 
     public S3FileStorageService(
@@ -25,6 +27,7 @@ public class S3FileStorageService : IFileStorageService
         ILogger<S3FileStorageService> logger)
     {
         _logger = logger;
+        _environment = environment;
         _fallbackLocalStorage = new FileStorageService(environment);
 
         var s3Section = configuration.GetSection("AwsS3");
@@ -84,10 +87,15 @@ public class S3FileStorageService : IFileStorageService
         string? contentType = null,
         CancellationToken cancellationToken = default)
     {
-        // If S3 client or bucket is not active, use local storage fallback
+        // If S3 client or bucket is not active
         if (_s3Client == null || string.IsNullOrWhiteSpace(_bucketName))
         {
-            return await _fallbackLocalStorage.SaveFileAsync(fileStream, fileName, folder, contentType, cancellationToken);
+            if (_environment.IsDevelopment())
+            {
+                return await _fallbackLocalStorage.SaveFileAsync(fileStream, fileName, folder, contentType, cancellationToken);
+            }
+
+            throw new InvalidOperationException("AWS S3 / Cloud storage is not configured. Local fallback is disabled in Production to prevent data loss when server is destroyed.");
         }
 
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
@@ -125,13 +133,21 @@ public class S3FileStorageService : IFileStorageService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading file '{FileName}' to AWS S3. Falling back to local storage.", fileName);
-            // Reset stream position if possible and fallback
-            if (fileStream.CanSeek)
+            _logger.LogError(ex, "Error uploading file '{FileName}' to AWS S3.", fileName);
+
+            // In Development: fallback to local storage
+            if (_environment.IsDevelopment())
             {
-                fileStream.Position = 0;
+                _logger.LogWarning("Falling back to local file storage (Development environment).");
+                if (fileStream.CanSeek)
+                {
+                    fileStream.Position = 0;
+                }
+                return await _fallbackLocalStorage.SaveFileAsync(fileStream, fileName, folder, contentType, cancellationToken);
             }
-            return await _fallbackLocalStorage.SaveFileAsync(fileStream, fileName, folder, contentType, cancellationToken);
+
+            // In Production: fail fast to prevent ephemeral data loss on server destruction
+            throw;
         }
     }
 

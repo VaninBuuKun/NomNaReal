@@ -114,12 +114,31 @@ using (var scope = app.Services.CreateScope())
 // 6. Middleware Pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors("CorsPolicy");
+app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Health Check Endpoints (for Docker & Load Balancers)
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+app.MapGet("/health/ready", async (ApplicationDbContext db) =>
+{
+    try
+    {
+        var canConnect = await db.Database.CanConnectAsync();
+        return canConnect 
+            ? Results.Ok(new { status = "ready", database = "connected" }) 
+            : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+    catch
+    {
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+});
+
 app.MapControllers();
 app.MapHub<ChatHub>(SignalRConstants.HubUrl);
+app.MapFallbackToFile("index.html");
 
 app.Run();

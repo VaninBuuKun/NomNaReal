@@ -1,0 +1,123 @@
+services:
+  # ============================================
+  # 1. Nginx Reverse Proxy (SSL & WebSockets)
+  # ============================================
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: nomna_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - nomna-net
+
+  # ============================================
+  # 2. NomNa Fullstack Application (.NET 9 + React SPA)
+  # ============================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_DEFAULT_AVATAR: ${VITE_DEFAULT_AVATAR:-/default-avatar.png}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    image: nomna-app:latest
+    container_name: nomna_app
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-NomNa};Username=${POSTGRES_USER:-nomna_user};Password=${POSTGRES_PASSWORD:-nomna_secret_pass_2026}
+      - ConnectionStrings__Redis=redis:6379
+      - Jwt__Secret=${Jwt__Secret:-NomNaSuperSecretKeyForDevelopmentAndDemoPurposes2026!MustBeLongEnough}
+      - Jwt__Issuer=${Jwt__Issuer:-NomNa}
+      - Jwt__Audience=${Jwt__Audience:-NomNaClient}
+      - Jwt__ExpirationMinutes=${Jwt__ExpirationMinutes:-60}
+      - Cors__AllowedOrigins__0=${Cors__AllowedOrigins__0:-http://localhost}
+      - Cors__AllowedOrigins__1=${Cors__AllowedOrigins__1:-http://localhost:8080}
+      - Cors__AllowedOrigins__2=${Cors__AllowedOrigins__2:-https://${DOMAIN:-localhost}}
+      - AwsS3__BucketName=${AwsS3__BucketName:-}
+      - AwsS3__Region=${AwsS3__Region:-ap-southeast-1}
+      - AwsS3__AccessKey=${AwsS3__AccessKey:-}
+      - AwsS3__SecretKey=${AwsS3__SecretKey:-}
+      - Authentication__Google__ClientId=${Authentication__Google__ClientId:-}
+      - Email__SmtpHost=${Email__SmtpHost:-}
+      - Email__SmtpPort=${Email__SmtpPort:-587}
+      - Email__SmtpUser=${Email__SmtpUser:-}
+      - Email__SmtpPass=${Email__SmtpPass:-}
+      - Email__SenderEmail=${Email__SenderEmail:-no-reply@nomna.app}
+      - Email__SenderName=${Email__SenderName:-NomNa Chat}
+    expose:
+      - "8080"
+    ports:
+      - "8080:8080" # Allows direct access at http://localhost:8080 during local testing
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - nomna-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # ============================================
+  # 3. PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: nomna_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-NomNa}
+      POSTGRES_USER: ${POSTGRES_USER:-nomna_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nomna_secret_pass_2026}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    networks:
+      - nomna-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nomna_user} -d ${POSTGRES_DB:-NomNa}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # 4. Redis Cache & Presence
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: nomna_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    expose:
+      - "6379"
+    networks:
+      - nomna-net
+
+volumes:
+  pgdata:
+  redisdata:
+  certbot-etc:
+  certbot-var:
+
+networks:
+  nomna-net:
+    driver: bridge
