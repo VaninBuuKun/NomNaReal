@@ -19,6 +19,7 @@ builder.Services.AddInfrastructureServices(builder.Configuration);
 // 2. Add API Services
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddScoped<INotificationDispatcher, SignalRNotificationDispatcher>();
 
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
