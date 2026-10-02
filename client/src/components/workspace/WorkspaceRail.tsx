@@ -1,16 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { SquaresFour, House, Plus, Check, WechatLogoIcon } from '@phosphor-icons/react';
+import {
+  SquaresFour,
+  House,
+  Plus,
+  Check,
+  WechatLogoIcon,
+  ClipboardText,
+  Bell,
+} from '@phosphor-icons/react';
 import type { Workspace } from '../../types';
 
 interface WorkspaceRailProps {
   workspaces: Workspace[];
   activeWorkspaceId: string | null;
-  activeSidebarView?: 'channels' | 'dms';
-  onSelectView?: (view: 'channels' | 'dms') => void;
+  activeSidebarView?: 'channels' | 'dms' | 'notifications' | 'activities';
+  onSelectView?: (view: 'channels' | 'dms' | 'notifications' | 'activities') => void;
   onSelectWorkspace: (id: string) => void;
   onCreateWorkspace?: () => void;
   onGoHome?: () => void;
+  unreadNotificationCount?: number;
 }
 
 export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
@@ -21,6 +30,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
   onSelectWorkspace,
   onCreateWorkspace,
   onGoHome,
+  unreadNotificationCount = 0,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -95,9 +105,6 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
         </div>
       )}
 
-      {/* Divider */}
-      {/* <div className="w-8 h-px bg-[var(--border-color)] my-0.5" /> */}
-
       {/* 3. Direct Messages Icon Button */}
       <div className="relative">
         {activeSidebarView === 'dms' && (
@@ -114,6 +121,73 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
             }`}
         >
           <WechatLogoIcon size={22} weight={activeSidebarView === 'dms' ? 'fill' : 'duotone'} />
+        </button>
+      </div>
+
+      {/* Divider */}
+      <div className="w-8 h-px bg-[var(--border-color)] my-0.5" />
+
+      {/* 4. Activities (Hoạt động & Bài tập) */}
+      <div className="relative">
+        {activeSidebarView === 'activities' && (
+          <div className="absolute -left-[14px] top-1/2 -translate-y-1/2 w-[3.5px] h-7 bg-[var(--accent-primary)] rounded-[2px] shadow-[0_0_8px_var(--accent-glow)]" />
+        )}
+
+        <button
+          type="button"
+          title="Hoạt động & Bài tập (Activities)"
+          onClick={() => onSelectView?.('activities')}
+          className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs ${
+            activeSidebarView === 'activities'
+              ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
+              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+          }`}
+        >
+          <ClipboardText
+            size={22}
+            weight={activeSidebarView === 'activities' ? 'fill' : 'duotone'}
+          />
+        </button>
+      </div>
+
+      {/* 5. Notifications (Thông báo) */}
+      <div className="relative">
+        {activeSidebarView === 'notifications' && (
+          <div className="absolute -left-[14px] top-1/2 -translate-y-1/2 w-[3.5px] h-7 bg-[var(--accent-primary)] rounded-[2px] shadow-[0_0_8px_var(--accent-glow)]" />
+        )}
+
+        <button
+          type="button"
+          title={
+            unreadNotificationCount > 0
+              ? `Thông báo (${unreadNotificationCount} chưa đọc)`
+              : 'Thông báo (Notifications)'
+          }
+          onClick={() => onSelectView?.('notifications')}
+          className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs relative ${
+            activeSidebarView === 'notifications'
+              ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
+              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
+          }`}
+        >
+          <Bell
+            size={22}
+            weight={
+              activeSidebarView === 'notifications' || unreadNotificationCount > 0
+                ? 'fill'
+                : 'duotone'
+            }
+            className={
+              unreadNotificationCount > 0 && activeSidebarView !== 'notifications'
+                ? 'text-amber-500'
+                : ''
+            }
+          />
+          {unreadNotificationCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-rose-500 text-white font-black text-[9px] flex items-center justify-center shadow-xs leading-none ring-2 ring-[var(--bg-rail)]">
+              {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+            </span>
+          )}
         </button>
       </div>
 

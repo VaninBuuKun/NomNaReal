@@ -29,7 +29,16 @@ public class GetPinnedMessagesQueryHandler : IRequestHandler<GetPinnedMessagesQu
 
         var channel = await _context.Channels
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == request.ChannelId, cancellationToken);
+            .Where(c => c.Id == request.ChannelId)
+            .Select(c => new
+            {
+                c.Id,
+                c.IsPrivate,
+                c.Type,
+                c.CreatedById,
+                c.WorkspaceId
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (channel == null)
         {
@@ -58,67 +67,41 @@ public class GetPinnedMessagesQueryHandler : IRequestHandler<GetPinnedMessagesQu
 
         var pinnedList = await _context.ChannelPinnedMessages
             .AsNoTracking()
-            .Include(p => p.PinnedBy)
-            .Include(p => p.Message)
-                .ThenInclude(m => m.Sender)
-            .Include(p => p.Message)
-                .ThenInclude(m => m.Reactions)
             .Where(p => p.ChannelId == request.ChannelId && p.Message.DeletedAt == null)
             .OrderBy(p => p.OrderIndex)
             .ThenByDescending(p => p.PinnedAt)
+            .Select(p => new PinnedMessageDto(
+                p.Id,
+                p.ChannelId,
+                p.MessageId,
+                p.PinnedById,
+                p.PinnedBy.DisplayName ?? "Thành viên",
+                p.PinnedAt,
+                p.OrderIndex,
+                new MessageDto(
+                    p.Message.Id,
+                    p.Message.ChannelId,
+                    p.Message.SenderId,
+                    p.Message.Sender.DisplayName ?? "Unknown",
+                    p.Message.Sender.UserName ?? "unknown",
+                    p.Message.Sender.AvatarUrl,
+                    p.Message.Content,
+                    p.Message.ThreadId,
+                    p.Message.IsEdited,
+                    p.Message.CreatedAt,
+                    p.Message.ReplyCount,
+                    null,
+                    p.Message.Attachments.Select(a => new MessageAttachmentDto(
+                        a.Url,
+                        a.FileName,
+                        a.FileSize,
+                        a.ContentType,
+                        a.Type
+                    )).ToList()
+                )
+            ))
             .ToListAsync(cancellationToken);
 
-        var currentUserId = userId.Value;
-        var dtoList = pinnedList.Select(p => new PinnedMessageDto(
-            p.Id,
-            p.ChannelId,
-            p.MessageId,
-            p.PinnedById,
-            p.PinnedBy?.DisplayName ?? "Thành viên",
-            p.PinnedAt,
-            p.OrderIndex,
-            MapToMessageDto(p.Message, currentUserId)
-        )).ToList();
-
-        return dtoList;
-    }
-
-    private static MessageDto MapToMessageDto(Message m, Guid currentUserId)
-    {
-        var reactions = m.Reactions?
-            .GroupBy(r => r.Emoji)
-            .Select(g => new ReactionGroupDto(
-                g.Key,
-                g.Count(),
-                g.Select(r => r.UserId).ToList(),
-                g.Any(r => r.UserId == currentUserId)
-            ))
-            .ToList();
-
-        var attachments = m.Attachments?
-            .Select(a => new MessageAttachmentDto(
-                a.Url,
-                a.FileName,
-                a.FileSize,
-                a.ContentType,
-                a.Type
-            ))
-            .ToList();
-
-        return new MessageDto(
-            m.Id,
-            m.ChannelId,
-            m.SenderId,
-            m.Sender?.DisplayName ?? "Unknown",
-            m.Sender?.UserName ?? "unknown",
-            m.Sender?.AvatarUrl,
-            m.Content,
-            m.ThreadId,
-            m.IsEdited,
-            m.CreatedAt,
-            m.ReplyCount,
-            reactions,
-            attachments
-        );
+        return pinnedList;
     }
 }

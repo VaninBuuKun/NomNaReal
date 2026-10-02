@@ -18,7 +18,7 @@ export const MAX_PINNED_WIDTH = 550;
 export const DEFAULT_PINNED_WIDTH = 360;
 
 interface UiState {
-  activeSidebarView: 'channels' | 'dms';
+  activeSidebarView: 'channels' | 'dms' | 'notifications' | 'activities';
   isThreadOpen: boolean;
   activeThreadMessage: Message | null;
   isMemberListOpen: boolean;
@@ -44,7 +44,7 @@ interface UiState {
   pinnedSidebarWidth: number;
 
   // Actions
-  setActiveSidebarView: (view: 'channels' | 'dms') => void;
+  setActiveSidebarView: (view: 'channels' | 'dms' | 'notifications' | 'activities') => void;
   openThread: (message: Message) => void;
   closeThread: () => void;
   toggleMemberList: () => void;

@@ -108,11 +108,10 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('link')}
-            className={`flex-1 flex items-center justify-center gap-2 py-1.75 text-xs font-bold rounded-[3px] transition-all cursor-pointer select-none ${
-              activeTab === 'link'
+            className={`flex-1 flex items-center justify-center gap-2 py-1.75 text-xs font-bold rounded-[3px] transition-all cursor-pointer select-none ${activeTab === 'link'
                 ? 'bg-[var(--bg-chat)] text-[var(--accent-primary)] shadow-2xs border border-[var(--border-color)]/70'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]'
-            }`}
+              }`}
           >
             <LinkIcon size={15} weight="bold" />
             <span>Liên kết mời</span>
@@ -121,11 +120,10 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('gmail')}
-            className={`flex-1 flex items-center justify-center gap-2 py-1.75 text-xs font-bold rounded-[3px] transition-all cursor-pointer select-none ${
-              activeTab === 'gmail'
+            className={`flex-1 flex items-center justify-center gap-2 py-1.75 text-xs font-bold rounded-[3px] transition-all cursor-pointer select-none ${activeTab === 'gmail'
                 ? 'bg-[var(--bg-chat)] text-[var(--accent-primary)] shadow-2xs border border-[var(--border-color)]/70'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]'
-            }`}
+              }`}
           >
             <EnvelopeSimple size={15} weight="bold" />
             <span>Gửi qua Gmail</span>
@@ -193,15 +191,6 @@ export const InviteMemberModal: React.FC<InviteMemberModalProps> = ({
                   {copiedType === 'link' ? 'Đã sao chép!' : 'Sao chép'}
                 </Button>
               </div>
-            </div>
-
-            {/* Hint Box */}
-            <div className="flex items-start gap-2 p-2.5 rounded-[4px] bg-[var(--accent-soft)] border border-[var(--accent-primary)]/20 text-[11px] text-[var(--text-secondary)] leading-relaxed">
-              <Info size={16} weight="bold" className="text-[var(--accent-primary)] shrink-0 mt-0.5" />
-              <span>
-                Bất kỳ ai có đường link hoặc mã mời này đều có thể tham gia vào Workspace{' '}
-                <strong className="text-[var(--text-primary)]">{workspace?.name || 'Nexus Hub'}</strong>.
-              </span>
             </div>
           </div>
         )}

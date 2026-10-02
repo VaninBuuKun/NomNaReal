@@ -1,5 +1,5 @@
 import * as signalR from '@microsoft/signalr';
-import type { Message, MessageEdited, ReactionUpdate, DeletedMessage, Channel } from '../types';
+import type { Message, MessageEdited, ReactionUpdate, DeletedMessage, Channel, AppNotification } from '../types';
 
 export class SignalRService {
   private connection: signalR.HubConnection | null = null;
@@ -218,6 +218,18 @@ export class SignalRService {
   public offMessageUnpinned(callback: (data: { channelId: string; messageId: string }) => void): void {
     if (this.connection) {
       this.connection.off('MessageUnpinned', callback);
+    }
+  }
+
+  public onReceiveNotification(callback: (notification: AppNotification) => void): void {
+    if (this.connection) {
+      this.connection.on('ReceiveNotification', callback);
+    }
+  }
+
+  public offReceiveNotification(callback: (notification: AppNotification) => void): void {
+    if (this.connection) {
+      this.connection.off('ReceiveNotification', callback);
     }
   }
 

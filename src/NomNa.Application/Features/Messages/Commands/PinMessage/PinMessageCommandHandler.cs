@@ -32,23 +32,46 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
         }
 
-        var message = await _context.Messages
-            .Include(m => m.Sender)
-            .Include(m => m.Channel)
-            .Include(m => m.Reactions)
-            .FirstOrDefaultAsync(m => m.Id == request.MessageId && m.DeletedAt == null, cancellationToken);
+        var messageInfo = await _context.Messages
+            .Where(m => m.Id == request.MessageId && m.DeletedAt == null)
+            .Select(m => new
+            {
+                m.Id,
+                m.ChannelId,
+                m.Content,
+                m.ThreadId,
+                m.IsEdited,
+                m.CreatedAt,
+                m.ReplyCount,
+                SenderId = m.SenderId,
+                SenderDisplayName = m.Sender.DisplayName,
+                SenderUserName = m.Sender.UserName,
+                SenderAvatarUrl = m.Sender.AvatarUrl,
+                ChannelIsPrivate = m.Channel.IsPrivate,
+                ChannelType = m.Channel.Type,
+                ChannelCreatedById = m.Channel.CreatedById,
+                WorkspaceId = m.Channel.WorkspaceId,
+                Attachments = m.Attachments.Select(a => new MessageAttachmentDto(
+                    a.Url,
+                    a.FileName,
+                    a.FileSize,
+                    a.ContentType,
+                    a.Type
+                )).ToList()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (message == null)
+        if (messageInfo == null)
         {
             return Error.NotFound("Message.NotFound", "Message not found or has been deleted.");
         }
 
         // Authorization check according to channel privacy
-        if (message.Channel.IsPrivate || message.Channel.Type == ChannelType.DirectMessage)
+        if (messageInfo.ChannelIsPrivate || messageInfo.ChannelType == ChannelType.DirectMessage)
         {
             var isMember = await _context.ChannelMembers
-                .AnyAsync(cm => cm.ChannelId == message.ChannelId && cm.UserId == userId.Value, cancellationToken);
-            if (!isMember && message.Channel.CreatedById != userId.Value)
+                .AnyAsync(cm => cm.ChannelId == messageInfo.ChannelId && cm.UserId == userId.Value, cancellationToken);
+            if (!isMember && messageInfo.ChannelCreatedById != userId.Value)
             {
                 return Error.Forbidden("Channel.Forbidden", "You do not have access to this private channel.");
             }
@@ -56,45 +79,69 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
         else
         {
             var isMember = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == message.Channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+                .AnyAsync(wm => wm.WorkspaceId == messageInfo.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
             if (!isMember)
             {
                 return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
             }
         }
 
+        var messageDto = new MessageDto(
+            messageInfo.Id,
+            messageInfo.ChannelId,
+            messageInfo.SenderId,
+            messageInfo.SenderDisplayName ?? "Unknown",
+            messageInfo.SenderUserName ?? "unknown",
+            messageInfo.SenderAvatarUrl,
+            messageInfo.Content,
+            messageInfo.ThreadId,
+            messageInfo.IsEdited,
+            messageInfo.CreatedAt,
+            messageInfo.ReplyCount,
+            null,
+            messageInfo.Attachments
+        );
+
         // Check if already pinned
         var existingPin = await _context.ChannelPinnedMessages
-            .Include(p => p.PinnedBy)
-            .FirstOrDefaultAsync(p => p.ChannelId == message.ChannelId && p.MessageId == message.Id, cancellationToken);
+            .Where(p => p.ChannelId == messageInfo.ChannelId && p.MessageId == messageInfo.Id)
+            .Select(p => new
+            {
+                p.Id,
+                p.ChannelId,
+                p.MessageId,
+                p.PinnedById,
+                PinnedByName = p.PinnedBy.DisplayName,
+                p.PinnedAt,
+                p.OrderIndex
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
         var currentPinnerProfile = await _userProfileCache.GetAsync(userId.Value, cancellationToken);
         var pinnerName = currentPinnerProfile?.DisplayName ?? "Thành viên";
 
         if (existingPin != null)
         {
-            // Already pinned, map and return existing
-            var existingMessageDto = MapToMessageDto(message, userId.Value);
             return new PinnedMessageDto(
                 existingPin.Id,
                 existingPin.ChannelId,
                 existingPin.MessageId,
                 existingPin.PinnedById,
-                existingPin.PinnedBy?.DisplayName ?? pinnerName,
+                existingPin.PinnedByName ?? pinnerName,
                 existingPin.PinnedAt,
                 existingPin.OrderIndex,
-                existingMessageDto
+                messageDto
             );
         }
 
         var maxOrder = await _context.ChannelPinnedMessages
-            .Where(p => p.ChannelId == message.ChannelId)
+            .Where(p => p.ChannelId == messageInfo.ChannelId)
             .MaxAsync(p => (int?)p.OrderIndex, cancellationToken) ?? 0;
 
         var pinnedMessage = new ChannelPinnedMessage
         {
-            ChannelId = message.ChannelId,
-            MessageId = message.Id,
+            ChannelId = messageInfo.ChannelId,
+            MessageId = messageInfo.Id,
             PinnedById = userId.Value,
             PinnedAt = DateTime.UtcNow,
             OrderIndex = maxOrder + 1
@@ -102,8 +149,6 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
 
         _context.ChannelPinnedMessages.Add(pinnedMessage);
         await _context.SaveChangesAsync(cancellationToken);
-
-        var messageDto = MapToMessageDto(message, userId.Value);
 
         return new PinnedMessageDto(
             pinnedMessage.Id,
@@ -114,45 +159,6 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
             pinnedMessage.PinnedAt,
             pinnedMessage.OrderIndex,
             messageDto
-        );
-    }
-
-    private static MessageDto MapToMessageDto(Message m, Guid currentUserId)
-    {
-        var reactions = m.Reactions?
-            .GroupBy(r => r.Emoji)
-            .Select(g => new ReactionGroupDto(
-                g.Key,
-                g.Count(),
-                g.Select(r => r.UserId).ToList(),
-                g.Any(r => r.UserId == currentUserId)
-            ))
-            .ToList();
-
-        var attachments = m.Attachments?
-            .Select(a => new MessageAttachmentDto(
-                a.Url,
-                a.FileName,
-                a.FileSize,
-                a.ContentType,
-                a.Type
-            ))
-            .ToList();
-
-        return new MessageDto(
-            m.Id,
-            m.ChannelId,
-            m.SenderId,
-            m.Sender?.DisplayName ?? "Unknown",
-            m.Sender?.UserName ?? "unknown",
-            m.Sender?.AvatarUrl,
-            m.Content,
-            m.ThreadId,
-            m.IsEdited,
-            m.CreatedAt,
-            m.ReplyCount,
-            reactions,
-            attachments
         );
     }
 }

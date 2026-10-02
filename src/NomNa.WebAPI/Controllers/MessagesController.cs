@@ -144,6 +144,13 @@ public class MessagesController : ApiControllerBase
         }
         return HandleResult(result);
     }
+
+    [HttpGet("link-preview")]
+    public async Task<IActionResult> GetLinkPreview([FromQuery] string url)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Messages.Queries.GetLinkPreview.GetLinkPreviewQuery(url));
+        return HandleResult(result);
+    }
 }
 
 public record ReplyToThreadRequest(string Content);

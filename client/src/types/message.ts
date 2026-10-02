@@ -85,3 +85,13 @@ export interface PinnedMessage {
   message: Message;
 }
 
+export interface LinkPreviewData {
+  url: string;
+  title?: string;
+  description?: string;
+  siteName?: string;
+  imageUrl?: string;
+  faviconUrl?: string;
+}
+
+

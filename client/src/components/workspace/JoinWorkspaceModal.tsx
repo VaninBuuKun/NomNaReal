@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SignIn, Link as LinkIcon, Info } from '@phosphor-icons/react';
+import { SignIn, Link as LinkIcon } from '@phosphor-icons/react';
 import { Modal, Button } from '../ui';
 import { workspaceApi } from '../../services';
 import type { Workspace } from '../../types';
@@ -45,7 +45,7 @@ export const JoinWorkspaceModal: React.FC<JoinWorkspaceModalProps> = ({
       const errorObj = err as { response?: { data?: { message?: string } } };
       setError(
         errorObj?.response?.data?.message ||
-          'Không thể tham gia Workspace. Mã mời không đúng hoặc đã hết hạn.'
+        'Không thể tham gia Workspace. Mã mời không đúng hoặc đã hết hạn.'
       );
     } finally {
       setIsSubmitting(false);
@@ -96,13 +96,6 @@ export const JoinWorkspaceModal: React.FC<JoinWorkspaceModalProps> = ({
           <p className="text-[11px] text-[var(--text-muted)] mt-1.5 leading-relaxed">
             💡 Bạn có thể dán toàn bộ đường link hoặc chỉ cần nhập mã mời 8 ký tự.
           </p>
-        </div>
-
-        <div className="p-3 rounded-[4px] bg-[var(--accent-soft)] border border-[var(--accent-primary)]/20 text-[11px] text-[var(--text-secondary)] flex items-start gap-2">
-          <Info size={16} weight="bold" className="text-[var(--accent-primary)] shrink-0 mt-0.5" />
-          <span>
-            Sau khi tham gia, bạn sẽ có quyền truy cập vào tất cả các kênh thảo luận công cộng và bắt đầu làm việc ngay lập tức.
-          </span>
         </div>
 
         <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border-color)]">

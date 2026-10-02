@@ -20,6 +20,8 @@ public static class SignalRConstants
         public const string WorkspaceMemberJoined = "WorkspaceMemberJoined";
         public const string MessagePinned = "MessagePinned";
         public const string MessageUnpinned = "MessageUnpinned";
+        public const string ReceiveNotification = "ReceiveNotification";
+        public const string NotificationCountUpdated = "NotificationCountUpdated";
     }
 
     public static class Methods

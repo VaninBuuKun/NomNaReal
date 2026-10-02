@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\NomNa.Domain\NomNa.Domain.csproj" />
@@ -11,6 +11,8 @@
     <PackageReference Include="MediatR" Version="14.2.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.*" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.*" />
   </ItemGroup>
 
   <PropertyGroup>

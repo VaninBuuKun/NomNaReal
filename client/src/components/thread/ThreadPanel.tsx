@@ -20,6 +20,7 @@ import { fileApi } from "../../services/fileApi";
 import { signalRService } from "../../services/signalr";
 import { MessageContent } from "../chat/MessageContent";
 import { DeleteMessageModal } from "../chat/DeleteMessageModal";
+import { formatMessageTime } from "../../utils/formatDate";
 
 interface PendingAttachment {
   id: string;
@@ -411,10 +412,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
                   {parentMessage.senderDisplayName}
                 </span>
                 <span className="text-[0.72rem] text-[var(--text-muted)]">
-                  {new Date(parentMessage.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatMessageTime(parentMessage.createdAt)}
                 </span>
               </div>
               <div className="text-[0.95rem] font-medium text-[var(--text-primary)] leading-relaxed break-words whitespace-pre-wrap">
@@ -459,10 +457,7 @@ export const ThreadPanel: React.FC<ThreadPanelProps> = ({
         {replies.map((r) => {
           const isMe = currentUser && (r.senderId === currentUser.id || r.senderUsername === currentUser.username);
           const isEditingThis = editingReplyId === r.id;
-          const timeStr = new Date(r.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+          const timeStr = formatMessageTime(r.createdAt);
           const avatarSrc = r.senderAvatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png";
 
           return (

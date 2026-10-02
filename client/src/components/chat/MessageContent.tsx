@@ -2,9 +2,11 @@ import React from "react";
 import { FileText } from "@phosphor-icons/react";
 import { CodeBlock } from "./CodeBlock";
 import { ImageGalleryGrid, type GalleryImage } from "./ImageGalleryGrid";
+import { LinkPreviewCard } from "./LinkPreviewCard";
 
 interface MessageContentProps {
   content: string;
+  currentUsername?: string;
 }
 
 /**
@@ -13,9 +15,10 @@ interface MessageContentProps {
  * - **bold** -> strong
  * - *italic* -> em
  * - http(s)://... -> link
+ * - @username / @all / @here -> mention pill
  */
-function parseInlineMarkdown(text: string): React.ReactNode[] {
-  const tokenRegex = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\n]+\*|https?:\/\/[^\s<]+)/g;
+function parseInlineMarkdown(text: string, currentUsername?: string): React.ReactNode[] {
+  const tokenRegex = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\n]+\*|https?:\/\/[^\s<]+|@[a-zA-Z0-9_\.]+)/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
@@ -61,6 +64,32 @@ function parseInlineMarkdown(text: string): React.ReactNode[] {
           {token}
         </a>
       );
+    } else if (token.startsWith("@")) {
+      const tag = token.slice(1).toLowerCase();
+      const isMe = currentUsername && tag === currentUsername.toLowerCase();
+      const isAllOrEveryone = tag === "all" || tag === "everyone";
+      const isChannel = tag === "channel";
+      const isHere = tag === "here";
+
+      let badgeClasses = "bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold";
+      if (isAllOrEveryone) {
+        badgeClasses = "bg-amber-500/25 text-amber-500 font-extrabold border border-amber-500/40 shadow-xs";
+      } else if (isChannel) {
+        badgeClasses = "bg-amber-500/20 text-amber-500 font-bold border border-amber-500/30";
+      } else if (isHere) {
+        badgeClasses = "bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30";
+      } else if (isMe) {
+        badgeClasses = "bg-amber-500/25 text-amber-500 font-bold border border-amber-500/30";
+      }
+
+      parts.push(
+        <span
+          key={match.index}
+          className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded-md text-[0.84rem] transition-colors ${badgeClasses}`}
+        >
+          {token}
+        </span>
+      );
     }
     lastIndex = match.index + token.length;
   }
@@ -77,7 +106,7 @@ function parseInlineMarkdown(text: string): React.ReactNode[] {
  * - Lines starting with `> ` are rendered as blockquotes
  * - Other lines are parsed with parseInlineMarkdown
  */
-function renderTextBlock(text: string): React.ReactNode {
+function renderTextBlock(text: string, currentUsername?: string): React.ReactNode {
   const lines = text.split("\n");
   return (
     <div className="flex flex-col">
@@ -89,14 +118,14 @@ function renderTextBlock(text: string): React.ReactNode {
               key={idx}
               className="border-l-2 border-[var(--accent-primary)] pl-2.5 my-0.5 text-[var(--text-secondary)] italic text-[0.9rem]"
             >
-              {parseInlineMarkdown(quoteText)}
+              {parseInlineMarkdown(quoteText, currentUsername)}
             </blockquote>
           );
         }
 
         return (
           <span key={idx} className="min-h-[1.25rem]">
-            {parseInlineMarkdown(line)}
+            {parseInlineMarkdown(line, currentUsername)}
           </span>
         );
       })}
@@ -104,10 +133,10 @@ function renderTextBlock(text: string): React.ReactNode {
   );
 }
 
-function renderCodeBlocksAndText(text: string): React.ReactNode {
+function renderCodeBlocksAndText(text: string, currentUsername?: string): React.ReactNode {
   const codeBlockRegex = /```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g;
   if (!codeBlockRegex.test(text)) {
-    return renderTextBlock(text);
+    return renderTextBlock(text, currentUsername);
   }
 
   codeBlockRegex.lastIndex = 0;
@@ -118,7 +147,7 @@ function renderCodeBlocksAndText(text: string): React.ReactNode {
   while ((match = codeBlockRegex.exec(text)) !== null) {
     const preText = text.substring(lastIndex, match.index);
     if (preText) {
-      parts.push(<React.Fragment key={`pre-${lastIndex}`}>{renderTextBlock(preText)}</React.Fragment>);
+      parts.push(<React.Fragment key={`pre-${lastIndex}`}>{renderTextBlock(preText, currentUsername)}</React.Fragment>);
     }
     const lang = match[1] || "";
     const code = match[2];
@@ -127,12 +156,12 @@ function renderCodeBlocksAndText(text: string): React.ReactNode {
   }
   const postText = text.substring(lastIndex);
   if (postText) {
-    parts.push(<React.Fragment key={`post-${lastIndex}`}>{renderTextBlock(postText)}</React.Fragment>);
+    parts.push(<React.Fragment key={`post-${lastIndex}`}>{renderTextBlock(postText, currentUsername)}</React.Fragment>);
   }
   return <div className="flex flex-col gap-1">{parts}</div>;
 }
 
-export const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
+export const MessageContent: React.FC<MessageContentProps> = ({ content, currentUsername }) => {
   // 1. Extract all images: ![alt](url)
   const imageRegex = /!\[(.*?)\]\((.*?)\)/g;
   const images: GalleryImage[] = [];
@@ -170,16 +199,36 @@ export const MessageContent: React.FC<MessageContentProps> = ({ content }) => {
   }
 
   // Strip media tokens to get clean text
-  const cleanText = content
+  const cleanText = (content || "")
     .replace(/!\[.*?\]\(.*?\)/g, "")
     .replace(/\[video:.*?\]\(.*?\)/g, "")
     .replace(/\[file:.*?\]\(.*?\)/g, "")
     .trim();
 
+  // 4. Extract standalone web URL for Link Preview (ignoring URLs already rendered as media/attachments)
+  const urlRegex = /https?:\/\/[^\s<)]+/g;
+  const urls: string[] = [];
+  let urlMatch: RegExpExecArray | null;
+  while ((urlMatch = urlRegex.exec(cleanText)) !== null) {
+    const rawUrl = urlMatch[0].replace(/[.,;:!?]+$/, "");
+    const alreadyRendered =
+      images.some((img) => img.url === rawUrl) ||
+      videos.some((vid) => vid.url === rawUrl) ||
+      files.some((f) => f.url === rawUrl);
+
+    if (!alreadyRendered) {
+      urls.push(rawUrl);
+    }
+  }
+  const previewUrl = urls[0];
+
   return (
     <div className="flex flex-col gap-2">
       {/* Text / Markdown / Code blocks */}
-      {cleanText && renderCodeBlocksAndText(cleanText)}
+      {cleanText && renderCodeBlocksAndText(cleanText, currentUsername)}
+
+      {/* Rich Link Preview Card (Slack / Discord Style) */}
+      {previewUrl && <LinkPreviewCard url={previewUrl} />}
 
       {/* Multiple Images Gallery Grid */}
       {images.length > 0 && <ImageGalleryGrid images={images} />}

@@ -20,6 +20,8 @@ public static class DependencyInjection
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         });
 
+        services.AddMemoryCache();
+
         return services;
     }
 }

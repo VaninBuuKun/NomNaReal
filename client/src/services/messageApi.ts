@@ -1,5 +1,5 @@
 import { httpClient } from './httpClient';
-import type { Message, MessageEdited, ThreadDetails, MessagesResponse, PinnedMessage } from '../types';
+import type { Message, MessageEdited, ThreadDetails, MessagesResponse, PinnedMessage, LinkPreviewData } from '../types';
 
 export const messageApi = {
   getMessages: async (channelId: string, before?: string, limit: number = 50): Promise<MessagesResponse> => {
@@ -70,6 +70,13 @@ export const messageApi = {
 
   getPinnedMessages: async (channelId: string): Promise<PinnedMessage[]> => {
     const res = await httpClient.get<PinnedMessage[]>(`/channels/${channelId}/pinned`);
+    return res.data;
+  },
+
+  getLinkPreview: async (url: string): Promise<LinkPreviewData> => {
+    const res = await httpClient.get<LinkPreviewData>('/messages/link-preview', {
+      params: { url },
+    });
     return res.data;
   },
 };

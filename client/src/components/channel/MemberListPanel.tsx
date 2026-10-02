@@ -13,6 +13,7 @@ import {
 import { Spinner } from "../ui";
 import type { DirectMessageUser } from "../dm";
 import type { User } from "../../types";
+import type { UserProfileData } from "../profile";
 
 interface MemberListPanelProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface MemberListPanelProps {
   currentUser: User | null;
   currentUserRole?: string;
   width?: number;
+  onOpenUserProfile?: (user: UserProfileData) => void;
   onStartDmWithUser?: (user: {
     id: string;
     displayName: string;
@@ -52,6 +54,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
   isPrivateChannel,
   isLoading,
   onOpenAddMember,
+  onOpenUserProfile,
   onStartDmWithUser,
   onOpenSettings,
   onRequestKickMember,
@@ -127,6 +130,19 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
   if (!isOpen) return null;
 
   const handleMemberClick = (m: DirectMessageUser, e: React.MouseEvent<HTMLLIElement>) => {
+    if (onOpenUserProfile) {
+      onOpenUserProfile({
+        id: m.id,
+        displayName: m.displayName,
+        username: m.username,
+        avatarUrl: m.avatarUrl,
+        email: m.email,
+        role: m.role,
+        status: m.status,
+      });
+      return;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const panelRect = panelRef.current?.getBoundingClientRect();
     const topOffset = panelRect ? Math.max(10, rect.top - panelRect.top - 20) : rect.top;

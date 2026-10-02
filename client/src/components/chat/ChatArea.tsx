@@ -21,7 +21,7 @@ import {
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
-import { formatDateDivider, isDifferentDay } from "../../utils/formatDate";
+import { formatDateDivider, isDifferentDay, formatMessageTime } from "../../utils/formatDate";
 import { ChatAreaSkeleton } from "./ChatAreaSkeleton";
 import { MessageContent } from "./MessageContent";
 import { EmojiPickerPopover } from "./EmojiPickerPopover";
@@ -29,7 +29,9 @@ import { GifPicker } from "./GifPicker";
 import { DeleteMessageModal } from "./DeleteMessageModal";
 import { ImageGalleryGrid } from "./ImageGalleryGrid";
 import { StickyPinBar } from "./StickyPinBar";
+import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
 import { useChatStore, useUiStore } from "../../stores";
+import type { UserProfileData } from "../profile";
 
 interface PendingAttachment {
   id: string;
@@ -65,6 +67,7 @@ interface ChatAreaProps {
   onToggleThread: () => void;
   onOpenThread?: (message: Message) => void;
   onStartDmWithUser?: (user: { id: string; displayName: string; username: string; avatarUrl?: string }) => void;
+  onOpenUserProfile?: (user: UserProfileData) => void;
   hasMoreMessages?: boolean;
   isLoadingMore?: boolean;
   isLoadingMessages?: boolean;
@@ -81,14 +84,6 @@ interface ChatAreaProps {
 
 const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
 
-interface SelectedUserProfile {
-  userId: string;
-  displayName: string;
-  username: string;
-  avatarUrl?: string;
-  targetRect: DOMRect;
-}
-
 export const ChatArea: React.FC<ChatAreaProps> = ({
   currentChannel,
   messages,
@@ -102,7 +97,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   typingUser,
   onToggleThread,
   onOpenThread,
-  onStartDmWithUser,
+  onStartDmWithUser: _onStartDmWithUser,
+  onOpenUserProfile,
   hasMoreMessages = false,
   isLoadingMore = false,
   isLoadingMessages = false,
@@ -150,6 +146,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
+  const [isMentionOpen, setIsMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
 
   // Sync draft when active channel changes
   useEffect(() => {
@@ -189,10 +187,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       if (timer) clearTimeout(timer);
     };
   }, [isLoadingMessages]);
-
-  // Smart user profile dropdown state
-  const [selectedProfile, setSelectedProfile] = useState<SelectedUserProfile | null>(null);
-  const profileCardRef = useRef<HTMLDivElement>(null);
 
   // Inline editing state
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -255,49 +249,38 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     }
   };
 
-  // Handle clicking outside or pressing Escape to close profile dropdown
-  useEffect(() => {
-    if (!selectedProfile) return;
-    const handleDown = (e: MouseEvent) => {
-      if (profileCardRef.current && !profileCardRef.current.contains(e.target as Node)) {
-        setSelectedProfile(null);
+  // Syntax highlighter for @mentions inside chat input
+  const renderInputHighlights = (text: string) => {
+    if (!text) return null;
+    const parts: React.ReactNode[] = [];
+    const regex = /(@all|@everyone|@channel|@here|@[a-zA-Z0-9_\.]+)/gi;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
       }
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setSelectedProfile(null);
-    };
-    document.addEventListener("mousedown", handleDown);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleDown);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [selectedProfile]);
-
-  const getProfilePositionStyle = (): React.CSSProperties => {
-    if (!selectedProfile) return {};
-    const { targetRect } = selectedProfile;
-    const popoverWidth = 270;
-    const popoverHeight = 240;
-    const margin = 12;
-
-    // Prefer right side of avatar
-    let left = targetRect.right + margin;
-    if (left + popoverWidth > window.innerWidth - margin) {
-      // Flip to left side of avatar
-      left = targetRect.left - popoverWidth - margin;
+      const token = match[0];
+      const isBroadcast = /^@(all|everyone|channel|here)$/i.test(token);
+      parts.push(
+        <span
+          key={match.index}
+          className={
+            isBroadcast
+              ? "bg-amber-500/25 rounded px-0.5 border border-amber-500/40 font-bold"
+              : "bg-[var(--accent-soft)] rounded px-0.5 font-medium"
+          }
+        >
+          {token}
+        </span>
+      );
+      lastIndex = match.index + token.length;
     }
-    // Clamp horizontally
-    left = Math.max(margin, Math.min(left, window.innerWidth - popoverWidth - margin));
-
-    // Align with top of avatar, clamp vertically
-    let top = targetRect.top - 8;
-    if (top + popoverHeight > window.innerHeight - margin) {
-      top = window.innerHeight - popoverHeight - margin;
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
     }
-    top = Math.max(margin, top);
-
-    return { top: `${top}px`, left: `${left}px` };
+    return parts;
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -310,6 +293,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         clearDraft(currentChannel.id);
       }
     }
+
+    // Detect @mention trigger
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const lastAtMatch = textBeforeCursor.match(/@([a-zA-Z0-9_\.]*)$/);
+    if (lastAtMatch) {
+      setMentionQuery(lastAtMatch[1]);
+      setIsMentionOpen(true);
+    } else {
+      setIsMentionOpen(false);
+    }
+
     onStartTyping();
 
     if (typingTimeoutRef.current) {
@@ -318,6 +313,28 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     typingTimeoutRef.current = setTimeout(() => {
       onStopTyping();
     }, 2000);
+  };
+
+  const handleSelectMention = (username: string) => {
+    if (!textareaRef.current) return;
+    const textarea = textareaRef.current;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = content.slice(0, cursorPos);
+    const textAfterCursor = content.slice(cursorPos);
+
+    const updatedBefore = textBeforeCursor.replace(/@([a-zA-Z0-9_\.]*)$/, `@${username} `);
+    const newContent = updatedBefore + textAfterCursor;
+    setContent(newContent);
+    if (currentChannel?.id) {
+      setDraft(currentChannel.id, newContent);
+    }
+    setIsMentionOpen(false);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newCursor = updatedBefore.length;
+      textarea.setSelectionRange(newCursor, newCursor);
+    }, 10);
   };
 
   const handleRemoveAttachment = (id: string) => {
@@ -372,11 +389,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (isMentionOpen && (e.key === "Enter" || e.key === "Tab" || e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      // Handled by MentionAutocompletePopover
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
+
 
   // Staged File & Multiple Media Upload Handler (Does NOT auto-send)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -540,7 +562,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   // Render message content with markdown, code blocks, GIF/images, and video player
   const renderMessageBody = (text: string) => {
-    return <MessageContent content={text} />;
+    return <MessageContent content={text} currentUsername={currentUser?.username} />;
   };
 
   return (
@@ -684,11 +706,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           const isConsecutive = !showDateDivider && isSameSender && timeDiffMin <= 5;
           const isMe = currentUser && (msg.senderId === currentUser.id || msg.senderUsername === currentUser.username);
           const isEditingThis = editingMessageId === msg.id;
-          const timeStr = new Date(msg.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+          const timeStr = formatMessageTime(msg.createdAt);
           const avatarSrc = msg.senderAvatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png";
+
+          const isMentioningMe =
+            currentUser &&
+            msg.senderId !== currentUser.id &&
+            (msg.content?.toLowerCase().includes(`@${currentUser.username?.toLowerCase()}`) ||
+             msg.content?.toLowerCase().includes('@all') ||
+             msg.content?.toLowerCase().includes('@everyone') ||
+             msg.content?.toLowerCase().includes('@channel') ||
+             msg.content?.toLowerCase().includes('@here'));
 
           return (
             <React.Fragment key={msg.id}>
@@ -705,7 +733,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
               <div
                 id={`msg-${msg.id}`}
-                className={`group relative flex gap-3 px-3 rounded-md transition-all duration-150 hover:bg-[var(--bg-surface)] ${
+                className={`group relative flex gap-3 px-3 rounded-md transition-all duration-150 ${
+                  isMentioningMe
+                    ? "bg-amber-500/[0.06] border-l-2 border-amber-500/80 hover:bg-amber-500/[0.1]"
+                    : "hover:bg-[var(--bg-surface)]"
+                } ${
                   isConsecutive ? "py-0.5" : "py-1.5 mt-1"
                 }`}
               >
@@ -719,23 +751,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 ) : (
                   <div
                     onClick={(e) => {
-                      if (currentChannel?.type === ChannelType.DirectMessage) return;
                       e.stopPropagation();
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setSelectedProfile({
-                        userId: msg.senderId,
+                      const member = workspaceMembers?.find((m) => m.id === msg.senderId);
+                      onOpenUserProfile?.({
+                        id: msg.senderId,
                         displayName: msg.senderDisplayName,
                         username: msg.senderUsername || msg.senderDisplayName.toLowerCase().replace(/\s+/g, ""),
                         avatarUrl: msg.senderAvatarUrl || undefined,
-                        targetRect: rect,
+                        role: member?.role,
                       });
                     }}
-                    title={currentChannel?.type !== ChannelType.DirectMessage ? "Xem thông tin thành viên" : undefined}
-                    className={`w-9 h-9 rounded-xl shrink-0 overflow-hidden flex items-center justify-center font-bold text-[0.82rem] text-white shadow-sm border border-[var(--border-color)] ${
-                      currentChannel?.type !== ChannelType.DirectMessage
-                        ? "cursor-pointer hover:opacity-90 hover:scale-105 active:scale-95 transition-all ring-1 ring-transparent hover:ring-[var(--accent-primary)]/40"
-                        : ""
-                    }`}
+                    title="Xem thông tin thành viên"
+                    className="w-10 h-10 rounded-2xl shrink-0 overflow-hidden flex items-center justify-center font-bold text-[0.82rem] text-white shadow-xs border border-[var(--border-color)] cursor-pointer hover:opacity-95 hover:scale-105 active:scale-95 transition-all ring-1 ring-transparent hover:ring-[var(--accent-primary)]/40"
                   >
                     <img
                       src={avatarSrc}
@@ -752,7 +779,20 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   {/* Header: Name, Badge, Time, Edited Tag (ONLY if !isConsecutive) */}
                   {!isConsecutive && (
                     <div className="flex items-baseline gap-2">
-                      <span className="text-[0.9rem] font-semibold text-[var(--text-primary)]">
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const member = workspaceMembers?.find((m) => m.id === msg.senderId);
+                          onOpenUserProfile?.({
+                            id: msg.senderId,
+                            displayName: msg.senderDisplayName,
+                            username: msg.senderUsername || msg.senderDisplayName.toLowerCase().replace(/\s+/g, ""),
+                            avatarUrl: msg.senderAvatarUrl || undefined,
+                            role: member?.role,
+                          });
+                        }}
+                        className="text-[0.9rem] font-semibold text-[var(--text-primary)] hover:underline cursor-pointer"
+                      >
                         {msg.senderDisplayName}
                       </span>
                       {/* Role badge: NEVER show Lead vs Member in DMs! In channels, show real role or YOU */}
@@ -1047,6 +1087,15 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           onSelectGif={handleSelectGif}
         />
 
+        {/* Mention Autocomplete Popover */}
+        <MentionAutocompletePopover
+          isOpen={isMentionOpen}
+          query={mentionQuery}
+          members={workspaceMembers}
+          onSelect={handleSelectMention}
+          onClose={() => setIsMentionOpen(false)}
+        />
+
         <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-md p-2.5 px-3.5 flex flex-col gap-2 transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_2px_12px_var(--accent-glow)]">
           {/* Pending Attachments Preview Tray */}
           {pendingAttachments.length > 0 && (
@@ -1128,20 +1177,31 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             </div>
           )}
 
-          <textarea
-            ref={textareaRef}
-            className="bg-transparent border-none outline-none text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-[0.92rem] resize-none w-full leading-normal disabled:opacity-50"
-            rows={2}
-            value={content}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            disabled={!currentChannel}
-            placeholder={
-              currentChannel
-                ? `Nhắn tin tới #${currentChannel.name}... (Enter để gửi, hỗ trợ nhiều ảnh & file 100MB)`
-                : "Vui lòng chọn một kênh ở danh sách bên trái để nhắn tin..."
-            }
-          />
+          {/* Text input area with syntax backdrop for mentions */}
+          <div className="relative w-full min-h-[46px]">
+            {/* Syntax backdrop overlay for mentions like @all, @everyone, etc. */}
+            <div
+              className="absolute inset-0 pointer-events-none text-[0.92rem] leading-normal font-sans break-words whitespace-pre-wrap select-none overflow-hidden text-transparent"
+              aria-hidden="true"
+            >
+              {renderInputHighlights(content)}
+            </div>
+
+            <textarea
+              ref={textareaRef}
+              className="relative z-10 bg-transparent border-none outline-none text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-[0.92rem] resize-none w-full leading-normal disabled:opacity-50"
+              rows={2}
+              value={content}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              disabled={!currentChannel}
+              placeholder={
+                currentChannel
+                  ? `Nhắn tin tới #${currentChannel.name}... (Enter để gửi, hỗ trợ nhiều ảnh & file 100MB)`
+                  : "Vui lòng chọn một kênh ở danh sách bên trái để nhắn tin..."
+              }
+            />
+          </div>
 
           <div className="flex items-center justify-between pt-1">
             <div className="flex items-center gap-1">
@@ -1222,77 +1282,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Smart User Profile Dropdown Popover */}
-      {selectedProfile && (
-        <div
-          ref={profileCardRef}
-          style={getProfilePositionStyle()}
-          className="fixed z-50 w-[270px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-[4px] shadow-2xl p-4 flex flex-col gap-3.5 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-md"
-        >
-          {/* Ambient Header Bar */}
-          <div className="h-10 -mx-4 -mt-4 rounded-t-[4px] bg-gradient-to-r from-[var(--accent-primary)]/20 via-[var(--accent-primary)]/10 to-transparent p-2.5 flex items-center">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent-primary)]">
-              Thông tin thành viên
-            </span>
-          </div>
-
-          {/* Avatar & Online status */}
-          <div className="flex items-center gap-3 -mt-4">
-            <div className="relative">
-              <div className="w-13 h-13 rounded-[4px] bg-[var(--bg-surface)] border-2 border-[var(--bg-chat)] overflow-hidden shadow-md flex items-center justify-center font-bold text-base text-white">
-                <img
-                  src={selectedProfile.avatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png"}
-                  alt={selectedProfile.displayName}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = "/default-avatar.png";
-                  }}
-                />
-              </div>
-              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-[var(--bg-chat)] bg-emerald-500 shadow-xs" />
-            </div>
-
-            <div className="min-w-0 flex-1 pt-2">
-              <h4 className="font-bold text-sm text-[var(--text-primary)] truncate">
-                {selectedProfile.displayName}
-              </h4>
-              <p className="text-xs text-[var(--text-muted)] truncate">
-                @{selectedProfile.username}
-              </p>
-            </div>
-          </div>
-
-          {/* Action / Identity Details */}
-          <div className="pt-2 border-t border-[var(--border-color)]">
-            {currentUser && (selectedProfile.userId === currentUser.id || selectedProfile.username === currentUser.username) ? (
-              <div className="text-center py-1.5 text-xs text-[var(--text-muted)] font-medium bg-[var(--bg-surface)] rounded-md">
-                ✨ Đây là tài khoản của bạn
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  const target = { ...selectedProfile };
-                  setSelectedProfile(null);
-                  if (onStartDmWithUser) {
-                    onStartDmWithUser({
-                      id: target.userId,
-                      displayName: target.displayName,
-                      username: target.username,
-                      avatarUrl: target.avatarUrl,
-                    });
-                  }
-                }}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold transition-all shadow-md shadow-[var(--accent-glow)] cursor-pointer active:scale-98"
-              >
-                <ChatCenteredDots size={16} weight="bold" />
-                <span>Gửi tin nhắn</span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       <DeleteMessageModal

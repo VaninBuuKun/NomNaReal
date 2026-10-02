@@ -12,15 +12,18 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserProfileCache _userProfileCache;
+    private readonly INotificationDispatcher _notificationDispatcher;
 
     public SendMessageCommandHandler(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
-        IUserProfileCache userProfileCache)
+        IUserProfileCache userProfileCache,
+        INotificationDispatcher notificationDispatcher)
     {
         _context = context;
         _currentUserService = currentUserService;
         _userProfileCache = userProfileCache;
+        _notificationDispatcher = notificationDispatcher;
     }
 
     public async Task<Result<MessageDto>> Handle(SendMessageCommand request, CancellationToken cancellationToken)
@@ -77,6 +80,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                 : new List<MessageAttachmentItem>()
         };
 
+        Message? parentMessage = null;
         if (request.ThreadId == null)
         {
             channel.LastMessageAt = DateTime.UtcNow;
@@ -94,7 +98,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
         }
         else
         {
-            var parentMessage = await _context.Messages
+            parentMessage = await _context.Messages
                 .FirstOrDefaultAsync(m => m.Id == request.ThreadId.Value, cancellationToken);
             if (parentMessage != null)
             {
@@ -104,6 +108,120 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
 
         _context.Messages.Add(message);
         await _context.SaveChangesAsync(cancellationToken);
+
+        // 5. Parse Mentions and Create Notifications
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            var mentionMatches = System.Text.RegularExpressions.Regex.Matches(content, @"@([a-zA-Z0-9_\.]+)");
+            var targetUserIds = new HashSet<Guid>();
+
+            if (mentionMatches.Count > 0)
+            {
+                var mentionedTags = mentionMatches
+                    .Select(m => m.Groups[1].Value.ToLowerInvariant())
+                    .Distinct()
+                    .ToList();
+
+                if (mentionedTags.Contains("all") || mentionedTags.Contains("channel") || mentionedTags.Contains("here"))
+                {
+                    var channelMembers = await _context.ChannelMembers
+                        .Where(cm => cm.ChannelId == channel.Id && cm.UserId != userId.Value)
+                        .Select(cm => cm.UserId)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var mId in channelMembers)
+                    {
+                        targetUserIds.Add(mId);
+                    }
+                }
+
+                var specificUsernames = mentionedTags
+                    .Where(t => t != "all" && t != "channel" && t != "here")
+                    .ToList();
+
+                if (specificUsernames.Count > 0)
+                {
+                    var matchedUsers = await _context.Users
+                        .Where(u => u.UserName != null && specificUsernames.Contains(u.UserName.ToLower()) && u.Id != userId.Value)
+                        .Select(u => u.Id)
+                        .ToListAsync(cancellationToken);
+
+                    foreach (var uId in matchedUsers)
+                    {
+                        targetUserIds.Add(uId);
+                    }
+                }
+            }
+
+            var snippet = content.Length > 150 ? content.Substring(0, 147) + "..." : content;
+            var createdNotifications = new List<Notification>();
+
+            foreach (var targetId in targetUserIds)
+            {
+                var notif = new Notification
+                {
+                    UserId = targetId,
+                    ActorId = userId.Value,
+                    WorkspaceId = channel.WorkspaceId,
+                    ChannelId = channel.Id,
+                    MessageId = message.Id,
+                    Type = Domain.Enums.NotificationType.Mention,
+                    Title = $"{user.DisplayName} đã nhắc đến bạn trong #{channel.Name}",
+                    Content = snippet,
+                    IsRead = false
+                };
+                createdNotifications.Add(notif);
+                _context.Notifications.Add(notif);
+            }
+
+            // Also check thread reply
+            if (parentMessage != null && parentMessage.SenderId != userId.Value && !targetUserIds.Contains(parentMessage.SenderId))
+            {
+                var threadNotif = new Notification
+                {
+                    UserId = parentMessage.SenderId,
+                    ActorId = userId.Value,
+                    WorkspaceId = channel.WorkspaceId,
+                    ChannelId = channel.Id,
+                    MessageId = message.Id,
+                    Type = Domain.Enums.NotificationType.ThreadReply,
+                    Title = $"{user.DisplayName} đã trả lời tin nhắn của bạn trong #{channel.Name}",
+                    Content = snippet,
+                    IsRead = false
+                };
+                createdNotifications.Add(threadNotif);
+                _context.Notifications.Add(threadNotif);
+            }
+
+            if (createdNotifications.Count > 0)
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+
+                // Dispatch realtime SignalR notifications
+                foreach (var notif in createdNotifications)
+                {
+                    var notifDto = new Features.Notifications.DTOs.NotificationDto(
+                        notif.Id,
+                        notif.UserId,
+                        notif.ActorId,
+                        user.DisplayName,
+                        user.UserName,
+                        user.AvatarUrl,
+                        notif.WorkspaceId,
+                        null,
+                        notif.ChannelId,
+                        channel.Name,
+                        notif.MessageId,
+                        notif.Type,
+                        notif.Title,
+                        notif.Content,
+                        notif.IsRead,
+                        notif.CreatedAt
+                    );
+                    _ = _notificationDispatcher.DispatchAsync(notifDto, CancellationToken.None);
+                }
+            }
+        }
 
         var attachmentDtos = message.Attachments.Select(a => new MessageAttachmentDto(
             a.Url,
@@ -130,3 +248,4 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
         );
     }
 }
+

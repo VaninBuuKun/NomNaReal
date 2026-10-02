@@ -4,12 +4,17 @@ import { WorkspaceRail, CreateWorkspaceModal, EditWorkspaceModal, KickMemberModa
 import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel, EditChannelModal, AddChannelMemberModal } from '../components/channel';
 import { DirectMessagesSidebar, NewDirectMessageModal, type DirectMessageItem, type DirectMessageUser } from '../components/dm';
 import { ChatArea, SearchSidebar, PinnedMessagesSidebar } from '../components/chat';
+import { NotificationsSidebar, NotificationDetailPane, MOCK_NOTIFICATIONS } from '../components/notifications';
+import { ActivitiesSidebar, ActivitiesWorkspace, type ActivityFilterType } from '../components/activities';
 import { ThreadPanel } from '../components/thread';
 import { SettingsModal } from '../components/settings';
+import { UserProfileModal, type UserProfileData } from '../components/profile';
 import { Toast } from '../components/ui';
-import { authApi, workspaceApi, channelApi, messageApi, signalRService } from '../services';
+import { Chats } from '@phosphor-icons/react';
+import { formatMessageTime } from '../utils/formatDate';
+import { authApi, workspaceApi, channelApi, messageApi, notificationApi, signalRService } from '../services';
 import { useTheme } from '../hooks/useTheme';
-import { ChannelType, type User, type Workspace, type Channel, type Message, type ReactionGroup, type PinnedMessage } from '../types';
+import { ChannelType, type User, type Workspace, type Channel, type Message, type ReactionGroup, type PinnedMessage, type AppNotification } from '../types';
 import {
   useWorkspaceStore,
   useChatStore,
@@ -150,6 +155,14 @@ export const ChatPage: React.FC = () => {
   const [isResizingSearch, setIsResizingSearch] = useState(false);
   const [isResizingPinned, setIsResizingPinned] = useState(false);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
+  const [inspectingUser, setInspectingUser] = useState<UserProfileData | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS);
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
+  const [selectedNotification, setSelectedNotification] = useState<AppNotification | null>(null);
+  const [activityFilter, setActivityFilter] = useState<ActivityFilterType>('all');
   const [toast, setToast] = useState<{
     id: string;
     title: string;
@@ -402,6 +415,68 @@ export const ChatPage: React.FC = () => {
     }
   }, [activeChannelId]);
 
+  const handleNavigateFromNotification = useCallback(
+    (notif: AppNotification) => {
+      const isAssignment = notif.type === 'Assignment' || notif.type === 3;
+      const isTask = notif.type === 'TaskSchedule' || notif.type === 4;
+
+      if (isAssignment) {
+        setActivityFilter('assignments');
+        setActiveSidebarView('activities');
+        return;
+      }
+
+      if (isTask) {
+        setActivityFilter('schedules');
+        setActiveSidebarView('activities');
+        return;
+      }
+
+      // Default: Chat / Mention / Thread
+      setActiveSidebarView('channels');
+      if (notif.workspaceId && notif.workspaceId !== activeWorkspaceIdRef.current) {
+        setActiveWorkspaceId(notif.workspaceId);
+      }
+      if (notif.channelId) {
+        handleSelectChannel(notif.channelId);
+      }
+
+      if (notif.messageId) {
+        setTimeout(() => {
+          const el = document.getElementById(`msg-${notif.messageId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('bg-[var(--accent-soft)]', 'ring-2', 'ring-amber-400/60');
+            setTimeout(() => {
+              el.classList.remove('bg-[var(--accent-soft)]', 'ring-2', 'ring-amber-400/60');
+            }, 2500);
+          }
+        }, 350);
+      }
+    },
+    [handleSelectChannel, setActiveWorkspaceId, setActiveSidebarView]
+  );
+
+  const handleNotificationSelect = useCallback(
+    (notif: AppNotification) => {
+      setSelectedNotification({ ...notif, isRead: true });
+      if (!notif.isRead) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
+        );
+        if (!notif.id.startsWith('notif-mock-')) {
+          notificationApi.markAsRead(notif.id).catch(console.error);
+        }
+      }
+    },
+    []
+  );
+
+  const handleMarkAllNotificationsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setSelectedNotification((prev) => (prev ? { ...prev, isRead: true } : null));
+  }, []);
+
   const handlePinMessage = async (messageId: string) => {
     try {
       const pinned = await messageApi.pinMessage(messageId);
@@ -468,7 +543,7 @@ export const ChatPage: React.FC = () => {
         },
         lastMessage: d.lastMessage || 'Cuộc trò chuyện mới',
         lastMessageTime: d.lastMessageAt
-          ? new Date(d.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          ? formatMessageTime(d.lastMessageAt)
           : undefined,
         unreadCount: d.unreadCount || 0,
         isPending: false,
@@ -553,7 +628,7 @@ export const ChatPage: React.FC = () => {
       updateDmSnippet(
         msg.channelId,
         msg.content,
-        new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        formatMessageTime(msg.createdAt)
       );
     },
     [setMessages, setChannelUnread, updateDmSnippet]
@@ -572,6 +647,16 @@ export const ChatPage: React.FC = () => {
 
       setCurrentUser(user);
       localStorage.setItem('nomna_logged_in', 'true');
+
+      // Fetch notifications
+      try {
+        const fetchedNotifs = await notificationApi.getNotifications();
+        if (fetchedNotifs && fetchedNotifs.length > 0) {
+          setNotifications(fetchedNotifs);
+        }
+      } catch (err) {
+        // Keep initial mock notifications if backend notifications not yet populated
+      }
 
       // Connect SignalR
       await signalRService.startConnection(
@@ -689,6 +774,22 @@ export const ChatPage: React.FC = () => {
         }
       });
 
+      // Listen for incoming notifications (Mentions, Thread Replies, etc.)
+      signalRService.onReceiveNotification((notif) => {
+        setNotifications((prev) => [notif, ...prev.filter((n) => n.id !== notif.id)]);
+
+        setToast({
+          id: notif.id,
+          title: notif.title || 'Thông báo mới',
+          description: notif.content || undefined,
+          actionLabel: 'Xem ngay',
+          onAction: () => {
+            handleNotificationSelect(notif);
+            setToast(null);
+          },
+        });
+      });
+
       // Load Workspaces
       const wsList = await workspaceApi.getWorkspaces();
       setWorkspaces(wsList);
@@ -798,7 +899,7 @@ export const ChatPage: React.FC = () => {
     updateDmSnippet(
       targetChannelId,
       snippetText,
-      new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      formatMessageTime(new Date())
     );
 
     // 2. Dispatch to server
@@ -968,7 +1069,7 @@ export const ChatPage: React.FC = () => {
     setNewDmOpen(false);
   };
 
-  const activeDm = dmConversations.find((d) => d.id === activeChannelId);
+  const activeDm = dmConversations.find((d) => d.id === activeDmId);
   const currentWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || null;
   const currentUserMember = workspaceMembers.find((m) => m.id === currentUser?.id);
   const currentUserRole =
@@ -1049,16 +1150,17 @@ export const ChatPage: React.FC = () => {
   };
 
   const currentChannel: Channel | null =
-    channels.find((c) => c.id === activeChannelId) ||
-    (activeDm
-      ? {
-          id: activeDm.id,
-          workspaceId: activeWorkspaceId || '',
-          name: activeDm.user.displayName,
-          type: ChannelType.DirectMessage,
-          isPrivate: true,
-        }
-      : null);
+    activeSidebarView === 'dms'
+      ? activeDm
+        ? {
+            id: activeDm.id,
+            workspaceId: activeWorkspaceId || '',
+            name: activeDm.user.displayName,
+            type: ChannelType.DirectMessage,
+            isPrivate: true,
+          }
+        : null
+      : channels.find((c) => c.id === activeChannelId) || null;
 
   // Reset channel members map when workspace switches
   useEffect(() => {
@@ -1145,7 +1247,9 @@ export const ChatPage: React.FC = () => {
         {/* 1 & 2. Unified Left Dock (Workspace Rail + Channel Sidebar + Spanning User Footer) */}
         <div
           className="h-full flex flex-col shrink-0 overflow-hidden"
-          style={{ width: `${68 + channelWidth}px` }}
+          style={{
+            width: `${68 + (activeSidebarView === 'notifications' ? Math.max(channelWidth, 310) : channelWidth)}px`,
+          }}
         >
           {/* Top Columns */}
           <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
@@ -1157,6 +1261,7 @@ export const ChatPage: React.FC = () => {
               onSelectWorkspace={handleSelectWorkspace}
               onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
               onGoHome={() => navigate('/')}
+              unreadNotificationCount={unreadNotificationCount}
             />
             {activeSidebarView === 'channels' ? (
               <ChannelSidebar
@@ -1172,7 +1277,7 @@ export const ChatPage: React.FC = () => {
                 onOpenEditChannel={(ch) => setChannelToEdit(ch)}
                 onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
               />
-            ) : (
+            ) : activeSidebarView === 'dms' ? (
               <DirectMessagesSidebar
                 conversations={dmConversations.filter(
                   (c) => !c.workspaceId || c.workspaceId === activeWorkspaceId
@@ -1191,10 +1296,30 @@ export const ChatPage: React.FC = () => {
                   }
                 }}
               />
+            ) : activeSidebarView === 'notifications' ? (
+              <NotificationsSidebar
+                notifications={notifications}
+                activeNotificationId={selectedNotification?.id}
+                onSelectNotification={handleNotificationSelect}
+                onMarkAllRead={handleMarkAllNotificationsRead}
+              />
+            ) : (
+              <ActivitiesSidebar
+                activeFilter={activityFilter}
+                onFilterChange={setActivityFilter}
+                onClose={() => setActiveSidebarView('channels')}
+                onCreateActivity={() =>
+                  setToast({
+                    id: Date.now().toString(),
+                    title: 'Tạo hoạt động mới',
+                    description: 'Tính năng tạo bài tập & job sẽ khả dụng trong Phase 3.',
+                  })
+                }
+              />
             )}
           </div>
 
-          {/* User Account Footer Bar */}
+          {/* User Account Footer Bar (Cleaned up, no cramped popover) */}
           <UserFooterBar
             currentUser={currentUser}
             onOpenSettings={() => setSettingsOpen(true)}
@@ -1212,43 +1337,69 @@ export const ChatPage: React.FC = () => {
           title="Kéo sang trái/phải để chỉnh kích thước Sidebar Kênh"
         />
 
-        {/* 3. Active Chat Area */}
-        <ChatArea
-          currentChannel={currentChannel}
-          messages={messages}
-          currentUser={currentUser}
-          onSendMessage={handleSendMessage}
-          onEditMessage={handleEditMessage}
-          onDeleteMessage={handleDeleteMessage}
-          onToggleReaction={handleToggleReaction}
-          onStartTyping={() => activeChannelId && signalRService.startTyping(activeChannelId)}
-          onStopTyping={() => activeChannelId && signalRService.stopTyping(activeChannelId)}
-          typingUser={typingUser}
-          onToggleThread={() => {
-            if (!isThreadOpen) {
-              if (!activeThreadMessage && messages.length > 0) {
-                openThread(messages[0]);
+        {/* 3. Active Chat Area or Activities Workspace or Notification Detail Pane */}
+        {activeSidebarView === 'activities' ? (
+          <ActivitiesWorkspace
+            activeFilter={activityFilter}
+            onFilterChange={setActivityFilter}
+            onBackToChat={() => setActiveSidebarView('channels')}
+          />
+        ) : activeSidebarView === 'notifications' ? (
+          <NotificationDetailPane
+            notification={selectedNotification}
+            onNavigateToTarget={handleNavigateFromNotification}
+          />
+        ) : activeSidebarView === 'dms' && (!activeDmId || !activeDm) ? (
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center bg-[var(--bg-chat)] p-8 text-center select-none">
+            <div className="w-16 h-16 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-color)] flex items-center justify-center text-[var(--accent-primary)] mb-3 shadow-xs">
+              <Chats size={36} weight="duotone" className="opacity-60" />
+            </div>
+            <p className="text-base font-bold text-[var(--text-primary)] mb-1">
+              Chưa chọn cuộc trò chuyện
+            </p>
+            <p className="text-xs text-[var(--text-muted)] max-w-sm leading-relaxed">
+              Chọn một tin nhắn trực tiếp ở danh sách bên trái hoặc nhấn nút + để tìm kiếm thành viên và bắt đầu cuộc trò chuyện riêng tư.
+            </p>
+          </div>
+        ) : (
+          <ChatArea
+            currentChannel={currentChannel}
+            messages={messages}
+            currentUser={currentUser}
+            onSendMessage={handleSendMessage}
+            onEditMessage={handleEditMessage}
+            onDeleteMessage={handleDeleteMessage}
+            onToggleReaction={handleToggleReaction}
+            onStartTyping={() => activeChannelId && signalRService.startTyping(activeChannelId)}
+            onStopTyping={() => activeChannelId && signalRService.stopTyping(activeChannelId)}
+            typingUser={typingUser}
+            onToggleThread={() => {
+              if (!isThreadOpen) {
+                if (!activeThreadMessage && messages.length > 0) {
+                  openThread(messages[0]);
+                }
+                expandThread();
+              } else {
+                closeThread();
               }
-              expandThread();
-            } else {
-              closeThread();
-            }
-          }}
-          onOpenThread={handleOpenThread}
-          onStartDmWithUser={handleStartDmWithUser}
-          hasMoreMessages={hasMoreMessages}
-          isLoadingMore={isLoadingMoreMessages}
-          isLoadingMessages={isLoadingMessages}
-          onLoadMoreMessages={handleLoadMoreMessages}
-          workspaceMembers={workspaceMembers}
-          isMemberListOpen={isMemberListOpen}
-          onToggleMemberList={toggleMemberList}
-          pinnedMessages={pinnedMessages}
-          onPinMessage={handlePinMessage}
-          onUnpinMessage={handleUnpinMessage}
-          isPinnedSidebarOpen={isPinnedSidebarOpen}
-          onTogglePinnedSidebar={togglePinnedSidebar}
-        />
+            }}
+            onOpenThread={handleOpenThread}
+            onStartDmWithUser={handleStartDmWithUser}
+            hasMoreMessages={hasMoreMessages}
+            isLoadingMore={isLoadingMoreMessages}
+            isLoadingMessages={isLoadingMessages}
+            onLoadMoreMessages={handleLoadMoreMessages}
+            workspaceMembers={workspaceMembers}
+            isMemberListOpen={isMemberListOpen}
+            onToggleMemberList={toggleMemberList}
+            onOpenUserProfile={setInspectingUser}
+            pinnedMessages={pinnedMessages}
+            onPinMessage={handlePinMessage}
+            onUnpinMessage={handleUnpinMessage}
+            isPinnedSidebarOpen={isPinnedSidebarOpen}
+            onTogglePinnedSidebar={togglePinnedSidebar}
+          />
+        )}
 
         {/* 3.5 Resizer Divider & Thread Panel */}
         {isThreadOpen && (
@@ -1299,6 +1450,7 @@ export const ChatPage: React.FC = () => {
               isPrivateChannel={!!(currentChannel?.isPrivate && currentChannel.type !== ChannelType.DirectMessage)}
               isLoading={!!(currentChannel?.isPrivate && currentChannel.type !== ChannelType.DirectMessage && loadingChannelMemberIds[currentChannel.id])}
               onOpenAddMember={() => currentChannel && setChannelToAddMember(currentChannel)}
+              onOpenUserProfile={setInspectingUser}
               onStartDmWithUser={handleStartDmWithUser}
               onOpenSettings={() => setSettingsOpen(true)}
               onRequestKickMember={(m) => setMemberToKick(m)}
@@ -1463,6 +1615,34 @@ export const ChatPage: React.FC = () => {
                 : m
             )
           );
+        }}
+      />
+
+      {/* Unified Modern User Profile Modal */}
+      <UserProfileModal
+        isOpen={!!inspectingUser}
+        onClose={() => setInspectingUser(null)}
+        user={inspectingUser}
+        currentUserId={currentUser?.id}
+        onStartDm={(u) => {
+          handleStartDmWithUser({
+            id: u.id,
+            displayName: u.displayName,
+            username: u.username,
+            avatarUrl: u.avatarUrl || undefined,
+          });
+        }}
+        onOpenSettings={() => setSettingsOpen(true)}
+        canKick={
+          !!currentUserRole &&
+          (currentUserRole.toLowerCase() === 'owner' ||
+            (currentUserRole.toLowerCase() === 'admin' &&
+              (inspectingUser?.role || '').toLowerCase() !== 'owner' &&
+              (inspectingUser?.role || '').toLowerCase() !== 'admin'))
+        }
+        onKickMember={(u) => {
+          const found = workspaceMembers.find((m) => m.id === u.id);
+          if (found) setMemberToKick(found);
         }}
       />
 

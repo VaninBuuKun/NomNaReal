@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { PushPin, CaretDown, X, ArrowRight } from "@phosphor-icons/react";
 import type { PinnedMessage } from "../../types";
+import { formatMessageTime } from "../../utils/formatDate";
 
 interface StickyPinBarProps {
   pinnedMessages: PinnedMessage[];
@@ -55,14 +56,7 @@ export const StickyPinBar: React.FC<StickyPinBarProps> = ({
   };
 
   const getTime = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "";
-    }
+    return formatMessageTime(dateStr);
   };
 
   return (

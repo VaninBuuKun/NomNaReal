@@ -25,21 +25,31 @@ public class UnpinMessageCommandHandler : IRequestHandler<UnpinMessageCommand, R
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
         }
 
-        var pinnedMessage = await _context.ChannelPinnedMessages
-            .Include(p => p.Channel)
-            .FirstOrDefaultAsync(p => p.MessageId == request.MessageId, cancellationToken);
+        var pinInfo = await _context.ChannelPinnedMessages
+            .Where(p => p.MessageId == request.MessageId)
+            .Select(p => new
+            {
+                p.Id,
+                p.ChannelId,
+                p.MessageId,
+                ChannelIsPrivate = p.Channel.IsPrivate,
+                ChannelType = p.Channel.Type,
+                ChannelCreatedById = p.Channel.CreatedById,
+                WorkspaceId = p.Channel.WorkspaceId
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (pinnedMessage == null)
+        if (pinInfo == null)
         {
             return Error.NotFound("PinnedMessage.NotFound", "This message is not pinned.");
         }
 
         // Check channel authorization
-        if (pinnedMessage.Channel.IsPrivate || pinnedMessage.Channel.Type == ChannelType.DirectMessage)
+        if (pinInfo.ChannelIsPrivate || pinInfo.ChannelType == ChannelType.DirectMessage)
         {
             var isMember = await _context.ChannelMembers
-                .AnyAsync(cm => cm.ChannelId == pinnedMessage.ChannelId && cm.UserId == userId.Value, cancellationToken);
-            if (!isMember && pinnedMessage.Channel.CreatedById != userId.Value)
+                .AnyAsync(cm => cm.ChannelId == pinInfo.ChannelId && cm.UserId == userId.Value, cancellationToken);
+            if (!isMember && pinInfo.ChannelCreatedById != userId.Value)
             {
                 return Error.Forbidden("Channel.Forbidden", "You do not have permission to unpin messages in this private channel.");
             }
@@ -47,19 +57,17 @@ public class UnpinMessageCommandHandler : IRequestHandler<UnpinMessageCommand, R
         else
         {
             var isMember = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == pinnedMessage.Channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+                .AnyAsync(wm => wm.WorkspaceId == pinInfo.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
             if (!isMember)
             {
                 return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
             }
         }
 
-        var channelId = pinnedMessage.ChannelId;
-        var messageId = pinnedMessage.MessageId;
+        await _context.ChannelPinnedMessages
+            .Where(p => p.Id == pinInfo.Id)
+            .ExecuteDeleteAsync(cancellationToken);
 
-        _context.ChannelPinnedMessages.Remove(pinnedMessage);
-        await _context.SaveChangesAsync(cancellationToken);
-
-        return new UnpinnedMessageResultDto(channelId, messageId);
+        return new UnpinnedMessageResultDto(pinInfo.ChannelId, pinInfo.MessageId);
     }
 }

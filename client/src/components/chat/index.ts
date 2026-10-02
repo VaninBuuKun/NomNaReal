@@ -11,3 +11,5 @@ export * from './ImageGalleryGrid';
 export * from './SearchSidebar';
 export * from './StickyPinBar';
 export * from './PinnedMessagesSidebar';
+export * from './MentionAutocompletePopover';
+export * from './LinkPreviewCard';

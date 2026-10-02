@@ -21,3 +21,11 @@ public enum WorkspaceRole
     Admin = 1,
     Owner = 2
 }
+
+public enum NotificationType
+{
+    Mention = 1,
+    ThreadReply = 2,
+    ChannelInvite = 3,
+    WorkspaceInvite = 4
+}

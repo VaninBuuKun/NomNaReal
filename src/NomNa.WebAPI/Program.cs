@@ -24,6 +24,7 @@ builder.Services.AddScoped<INotificationDispatcher, SignalRNotificationDispatche
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddHttpClient();
 
 // Configure large file / video upload support (up to 100MB)
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
