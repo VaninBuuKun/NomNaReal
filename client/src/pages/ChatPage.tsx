@@ -1,20 +1,70 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { WorkspaceRail, CreateWorkspaceModal, EditWorkspaceModal, KickMemberModal } from '../components/workspace';
-import { ChannelSidebar, UserFooterBar, CreateChannelModal, MemberListPanel, EditChannelModal, AddChannelMemberModal } from '../components/channel';
-import { DirectMessagesSidebar, NewDirectMessageModal, type DirectMessageItem, type DirectMessageUser } from '../components/dm';
-import { ChatArea, SearchSidebar, PinnedMessagesSidebar } from '../components/chat';
-import { NotificationsSidebar, NotificationDetailPane, MOCK_NOTIFICATIONS } from '../components/notifications';
-import { ActivitiesSidebar, ActivitiesWorkspace, type ActivityFilterType } from '../components/activities';
-import { ThreadPanel } from '../components/thread';
-import { SettingsModal } from '../components/settings';
-import { UserProfileModal, type UserProfileData } from '../components/profile';
-import { Toast } from '../components/ui';
-import { Chats } from '@phosphor-icons/react';
-import { formatMessageTime } from '../utils/formatDate';
-import { authApi, workspaceApi, channelApi, messageApi, notificationApi, signalRService } from '../services';
-import { useTheme } from '../hooks/useTheme';
-import { ChannelType, type User, type Workspace, type Channel, type Message, type ReactionGroup, type PinnedMessage, type AppNotification } from '../types';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  WorkspaceRail,
+  CreateWorkspaceModal,
+  EditWorkspaceModal,
+  KickMemberModal,
+} from "../components/workspace";
+import {
+  ChannelSidebar,
+  UserFooterBar,
+  CreateChannelModal,
+  MemberListPanel,
+  EditChannelModal,
+  AddChannelMemberModal,
+} from "../components/channel";
+import {
+  DirectMessagesSidebar,
+  NewDirectMessageModal,
+  type DirectMessageItem,
+  type DirectMessageUser,
+} from "../components/dm";
+import {
+  ChatArea,
+  SearchSidebar,
+  PinnedMessagesSidebar,
+} from "../components/chat";
+import {
+  NotificationsSidebar,
+  NotificationDetailPane,
+} from "../components/notifications";
+import {
+  ActivitiesSidebar,
+  ActivitiesWorkspace,
+  type ActivityFilterType,
+} from "../components/activities";
+import { ThreadPanel } from "../components/thread";
+import { SettingsModal } from "../components/settings";
+import { UserProfileModal, type UserProfileData } from "../components/profile";
+import { Toast } from "../components/ui";
+import { Chats } from "@phosphor-icons/react";
+import { formatMessageTime } from "../utils/formatDate";
+import {
+  authApi,
+  workspaceApi,
+  channelApi,
+  messageApi,
+  notificationApi,
+  signalRService,
+} from "../services";
+import { useTheme } from "../hooks/useTheme";
+import {
+  ChannelType,
+  type User,
+  type Workspace,
+  type Channel,
+  type Message,
+  type ReactionGroup,
+  type PinnedMessage,
+  type AppNotification,
+} from "../types";
 import {
   useWorkspaceStore,
   useChatStore,
@@ -30,11 +80,13 @@ import {
   MAX_SEARCH_WIDTH,
   MIN_PINNED_WIDTH,
   MAX_PINNED_WIDTH,
-} from '../stores';
+} from "../stores";
 
 export const ChatPage: React.FC = () => {
   const navigate = useNavigate();
-  const { workspaceId: paramWorkspaceId } = useParams<{ workspaceId?: string }>();
+  const { workspaceId: paramWorkspaceId } = useParams<{
+    workspaceId?: string;
+  }>();
   const { theme, changeTheme } = useTheme();
 
   // Local Session State
@@ -155,14 +207,24 @@ export const ChatPage: React.FC = () => {
   const [isResizingSearch, setIsResizingSearch] = useState(false);
   const [isResizingPinned, setIsResizingPinned] = useState(false);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
-  const [inspectingUser, setInspectingUser] = useState<UserProfileData | null>(null);
-  const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS);
+  const [inspectingUser, setInspectingUser] = useState<UserProfileData | null>(
+    null,
+  );
+  const [userProfileAnchor, setUserProfileAnchor] = useState<{
+    top: number;
+    left: number;
+    right: number;
+    bottom: number;
+  } | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const unreadNotificationCount = useMemo(
     () => notifications.filter((n) => !n.isRead).length,
-    [notifications]
+    [notifications],
   );
-  const [selectedNotification, setSelectedNotification] = useState<AppNotification | null>(null);
-  const [activityFilter, setActivityFilter] = useState<ActivityFilterType>('all');
+  const [selectedNotification, setSelectedNotification] =
+    useState<AppNotification | null>(null);
+  const [activityFilter, setActivityFilter] =
+    useState<ActivityFilterType>("all");
   const [toast, setToast] = useState<{
     id: string;
     title: string;
@@ -170,8 +232,12 @@ export const ChatPage: React.FC = () => {
     actionLabel?: string;
     onAction?: () => void;
   } | null>(null);
-  const [channelMemberIdsMap, setChannelMemberIdsMap] = useState<Record<string, string[]>>({});
-  const [loadingChannelMemberIds, setLoadingChannelMemberIds] = useState<Record<string, boolean>>({});
+  const [channelMemberIdsMap, setChannelMemberIdsMap] = useState<
+    Record<string, string[]>
+  >({});
+  const [loadingChannelMemberIds, setLoadingChannelMemberIds] = useState<
+    Record<string, boolean>
+  >({});
 
   // Fetch members of a private channel (with cache check & merging)
   const fetchChannelMembers = useCallback(
@@ -199,10 +265,10 @@ export const ChatPage: React.FC = () => {
                   id: m.userId,
                   displayName: m.displayName,
                   username: m.username,
-                  email: '',
+                  email: "",
                   avatarUrl: m.avatarUrl,
-                  status: 'offline',
-                  role: 'Thành viên',
+                  status: "offline",
+                  role: "Thành viên",
                 });
               }
             }
@@ -216,7 +282,7 @@ export const ChatPage: React.FC = () => {
         setLoadingChannelMemberIds((prev) => ({ ...prev, [channelId]: false }));
       }
     },
-    [channelMemberIdsMap, setWorkspaceMembers]
+    [channelMemberIdsMap, setWorkspaceMembers],
   );
 
   // Resize Drag Handlers
@@ -229,19 +295,19 @@ export const ChatPage: React.FC = () => {
     const onMouseMove = (moveEvent: MouseEvent) => {
       const newWidth = Math.max(
         MIN_SEARCH_WIDTH,
-        Math.min(MAX_SEARCH_WIDTH, startWidth + (startX - moveEvent.clientX))
+        Math.min(MAX_SEARCH_WIDTH, startWidth + (startX - moveEvent.clientX)),
       );
       setSearchWidth(newWidth);
     };
 
     const onMouseUp = () => {
       setIsResizingSearch(false);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
     };
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
   };
 
   const handlePinnedResizeStart = (e: React.MouseEvent) => {
@@ -253,19 +319,19 @@ export const ChatPage: React.FC = () => {
     const onMouseMove = (moveEvent: MouseEvent) => {
       const newWidth = Math.max(
         MIN_PINNED_WIDTH,
-        Math.min(MAX_PINNED_WIDTH, startWidth + (startX - moveEvent.clientX))
+        Math.min(MAX_PINNED_WIDTH, startWidth + (startX - moveEvent.clientX)),
       );
       setPinnedSidebarWidth(newWidth);
     };
 
     const onMouseUp = () => {
       setIsResizingPinned(false);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
     };
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
   };
 
   const handleChannelResizeStart = (e: React.MouseEvent) => {
@@ -277,19 +343,19 @@ export const ChatPage: React.FC = () => {
     const onMouseMove = (moveEvent: MouseEvent) => {
       const newWidth = Math.max(
         MIN_CHANNEL_WIDTH,
-        Math.min(MAX_CHANNEL_WIDTH, startWidth + (moveEvent.clientX - startX))
+        Math.min(MAX_CHANNEL_WIDTH, startWidth + (moveEvent.clientX - startX)),
       );
       setChannelWidth(newWidth);
     };
 
     const onMouseUp = () => {
       setIsResizingChannel(false);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
     };
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
   };
 
   const handleThreadResizeStart = (e: React.MouseEvent) => {
@@ -301,19 +367,19 @@ export const ChatPage: React.FC = () => {
     const onMouseMove = (moveEvent: MouseEvent) => {
       const newWidth = Math.max(
         MIN_THREAD_WIDTH,
-        Math.min(MAX_THREAD_WIDTH, startWidth + (startX - moveEvent.clientX))
+        Math.min(MAX_THREAD_WIDTH, startWidth + (startX - moveEvent.clientX)),
       );
       setThreadWidth(newWidth);
     };
 
     const onMouseUp = () => {
       setIsResizingThread(false);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
     };
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
   };
 
   const handleMemberResizeStart = (e: React.MouseEvent) => {
@@ -325,19 +391,19 @@ export const ChatPage: React.FC = () => {
     const onMouseMove = (moveEvent: MouseEvent) => {
       const newWidth = Math.max(
         MIN_MEMBER_WIDTH,
-        Math.min(MAX_MEMBER_WIDTH, startWidth + (startX - moveEvent.clientX))
+        Math.min(MAX_MEMBER_WIDTH, startWidth + (startX - moveEvent.clientX)),
       );
       setMemberWidth(newWidth);
     };
 
     const onMouseUp = () => {
       setIsResizingMember(false);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
     };
 
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
   };
 
   // Fetch Channel Messages
@@ -348,7 +414,7 @@ export const ChatPage: React.FC = () => {
       setMessages(res.messages);
       setHasMoreMessages(res.hasMore);
     } catch (err) {
-      console.error('Failed to load messages:', err);
+      console.error("Failed to load messages:", err);
       setMessages([]);
       setHasMoreMessages(false);
     } finally {
@@ -358,18 +424,26 @@ export const ChatPage: React.FC = () => {
 
   // Load older messages (infinite scroll up)
   const handleLoadMoreMessages = async () => {
-    if (!activeChannelId || isLoadingMoreMessages || !hasMoreMessages || messages.length === 0) {
+    if (
+      !activeChannelId ||
+      isLoadingMoreMessages ||
+      !hasMoreMessages ||
+      messages.length === 0
+    ) {
       return;
     }
 
     try {
       setIsLoadingMoreMessages(true);
       const oldestMessage = messages[0];
-      const res = await messageApi.getMessages(activeChannelId, oldestMessage.createdAt);
+      const res = await messageApi.getMessages(
+        activeChannelId,
+        oldestMessage.createdAt,
+      );
       appendOlderMessages(res.messages);
       setHasMoreMessages(res.hasMore);
     } catch (err) {
-      console.error('Failed to load older messages:', err);
+      console.error("Failed to load older messages:", err);
     } finally {
       setIsLoadingMoreMessages(false);
     }
@@ -402,7 +476,7 @@ export const ChatPage: React.FC = () => {
       const pins = await messageApi.getPinnedMessages(channelId);
       setPinnedMessages(pins);
     } catch (err) {
-      console.error('Failed to load pinned messages:', err);
+      console.error("Failed to load pinned messages:", err);
       setPinnedMessages([]);
     }
   };
@@ -417,24 +491,27 @@ export const ChatPage: React.FC = () => {
 
   const handleNavigateFromNotification = useCallback(
     (notif: AppNotification) => {
-      const isAssignment = notif.type === 'Assignment' || notif.type === 3;
-      const isTask = notif.type === 'TaskSchedule' || notif.type === 4;
+      const isAssignment = notif.type === "Assignment" || notif.type === 3;
+      const isTask = notif.type === "TaskSchedule" || notif.type === 4;
 
       if (isAssignment) {
-        setActivityFilter('assignments');
-        setActiveSidebarView('activities');
+        setActivityFilter("assignments");
+        setActiveSidebarView("activities");
         return;
       }
 
       if (isTask) {
-        setActivityFilter('schedules');
-        setActiveSidebarView('activities');
+        setActivityFilter("schedules");
+        setActiveSidebarView("activities");
         return;
       }
 
       // Default: Chat / Mention / Thread
-      setActiveSidebarView('channels');
-      if (notif.workspaceId && notif.workspaceId !== activeWorkspaceIdRef.current) {
+      setActiveSidebarView("channels");
+      if (
+        notif.workspaceId &&
+        notif.workspaceId !== activeWorkspaceIdRef.current
+      ) {
         setActiveWorkspaceId(notif.workspaceId);
       }
       if (notif.channelId) {
@@ -445,36 +522,43 @@ export const ChatPage: React.FC = () => {
         setTimeout(() => {
           const el = document.getElementById(`msg-${notif.messageId}`);
           if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.classList.add('bg-[var(--accent-soft)]', 'ring-2', 'ring-amber-400/60');
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            el.classList.add(
+              "bg-[var(--accent-soft)]",
+              "ring-2",
+              "ring-amber-400/60",
+            );
             setTimeout(() => {
-              el.classList.remove('bg-[var(--accent-soft)]', 'ring-2', 'ring-amber-400/60');
+              el.classList.remove(
+                "bg-[var(--accent-soft)]",
+                "ring-2",
+                "ring-amber-400/60",
+              );
             }, 2500);
           }
         }, 350);
       }
     },
-    [handleSelectChannel, setActiveWorkspaceId, setActiveSidebarView]
+    [handleSelectChannel, setActiveWorkspaceId, setActiveSidebarView],
   );
 
-  const handleNotificationSelect = useCallback(
-    (notif: AppNotification) => {
-      setSelectedNotification({ ...notif, isRead: true });
-      if (!notif.isRead) {
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
-        );
-        if (!notif.id.startsWith('notif-mock-')) {
-          notificationApi.markAsRead(notif.id).catch(console.error);
-        }
+  const handleNotificationSelect = useCallback((notif: AppNotification) => {
+    setSelectedNotification({ ...notif, isRead: true });
+    if (!notif.isRead) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n)),
+      );
+      if (!notif.id.startsWith("notif-mock-")) {
+        notificationApi.markAsRead(notif.id).catch(console.error);
       }
-    },
-    []
-  );
+    }
+  }, []);
 
   const handleMarkAllNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    setSelectedNotification((prev) => (prev ? { ...prev, isRead: true } : null));
+    setSelectedNotification((prev) =>
+      prev ? { ...prev, isRead: true } : null,
+    );
   }, []);
 
   const handlePinMessage = async (messageId: string) => {
@@ -486,15 +570,15 @@ export const ChatPage: React.FC = () => {
       });
       setToast({
         id: Date.now().toString(),
-        title: 'Đã ghim tin nhắn',
-        description: 'Tin nhắn đã được ghim lên đầu kênh thành công.',
+        title: "Đã ghim tin nhắn",
+        description: "Tin nhắn đã được ghim lên đầu kênh thành công.",
       });
     } catch (err) {
-      console.error('Failed to pin message:', err);
+      console.error("Failed to pin message:", err);
       setToast({
         id: Date.now().toString(),
-        title: 'Lỗi ghim tin nhắn',
-        description: 'Không thể ghim tin nhắn này. Vui lòng thử lại!',
+        title: "Lỗi ghim tin nhắn",
+        description: "Không thể ghim tin nhắn này. Vui lòng thử lại!",
       });
     }
   };
@@ -502,18 +586,20 @@ export const ChatPage: React.FC = () => {
   const handleUnpinMessage = async (messageId: string) => {
     try {
       await messageApi.unpinMessage(messageId);
-      setPinnedMessages((prev) => prev.filter((p) => p.messageId !== messageId));
+      setPinnedMessages((prev) =>
+        prev.filter((p) => p.messageId !== messageId),
+      );
       setToast({
         id: Date.now().toString(),
-        title: 'Đã bỏ ghim',
-        description: 'Tin nhắn đã được gỡ khỏi danh sách ghim.',
+        title: "Đã bỏ ghim",
+        description: "Tin nhắn đã được gỡ khỏi danh sách ghim.",
       });
     } catch (err) {
-      console.error('Failed to unpin message:', err);
+      console.error("Failed to unpin message:", err);
       setToast({
         id: Date.now().toString(),
-        title: 'Lỗi bỏ ghim',
-        description: 'Không thể bỏ ghim tin nhắn. Vui lòng thử lại!',
+        title: "Lỗi bỏ ghim",
+        description: "Không thể bỏ ghim tin nhắn. Vui lòng thử lại!",
       });
     }
   };
@@ -538,10 +624,10 @@ export const ChatPage: React.FC = () => {
           displayName: d.targetDisplayName,
           username: d.targetUsername,
           avatarUrl: d.targetAvatarUrl,
-          email: d.targetEmail || '',
-          status: (d.targetStatus as any) || 'offline',
+          email: d.targetEmail || "",
+          status: (d.targetStatus as any) || "offline",
         },
-        lastMessage: d.lastMessage || 'Cuộc trò chuyện mới',
+        lastMessage: d.lastMessage || "Cuộc trò chuyện mới",
         lastMessageTime: d.lastMessageAt
           ? formatMessageTime(d.lastMessageAt)
           : undefined,
@@ -551,20 +637,22 @@ export const ChatPage: React.FC = () => {
       setDmConversations(formattedDms);
 
       // Format members
-      const formattedMembers: DirectMessageUser[] = (members || []).map((m) => ({
-        id: m.userId,
-        displayName: m.displayName,
-        username: m.username,
-        email: m.email || '',
-        avatarUrl: m.avatarUrl,
-        status: (m.status as any) || 'offline',
-        role: m.role,
-      }));
+      const formattedMembers: DirectMessageUser[] = (members || []).map(
+        (m) => ({
+          id: m.userId,
+          displayName: m.displayName,
+          username: m.username,
+          email: m.email || "",
+          avatarUrl: m.avatarUrl,
+          status: (m.status as any) || "offline",
+          role: m.role,
+        }),
+      );
       setWorkspaceMembers(formattedMembers);
 
       return { channels: chs, dms: formattedDms };
     } catch (err) {
-      console.error('Failed to load workspace data:', err);
+      console.error("Failed to load workspace data:", err);
       return { channels: [], dms: [] };
     }
   };
@@ -576,9 +664,13 @@ export const ChatPage: React.FC = () => {
     setActiveWorkspaceId(workspaceId);
     navigate(`/workspace/${workspaceId}`, { replace: true });
     try {
-      const { channels: chs } = await loadWorkspaceData(workspaceId, currentUser?.id);
+      const { channels: chs } = await loadWorkspaceData(
+        workspaceId,
+        currentUser?.id,
+      );
       if (chs.length > 0) {
-        const defaultCh = chs.find((c) => c.name?.toLowerCase() === 'general') || chs[0];
+        const defaultCh =
+          chs.find((c) => c.name?.toLowerCase() === "general") || chs[0];
         await handleSelectChannel(defaultCh.id);
       } else {
         setActiveChannelId(null);
@@ -608,9 +700,9 @@ export const ChatPage: React.FC = () => {
         // Reconcile optimistic temp message
         const tempIndex = prev.findIndex(
           (m) =>
-            m.id.startsWith('temp-') &&
+            m.id.startsWith("temp-") &&
             m.senderId === msg.senderId &&
-            m.content === msg.content
+            m.content === msg.content,
         );
         if (tempIndex !== -1) {
           const next = [...prev];
@@ -622,16 +714,20 @@ export const ChatPage: React.FC = () => {
       });
 
       // Update channel unread status and lastMessageAt
-      setChannelUnread(msg.channelId, msg.createdAt, msg.channelId !== activeChannelIdRef.current);
+      setChannelUnread(
+        msg.channelId,
+        msg.createdAt,
+        msg.channelId !== activeChannelIdRef.current,
+      );
 
       // Update DM snippet
       updateDmSnippet(
         msg.channelId,
         msg.content,
-        formatMessageTime(msg.createdAt)
+        formatMessageTime(msg.createdAt),
       );
     },
-    [setMessages, setChannelUnread, updateDmSnippet]
+    [setMessages, setChannelUnread, updateDmSnippet],
   );
 
   // Initialize Chat App & Verify User Session
@@ -646,7 +742,7 @@ export const ChatPage: React.FC = () => {
       }
 
       setCurrentUser(user);
-      localStorage.setItem('nomna_logged_in', 'true');
+      localStorage.setItem("nomna_logged_in", "true");
 
       // Fetch notifications
       try {
@@ -662,17 +758,20 @@ export const ChatPage: React.FC = () => {
       await signalRService.startConnection(
         handleIncomingMessage,
         (data) => setTypingUser(data.username),
-        () => setTypingUser(null)
+        () => setTypingUser(null),
       );
 
       // Listen for thread replies count
       signalRService.onThreadReplyCountUpdated((data) => {
-        updateReplyCount(data.parentMessageId, typeof data.replyCount === 'number' ? data.replyCount : undefined);
+        updateReplyCount(
+          data.parentMessageId,
+          typeof data.replyCount === "number" ? data.replyCount : undefined,
+        );
       });
 
       // Listen for reactions
       signalRService.onReactionUpdated((update) => {
-        if ('isAdded' in update && update.emoji) {
+        if ("isAdded" in update && update.emoji) {
           applyReactionDelta(update as any, currentUser?.id);
         } else if (update.reactions) {
           setReactions(update.messageId, update.reactions);
@@ -691,7 +790,11 @@ export const ChatPage: React.FC = () => {
 
       // Listen for user presence
       signalRService.onUserStatusChanged((data) => {
-        const normalized = data.status.toLowerCase() as 'online' | 'offline' | 'away' | 'dnd';
+        const normalized = data.status.toLowerCase() as
+          | "online"
+          | "offline"
+          | "away"
+          | "dnd";
         updateUserStatus(data.userId, normalized);
       });
 
@@ -707,9 +810,9 @@ export const ChatPage: React.FC = () => {
         // Show Toast popup for the added user
         setToast({
           id: newChannel.id,
-          title: 'Kênh riêng tư mới',
+          title: "Kênh riêng tư mới",
           description: `Bạn vừa được thêm vào #${newChannel.name}`,
-          actionLabel: 'Xem ngay',
+          actionLabel: "Xem ngay",
           onAction: () => {
             if (newChannel.workspaceId !== activeWorkspaceIdRef.current) {
               setActiveWorkspaceId(newChannel.workspaceId);
@@ -722,7 +825,9 @@ export const ChatPage: React.FC = () => {
 
       // Listen for new workspace members joining
       signalRService.onWorkspaceMemberJoined((data) => {
-        const currentWs = useWorkspaceStore.getState().workspaces.find((w) => w.id === data.workspaceId);
+        const currentWs = useWorkspaceStore
+          .getState()
+          .workspaces.find((w) => w.id === data.workspaceId);
         if (currentWs) {
           updateWorkspace({ ...currentWs, memberCount: data.memberCount });
         }
@@ -733,10 +838,15 @@ export const ChatPage: React.FC = () => {
             id: data.member.userId,
             displayName: data.member.displayName,
             username: data.member.username,
-            email: data.member.email || '',
+            email: data.member.email || "",
             avatarUrl: data.member.avatarUrl,
-            status: 'online',
-            role: data.member.role === 'Admin' ? 'Quản trị viên' : data.member.role === 'Owner' ? 'Chủ phòng' : 'Thành viên',
+            status: "online",
+            role:
+              data.member.role === "Admin"
+                ? "Quản trị viên"
+                : data.member.role === "Owner"
+                  ? "Chủ phòng"
+                  : "Thành viên",
           };
           setWorkspaceMembers((prev) => {
             if (prev.some((m) => m.id === newMem.id)) return prev;
@@ -768,21 +878,28 @@ export const ChatPage: React.FC = () => {
       });
 
       // Listen for message unpinned event
-      signalRService.onMessageUnpinned((data: { channelId: string; messageId: string }) => {
-        if (data.channelId === activeChannelIdRef.current) {
-          setPinnedMessages((prev) => prev.filter((p) => p.messageId !== data.messageId));
-        }
-      });
+      signalRService.onMessageUnpinned(
+        (data: { channelId: string; messageId: string }) => {
+          if (data.channelId === activeChannelIdRef.current) {
+            setPinnedMessages((prev) =>
+              prev.filter((p) => p.messageId !== data.messageId),
+            );
+          }
+        },
+      );
 
       // Listen for incoming notifications (Mentions, Thread Replies, etc.)
       signalRService.onReceiveNotification((notif) => {
-        setNotifications((prev) => [notif, ...prev.filter((n) => n.id !== notif.id)]);
+        setNotifications((prev) => [
+          notif,
+          ...prev.filter((n) => n.id !== notif.id),
+        ]);
 
         setToast({
           id: notif.id,
-          title: notif.title || 'Thông báo mới',
+          title: notif.title || "Thông báo mới",
           description: notif.content || undefined,
-          actionLabel: 'Xem ngay',
+          actionLabel: "Xem ngay",
           onAction: () => {
             handleNotificationSelect(notif);
             setToast(null);
@@ -795,34 +912,40 @@ export const ChatPage: React.FC = () => {
       setWorkspaces(wsList);
 
       if (wsList.length > 0) {
-        const targetWs = wsList.find((w) => w.id === paramWorkspaceId) || wsList[0];
+        const targetWs =
+          wsList.find((w) => w.id === paramWorkspaceId) || wsList[0];
         setActiveWorkspaceId(targetWs.id);
 
-        const { channels: chList } = await loadWorkspaceData(targetWs.id, user.id);
+        const { channels: chList } = await loadWorkspaceData(
+          targetWs.id,
+          user.id,
+        );
 
         // Sync initial online presence
         try {
           const onlineUserIds = await signalRService.getOnlineUsers();
           if (onlineUserIds.length > 0) {
-            onlineUserIds.forEach((uid) => updateUserStatus(uid, 'online'));
+            onlineUserIds.forEach((uid) => updateUserStatus(uid, "online"));
           }
         } catch (presenceErr) {
-          console.warn('Could not sync online users:', presenceErr);
+          console.warn("Could not sync online users:", presenceErr);
         }
 
         if (chList.length > 0) {
-          const defaultCh = chList.find((c) => c.name?.toLowerCase() === 'general') || chList[0];
+          const defaultCh =
+            chList.find((c) => c.name?.toLowerCase() === "general") ||
+            chList[0];
           setActiveChannelId(defaultCh.id);
           await loadMessages(defaultCh.id);
           await signalRService.joinChannel(defaultCh.id);
         }
       } else {
-        navigate('/', { replace: true });
+        navigate("/", { replace: true });
       }
     } catch (err) {
-      console.error('Authentication error:', err);
-      localStorage.removeItem('nomna_logged_in');
-      navigate('/login', { replace: true });
+      console.error("Authentication error:", err);
+      localStorage.removeItem("nomna_logged_in");
+      navigate("/login", { replace: true });
     } finally {
       setIsInitializing(false);
     }
@@ -842,20 +965,26 @@ export const ChatPage: React.FC = () => {
     } catch {
       // ignore
     }
-    localStorage.removeItem('nomna_logged_in');
+    localStorage.removeItem("nomna_logged_in");
     signalRService.disconnect();
     setCurrentUser(null);
     setWorkspaces([]);
     setChannels([]);
     setMessages([]);
     setSettingsOpen(false);
-    navigate('/login');
+    navigate("/login");
   };
 
   // Optimistic Message Sending
   const handleSendMessage = async (
     content: string,
-    attachments?: Array<{ url: string; fileName: string; fileSize: number; contentType: string; type: 'image' | 'video' | 'file' }>
+    attachments?: Array<{
+      url: string;
+      fileName: string;
+      fileSize: number;
+      contentType: string;
+      type: "image" | "video" | "file";
+    }>,
   ) => {
     if (!activeChannelId || !currentUser) return;
     let targetChannelId = activeChannelId;
@@ -865,14 +994,17 @@ export const ChatPage: React.FC = () => {
     if (currentDm?.isPending) {
       if (!activeWorkspaceId) return;
       try {
-        const realDm = await channelApi.createOrGetDm(activeWorkspaceId, currentDm.user.id);
+        const realDm = await channelApi.createOrGetDm(
+          activeWorkspaceId,
+          currentDm.user.id,
+        );
         targetChannelId = realDm.id;
         upgradePendingDm(currentDm.id, realDm.id);
         setActiveChannelId(realDm.id);
         await signalRService.joinChannel(realDm.id);
       } catch (err) {
-        console.error('Failed to create DM channel:', err);
-        alert('Không thể bắt đầu cuộc trò chuyện. Vui lòng thử lại.');
+        console.error("Failed to create DM channel:", err);
+        alert("Không thể bắt đầu cuộc trò chuyện. Vui lòng thử lại.");
         return;
       }
     }
@@ -895,27 +1027,38 @@ export const ChatPage: React.FC = () => {
     };
 
     addMessage(optimisticMsg);
-    const snippetText = content || (attachments && attachments.length > 0 ? '[Hình ảnh]' : '');
+    const snippetText =
+      content || (attachments && attachments.length > 0 ? "[Hình ảnh]" : "");
     updateDmSnippet(
       targetChannelId,
       snippetText,
-      formatMessageTime(new Date())
+      formatMessageTime(new Date()),
     );
 
     // 2. Dispatch to server
     try {
-      const msg = await signalRService.sendMessage(targetChannelId, content, undefined, attachments);
+      const msg = await signalRService.sendMessage(
+        targetChannelId,
+        content,
+        undefined,
+        attachments,
+      );
       if (msg) {
         setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)));
       }
     } catch {
       try {
-        const msg = await messageApi.sendMessage(targetChannelId, content, undefined, attachments);
+        const msg = await messageApi.sendMessage(
+          targetChannelId,
+          content,
+          undefined,
+          attachments,
+        );
         setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)));
       } catch (sendErr) {
-        console.error('Failed to send message:', sendErr);
+        console.error("Failed to send message:", sendErr);
         deleteMessage(tempId);
-        alert('Không thể gửi tin nhắn. Vui lòng thử lại.');
+        alert("Không thể gửi tin nhắn. Vui lòng thử lại.");
       }
     }
   };
@@ -932,23 +1075,37 @@ export const ChatPage: React.FC = () => {
 
     let newReactions: ReactionGroup[];
     if (existingGroup) {
-      const hasUser = existingGroup.userIds.some((id) => id.toLowerCase() === userId);
+      const hasUser = existingGroup.userIds.some(
+        (id) => id.toLowerCase() === userId,
+      );
       if (hasUser) {
-        const nextUserIds = existingGroup.userIds.filter((id) => id.toLowerCase() !== userId);
+        const nextUserIds = existingGroup.userIds.filter(
+          (id) => id.toLowerCase() !== userId,
+        );
         if (nextUserIds.length === 0) {
           newReactions = previousReactions.filter((r) => r.emoji !== emoji);
         } else {
           newReactions = previousReactions.map((r) =>
             r.emoji === emoji
-              ? { ...r, count: r.count - 1, userIds: nextUserIds, hasReacted: false }
-              : r
+              ? {
+                  ...r,
+                  count: r.count - 1,
+                  userIds: nextUserIds,
+                  hasReacted: false,
+                }
+              : r,
           );
         }
       } else {
         newReactions = previousReactions.map((r) =>
           r.emoji === emoji
-            ? { ...r, count: r.count + 1, userIds: [...r.userIds, currentUser.id], hasReacted: true }
-            : r
+            ? {
+                ...r,
+                count: r.count + 1,
+                userIds: [...r.userIds, currentUser.id],
+                hasReacted: true,
+              }
+            : r,
         );
       }
     } else {
@@ -1021,7 +1178,7 @@ export const ChatPage: React.FC = () => {
     }
 
     setDmConversations((prev) =>
-      prev.map((c) => (c.id === dm.id ? { ...c, unreadCount: 0 } : c))
+      prev.map((c) => (c.id === dm.id ? { ...c, unreadCount: 0 } : c)),
     );
   };
 
@@ -1035,7 +1192,9 @@ export const ChatPage: React.FC = () => {
     role?: string;
   }) => {
     let existing = dmConversations.find(
-      (c) => c.user.id === targetUser.id && (!c.workspaceId || c.workspaceId === activeWorkspaceId)
+      (c) =>
+        c.user.id === targetUser.id &&
+        (!c.workspaceId || c.workspaceId === activeWorkspaceId),
     );
 
     if (!existing) {
@@ -1047,12 +1206,12 @@ export const ChatPage: React.FC = () => {
           id: targetUser.id,
           displayName: targetUser.displayName,
           username: targetUser.username,
-          email: targetUser.email || '',
+          email: targetUser.email || "",
           avatarUrl: targetUser.avatarUrl,
-          status: (targetUser.status as any) || 'online',
+          status: (targetUser.status as any) || "online",
           role: targetUser.role,
         },
-        lastMessage: 'Cuộc trò chuyện mới',
+        lastMessage: "Cuộc trò chuyện mới",
         unreadCount: 0,
         isPending: true,
       };
@@ -1060,7 +1219,7 @@ export const ChatPage: React.FC = () => {
       existing = newDm;
     }
 
-    setActiveSidebarView('dms');
+    setActiveSidebarView("dms");
     handleSelectDmConversation(existing);
   };
 
@@ -1069,15 +1228,29 @@ export const ChatPage: React.FC = () => {
     setNewDmOpen(false);
   };
 
+  const handleOpenUserProfile = useCallback(
+    (
+      user: UserProfileData,
+      anchorRect?: { top: number; left: number; right: number; bottom: number },
+    ) => {
+      setInspectingUser(user);
+      setUserProfileAnchor(anchorRect || null);
+    },
+    [],
+  );
+
   const activeDm = dmConversations.find((d) => d.id === activeDmId);
-  const currentWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) || null;
-  const currentUserMember = workspaceMembers.find((m) => m.id === currentUser?.id);
+  const currentWorkspace =
+    workspaces.find((w) => w.id === activeWorkspaceId) || null;
+  const currentUserMember = workspaceMembers.find(
+    (m) => m.id === currentUser?.id,
+  );
   const currentUserRole =
     currentUserMember?.role ||
-    (currentWorkspace?.ownerId === currentUser?.id ? 'Owner' : 'Member');
+    (currentWorkspace?.ownerId === currentUser?.id ? "Owner" : "Member");
   const isOwner =
     currentWorkspace?.ownerId === currentUser?.id ||
-    currentUserRole?.toLowerCase() === 'owner';
+    currentUserRole?.toLowerCase() === "owner";
 
   const handleWorkspaceUpdated = (updated: Workspace) => {
     updateWorkspace(updated);
@@ -1092,25 +1265,31 @@ export const ChatPage: React.FC = () => {
       setActiveWorkspaceId(null);
       setChannels([]);
       setMessages([]);
-      navigate('/', { replace: true });
+      navigate("/", { replace: true });
     }
   };
 
   const handleLeaveWorkspace = async () => {
     if (!activeWorkspaceId) return;
     if (isOwner) {
-      alert('Bạn là chủ sở hữu của không gian này. Bạn không thể rời nhóm trừ khi chuyển quyền hoặc xóa không gian.');
+      alert(
+        "Bạn là chủ sở hữu của không gian này. Bạn không thể rời nhóm trừ khi chuyển quyền hoặc xóa không gian.",
+      );
       return;
     }
-    if (!confirm(`Bạn có chắc chắn muốn rời khỏi "${currentWorkspace?.name || 'Workspace'}"?`)) {
+    if (
+      !confirm(
+        `Bạn có chắc chắn muốn rời khỏi "${currentWorkspace?.name || "Workspace"}"?`,
+      )
+    ) {
       return;
     }
     try {
       await workspaceApi.leaveWorkspace(activeWorkspaceId);
       handleWorkspaceDeleted(activeWorkspaceId);
     } catch (err) {
-      console.error('Failed to leave workspace:', err);
-      alert('Không thể rời không gian làm việc. Vui lòng thử lại sau.');
+      console.error("Failed to leave workspace:", err);
+      alert("Không thể rời không gian làm việc. Vui lòng thử lại sau.");
     }
   };
 
@@ -1121,12 +1300,14 @@ export const ChatPage: React.FC = () => {
     try {
       await workspaceApi.kickMember(activeWorkspaceId, member.id);
     } catch (err: unknown) {
-      console.error('Failed to kick member:', err);
+      console.error("Failed to kick member:", err);
       // Re-fetch on error
-      const members = await workspaceApi.getMembers(activeWorkspaceId).catch(() => []);
+      const members = await workspaceApi
+        .getMembers(activeWorkspaceId)
+        .catch(() => []);
       setWorkspaceMembers(members as any);
       const errorObj = err as { response?: { data?: { message?: string } } };
-      alert(errorObj?.response?.data?.message || 'Không thể đuổi thành viên.');
+      alert(errorObj?.response?.data?.message || "Không thể đuổi thành viên.");
       throw err;
     }
   };
@@ -1139,7 +1320,9 @@ export const ChatPage: React.FC = () => {
     const remaining = channels.filter((c) => c.id !== deletedId);
     setChannels(remaining);
     if (activeChannelId === deletedId) {
-      const generalCh = remaining.find((c) => c.name?.toLowerCase() === 'general') || remaining[0];
+      const generalCh =
+        remaining.find((c) => c.name?.toLowerCase() === "general") ||
+        remaining[0];
       if (generalCh) {
         handleSelectChannel(generalCh.id);
       } else {
@@ -1150,11 +1333,11 @@ export const ChatPage: React.FC = () => {
   };
 
   const currentChannel: Channel | null =
-    activeSidebarView === 'dms'
+    activeSidebarView === "dms"
       ? activeDm
         ? {
             id: activeDm.id,
-            workspaceId: activeWorkspaceId || '',
+            workspaceId: activeWorkspaceId || "",
             name: activeDm.user.displayName,
             type: ChannelType.DirectMessage,
             isPrivate: true,
@@ -1169,22 +1352,35 @@ export const ChatPage: React.FC = () => {
 
   // Fetch private channel members when current channel is private
   useEffect(() => {
-    if (!currentChannel || !currentChannel.isPrivate || currentChannel.type === ChannelType.DirectMessage) {
+    if (
+      !currentChannel ||
+      !currentChannel.isPrivate ||
+      currentChannel.type === ChannelType.DirectMessage
+    ) {
       return;
     }
 
     fetchChannelMembers(currentChannel.id);
-  }, [currentChannel?.id, currentChannel?.isPrivate, currentChannel?.type, fetchChannelMembers]);
+  }, [
+    currentChannel?.id,
+    currentChannel?.isPrivate,
+    currentChannel?.type,
+    fetchChannelMembers,
+  ]);
 
   // Filter members displayed in MemberListPanel
   const displayedMembers = useMemo(() => {
     if (!currentChannel) return workspaceMembers;
 
     if (currentChannel.type === ChannelType.DirectMessage && activeDm) {
-      const dmOtherUser = workspaceMembers.find((m) => m.id === activeDm.user.id) || activeDm.user;
+      const dmOtherUser =
+        workspaceMembers.find((m) => m.id === activeDm.user.id) ||
+        activeDm.user;
       return [
         ...(currentUserMember ? [currentUserMember] : []),
-        ...(dmOtherUser && dmOtherUser.id !== currentUser?.id ? [dmOtherUser] : []),
+        ...(dmOtherUser && dmOtherUser.id !== currentUser?.id
+          ? [dmOtherUser]
+          : []),
       ];
     }
 
@@ -1199,7 +1395,14 @@ export const ChatPage: React.FC = () => {
 
     const idSet = new Set(memberIds);
     return workspaceMembers.filter((m) => idSet.has(m.id));
-  }, [currentChannel, activeDm, workspaceMembers, channelMemberIdsMap, currentUser?.id, currentUserMember]);
+  }, [
+    currentChannel,
+    activeDm,
+    workspaceMembers,
+    channelMemberIdsMap,
+    currentUser?.id,
+    currentUserMember,
+  ]);
 
   const handleOpenThread = (msg: Message) => {
     openThread(msg);
@@ -1207,27 +1410,7 @@ export const ChatPage: React.FC = () => {
   };
 
   if (isInitializing && !currentUser) {
-    return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-rail)] text-[var(--text-primary)] select-none animate-in fade-in duration-200">
-        <div className="relative flex flex-col items-center p-8 rounded-2xl bg-[var(--bg-surface)]/80 border border-[var(--border-color)] shadow-2xl backdrop-blur-md animate-in zoom-in-95 duration-200 max-w-sm text-center">
-          <div className="relative flex items-center justify-center mb-4">
-            <img
-              src="/default-avatar.png"
-              alt="NomNa Logo"
-              className="w-16 h-16 rounded-2xl object-cover border border-[var(--border-color)] shadow-[0_0_30px_var(--accent-glow)] animate-pulse"
-            />
-          </div>
-          <div className="text-base font-bold text-[var(--text-primary)]">Đang kết nối NomNa...</div>
-          <div className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
-            Đang tải không gian làm việc và đồng bộ tin nhắn
-          </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-[var(--accent-primary)] font-medium">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-ping" />
-            <span>Sẵn sàng sau giây lát</span>
-          </div>
-        </div>
-      </div>
-    );
+    return <></>;
   }
 
   return (
@@ -1236,19 +1419,25 @@ export const ChatPage: React.FC = () => {
         id="appLayout"
         className={`flex-1 min-h-0 flex overflow-hidden h-screen h-[100dvh] w-screen relative animate-in fade-in duration-200 ${
           isSwitchingWorkspace
-            ? 'opacity-70 transition-opacity duration-150 pointer-events-none'
-            : 'opacity-100 transition-opacity duration-150'
+            ? "opacity-70 transition-opacity duration-150 pointer-events-none"
+            : "opacity-100 transition-opacity duration-150"
         }`}
         style={{
-          userSelect: isResizingChannel || isResizingThread || isResizingMember ? 'none' : 'auto',
-          cursor: isResizingChannel || isResizingThread || isResizingMember ? 'col-resize' : 'auto',
+          userSelect:
+            isResizingChannel || isResizingThread || isResizingMember
+              ? "none"
+              : "auto",
+          cursor:
+            isResizingChannel || isResizingThread || isResizingMember
+              ? "col-resize"
+              : "auto",
         }}
       >
         {/* 1 & 2. Unified Left Dock (Workspace Rail + Channel Sidebar + Spanning User Footer) */}
         <div
           className="h-full flex flex-col shrink-0 overflow-hidden"
           style={{
-            width: `${68 + (activeSidebarView === 'notifications' ? Math.max(channelWidth, 310) : channelWidth)}px`,
+            width: `${68 + (activeSidebarView === "notifications" ? Math.max(channelWidth, 310) : channelWidth)}px`,
           }}
         >
           {/* Top Columns */}
@@ -1260,10 +1449,10 @@ export const ChatPage: React.FC = () => {
               onSelectView={(view) => setActiveSidebarView(view)}
               onSelectWorkspace={handleSelectWorkspace}
               onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
-              onGoHome={() => navigate('/')}
+              onGoHome={() => navigate("/")}
               unreadNotificationCount={unreadNotificationCount}
             />
-            {activeSidebarView === 'channels' ? (
+            {activeSidebarView === "channels" ? (
               <ChannelSidebar
                 currentWorkspace={currentWorkspace}
                 channels={channels}
@@ -1277,10 +1466,10 @@ export const ChatPage: React.FC = () => {
                 onOpenEditChannel={(ch) => setChannelToEdit(ch)}
                 onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
               />
-            ) : activeSidebarView === 'dms' ? (
+            ) : activeSidebarView === "dms" ? (
               <DirectMessagesSidebar
                 conversations={dmConversations.filter(
-                  (c) => !c.workspaceId || c.workspaceId === activeWorkspaceId
+                  (c) => !c.workspaceId || c.workspaceId === activeWorkspaceId,
                 )}
                 activeConversationId={activeDmId}
                 onSelectConversation={handleSelectDmConversation}
@@ -1289,14 +1478,16 @@ export const ChatPage: React.FC = () => {
                   e.stopPropagation();
                   setDmConversations((prev) => prev.filter((c) => c.id !== id));
                   if (activeDmId === id) {
-                    const remaining = dmConversations.filter((c) => c.id !== id);
+                    const remaining = dmConversations.filter(
+                      (c) => c.id !== id,
+                    );
                     if (remaining.length > 0) {
                       handleSelectDmConversation(remaining[0]);
                     }
                   }
                 }}
               />
-            ) : activeSidebarView === 'notifications' ? (
+            ) : activeSidebarView === "notifications" ? (
               <NotificationsSidebar
                 notifications={notifications}
                 activeNotificationId={selectedNotification?.id}
@@ -1307,12 +1498,13 @@ export const ChatPage: React.FC = () => {
               <ActivitiesSidebar
                 activeFilter={activityFilter}
                 onFilterChange={setActivityFilter}
-                onClose={() => setActiveSidebarView('channels')}
+                onClose={() => setActiveSidebarView("channels")}
                 onCreateActivity={() =>
                   setToast({
                     id: Date.now().toString(),
-                    title: 'Tạo hoạt động mới',
-                    description: 'Tính năng tạo bài tập & job sẽ khả dụng trong Phase 3.',
+                    title: "Tạo hoạt động mới",
+                    description:
+                      "Tính năng tạo bài tập & job sẽ khả dụng trong Phase 3.",
                   })
                 }
               />
@@ -1330,26 +1522,26 @@ export const ChatPage: React.FC = () => {
         <div
           className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
             isResizingChannel
-              ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
-              : 'bg-[var(--border-color)]'
+              ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+              : "bg-[var(--border-color)]"
           }`}
           onMouseDown={handleChannelResizeStart}
           title="Kéo sang trái/phải để chỉnh kích thước Sidebar Kênh"
         />
 
         {/* 3. Active Chat Area or Activities Workspace or Notification Detail Pane */}
-        {activeSidebarView === 'activities' ? (
+        {activeSidebarView === "activities" ? (
           <ActivitiesWorkspace
             activeFilter={activityFilter}
             onFilterChange={setActivityFilter}
-            onBackToChat={() => setActiveSidebarView('channels')}
+            onBackToChat={() => setActiveSidebarView("channels")}
           />
-        ) : activeSidebarView === 'notifications' ? (
+        ) : activeSidebarView === "notifications" ? (
           <NotificationDetailPane
             notification={selectedNotification}
             onNavigateToTarget={handleNavigateFromNotification}
           />
-        ) : activeSidebarView === 'dms' && (!activeDmId || !activeDm) ? (
+        ) : activeSidebarView === "dms" && (!activeDmId || !activeDm) ? (
           <div className="flex-1 min-h-0 flex flex-col items-center justify-center bg-[var(--bg-chat)] p-8 text-center select-none">
             <div className="w-16 h-16 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-color)] flex items-center justify-center text-[var(--accent-primary)] mb-3 shadow-xs">
               <Chats size={36} weight="duotone" className="opacity-60" />
@@ -1358,7 +1550,8 @@ export const ChatPage: React.FC = () => {
               Chưa chọn cuộc trò chuyện
             </p>
             <p className="text-xs text-[var(--text-muted)] max-w-sm leading-relaxed">
-              Chọn một tin nhắn trực tiếp ở danh sách bên trái hoặc nhấn nút + để tìm kiếm thành viên và bắt đầu cuộc trò chuyện riêng tư.
+              Chọn một tin nhắn trực tiếp ở danh sách bên trái hoặc nhấn nút +
+              để tìm kiếm thành viên và bắt đầu cuộc trò chuyện riêng tư.
             </p>
           </div>
         ) : (
@@ -1370,8 +1563,12 @@ export const ChatPage: React.FC = () => {
             onEditMessage={handleEditMessage}
             onDeleteMessage={handleDeleteMessage}
             onToggleReaction={handleToggleReaction}
-            onStartTyping={() => activeChannelId && signalRService.startTyping(activeChannelId)}
-            onStopTyping={() => activeChannelId && signalRService.stopTyping(activeChannelId)}
+            onStartTyping={() =>
+              activeChannelId && signalRService.startTyping(activeChannelId)
+            }
+            onStopTyping={() =>
+              activeChannelId && signalRService.stopTyping(activeChannelId)
+            }
             typingUser={typingUser}
             onToggleThread={() => {
               if (!isThreadOpen) {
@@ -1392,7 +1589,7 @@ export const ChatPage: React.FC = () => {
             workspaceMembers={workspaceMembers}
             isMemberListOpen={isMemberListOpen}
             onToggleMemberList={toggleMemberList}
-            onOpenUserProfile={setInspectingUser}
+            onOpenUserProfile={handleOpenUserProfile}
             pinnedMessages={pinnedMessages}
             onPinMessage={handlePinMessage}
             onUnpinMessage={handleUnpinMessage}
@@ -1407,8 +1604,8 @@ export const ChatPage: React.FC = () => {
             <div
               className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
                 isResizingThread
-                  ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
-                  : 'bg-[var(--border-color)]'
+                  ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+                  : "bg-[var(--border-color)]"
               }`}
               onMouseDown={handleThreadResizeStart}
               title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thread"
@@ -1433,8 +1630,8 @@ export const ChatPage: React.FC = () => {
             <div
               className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
                 isResizingMember
-                  ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
-                  : 'bg-[var(--border-color)]'
+                  ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+                  : "bg-[var(--border-color)]"
               }`}
               onMouseDown={handleMemberResizeStart}
               title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thành viên"
@@ -1447,10 +1644,23 @@ export const ChatPage: React.FC = () => {
               currentUserRole={currentUserRole}
               width={memberWidth}
               channelName={currentChannel?.name || undefined}
-              isPrivateChannel={!!(currentChannel?.isPrivate && currentChannel.type !== ChannelType.DirectMessage)}
-              isLoading={!!(currentChannel?.isPrivate && currentChannel.type !== ChannelType.DirectMessage && loadingChannelMemberIds[currentChannel.id])}
-              onOpenAddMember={() => currentChannel && setChannelToAddMember(currentChannel)}
-              onOpenUserProfile={setInspectingUser}
+              isPrivateChannel={
+                !!(
+                  currentChannel?.isPrivate &&
+                  currentChannel.type !== ChannelType.DirectMessage
+                )
+              }
+              isLoading={
+                !!(
+                  currentChannel?.isPrivate &&
+                  currentChannel.type !== ChannelType.DirectMessage &&
+                  loadingChannelMemberIds[currentChannel.id]
+                )
+              }
+              onOpenAddMember={() =>
+                currentChannel && setChannelToAddMember(currentChannel)
+              }
+              onOpenUserProfile={handleOpenUserProfile}
               onStartDmWithUser={handleStartDmWithUser}
               onOpenSettings={() => setSettingsOpen(true)}
               onRequestKickMember={(m) => setMemberToKick(m)}
@@ -1464,8 +1674,8 @@ export const ChatPage: React.FC = () => {
             <div
               className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
                 isResizingSearch
-                  ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
-                  : 'bg-[var(--border-color)]'
+                  ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+                  : "bg-[var(--border-color)]"
               }`}
               onMouseDown={handleSearchResizeStart}
               title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tìm kiếm"
@@ -1484,9 +1694,12 @@ export const ChatPage: React.FC = () => {
                 setTimeout(() => {
                   const el = document.getElementById(`msg-${messageId}`);
                   if (el) {
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    el.classList.add('bg-[var(--accent-soft)]');
-                    setTimeout(() => el.classList.remove('bg-[var(--accent-soft)]'), 2000);
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    el.classList.add("bg-[var(--accent-soft)]");
+                    setTimeout(
+                      () => el.classList.remove("bg-[var(--accent-soft)]"),
+                      2000,
+                    );
                   }
                 }, 300);
               }}
@@ -1495,34 +1708,49 @@ export const ChatPage: React.FC = () => {
         )}
 
         {/* 6. Resizer Divider & Pinned Messages Sidebar (Mutually Exclusive) */}
-        {!isThreadOpen && !isMemberListOpen && !isSearchOpen && isPinnedSidebarOpen && (
-          <>
-            <div
-              className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
-                isResizingPinned
-                  ? 'bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]'
-                  : 'bg-[var(--border-color)]'
-              }`}
-              onMouseDown={handlePinnedResizeStart}
-              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tin nhắn đã ghim"
-            />
-            <PinnedMessagesSidebar
-              isOpen={isPinnedSidebarOpen}
-              onClose={closePinnedSidebar}
-              width={pinnedSidebarWidth}
-              pinnedMessages={pinnedMessages}
-              onJumpToMessage={(messageId) => {
-                const el = document.getElementById(`msg-${messageId}`);
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  el.classList.add('bg-[var(--accent-soft)]', 'ring-2', 'ring-amber-400/60');
-                  setTimeout(() => el.classList.remove('bg-[var(--accent-soft)]', 'ring-2', 'ring-amber-400/60'), 2500);
-                }
-              }}
-              onUnpinMessage={handleUnpinMessage}
-            />
-          </>
-        )}
+        {!isThreadOpen &&
+          !isMemberListOpen &&
+          !isSearchOpen &&
+          isPinnedSidebarOpen && (
+            <>
+              <div
+                className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+                  isResizingPinned
+                    ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+                    : "bg-[var(--border-color)]"
+                }`}
+                onMouseDown={handlePinnedResizeStart}
+                title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tin nhắn đã ghim"
+              />
+              <PinnedMessagesSidebar
+                isOpen={isPinnedSidebarOpen}
+                onClose={closePinnedSidebar}
+                width={pinnedSidebarWidth}
+                pinnedMessages={pinnedMessages}
+                onJumpToMessage={(messageId) => {
+                  const el = document.getElementById(`msg-${messageId}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    el.classList.add(
+                      "bg-[var(--accent-soft)]",
+                      "ring-2",
+                      "ring-amber-400/60",
+                    );
+                    setTimeout(
+                      () =>
+                        el.classList.remove(
+                          "bg-[var(--accent-soft)]",
+                          "ring-2",
+                          "ring-amber-400/60",
+                        ),
+                      2500,
+                    );
+                  }
+                }}
+                onUnpinMessage={handleUnpinMessage}
+              />
+            </>
+          )}
       </main>
 
       {/* Modals */}
@@ -1612,17 +1840,21 @@ export const ChatPage: React.FC = () => {
                     senderDisplayName: u.displayName,
                     senderAvatarUrl: u.avatarUrl,
                   }
-                : m
-            )
+                : m,
+            ),
           );
         }}
       />
 
-      {/* Unified Modern User Profile Modal */}
+      {/* Unified Modern User Profile Popout (Discord-style) */}
       <UserProfileModal
         isOpen={!!inspectingUser}
-        onClose={() => setInspectingUser(null)}
+        onClose={() => {
+          setInspectingUser(null);
+          setUserProfileAnchor(null);
+        }}
         user={inspectingUser}
+        anchorRect={userProfileAnchor}
         currentUserId={currentUser?.id}
         onStartDm={(u) => {
           handleStartDmWithUser({
@@ -1635,10 +1867,10 @@ export const ChatPage: React.FC = () => {
         onOpenSettings={() => setSettingsOpen(true)}
         canKick={
           !!currentUserRole &&
-          (currentUserRole.toLowerCase() === 'owner' ||
-            (currentUserRole.toLowerCase() === 'admin' &&
-              (inspectingUser?.role || '').toLowerCase() !== 'owner' &&
-              (inspectingUser?.role || '').toLowerCase() !== 'admin'))
+          (currentUserRole.toLowerCase() === "owner" ||
+            (currentUserRole.toLowerCase() === "admin" &&
+              (inspectingUser?.role || "").toLowerCase() !== "owner" &&
+              (inspectingUser?.role || "").toLowerCase() !== "admin"))
         }
         onKickMember={(u) => {
           const found = workspaceMembers.find((m) => m.id === u.id);

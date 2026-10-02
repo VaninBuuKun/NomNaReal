@@ -14,6 +14,9 @@ const registerSchema = z.object({
     .regex(/^[a-zA-Z0-9._-]+$/, 'Tên đăng nhập chỉ chứa chữ cái, số, dấu chấm hoặc gạch nối'),
   email: z.string().email('Địa chỉ email không hợp lệ'),
   password: z.string().min(6, 'Mật khẩu tối thiểu 6 ký tự'),
+  agreeTerms: z.boolean().refine((val) => val === true, {
+    message: 'Bạn cần đồng ý với Điều khoản sử dụng & Chính sách bảo mật để tiếp tục',
+  }),
 });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;
@@ -34,6 +37,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError }
       username: '',
       email: '',
       password: '',
+      agreeTerms: true,
     },
   });
 
@@ -96,6 +100,32 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError }
         {...registerForm.register('password')}
         error={registerForm.formState.errors.password?.message}
       />
+
+      <div className="flex flex-col gap-1 pt-0.5">
+        <label className="flex items-start gap-2.5 text-xs text-[var(--text-secondary)] cursor-pointer select-none">
+          <input
+            type="checkbox"
+            {...registerForm.register('agreeTerms')}
+            className="w-4 h-4 rounded mt-0.5 accent-[var(--accent-primary)] cursor-pointer shrink-0"
+          />
+          <span className="leading-snug">
+            Tôi đồng ý với{' '}
+            <span className="text-[var(--accent-primary)] font-semibold hover:underline">
+              Điều khoản dịch vụ
+            </span>{' '}
+            và{' '}
+            <span className="text-[var(--accent-primary)] font-semibold hover:underline">
+              Chính sách bảo mật
+            </span>{' '}
+            của NomNa.
+          </span>
+        </label>
+        {registerForm.formState.errors.agreeTerms?.message && (
+          <p className="text-[11px] text-red-500 font-medium pl-6">
+            {registerForm.formState.errors.agreeTerms.message}
+          </p>
+        )}
+      </div>
 
       <Button
         type="submit"

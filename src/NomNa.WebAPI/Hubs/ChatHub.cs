@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NomNa.Application.Common.Exceptions;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Application.Features.Messages.Commands.ReplyToMessage;
 using NomNa.Application.Features.Messages.Commands.SendMessage;
@@ -132,24 +133,32 @@ public class ChatHub : Hub
     /// </summary>
     public async Task<MessageDto> SendMessage(Guid channelId, string? content, Guid? threadId = null, List<AttachmentInputDto>? attachments = null)
     {
-        // Execute Business Logic qua Application Layer (CQRS Command)
-        var command = new SendMessageCommand(channelId, content, threadId, attachments);
-        var result = await _mediator.Send(command);
-
-        if (!result.IsSuccess)
+        try
         {
-            // Bắn HubException về cho Client catch trong SignalR Client SDK
-            throw new HubException(result.Error.Message);
+            // Execute Business Logic qua Application Layer (CQRS Command)
+            var command = new SendMessageCommand(channelId, content, threadId, attachments);
+            var result = await _mediator.Send(command);
+
+            if (!result.IsSuccess)
+            {
+                // Bắn HubException về cho Client catch trong SignalR Client SDK
+                throw new HubException(result.Error.Message);
+            }
+
+            var message = result.Value!;
+
+            // Broadcast (Multicast) tin nhắn vừa tạo cho TẤT CẢ các Client đang ở trong Channel Group
+            var groupName = channelId.ToString();
+            await Clients.Group(groupName).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
+
+            // Trả về cho caller (client vừa gọi SendMessage) kết quả để UI client nhận Promise/Task result
+            return message;
         }
-
-        var message = result.Value!;
-
-        // Broadcast (Multicast) tin nhắn vừa tạo cho TẤT CẢ các Client đang ở trong Channel Group
-        var groupName = channelId.ToString();
-        await Clients.Group(groupName).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
-
-        // Trả về cho caller (client vừa gọi SendMessage) kết quả để UI client nhận Promise/Task result
-        return message;
+        catch (ValidationException ex)
+        {
+            var msg = ex.Errors.Values.SelectMany(x => x).FirstOrDefault() ?? ex.Message;
+            throw new HubException(msg);
+        }
     }
 
     /// <summary>
@@ -157,31 +166,39 @@ public class ChatHub : Hub
     /// </summary>
     public async Task<MessageDto> SendThreadReply(Guid parentMessageId, string content)
     {
-        var command = new ReplyToMessageCommand(parentMessageId, content);
-        var result = await _mediator.Send(command);
-
-        if (!result.IsSuccess)
+        try
         {
-            throw new HubException(result.Error.Message);
+            var command = new ReplyToMessageCommand(parentMessageId, content);
+            var result = await _mediator.Send(command);
+
+            if (!result.IsSuccess)
+            {
+                throw new HubException(result.Error.Message);
+            }
+
+            var reply = result.Value!;
+
+            // 1. Broadcast tin nhắn reply mới tới những ai đang mở xem Thread đó (Thread Panel)
+            var threadGroup = $"thread_{parentMessageId}";
+            await Clients.Group(threadGroup).SendAsync(SignalRConstants.Events.ReceiveThreadReply, reply);
+
+            // 2. Broadcast sự kiện cập nhật số lượng Reply (ReplyCount) tới Main Channel để hiển thị Badge ở UI ngoài
+            var channelGroup = reply.ChannelId.ToString();
+            await Clients.Group(channelGroup).SendAsync(SignalRConstants.Events.ThreadReplyCountUpdated, new
+            {
+                parentMessageId,
+                channelId = reply.ChannelId,
+                replyId = reply.Id,
+                replyCount = reply.ReplyCount
+            });
+
+            return reply;
         }
-
-        var reply = result.Value!;
-
-        // 1. Broadcast tin nhắn reply mới tới những ai đang mở xem Thread đó (Thread Panel)
-        var threadGroup = $"thread_{parentMessageId}";
-        await Clients.Group(threadGroup).SendAsync(SignalRConstants.Events.ReceiveThreadReply, reply);
-
-        // 2. Broadcast sự kiện cập nhật số lượng Reply (ReplyCount) tới Main Channel để hiển thị Badge ở UI ngoài
-        var channelGroup = reply.ChannelId.ToString();
-        await Clients.Group(channelGroup).SendAsync(SignalRConstants.Events.ThreadReplyCountUpdated, new
+        catch (ValidationException ex)
         {
-            parentMessageId,
-            channelId = reply.ChannelId,
-            replyId = reply.Id,
-            replyCount = reply.ReplyCount
-        });
-
-        return reply;
+            var msg = ex.Errors.Values.SelectMany(x => x).FirstOrDefault() ?? ex.Message;
+            throw new HubException(msg);
+        }
     }
 
     /// <summary>

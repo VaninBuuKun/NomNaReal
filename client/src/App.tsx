@@ -52,6 +52,30 @@ export const App: React.FC = () => {
             }
           />
           <Route
+            path="/forgot-password"
+            element={
+              <PublicRoute>
+                <AuthPage mode="forgot-password" />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <PublicRoute>
+                <AuthPage mode="reset-password" />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/verify-email"
+            element={
+              <PublicRoute>
+                <AuthPage mode="verify-email" />
+              </PublicRoute>
+            }
+          />
+          <Route
             path="/"
             element={
               <ProtectedRoute>

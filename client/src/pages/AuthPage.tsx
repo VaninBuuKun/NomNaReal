@@ -1,12 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { LoginForm, RegisterForm } from '../components/auth';
+import {
+  LoginForm,
+  RegisterForm,
+  ForgotPasswordForm,
+  ResetPasswordForm,
+  VerifyEmailForm,
+} from '../components/auth';
 import { Button } from '../components/ui';
 import { useTheme } from '../hooks/useTheme';
 import { authApi } from '../services';
 
+export type AuthMode =
+  | 'login'
+  | 'register'
+  | 'forgot-password'
+  | 'reset-password'
+  | 'verify-email';
+
 interface AuthPageProps {
-  mode: 'login' | 'register';
+  mode: AuthMode;
   onAuthSuccess?: () => void;
 }
 
@@ -16,6 +29,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
   const [error, setError] = useState<string | null>(null);
   const { theme: activeTheme, changeTheme } = useTheme();
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
+
+  // Reset error when mode changes
+  useEffect(() => {
+    setError(null);
+  }, [mode]);
 
   const handleAuthSuccess = () => {
     if (onAuthSuccess) onAuthSuccess();
@@ -174,99 +192,124 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
       <div className="w-full max-w-[480px] md:max-w-[500px] bg-[var(--card-glass-bg)] border border-[var(--card-glass-border)] rounded-3xl p-7 sm:p-8 shadow-2xl backdrop-blur-xl relative z-10 flex flex-col gap-4">
         <header className="flex flex-col items-center text-center">
           <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text-primary)]">
-            {!isRegister ? 'Đăng nhập vào NomNa' : 'Tạo tài khoản NomNa'}
+            {mode === 'register'
+              ? 'Tạo tài khoản NomNa'
+              : mode === 'forgot-password'
+                ? 'Khôi phục mật khẩu'
+                : mode === 'reset-password'
+                  ? 'Đặt lại mật khẩu mới'
+                  : mode === 'verify-email'
+                    ? 'Kích hoạt tài khoản'
+                    : 'Đăng nhập vào NomNa'}
           </h1>
         </header>
 
-        {error && (
+        {error && (mode === 'login' || mode === 'register') && (
           <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-xl font-medium animate-in fade-in duration-150">
             {error}
           </div>
         )}
 
         {/* Auth Forms */}
-        {!isRegister ? (
-          <LoginForm onSuccess={handleAuthSuccess} onError={(err) => setError(err)} />
-        ) : (
-          <RegisterForm onSuccess={handleAuthSuccess} onError={(err) => setError(err)} />
+        {mode === 'login' && (
+          <LoginForm onSuccess={handleAuthSuccess} />
+        )}
+        {mode === 'register' && (
+          <RegisterForm onSuccess={handleAuthSuccess} />
+        )}
+        {mode === 'forgot-password' && (
+          <ForgotPasswordForm />
+        )}
+        {mode === 'reset-password' && (
+          <ResetPasswordForm />
+        )}
+        {mode === 'verify-email' && (
+          <VerifyEmailForm onSuccess={handleAuthSuccess} />
         )}
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-0.5">
-          <div className="flex-1 h-px bg-[var(--border-color)]" />
-          <span className="text-[0.72rem] font-bold text-[var(--text-muted)] uppercase tracking-wider">
-            hoặc tiếp tục với
-          </span>
-          <div className="flex-1 h-px bg-[var(--border-color)]" />
-        </div>
+        {/* Social Login (Only for login and register) */}
+        {(mode === 'login' || mode === 'register') && (
+          <>
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-0.5">
+              <div className="flex-1 h-px bg-[var(--border-color)]" />
+              <span className="text-[0.72rem] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                hoặc tiếp tục với
+              </span>
+              <div className="flex-1 h-px bg-[var(--border-color)]" />
+            </div>
 
-        {/* Social Login */}
-        <div className="relative w-full">
-          <Button
-            type="button"
-            variant="social"
-            size="md"
-            fullWidth
-            onClick={handleGoogleLoginFallback}
-            className="h-11 rounded-xl text-sm font-semibold justify-center gap-2.5 shadow-2xs border-[var(--border-color)] hover:border-[var(--accent-primary)] transition-all cursor-pointer"
-            leftIcon={
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.03 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
-                />
-              </svg>
-            }
-          >
-            {isRegister ? 'Đăng ký với Google' : 'Đăng nhập với Google'}
-          </Button>
-
-          {/* Invisible Google GIS button overlay that triggers Google's native popup */}
-          <div
-            ref={googleBtnContainerRef}
-            className="absolute inset-0 opacity-[0.001] cursor-pointer overflow-hidden rounded-xl z-10 flex items-center justify-center [&>div]:!w-full [&>div]:!h-full [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!scale-125"
-            title={isRegister ? 'Đăng ký với Google' : 'Đăng nhập với Google'}
-          />
-        </div>
-
-        {/* Footer */}
-        <footer className="text-center text-xs text-[var(--text-secondary)] border-t border-[var(--border-color)] pt-3.5 mt-1">
-          {!isRegister ? (
-            <span>
-              Chưa có tài khoản?{' '}
-              <Link
-                to="/register"
-                onClick={() => setError(null)}
-                className="font-bold text-[var(--accent-primary)] hover:underline cursor-pointer"
+            <div className="relative w-full">
+              <Button
+                type="button"
+                variant="social"
+                size="md"
+                fullWidth
+                onClick={handleGoogleLoginFallback}
+                className="h-11 rounded-xl text-sm font-semibold justify-center gap-2.5 shadow-2xs border-[var(--border-color)] hover:border-[var(--accent-primary)] transition-all cursor-pointer"
+                leftIcon={
+                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.14-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.03 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+                    />
+                  </svg>
+                }
               >
-                Đăng ký ngay
-              </Link>
-            </span>
-          ) : (
-            <span>
-              Đã có tài khoản?{' '}
-              <Link
-                to="/login"
-                onClick={() => setError(null)}
-                className="font-bold text-[var(--accent-primary)] hover:underline cursor-pointer"
-              >
-                Đăng nhập
-              </Link>
-            </span>
-          )}
-        </footer>
+                {mode === 'register' ? 'Đăng ký với Google' : 'Đăng nhập với Google'}
+              </Button>
+
+              {/* Invisible Google GIS button overlay that triggers Google's native popup */}
+              <div
+                ref={googleBtnContainerRef}
+                className="absolute inset-0 opacity-[0.001] cursor-pointer overflow-hidden rounded-xl z-10 flex items-center justify-center [&>div]:!w-full [&>div]:!h-full [&_iframe]:!w-full [&_iframe]:!h-full [&_iframe]:!scale-125"
+                title={mode === 'register' ? 'Đăng ký với Google' : 'Đăng nhập với Google'}
+              />
+            </div>
+          </>
+        )}
+
+        {/* Footer (Only for login and register) */}
+        {(mode === 'login' || mode === 'register') && (
+          <footer className="text-center text-xs text-[var(--text-secondary)] border-t border-[var(--border-color)]/70 pt-3 mt-1">
+            {mode === 'login' && (
+              <span>
+                Chưa có tài khoản?{' '}
+                <Link
+                  to="/register"
+                  onClick={() => setError(null)}
+                  className="font-bold text-[var(--accent-primary)] hover:underline cursor-pointer"
+                >
+                  Đăng ký ngay
+                </Link>
+              </span>
+            )}
+            {mode === 'register' && (
+              <span>
+                Đã có tài khoản?{' '}
+                <Link
+                  to="/login"
+                  onClick={() => setError(null)}
+                  className="font-bold text-[var(--accent-primary)] hover:underline cursor-pointer"
+                >
+                  Đăng nhập
+                </Link>
+              </span>
+            )}
+          </footer>
+        )}
       </div>
     </div>
   );

@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNa.Application.Features.Auth.Commands.ForgotPassword;
 using NomNa.Application.Features.Auth.Commands.GoogleLogin;
 using NomNa.Application.Features.Auth.Commands.Login;
 using NomNa.Application.Features.Auth.Commands.RefreshToken;
 using NomNa.Application.Features.Auth.Commands.Register;
+using NomNa.Application.Features.Auth.Commands.ResendVerification;
+using NomNa.Application.Features.Auth.Commands.ResetPassword;
 using NomNa.Application.Features.Auth.Commands.UpdateProfile;
+using NomNa.Application.Features.Auth.Commands.VerifyEmail;
 using NomNa.Application.Features.Auth.Queries.GetCurrentUser;
 
 namespace NomNa.WebAPI.Controllers;
@@ -92,6 +96,34 @@ public class AuthController : ApiControllerBase
     {
         ClearAuthCookies();
         return Ok(new { message = "Logged out successfully" });
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
     }
 
     [Authorize]

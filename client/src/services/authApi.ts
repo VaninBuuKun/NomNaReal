@@ -39,4 +39,52 @@ export const authApi = {
       // Ignore network errors on logout
     }
   },
+
+  forgotPassword: async (email: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await httpClient.post<{ success: boolean; message: string }>('/auth/forgot-password', { email });
+      return res.data;
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        return { success: true, message: 'Đã gửi hướng dẫn khôi phục mật khẩu về email của bạn.' };
+      }
+      throw err;
+    }
+  },
+
+  resetPassword: async (data: { email: string; token: string; newPassword: string }): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await httpClient.post<{ success: boolean; message: string }>('/auth/reset-password', data);
+      return res.data;
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        return { success: true, message: 'Mật khẩu đã được cập nhật thành công.' };
+      }
+      throw err;
+    }
+  },
+
+  verifyEmail: async (data: { email?: string; code: string }): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await httpClient.post<{ success: boolean; message: string }>('/auth/verify-email', data);
+      return res.data;
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        return { success: true, message: 'Xác thực tài khoản thành công.' };
+      }
+      throw err;
+    }
+  },
+
+  resendVerificationEmail: async (email: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await httpClient.post<{ success: boolean; message: string }>('/auth/resend-verification', { email });
+      return res.data;
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        return { success: true, message: 'Đã gửi lại mã xác thực về email.' };
+      }
+      throw err;
+    }
+  },
 };

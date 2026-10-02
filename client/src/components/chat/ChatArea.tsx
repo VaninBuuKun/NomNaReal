@@ -50,6 +50,8 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+import type { DirectMessageUser } from "../dm";
+
 interface ChatAreaProps {
   currentChannel: Channel | null;
   messages: Message[];
@@ -67,12 +69,12 @@ interface ChatAreaProps {
   onToggleThread: () => void;
   onOpenThread?: (message: Message) => void;
   onStartDmWithUser?: (user: { id: string; displayName: string; username: string; avatarUrl?: string }) => void;
-  onOpenUserProfile?: (user: UserProfileData) => void;
+  onOpenUserProfile?: (user: UserProfileData, anchorRect?: DOMRect) => void;
   hasMoreMessages?: boolean;
   isLoadingMore?: boolean;
   isLoadingMessages?: boolean;
   onLoadMoreMessages?: () => Promise<void>;
-  workspaceMembers?: { id: string; displayName?: string; username?: string; role?: string }[];
+  workspaceMembers?: DirectMessageUser[];
   isMemberListOpen?: boolean;
   onToggleMemberList?: () => void;
   pinnedMessages?: PinnedMessage[];
@@ -192,6 +194,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isEditMentionOpen, setIsEditMentionOpen] = useState(false);
+  const [editMentionQuery, setEditMentionQuery] = useState("");
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageStreamRef = useRef<HTMLDivElement>(null);
@@ -467,6 +472,43 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     setEditContent(msg.content);
   };
 
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setEditContent(val);
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const lastAtMatch = textBeforeCursor.match(/@([a-zA-Z0-9_\.]*)$/);
+    if (lastAtMatch) {
+      setEditMentionQuery(lastAtMatch[1]);
+      setIsEditMentionOpen(true);
+    } else {
+      setIsEditMentionOpen(false);
+    }
+  };
+
+  const handleSelectEditMention = (username: string) => {
+    if (!editTextareaRef.current) {
+      setEditContent((prev) => prev.replace(/@([a-zA-Z0-9_\.]*)$/, `@${username} `));
+      setIsEditMentionOpen(false);
+      return;
+    }
+    const textarea = editTextareaRef.current;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = editContent.slice(0, cursorPos);
+    const textAfterCursor = editContent.slice(cursorPos);
+
+    const updatedBefore = textBeforeCursor.replace(/@([a-zA-Z0-9_\.]*)$/, `@${username} `);
+    const newContent = updatedBefore + textAfterCursor;
+    setEditContent(newContent);
+    setIsEditMentionOpen(false);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newCursor = updatedBefore.length;
+      textarea.setSelectionRange(newCursor, newCursor);
+    }, 10);
+  };
+
   // Save edited message
   const saveEdit = async () => {
     if (!editingMessageId || !editContent.trim() || isSavingEdit) return;
@@ -733,7 +775,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
               <div
                 id={`msg-${msg.id}`}
-                className={`group relative flex gap-3 px-3 rounded-md transition-all duration-150 ${
+                className={`group relative flex items-start gap-3 px-3 rounded-md transition-all duration-150 ${
                   isMentioningMe
                     ? "bg-amber-500/[0.06] border-l-2 border-amber-500/80 hover:bg-amber-500/[0.1]"
                     : "hover:bg-[var(--bg-surface)]"
@@ -741,9 +783,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   isConsecutive ? "py-0.5" : "py-1.5 mt-1"
                 }`}
               >
-                {/* Left Gutter: Avatar (if new block) OR hover timestamp (if consecutive) */}
+                {/* Left Gutter: Avatar (if new block) OR hover timestamp (if consecutive, aligned to top) */}
                 {isConsecutive ? (
-                  <div className="w-9 shrink-0 flex items-center justify-end select-none">
+                  <div className="w-9 shrink-0 flex items-start pt-0.5 justify-end select-none">
                     <span className="opacity-0 group-hover:opacity-100 text-[10px] text-[var(--text-muted)] font-mono pr-1.5 transition-opacity">
                       {timeStr}
                     </span>
@@ -752,17 +794,20 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
+                      const rect = e.currentTarget.getBoundingClientRect();
                       const member = workspaceMembers?.find((m) => m.id === msg.senderId);
                       onOpenUserProfile?.({
                         id: msg.senderId,
-                        displayName: msg.senderDisplayName,
-                        username: msg.senderUsername || msg.senderDisplayName.toLowerCase().replace(/\s+/g, ""),
-                        avatarUrl: msg.senderAvatarUrl || undefined,
+                        displayName: member?.displayName || msg.senderDisplayName,
+                        username: member?.username || msg.senderUsername || msg.senderDisplayName.toLowerCase().replace(/\s+/g, ""),
+                        avatarUrl: member?.avatarUrl || msg.senderAvatarUrl || undefined,
+                        email: member?.email,
                         role: member?.role,
-                      });
+                        status: member?.status,
+                      }, rect);
                     }}
                     title="Xem thông tin thành viên"
-                    className="w-10 h-10 rounded-2xl shrink-0 overflow-hidden flex items-center justify-center font-bold text-[0.82rem] text-white shadow-xs border border-[var(--border-color)] cursor-pointer hover:opacity-95 hover:scale-105 active:scale-95 transition-all ring-1 ring-transparent hover:ring-[var(--accent-primary)]/40"
+                    className="w-10 h-10 rounded-full shrink-0 overflow-hidden flex items-center justify-center font-bold text-[0.82rem] text-white shadow-xs border border-[var(--border-color)] cursor-pointer hover:opacity-95 hover:scale-105 active:scale-95 transition-all ring-1 ring-transparent hover:ring-[var(--accent-primary)]/40"
                   >
                     <img
                       src={avatarSrc}
@@ -782,14 +827,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                       <span
                         onClick={(e) => {
                           e.stopPropagation();
+                          const rect = e.currentTarget.getBoundingClientRect();
                           const member = workspaceMembers?.find((m) => m.id === msg.senderId);
                           onOpenUserProfile?.({
                             id: msg.senderId,
-                            displayName: msg.senderDisplayName,
-                            username: msg.senderUsername || msg.senderDisplayName.toLowerCase().replace(/\s+/g, ""),
-                            avatarUrl: msg.senderAvatarUrl || undefined,
+                            displayName: member?.displayName || msg.senderDisplayName,
+                            username: member?.username || msg.senderUsername || msg.senderDisplayName.toLowerCase().replace(/\s+/g, ""),
+                            avatarUrl: member?.avatarUrl || msg.senderAvatarUrl || undefined,
+                            email: member?.email,
                             role: member?.role,
-                          });
+                            status: member?.status,
+                          }, rect);
                         }}
                         className="text-[0.9rem] font-semibold text-[var(--text-primary)] hover:underline cursor-pointer"
                       >
@@ -846,22 +894,46 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
                   {/* Message Content or Inline Edit Box */}
                   {isEditingThis ? (
-                    <div className="mt-1 flex flex-col gap-2 p-2 rounded-md bg-[var(--bg-chat)] border border-[var(--accent-primary)] shadow-sm">
-                      <textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            saveEdit();
-                          } else if (e.key === "Escape") {
-                            setEditingMessageId(null);
-                          }
-                        }}
-                        rows={2}
-                        autoFocus
-                        className="bg-transparent border-none outline-none text-[0.92rem] text-[var(--text-primary)] resize-none w-full"
+                    <div className="mt-1 flex flex-col gap-2 p-2 rounded-md bg-[var(--bg-chat)] border border-[var(--accent-primary)] shadow-sm relative">
+                      {/* Mention Autocomplete Popover for Edit Box */}
+                      <MentionAutocompletePopover
+                        isOpen={isEditMentionOpen}
+                        query={editMentionQuery}
+                        members={workspaceMembers}
+                        onSelect={handleSelectEditMention}
+                        onClose={() => setIsEditMentionOpen(false)}
                       />
+
+                      {/* Textarea with Mention Highlight Backdrop */}
+                      <div className="relative w-full">
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 pointer-events-none whitespace-pre-wrap break-words text-[0.92rem] font-sans text-transparent overflow-hidden leading-normal select-none"
+                        >
+                          {renderInputHighlights(editContent)}
+                        </div>
+                        <textarea
+                          ref={editTextareaRef}
+                          value={editContent}
+                          onChange={handleEditInputChange}
+                          onKeyDown={(e) => {
+                            if (isEditMentionOpen && (e.key === "Enter" || e.key === "Tab" || e.key === "ArrowUp" || e.key === "ArrowDown")) {
+                              return; // Handled by MentionAutocompletePopover
+                            }
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              saveEdit();
+                            } else if (e.key === "Escape") {
+                              setEditingMessageId(null);
+                              setIsEditMentionOpen(false);
+                            }
+                          }}
+                          rows={2}
+                          autoFocus
+                          className="relative z-10 bg-transparent border-none outline-none text-[0.92rem] text-[var(--text-primary)] resize-none w-full leading-normal"
+                        />
+                      </div>
+
                       <div className="flex items-center justify-between text-xs pt-1 border-t border-[var(--border-color)]">
                         <span className="text-[11px] text-[var(--text-muted)]">
                           Enter để lưu · Escape để huỷ
@@ -869,7 +941,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => setEditingMessageId(null)}
+                            onClick={() => {
+                              setEditingMessageId(null);
+                              setIsEditMentionOpen(false);
+                            }}
                             className="px-2.5 py-1 rounded text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] cursor-pointer"
                           >
                             Huỷ

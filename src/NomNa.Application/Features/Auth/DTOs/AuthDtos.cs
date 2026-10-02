@@ -18,3 +18,8 @@ public record AuthResultDto(
     DateTime ExpiresAt,
     UserDto User
 );
+
+public record AuthActionResponseDto(
+    bool Success,
+    string Message
+);

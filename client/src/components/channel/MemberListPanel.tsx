@@ -22,7 +22,7 @@ interface MemberListPanelProps {
   currentUser: User | null;
   currentUserRole?: string;
   width?: number;
-  onOpenUserProfile?: (user: UserProfileData) => void;
+  onOpenUserProfile?: (user: UserProfileData, anchorRect?: DOMRect) => void;
   onStartDmWithUser?: (user: {
     id: string;
     displayName: string;
@@ -130,6 +130,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
   if (!isOpen) return null;
 
   const handleMemberClick = (m: DirectMessageUser, e: React.MouseEvent<HTMLLIElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
     if (onOpenUserProfile) {
       onOpenUserProfile({
         id: m.id,
@@ -139,11 +140,10 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
         email: m.email,
         role: m.role,
         status: m.status,
-      });
+      }, rect);
       return;
     }
 
-    const rect = e.currentTarget.getBoundingClientRect();
     const panelRect = panelRef.current?.getBoundingClientRect();
     const topOffset = panelRect ? Math.max(10, rect.top - panelRect.top - 20) : rect.top;
 

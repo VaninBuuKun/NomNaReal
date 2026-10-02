@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   X,
   ChatCenteredDots,
@@ -27,6 +27,7 @@ export interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: UserProfileData | null;
+  anchorRect?: { top: number; left: number; right: number; bottom: number } | null;
   currentUserId?: string;
   onStartDm?: (user: UserProfileData) => void;
   onMentionUser?: (username: string) => void;
@@ -39,6 +40,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   isOpen,
   onClose,
   user,
+  anchorRect,
   currentUserId,
   onStartDm,
   onMentionUser,
@@ -55,6 +57,44 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  // Compute position near anchorRect (Discord-style popout)
+  const popoverStyle = useMemo<React.CSSProperties>(() => {
+    if (!anchorRect) {
+      return {
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+      };
+    }
+
+    const cardWidth = 300;
+    const cardHeight = 360;
+    const pad = 12;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+
+    // Default: pop out to the right of anchor
+    let left = anchorRect.right + 8;
+    // If popping right causes horizontal overflow, pop to the left of anchor
+    if (left + cardWidth > vw - pad) {
+      left = Math.max(pad, anchorRect.left - cardWidth - 8);
+    }
+
+    // Vertically align near top of anchor, clamped inside screen
+    let top = anchorRect.top - 12;
+    if (top + cardHeight > vh - pad) {
+      top = Math.max(pad, vh - cardHeight - pad);
+    }
+    if (top < pad) {
+      top = pad;
+    }
+
+    return {
+      top: `${top}px`,
+      left: `${left}px`,
+    };
+  }, [anchorRect]);
 
   if (!isOpen || !user) return null;
 
@@ -125,11 +165,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       role="dialog"
       aria-modal="true"
       onClick={onClose}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 select-none bg-transparent"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-[340px] rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+        style={popoverStyle}
+        className="fixed z-50 w-[300px] rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
       >
         {/* Top Cover Banner */}
         <div className="h-20 bg-gradient-to-r from-[var(--accent-primary)]/30 via-[var(--accent-primary)]/15 to-[var(--bg-surface)] relative">

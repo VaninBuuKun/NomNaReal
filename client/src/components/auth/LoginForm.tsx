@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Button, Input } from '../ui';
 import { authApi } from '../../services/authApi';
 
@@ -70,13 +71,12 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
       <div>
         <div className="flex justify-between items-center mb-1">
           <label className="text-xs font-semibold text-[var(--text-secondary)]">Mật khẩu</label>
-          <button
-            type="button"
-            onClick={() => setLocalError('Vui lòng kiểm tra hộp thư email để khôi phục mật khẩu tài khoản!')}
+          <Link
+            to="/forgot-password"
             className="text-xs font-semibold text-[var(--accent-primary)] hover:underline cursor-pointer"
           >
             Quên mật khẩu?
-          </button>
+          </Link>
         </div>
         <Input
           type="password"

@@ -126,6 +126,43 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
     }
   };
 
+  const renderHighlightedContent = (text: string) => {
+    if (!text) return null;
+    const regex = /(@all|@everyone|@channel|@here|@[a-zA-Z0-9_\.]+|#[a-zA-Z0-9_\-]+)/gi;
+    const parts: React.ReactNode[] = [];
+    let lastIdx = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIdx) {
+        parts.push(text.substring(lastIdx, match.index));
+      }
+      const token = match[0];
+      const isMention = token.startsWith('@');
+      const isBroadcast = /^@(all|everyone|channel|here)$/i.test(token);
+
+      parts.push(
+        <span
+          key={match.index}
+          className={`inline-flex items-center px-1.5 py-0.2 rounded text-[13px] font-semibold mx-0.5 ${
+            isMention
+              ? isBroadcast
+                ? 'bg-amber-500/20 text-amber-500 border border-amber-500/40'
+                : 'bg-[var(--accent-soft)] text-[var(--accent-primary)] border border-[var(--accent-primary)]/20'
+              : 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-medium'
+          }`}
+        >
+          {token}
+        </span>
+      );
+      lastIdx = match.index + token.length;
+    }
+    if (lastIdx < text.length) {
+      parts.push(text.substring(lastIdx));
+    }
+    return parts;
+  };
+
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-[var(--bg-chat)] overflow-y-auto select-none">
       {/* 1. Header Toolbar (matching ChatArea h-[54px] & border-b) */}
@@ -169,7 +206,7 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
         {/* PHẦN 2: Nội dung (Body) & Metadata */}
         <div className="space-y-3">
           <p className="text-sm text-[var(--text-secondary)] leading-relaxed select-text">
-            {notification.content}
+            {renderHighlightedContent(notification.content)}
           </p>
 
           {/* Metadata Bài tập */}
