@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { EnvelopeSimple, ArrowRight, ArrowClockwise, CheckCircle } from '@phosphor-icons/react';
 import { Button } from '../ui';
 import { authApi } from '../../services/authApi';
+import { getFriendlyErrorMessage } from '../../utils/errorMap';
 
 interface VerifyEmailFormProps {
   onSuccess?: () => void;
@@ -86,11 +87,7 @@ export const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({ onSuccess }) =
         navigate('/', { replace: true });
       }, 2000);
     } catch (err: any) {
-      const msg =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.response?.data?.title ||
-        'Mã xác thực không chính xác hoặc đã hết hạn. Vui lòng thử lại!';
+      const msg = getFriendlyErrorMessage(err, 'Mã xác thực không chính xác hoặc đã hết hạn. Vui lòng thử lại!');
       setError(msg);
     } finally {
       setLoading(false);
@@ -107,7 +104,7 @@ export const VerifyEmailForm: React.FC<VerifyEmailFormProps> = ({ onSuccess }) =
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Không thể gửi lại mã lúc này. Vui lòng thử lại!';
+      const msg = getFriendlyErrorMessage(err, 'Không thể gửi lại mã lúc này. Vui lòng thử lại!');
       setError(msg);
     } finally {
       setResending(false);

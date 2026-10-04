@@ -107,7 +107,7 @@ export const NotificationsSidebar: React.FC<NotificationsSidebarProps> = ({
             type="button"
             onClick={onMarkAllRead}
             title="Đánh dấu tất cả là đã đọc"
-            className="w-7 h-7 rounded-md bg-[var(--bg-surface)] hover:bg-[var(--accent-soft)] text-[var(--text-muted)] hover:text-[var(--accent-primary)] border border-[var(--border-color)]/60 flex items-center justify-center transition-all active:scale-95 cursor-pointer shrink-0"
+            className="w-7 h-7 rounded-[4px] bg-[var(--bg-surface)] hover:bg-[var(--accent-soft)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] border border-[var(--border-color)]/70 flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer shrink-0 shadow-2xs"
           >
             <Check size={14} weight="bold" />
           </button>

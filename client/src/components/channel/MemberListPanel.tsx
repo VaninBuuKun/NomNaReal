@@ -192,9 +192,8 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
       ref={panelRef}
       id="memberListPanel"
       style={width ? { width: `${width}px` } : undefined}
-      className={`shrink-0 h-full min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col select-none relative z-20 animate-in fade-in slide-in-from-right-2 duration-150 ${
-        width ? '' : 'w-[270px]'
-      }`}
+      className={`shrink-0 h-full min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col select-none relative z-20 animate-in fade-in slide-in-from-right-2 duration-150 ${width ? '' : 'w-[270px]'
+        }`}
     >
       {/* 1. Header */}
       <div className="h-[54px] border-b border-[var(--border-color)] px-3.5 flex items-center justify-between shrink-0 bg-[var(--bg-sidebar)]">

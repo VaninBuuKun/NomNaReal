@@ -209,3 +209,21 @@ body,
   0%, 80%, 100% { transform: scale(0); }
   40% { transform: scale(1); }
 }
+
+/* ------------------ Message Jump Highlight Animation ------------------ */
+@keyframes messageHighlightPulse {
+  0% {
+    background-color: var(--accent-soft);
+  }
+  50% {
+    background-color: var(--accent-soft);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-message-highlight {
+  animation: messageHighlightPulse 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+

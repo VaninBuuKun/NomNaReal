@@ -6,6 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, ArrowLeft, ShieldCheck } from '@phosphor-icons/react';
 import { Button, Input } from '../ui';
 import { authApi } from '../../services/authApi';
+import { getFriendlyErrorMessage } from '../../utils/errorMap';
 
 const resetPasswordSchema = z
   .object({
@@ -65,11 +66,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onSuccess 
         navigate('/login', { replace: true });
       }, 2500);
     } catch (err: any) {
-      const msg =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.response?.data?.title ||
-        'Không thể đặt lại mật khẩu. Mã xác nhận có thể đã hết hạn hoặc không hợp lệ.';
+      const msg = getFriendlyErrorMessage(err, 'Không thể đặt lại mật khẩu. Mã xác nhận có thể đã hết hạn hoặc không hợp lệ.');
       setLocalError(msg);
     } finally {
       setLoading(false);

@@ -43,6 +43,14 @@ const getInstantPreview = (targetUrl: string): Partial<LinkPreviewData> | null =
         imageUrl: targetUrl,
       };
     }
+    // 4. Universal instant fallback for any web URL
+    const cleanHost = parsed.hostname.replace(/^www\./, '');
+    return {
+      url: targetUrl,
+      siteName: cleanHost,
+      title: cleanHost + (parsed.pathname && parsed.pathname !== '/' ? parsed.pathname : ''),
+      faviconUrl: `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=32`,
+    };
   } catch {}
   return null;
 };
@@ -51,10 +59,10 @@ export const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ url }) => {
   const [isDismissed, setIsDismissed] = useState(false);
   const instantData = useMemo(() => getInstantPreview(url), [url]);
 
-  const { data, isLoading, isError } = useQuery<LinkPreviewData>({
+  const { data, isLoading } = useQuery<LinkPreviewData>({
     queryKey: ['linkPreview', url],
     queryFn: () => messageApi.getLinkPreview(url),
-    initialData: instantData as LinkPreviewData | undefined,
+    placeholderData: instantData as LinkPreviewData | undefined,
     staleTime: 1000 * 60 * 60, // 1 hour
     gcTime: 1000 * 60 * 60 * 2, // 2 hours
     retry: 1,
@@ -63,7 +71,7 @@ export const LinkPreviewCard: React.FC<LinkPreviewCardProps> = ({ url }) => {
 
   const preview = data || instantData;
 
-  if (isDismissed || isError || (!isLoading && (!preview || (!preview.title && !preview.description && !preview.imageUrl)))) {
+  if (isDismissed || (!isLoading && !preview)) {
     return null;
   }
 

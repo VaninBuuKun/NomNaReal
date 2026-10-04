@@ -14,12 +14,14 @@ import {
   LockKey,
   ShieldStar,
   SignIn,
+  ChatCircleDots,
 } from "@phosphor-icons/react";
 import {
   CreateWorkspaceModal,
   JoinWorkspaceModal,
 } from "../components/workspace";
 import { SettingsModal } from "../components/settings";
+import { WorkspaceAvatar, UserAvatar } from "../components/ui";
 import { authApi, workspaceApi } from "../services";
 import { useTheme } from "../hooks/useTheme";
 import type { User, Workspace } from "../types";
@@ -88,33 +90,8 @@ export const HomePage: React.FC = () => {
     navigate(`/workspace/${joinedWs.id}`);
   };
 
-  const defaultAvatar =
-    (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png";
-
   if (isLoading) {
-    return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[var(--bg-rail)] text-[var(--text-primary)] select-none animate-in fade-in duration-200">
-        <div className="relative flex flex-col items-center p-8 rounded-2xl bg-[var(--bg-surface)]/80 border border-[var(--border-color)] shadow-2xl backdrop-blur-md animate-in zoom-in-95 duration-200 max-w-sm text-center">
-          <div className="relative flex items-center justify-center mb-4">
-            <img
-              src="/default-avatar.png"
-              alt="NomNa Logo"
-              className="w-16 h-16 rounded-2xl object-cover border border-[var(--border-color)] shadow-[0_0_30px_var(--accent-glow)] animate-pulse"
-            />
-          </div>
-          <div className="text-base font-bold text-[var(--text-primary)]">
-            Đang tải NomNa...
-          </div>
-          <div className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed">
-            Đang chuẩn bị Workspace của bạn
-          </div>
-          <div className="mt-4 flex items-center gap-2 text-xs text-[var(--accent-primary)] font-medium">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] animate-ping" />
-            <span>Đang chuẩn bị</span>
-          </div>
-        </div>
-      </div>
-    );
+    return <></>
   }
 
   return (
@@ -134,14 +111,9 @@ export const HomePage: React.FC = () => {
             {/* Vòng viền Gradient tỏa sáng khi hover */}
             <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-[var(--accent-primary)] to-amber-500 opacity-0 group-hover:opacity-100 blur-xs transition-all duration-300 group-hover:scale-105" />
 
-            <img
-              src="/default-avatar.png"
-              alt="NomNa Logo"
-              className="relative w-10 h-10 rounded-xl object-cover border border-[var(--border-color)]/60 shadow-xs group-hover:scale-105 group-hover:rotate-3 transition-all duration-300"
-            />
-
-            {/* Chấm Status nhịp thở */}
-            {/* <span className="absolute -top-1 -right-1 z-10 w-3 h-3 rounded-full bg-[var(--accent-primary)] ring-2 ring-[var(--bg-chat)] shadow-[0_0_10px_var(--accent-glow)] animate-pulse" /> */}
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--accent-primary)] to-amber-500 flex items-center justify-center text-white shadow-xs group-hover:scale-105 group-hover:rotate-3 transition-all duration-300">
+              <ChatCircleDots size={24} weight="fill" />
+            </div>
           </div>
 
           {/* Chữ NomNa bên PHẢI + Hiệu ứng Đẩy nhẹ & Tỏa sáng chữ */}
@@ -172,13 +144,11 @@ export const HomePage: React.FC = () => {
 
             {/* Avatar bên phải + Hiệu ứng Ring Glow khi hover */}
             <div className="relative shrink-0">
-              <img
-                src={currentUser?.avatarUrl || defaultAvatar}
-                alt={currentUser?.displayName || "User Avatar"}
-                className="w-10 h-10 rounded-full object-cover ring-2 ring-[var(--border-color)]/60 group-hover:ring-[var(--accent-primary)] group-hover:scale-105 transition-all duration-300"
-                onError={(e) => {
-                  e.currentTarget.src = defaultAvatar;
-                }}
+              <UserAvatar
+                name={currentUser?.displayName || currentUser?.username || "User"}
+                avatarUrl={currentUser?.avatarUrl}
+                size="md"
+                className="ring-2 ring-[var(--border-color)]/60 group-hover:ring-[var(--accent-primary)] group-hover:scale-105 transition-all duration-300"
               />
               <span className="absolute bottom-0 left-0 w-3 h-3 rounded-full border-2 border-[var(--bg-chat)] bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
             </div>
@@ -311,16 +281,13 @@ export const HomePage: React.FC = () => {
                 >
                   <div className="flex items-start gap-3.5 mb-3">
                     {/* Workspace Avatar */}
-                    <div className="w-12 h-12 rounded-[6px] overflow-hidden border border-[var(--border-color)] bg-[var(--bg-chat)] flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 group-hover:border-[var(--accent-primary)]/40 transition-all duration-200">
-                      <img
-                        src={ws.iconUrl || defaultAvatar}
-                        alt={ws.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = defaultAvatar;
-                        }}
-                      />
-                    </div>
+                    <WorkspaceAvatar
+                      name={ws.name}
+                      iconUrl={ws.iconUrl}
+                      size="lg"
+                      roundedClassName="rounded-[6px]"
+                      className="shadow-xs group-hover:scale-105 group-hover:border-[var(--accent-primary)]/40 transition-all duration-200"
+                    />
 
                     {/* Name & Member Count */}
                     <div className="min-w-0 flex-1">

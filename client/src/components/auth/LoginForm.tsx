@@ -6,6 +6,7 @@ import { ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button, Input } from '../ui';
 import { authApi } from '../../services/authApi';
+import { getFriendlyErrorMessage } from '../../utils/errorMap';
 
 const loginSchema = z.object({
   emailOrUsername: z.string().min(1, 'Vui lòng nhập email hoặc tên đăng nhập'),
@@ -41,10 +42,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
       localStorage.setItem('nomna_logged_in', 'true');
       onSuccess(user);
     } catch (err: any) {
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.title ||
-        'Đăng nhập không thành công. Vui lòng kiểm tra lại tài khoản & mật khẩu!';
+      const msg = getFriendlyErrorMessage(err, 'Đăng nhập không thành công. Vui lòng kiểm tra lại tài khoản & mật khẩu!');
       setLocalError(msg);
       if (onError) onError(msg);
     } finally {

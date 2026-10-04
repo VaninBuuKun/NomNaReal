@@ -94,13 +94,19 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setSelectedIndex((prev) => (prev + 1) % Math.max(1, combinedItems.length));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         setSelectedIndex((prev) => (prev - 1 + combinedItems.length) % Math.max(1, combinedItems.length));
       } else if (e.key === 'Enter' || e.key === 'Tab') {
         if (combinedItems.length > 0) {
           e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
           const item = combinedItems[selectedIndex];
           if (item) {
             onSelect(item.type === 'special' ? item.data.username : (item.data.username || item.data.displayName || ''));
@@ -108,6 +114,8 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
         }
       } else if (e.key === 'Escape') {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         onClose();
       }
     };
@@ -138,11 +146,10 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
               <div
                 key={s.id}
                 onClick={() => onSelect(s.username)}
-                className={`px-3 py-2 rounded-lg flex items-center gap-3 cursor-pointer transition-colors text-xs ${
-                  isSelected
+                className={`px-3 py-2 rounded-lg flex items-center gap-3 cursor-pointer transition-colors text-xs ${isSelected
                     ? 'bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold'
                     : 'hover:bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                }`}
+                  }`}
               >
                 <div className="w-8 h-8 rounded-lg bg-[var(--bg-chat)] border border-[var(--border-color)] flex items-center justify-center shrink-0 shadow-2xs">
                   {s.icon}
@@ -169,11 +176,10 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
             <div
               key={m.id}
               onClick={() => onSelect(m.username || m.displayName || '')}
-              className={`px-3 py-2 rounded-lg flex items-center gap-3 cursor-pointer transition-colors text-xs ${
-                isSelected
+              className={`px-3 py-2 rounded-lg flex items-center gap-3 cursor-pointer transition-colors text-xs ${isSelected
                   ? 'bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold'
                   : 'hover:bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-              }`}
+                }`}
             >
               <div className="relative shrink-0">
                 <img
@@ -186,15 +192,14 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
                 />
                 {m.status && (
                   <span
-                    className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-[var(--bg-surface)] ${
-                      m.status === 'online'
+                    className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-[var(--bg-surface)] ${m.status === 'online'
                         ? 'bg-emerald-500'
                         : m.status === 'away'
-                        ? 'bg-amber-500'
-                        : m.status === 'dnd'
-                        ? 'bg-rose-500'
-                        : 'bg-neutral-400'
-                    }`}
+                          ? 'bg-amber-500'
+                          : m.status === 'dnd'
+                            ? 'bg-rose-500'
+                            : 'bg-neutral-400'
+                      }`}
                   />
                 )}
               </div>

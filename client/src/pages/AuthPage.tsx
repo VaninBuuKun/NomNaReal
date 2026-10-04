@@ -283,31 +283,41 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
 
         {/* Footer (Only for login and register) */}
         {(mode === 'login' || mode === 'register') && (
-          <footer className="text-center text-xs text-[var(--text-secondary)] border-t border-[var(--border-color)]/70 pt-3 mt-1">
-            {mode === 'login' && (
-              <span>
-                Chưa có tài khoản?{' '}
-                <Link
-                  to="/register"
-                  onClick={() => setError(null)}
-                  className="font-bold text-[var(--accent-primary)] hover:underline cursor-pointer"
-                >
-                  Đăng ký ngay
-                </Link>
-              </span>
-            )}
-            {mode === 'register' && (
-              <span>
-                Đã có tài khoản?{' '}
-                <Link
-                  to="/login"
-                  onClick={() => setError(null)}
-                  className="font-bold text-[var(--accent-primary)] hover:underline cursor-pointer"
-                >
-                  Đăng nhập
-                </Link>
-              </span>
-            )}
+          <footer className="text-center text-xs text-[var(--text-secondary)] border-t border-[var(--border-color)]/70 pt-3 mt-1 flex flex-col gap-2">
+            <div>
+              {mode === 'login' && (
+                <span>
+                  Chưa có tài khoản?{' '}
+                  <Link
+                    to="/register"
+                    onClick={() => setError(null)}
+                    className="font-bold text-[var(--accent-primary)] hover:underline cursor-pointer"
+                  >
+                    Đăng ký ngay
+                  </Link>
+                </span>
+              )}
+              {mode === 'register' && (
+                <span>
+                  Đã có tài khoản?{' '}
+                  <Link
+                    to="/login"
+                    onClick={() => setError(null)}
+                    className="font-bold text-[var(--accent-primary)] hover:underline cursor-pointer"
+                  >
+                    Đăng nhập
+                  </Link>
+                </span>
+              )}
+            </div>
+            <div>
+              <Link
+                to="/landing"
+                className="text-[11px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:underline inline-flex items-center gap-1"
+              >
+                <span>← Tìm hiểu thêm về NomNa</span>
+              </Link>
+            </div>
           </footer>
         )}
       </div>

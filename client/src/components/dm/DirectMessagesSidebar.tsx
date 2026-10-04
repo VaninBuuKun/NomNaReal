@@ -81,9 +81,9 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
           type="button"
           onClick={onOpenNewDm}
           title="Nhắn tin với thành viên mới"
-          className="w-8 h-8 rounded-[4px] bg-[var(--accent-soft)] hover:bg-[var(--accent-primary)] text-[var(--accent-primary)] hover:text-white flex items-center justify-center shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
+          className="w-7 h-7 rounded-[4px] bg-[var(--bg-surface)] hover:bg-[var(--accent-soft)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] border border-[var(--border-color)]/70 flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer shrink-0 shadow-2xs"
         >
-          <UserPlus size={17} weight="bold" />
+          <UserPlus size={15} weight="bold" />
         </button>
       </div>
 

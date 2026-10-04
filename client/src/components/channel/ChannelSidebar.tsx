@@ -12,6 +12,7 @@ import {
   SignOut,
 } from '@phosphor-icons/react';
 import { ChannelType, type Channel, type Workspace } from '../../types';
+import { WorkspaceAvatar } from '../ui';
 import { InviteMemberModal } from '../workspace';
 
 interface ChannelSidebarProps {
@@ -34,7 +35,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   activeChannelId,
   onSelectChannel,
   onCreateChannel,
-  onOpenSettings,
+  onOpenSettings: _onOpenSettings,
   isOwner,
   onOpenEditWorkspace,
   onLeaveWorkspace,
@@ -107,9 +108,9 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
             type="button"
             onClick={() => setIsInviteModalOpen(true)}
             title="Mời thêm thành viên vào Workspace"
-            className="w-8 h-8 rounded-[4px] bg-[var(--accent-soft)] hover:bg-[var(--accent-primary)] text-[var(--accent-primary)] hover:text-white flex items-center justify-center shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
+            className="w-7 h-7 rounded-[4px] bg-[var(--bg-surface)] hover:bg-[var(--accent-soft)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] border border-[var(--border-color)]/70 flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer shrink-0 shadow-2xs"
           >
-            <UserPlus size={17} weight="bold" />
+            <UserPlus size={15} weight="bold" />
           </button>
         </div>
 
@@ -127,16 +128,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 className="fixed top-[52px] left-[76px] w-[280px] z-[1000] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-[4px] shadow-2xl p-1.5 flex flex-col gap-0.5"
               >
                 <div className="flex items-center gap-2.5 p-2 rounded-[3px] bg-[var(--bg-surface)] border border-[var(--border-color)]/60">
-                  <div className="w-9 h-9 rounded-[4px] border border-[var(--border-color)] overflow-hidden shrink-0 bg-[var(--bg-chat)] flex items-center justify-center">
-                    <img
-                      src={currentWorkspace?.iconUrl || '/default-avatar.png'}
-                      alt={currentWorkspace?.name || 'Workspace'}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = '/default-avatar.png';
-                      }}
-                    />
-                  </div>
+                  <WorkspaceAvatar
+                    name={currentWorkspace?.name || 'Workspace'}
+                    iconUrl={currentWorkspace?.iconUrl}
+                    size="md"
+                    roundedClassName="rounded-[4px]"
+                  />
                   <div className="min-w-0 flex-1">
                     <div className="font-extrabold text-sm text-[var(--text-primary)] leading-tight truncate">
                       {currentWorkspace?.name || 'Nexus Hub'}
@@ -174,18 +171,6 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     <span>Cài đặt Workspace</span>
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onOpenSettings?.();
-                  }}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-[3px] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left"
-                >
-                  <Gear size={16} weight="bold" className="shrink-0 text-[var(--text-muted)]" />
-                  <span>Cài đặt ứng dụng</span>
-                </button>
 
                 <div className="h-px bg-[var(--border-color)]/70 my-1" />
 

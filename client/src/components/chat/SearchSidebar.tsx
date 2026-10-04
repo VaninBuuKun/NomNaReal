@@ -105,24 +105,30 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
       style={{ width: `${width}px` }}
       className="h-full bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col shrink-0 overflow-hidden select-none z-20 shadow-lg"
     >
-      {/* 1. Header */}
-      <div className="h-[54px] border-b border-[var(--border-color)] px-4 flex items-center justify-between bg-[var(--bg-sidebar)] shrink-0">
-        <div className="flex items-center gap-2">
-          <MagnifyingGlass size={18} className="text-[var(--accent-primary)]" weight="bold" />
-          <h3 className="text-sm font-bold text-[var(--text-primary)]">Tìm kiếm tin nhắn</h3>
+      {/* 1. Header (Unified with MemberListPanel) */}
+      <div className="h-[54px] border-b border-[var(--border-color)] px-3.5 flex items-center justify-between bg-[var(--bg-sidebar)] shrink-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="font-bold text-sm text-[var(--text-primary)] truncate">
+            Tìm kiếm
+          </span>
+          {hasSearched && (
+            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[var(--accent-soft)] text-[var(--accent-primary)] shrink-0">
+              {results.length} kết quả
+            </span>
+          )}
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer"
+          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
           title="Đóng tìm kiếm"
         >
-          <X size={16} weight="bold" />
+          <X size={15} />
         </button>
       </div>
 
       {/* 2. Search Input & Scope Bar */}
-      <div className="p-3 border-b border-[var(--border-color)] bg-[var(--bg-chat)] flex flex-col gap-2.5 shrink-0">
+      <div className="p-3 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] flex flex-col gap-2.5 shrink-0">
         <form onSubmit={handleSearch} className="relative flex items-center">
           <MagnifyingGlass
             size={15}

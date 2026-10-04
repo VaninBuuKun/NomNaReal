@@ -32,6 +32,11 @@ import {
   PinnedMessagesSidebar,
 } from "../components/chat";
 import {
+  ChannelTasksSidebar,
+  CreateTaskModal,
+  EditTaskModal,
+} from "../components/tasks";
+import {
   NotificationsSidebar,
   NotificationDetailPane,
 } from "../components/notifications";
@@ -80,6 +85,8 @@ import {
   MAX_SEARCH_WIDTH,
   MIN_PINNED_WIDTH,
   MAX_PINNED_WIDTH,
+  MIN_TASK_WIDTH,
+  MAX_TASK_WIDTH,
 } from "../stores";
 
 export const ChatPage: React.FC = () => {
@@ -166,11 +173,13 @@ export const ChatPage: React.FC = () => {
     isMemberListOpen,
     isSearchOpen,
     isPinnedSidebarOpen,
+    isTaskSidebarOpen,
     channelWidth,
     threadWidth,
     memberWidth,
     searchWidth,
     pinnedSidebarWidth,
+    taskSidebarWidth,
     isSettingsOpen,
     isCreateWorkspaceOpen,
     isEditWorkspaceOpen,
@@ -189,6 +198,8 @@ export const ChatPage: React.FC = () => {
     togglePinnedSidebar,
     closePinnedSidebar,
     setPinnedSidebarWidth,
+    closeTaskSidebar,
+    setTaskSidebarWidth,
     setSettingsOpen,
     setCreateWorkspaceOpen,
     setEditWorkspaceOpen,
@@ -204,8 +215,12 @@ export const ChatPage: React.FC = () => {
     expandThread,
   } = useUiStore();
 
+  const activeSidebarViewRef = useRef(activeSidebarView);
+  activeSidebarViewRef.current = activeSidebarView;
+
   const [isResizingSearch, setIsResizingSearch] = useState(false);
   const [isResizingPinned, setIsResizingPinned] = useState(false);
+  const [isResizingTask, setIsResizingTask] = useState(false);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [inspectingUser, setInspectingUser] = useState<UserProfileData | null>(
     null,
@@ -326,6 +341,30 @@ export const ChatPage: React.FC = () => {
 
     const onMouseUp = () => {
       setIsResizingPinned(false);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  const handleTaskResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingTask(true);
+    const startX = e.clientX;
+    const startWidth = taskSidebarWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const newWidth = Math.max(
+        MIN_TASK_WIDTH,
+        Math.min(MAX_TASK_WIDTH, startWidth + (startX - moveEvent.clientX)),
+      );
+      setTaskSidebarWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      setIsResizingTask(false);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
@@ -523,18 +562,12 @@ export const ChatPage: React.FC = () => {
           const el = document.getElementById(`msg-${notif.messageId}`);
           if (el) {
             el.scrollIntoView({ behavior: "smooth", block: "center" });
-            el.classList.add(
-              "bg-[var(--accent-soft)]",
-              "ring-2",
-              "ring-amber-400/60",
-            );
+            el.classList.remove("animate-message-highlight");
+            void el.offsetWidth;
+            el.classList.add("animate-message-highlight");
             setTimeout(() => {
-              el.classList.remove(
-                "bg-[var(--accent-soft)]",
-                "ring-2",
-                "ring-amber-400/60",
-              );
-            }, 2500);
+              el.classList.remove("animate-message-highlight");
+            }, 2200);
           }
         }, 350);
       }
@@ -895,16 +928,25 @@ export const ChatPage: React.FC = () => {
           ...prev.filter((n) => n.id !== notif.id),
         ]);
 
-        setToast({
-          id: notif.id,
-          title: notif.title || "Thông báo mới",
-          description: notif.content || undefined,
-          actionLabel: "Xem ngay",
-          onAction: () => {
-            handleNotificationSelect(notif);
-            setToast(null);
-          },
-        });
+        // Don't show toast if user is ALREADY active in this channel viewing messages
+        const isViewingChannel =
+          notif.channelId &&
+          notif.channelId === activeChannelIdRef.current &&
+          activeSidebarViewRef.current === "channels" &&
+          document.visibilityState === "visible";
+
+        if (!isViewingChannel) {
+          setToast({
+            id: notif.id,
+            title: notif.title || "Thông báo mới",
+            description: notif.content || undefined,
+            actionLabel: "Xem ngay",
+            onAction: () => {
+              handleNotificationSelect(notif);
+              setToast(null);
+            },
+          });
+        }
       });
 
       // Load Workspaces
@@ -1520,9 +1562,9 @@ export const ChatPage: React.FC = () => {
 
         {/* 2.5 Resizer Divider */}
         <div
-          className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+          className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
             isResizingChannel
-              ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+              ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
               : "bg-[var(--border-color)]"
           }`}
           onMouseDown={handleChannelResizeStart}
@@ -1602,9 +1644,9 @@ export const ChatPage: React.FC = () => {
         {isThreadOpen && (
           <>
             <div
-              className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+              className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
                 isResizingThread
-                  ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+                  ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
                   : "bg-[var(--border-color)]"
               }`}
               onMouseDown={handleThreadResizeStart}
@@ -1628,9 +1670,9 @@ export const ChatPage: React.FC = () => {
         {!isThreadOpen && isMemberListOpen && (
           <>
             <div
-              className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+              className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
                 isResizingMember
-                  ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+                  ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
                   : "bg-[var(--border-color)]"
               }`}
               onMouseDown={handleMemberResizeStart}
@@ -1672,9 +1714,9 @@ export const ChatPage: React.FC = () => {
         {!isThreadOpen && !isMemberListOpen && isSearchOpen && (
           <>
             <div
-              className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+              className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
                 isResizingSearch
-                  ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+                  ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
                   : "bg-[var(--border-color)]"
               }`}
               onMouseDown={handleSearchResizeStart}
@@ -1695,11 +1737,12 @@ export const ChatPage: React.FC = () => {
                   const el = document.getElementById(`msg-${messageId}`);
                   if (el) {
                     el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    el.classList.add("bg-[var(--accent-soft)]");
-                    setTimeout(
-                      () => el.classList.remove("bg-[var(--accent-soft)]"),
-                      2000,
-                    );
+                    el.classList.remove("animate-message-highlight");
+                    void el.offsetWidth;
+                    el.classList.add("animate-message-highlight");
+                    setTimeout(() => {
+                      el.classList.remove("animate-message-highlight");
+                    }, 2200);
                   }
                 }, 300);
               }}
@@ -1714,9 +1757,9 @@ export const ChatPage: React.FC = () => {
           isPinnedSidebarOpen && (
             <>
               <div
-                className={`w-[5px] cursor-col-resize relative shrink-0 z-25 transition-all duration-150 select-none hover:bg-[var(--accent-primary)] hover:shadow-[0_0_10px_var(--accent-glow)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[5px] after:-right-[5px] after:z-26 ${
+                className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
                   isResizingPinned
-                    ? "bg-[var(--accent-primary)] shadow-[0_0_10px_var(--accent-glow)]"
+                    ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
                     : "bg-[var(--border-color)]"
                 }`}
                 onMouseDown={handlePinnedResizeStart}
@@ -1731,23 +1774,54 @@ export const ChatPage: React.FC = () => {
                   const el = document.getElementById(`msg-${messageId}`);
                   if (el) {
                     el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    el.classList.add(
-                      "bg-[var(--accent-soft)]",
-                      "ring-2",
-                      "ring-amber-400/60",
-                    );
-                    setTimeout(
-                      () =>
-                        el.classList.remove(
-                          "bg-[var(--accent-soft)]",
-                          "ring-2",
-                          "ring-amber-400/60",
-                        ),
-                      2500,
-                    );
+                    el.classList.remove("animate-message-highlight");
+                    void el.offsetWidth;
+                    el.classList.add("animate-message-highlight");
+                    setTimeout(() => {
+                      el.classList.remove("animate-message-highlight");
+                    }, 2200);
                   }
                 }}
                 onUnpinMessage={handleUnpinMessage}
+              />
+            </>
+          )}
+
+        {/* 7. Resizer Divider & Tasks Sidebar (Mutually Exclusive) */}
+        {!isThreadOpen &&
+          !isMemberListOpen &&
+          !isSearchOpen &&
+          !isPinnedSidebarOpen &&
+          isTaskSidebarOpen && (
+            <>
+              <div
+                className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
+                  isResizingTask
+                    ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
+                    : "bg-[var(--border-color)]"
+                }`}
+                onMouseDown={handleTaskResizeStart}
+                title="Kéo sang trái/phải để chỉnh kích thước Sidebar Công việc"
+              />
+              <ChannelTasksSidebar
+                isOpen={isTaskSidebarOpen}
+                onClose={closeTaskSidebar}
+                width={taskSidebarWidth}
+                currentChannel={currentChannel}
+                workspaceMembers={workspaceMembers}
+                currentUserId={currentUser?.id}
+                onJumpToMessage={(messageId) => {
+                  const el = document.getElementById(`msg-${messageId}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    el.classList.remove("animate-message-highlight");
+                    void el.offsetWidth;
+                    el.classList.add("animate-message-highlight");
+                    setTimeout(() => {
+                      el.classList.remove("animate-message-highlight");
+                    }, 2200);
+                  }
+                }}
               />
             </>
           )}
@@ -1877,6 +1951,17 @@ export const ChatPage: React.FC = () => {
           if (found) setMemberToKick(found);
         }}
       />
+
+      {/* Task Modals */}
+      <CreateTaskModal
+        isOpen={false}
+        onClose={() => {}}
+        workspaceMembers={workspaceMembers}
+        currentChannel={currentChannel}
+        currentUserId={currentUser?.id}
+      />
+
+      <EditTaskModal workspaceMembers={workspaceMembers} />
 
       {/* Floating Toast Notification */}
       {toast && (

@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { ArrowLeft, PaperPlaneTilt, CheckCircle } from "@phosphor-icons/react";
 import { Button, Input } from "../ui";
 import { authApi } from "../../services/authApi";
+import { getFriendlyErrorMessage } from "../../utils/errorMap";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Vui lòng nhập địa chỉ email hợp lệ"),
@@ -39,11 +40,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({
       setIsSubmitted(true);
       onSuccess?.(data.email);
     } catch (err: any) {
-      const msg =
-        err.response?.data?.detail ||
-        err.response?.data?.message ||
-        err.response?.data?.title ||
-        "Không thể gửi yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau.";
+      const msg = getFriendlyErrorMessage(err, "Không thể gửi yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau.");
       setLocalError(msg);
     } finally {
       setLoading(false);

@@ -9,6 +9,7 @@ import {
   ClipboardText,
   Bell,
 } from '@phosphor-icons/react';
+import { WorkspaceAvatar } from '../ui';
 import type { Workspace } from '../../types';
 
 interface WorkspaceRailProps {
@@ -88,18 +89,17 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
           <div
             title={`Workspace: ${activeWorkspace.name}`}
             onClick={() => onSelectView?.('channels')}
-            className={`w-11 h-11 rounded-[14px] flex items-center justify-center cursor-pointer transition-all duration-200 border overflow-hidden shadow-xs ${activeSidebarView === 'channels'
-              ? 'border-[var(--accent-primary)] shadow-[0_4px_14px_var(--accent-glow)] ring-2 ring-[var(--accent-primary)]/40'
-              : 'border-[var(--border-color)] hover:border-[var(--accent-primary)]'
+            className={`w-11 h-11 rounded-[14px] flex items-center justify-center cursor-pointer transition-all duration-200 overflow-hidden shadow-xs ${activeSidebarView === 'channels'
+              ? 'border-2 border-[var(--accent-primary)] shadow-[0_4px_14px_var(--accent-glow)] ring-2 ring-[var(--accent-primary)]/40'
+              : 'border border-[var(--border-color)] hover:border-[var(--accent-primary)]'
               }`}
           >
-            <img
-              src={activeWorkspace.iconUrl || '/default-avatar.png'}
-              alt={activeWorkspace.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                e.currentTarget.src = '/default-avatar.png';
-              }}
+            <WorkspaceAvatar
+              name={activeWorkspace.name}
+              iconUrl={activeWorkspace.iconUrl}
+              size="lg"
+              roundedClassName="rounded-[12px]"
+              className="w-full h-full"
             />
           </div>
         </div>
@@ -244,16 +244,12 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
                         : 'text-[var(--text-primary)] hover:bg-[var(--bg-surface)]'
                         }`}
                     >
-                      <div className="w-6 h-6 rounded-[3px] overflow-hidden border border-[var(--border-color)] bg-[var(--bg-chat)] flex items-center justify-center shrink-0">
-                        <img
-                          src={ws.iconUrl || '/default-avatar.png'}
-                          alt={ws.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = '/default-avatar.png';
-                          }}
-                        />
-                      </div>
+                      <WorkspaceAvatar
+                        name={ws.name}
+                        iconUrl={ws.iconUrl}
+                        size="sm"
+                        roundedClassName="rounded-[3px]"
+                      />
 
                       <span className="truncate flex-1 font-medium">{ws.name}</span>
 

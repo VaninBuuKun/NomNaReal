@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ArrowRight } from 'lucide-react';
 import { Button, Input } from '../ui';
 import { authApi } from '../../services/authApi';
+import { getFriendlyErrorMessage } from '../../utils/errorMap';
 
 const registerSchema = z.object({
   displayName: z.string().min(2, 'Họ và tên hiển thị tối thiểu 2 ký tự'),
@@ -49,10 +50,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onError }
       localStorage.setItem('nomna_logged_in', 'true');
       onSuccess(user);
     } catch (err: any) {
-      const msg =
-        err.response?.data?.message ||
-        err.response?.data?.title ||
-        'Đăng ký không thành công. Tên đăng nhập hoặc email có thể đã tồn tại.';
+      const msg = getFriendlyErrorMessage(err, 'Đăng ký không thành công. Tên đăng nhập hoặc email có thể đã tồn tại.');
       setLocalError(msg);
       if (onError) onError(msg);
     } finally {
