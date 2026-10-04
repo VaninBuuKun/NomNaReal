@@ -7,3 +7,5 @@ export * from './fileApi';
 export * from './notificationApi';
 export * from './signalr';
 export * from './queryClient';
+export * from './taskApi';
+

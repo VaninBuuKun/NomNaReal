@@ -5,6 +5,7 @@ import {
   Flag,
   Quotes,
   CheckSquare,
+  Link as LinkIcon,
 } from '@phosphor-icons/react';
 import { Modal, Button } from '../ui';
 import { useTaskStore } from '../../stores/useTaskStore';
@@ -32,6 +33,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState('');
   const [assigneeId, setAssigneeId] = useState<string>('');
   const [dueDate, setDueDate] = useState<string>('');
   const [priority, setPriority] = useState<TaskPriority>(TaskPriority.Normal);
@@ -41,6 +43,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     if (createInitialData) {
       setTitle(createInitialData.title || '');
       setNote(createInitialData.note || '');
+      setAttachmentUrl(createInitialData.attachmentUrl || '');
       setAssigneeId(createInitialData.assigneeId || currentUserId || 'user-me');
       setDueDate(createInitialData.dueDate ? createInitialData.dueDate.slice(0, 16) : '');
       setPriority(createInitialData.priority ?? TaskPriority.Normal);
@@ -48,6 +51,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     } else {
       setTitle('');
       setNote('');
+      setAttachmentUrl('');
       setAssigneeId(currentUserId || 'user-me');
       setDueDate('');
       setPriority(TaskPriority.Normal);
@@ -78,14 +82,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     const selectedAssignee = workspaceMembers.find((m) => m.id === assigneeId);
 
     addTask({
-      workspaceId: currentChannel?.workspaceId || 'demo-workspace',
-      channelId: currentChannel?.id || 'demo-channel',
+      workspaceId: currentChannel?.workspaceId || '',
+      channelId: currentChannel?.id || '',
       title: title.trim(),
       note: note.trim() || null,
+      attachmentUrl: attachmentUrl.trim() || null,
       priority,
       status: TaskItemStatus.Todo,
       dueDate: dueDate ? new Date(dueDate).toISOString() : null,
-      createdById: currentUserId || 'user-me',
+      createdById: currentUserId || '',
       assigneeId: assigneeId || null,
       sourceMessageId,
       assignee: selectedAssignee
@@ -95,13 +100,11 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             username: selectedAssignee.username,
             avatarUrl: selectedAssignee.avatarUrl,
           }
-        : assigneeId === 'user-me'
-        ? { id: 'user-me', displayName: 'Tôi (Học viên)', username: 'ban' }
         : null,
       creator: {
-        id: currentUserId || 'user-me',
-        displayName: 'Tôi (Học viên)',
-        username: 'ban',
+        id: currentUserId || '',
+        displayName: 'Tôi',
+        username: 'me',
       },
     });
 
@@ -151,11 +154,31 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           </label>
           <textarea
             rows={2}
-            placeholder="Yêu cầu cụ thể, tài liệu đính kèm hoặc tiêu chí hoàn thành..."
+            placeholder="Yêu cầu cụ thể, tiêu chí hoàn thành..."
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className="w-full px-3 py-2 text-xs rounded-[3px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all resize-none font-sans"
           />
+        </div>
+
+        {/* Attachment Link */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1.5">
+            Tài liệu / Liên kết đính kèm (URL)
+          </label>
+          <div className="relative">
+            <LinkIcon
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
+            />
+            <input
+              type="url"
+              placeholder="https://docs.google.com/... hoặc tài liệu tham khảo"
+              value={attachmentUrl}
+              onChange={(e) => setAttachmentUrl(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 text-xs rounded-[3px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all font-sans"
+            />
+          </div>
         </div>
 
         {/* Assignee & Due Date 2-col row */}

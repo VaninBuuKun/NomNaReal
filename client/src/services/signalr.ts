@@ -1,5 +1,6 @@
 import * as signalR from '@microsoft/signalr';
 import type { Message, MessageEdited, ReactionUpdate, DeletedMessage, Channel, AppNotification } from '../types';
+import type { TaskItem } from '../types/task';
 
 export class SignalRService {
   private connection: signalR.HubConnection | null = null;
@@ -230,6 +231,54 @@ export class SignalRService {
   public offReceiveNotification(callback: (notification: AppNotification) => void): void {
     if (this.connection) {
       this.connection.off('ReceiveNotification', callback);
+    }
+  }
+
+  public onTaskCreated(callback: (task: TaskItem) => void): void {
+    if (this.connection) {
+      this.connection.on('TaskCreated', callback);
+    }
+  }
+
+  public offTaskCreated(callback: (task: TaskItem) => void): void {
+    if (this.connection) {
+      this.connection.off('TaskCreated', callback);
+    }
+  }
+
+  public onTaskUpdated(callback: (task: TaskItem) => void): void {
+    if (this.connection) {
+      this.connection.on('TaskUpdated', callback);
+    }
+  }
+
+  public offTaskUpdated(callback: (task: TaskItem) => void): void {
+    if (this.connection) {
+      this.connection.off('TaskUpdated', callback);
+    }
+  }
+
+  public onTaskStatusChanged(callback: (task: TaskItem) => void): void {
+    if (this.connection) {
+      this.connection.on('TaskStatusChanged', callback);
+    }
+  }
+
+  public offTaskStatusChanged(callback: (task: TaskItem) => void): void {
+    if (this.connection) {
+      this.connection.off('TaskStatusChanged', callback);
+    }
+  }
+
+  public onTaskDeleted(callback: (data: { taskId: string; channelId: string }) => void): void {
+    if (this.connection) {
+      this.connection.on('TaskDeleted', callback);
+    }
+  }
+
+  public offTaskDeleted(callback: (data: { taskId: string; channelId: string }) => void): void {
+    if (this.connection) {
+      this.connection.off('TaskDeleted', callback);
     }
   }
 

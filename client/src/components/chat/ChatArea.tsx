@@ -128,13 +128,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const openCreateTaskModal = useTaskStore((state) => state.openCreateModal);
   const tasks = useTaskStore((state) => state.tasks);
+  const fetchTasks = useTaskStore((state) => state.fetchTasks);
+
+  // Fetch real channel tasks on channel load
+  useEffect(() => {
+    if (currentChannel?.id) {
+      fetchTasks(currentChannel.id);
+    }
+  }, [currentChannel?.id, fetchTasks]);
 
   const pendingChannelTasksCount = useMemo(() => {
-    return tasks.filter(
-      (t) =>
-        (!currentChannel || t.channelId === currentChannel.id || t.channelId === 'demo-channel') &&
-        t.status !== 2
-    ).length;
+    if (!currentChannel) return 0;
+    return tasks.filter((t) => t.channelId === currentChannel.id && t.status !== 2).length;
   }, [tasks, currentChannel?.id]);
 
   const [isStickyDismissed, setIsStickyDismissed] = useState(false);
@@ -265,7 +270,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     const observer = new ResizeObserver(() => {
       if (!el) return;
       const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-      if (isChannelSwitchingRef.current || distanceToBottom < 160) {
+      if (isChannelSwitchingRef.current || distanceToBottom < 60) {
         el.scrollTop = el.scrollHeight;
       }
     });
@@ -290,7 +295,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     if (isChannelSwitchingRef.current) {
       // Switched channels / loading messages: INSTANT jump to bottom (NO smooth animation, NO stuck at top)
       el.scrollTop = el.scrollHeight;
-      messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
 
       requestAnimationFrame(() => {
         if (el) {
@@ -309,10 +313,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     // Single new message arriving in current channel
     if (messages.length > prevMessagesLengthRef.current) {
       const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-      const isNearBottom = distanceToBottom < 200;
+      const isNearBottom = distanceToBottom < 160;
 
       if (isNearBottom) {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        el.scrollTo({
+          top: el.scrollHeight,
+          behavior: 'smooth',
+        });
       }
     }
 
@@ -685,12 +692,48 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     setDeleteModalState({ isOpen: false, messageId: null, preview: "" });
   };
 
-  // Toggle reaction
+  // Toggle reaction with optimistic update and Discord-like smooth container scroll
   const handleReactionClick = (msgId: string, emoji: string) => {
+    const el = messageStreamRef.current;
+    const isLatest = messages.length > 0 && messages[messages.length - 1].id === msgId;
+    const isAtBottom = el ? el.scrollHeight - el.scrollTop - el.clientHeight < 60 : false;
+
+    // 1. Instant optimistic update so reaction badge responds immediately (0ms delay)
+    if (currentUser?.id) {
+      const targetMsg = messages.find((m) => m.id === msgId);
+      const currentGroup = targetMsg?.reactions?.find((r) => r.emoji === emoji);
+      const willAdd = !currentGroup?.hasReacted;
+
+      useChatStore.getState().applyReactionDelta(
+        {
+          messageId: msgId,
+          emoji,
+          userId: currentUser.id,
+          isAdded: willAdd,
+        } as any,
+        currentUser.id
+      );
+    }
+
+    // 2. Dispatch network toggle to SignalR / API
     if (onToggleReaction) {
       onToggleReaction(msgId, emoji);
     } else {
       messageApi.toggleReaction(msgId, emoji);
+    }
+
+    // 3. Discord UX: Only when reacting to the VERY LAST message while anchored at bottom,
+    // smoothly follow the downward expansion so the reaction badge remains in view.
+    // If reacting to an older message or while scrolled up, DO NOT SCROLL AT ALL.
+    if (isLatest && isAtBottom && el) {
+      requestAnimationFrame(() => {
+        if (el) {
+          el.scrollTo({
+            top: el.scrollHeight,
+            behavior: "smooth",
+          });
+        }
+      });
     }
   };
 
@@ -1164,8 +1207,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                             type="button"
                             key={r.emoji}
                             onClick={() => handleReactionClick(msg.id, r.emoji)}
-                            className={`border rounded-md px-2 py-0.75 text-[0.78rem] inline-flex items-center gap-1.25 cursor-pointer transition-all duration-150 ${r.hasReacted
-                                ? "bg-[var(--accent-soft)] border-[var(--accent-primary)] text-[var(--accent-primary)] font-semibold"
+                            className={`border rounded-md px-2 py-0.5 text-[0.78rem] font-medium inline-flex items-center gap-1.5 cursor-pointer select-none transition-colors duration-100 active:scale-95 ${r.hasReacted
+                                ? "bg-[var(--accent-soft)] border-[var(--accent-primary)] text-[var(--accent-primary)]"
                                 : "bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-surface-active)]"
                               }`}
                           >
@@ -1196,7 +1239,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                         key={emoji}
                         type="button"
                         onClick={() => handleReactionClick(msg.id, emoji)}
-                        className="p-1 px-1.5 text-sm hover:scale-125 transition-transform cursor-pointer rounded"
+                        className="p-1 px-1.5 text-sm hover:scale-125 active:scale-95 transition-transform cursor-pointer rounded select-none"
                         title={`Thả cảm xúc ${emoji}`}
                       >
                         {emoji}
@@ -1242,8 +1285,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                           title: msg.content,
                           note: `Được tạo từ tin nhắn của ${msg.senderDisplayName || msg.senderUsername || "thành viên"}`,
                           sourceMessageId: msg.id,
-                          channelId: currentChannel?.id || "demo-channel",
-                          workspaceId: currentChannel?.workspaceId || "demo-workspace",
+                          channelId: currentChannel?.id,
+                          workspaceId: currentChannel?.workspaceId,
                         });
                       }}
                     >

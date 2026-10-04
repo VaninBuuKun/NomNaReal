@@ -6,36 +6,14 @@ import React, {
   useRef,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import {
-  WorkspaceRail,
-  CreateWorkspaceModal,
-  EditWorkspaceModal,
-  KickMemberModal,
-} from "../components/workspace";
-import {
-  ChannelSidebar,
-  UserFooterBar,
-  CreateChannelModal,
-  MemberListPanel,
-  EditChannelModal,
-  AddChannelMemberModal,
-} from "../components/channel";
+import { WorkspaceRail } from "../components/workspace";
+import { ChannelSidebar, UserFooterBar } from "../components/channel";
 import {
   DirectMessagesSidebar,
-  NewDirectMessageModal,
   type DirectMessageItem,
   type DirectMessageUser,
 } from "../components/dm";
-import {
-  ChatArea,
-  SearchSidebar,
-  PinnedMessagesSidebar,
-} from "../components/chat";
-import {
-  ChannelTasksSidebar,
-  CreateTaskModal,
-  EditTaskModal,
-} from "../components/tasks";
+import { ChatArea } from "../components/chat";
 import {
   NotificationsSidebar,
   NotificationDetailPane,
@@ -45,9 +23,7 @@ import {
   ActivitiesWorkspace,
   type ActivityFilterType,
 } from "../components/activities";
-import { ThreadPanel } from "../components/thread";
-import { SettingsModal } from "../components/settings";
-import { UserProfileModal, type UserProfileData } from "../components/profile";
+import { type UserProfileData } from "../components/profile";
 import { Toast } from "../components/ui";
 import { Chats } from "@phosphor-icons/react";
 import { formatMessageTime } from "../utils/formatDate";
@@ -60,13 +36,15 @@ import {
   signalRService,
 } from "../services";
 import { useTheme } from "../hooks/useTheme";
+import { usePanelResizers } from "../hooks/usePanelResizers";
+import { useChatSignalR } from "../hooks/useChatSignalR";
+import { ChatModals, ChatRightPanels } from "./components";
 import {
   ChannelType,
   type User,
   type Workspace,
   type Channel,
   type Message,
-  type ReactionGroup,
   type PinnedMessage,
   type AppNotification,
 } from "../types";
@@ -75,18 +53,6 @@ import {
   useChatStore,
   useDmStore,
   useUiStore,
-  MIN_CHANNEL_WIDTH,
-  MAX_CHANNEL_WIDTH,
-  MIN_THREAD_WIDTH,
-  MAX_THREAD_WIDTH,
-  MIN_MEMBER_WIDTH,
-  MAX_MEMBER_WIDTH,
-  MIN_SEARCH_WIDTH,
-  MAX_SEARCH_WIDTH,
-  MIN_PINNED_WIDTH,
-  MAX_PINNED_WIDTH,
-  MIN_TASK_WIDTH,
-  MAX_TASK_WIDTH,
 } from "../stores";
 
 export const ChatPage: React.FC = () => {
@@ -99,11 +65,6 @@ export const ChatPage: React.FC = () => {
   // Local Session State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
-
-  // Resize Drag State
-  const [isResizingChannel, setIsResizingChannel] = useState(false);
-  const [isResizingThread, setIsResizingThread] = useState(false);
-  const [isResizingMember, setIsResizingMember] = useState(false);
 
   // 1. Workspace Store
   const {
@@ -135,14 +96,11 @@ export const ChatPage: React.FC = () => {
     updateMessage,
     deleteMessage,
     setReactions,
-    applyReactionDelta,
-    updateReplyCount,
     markChannelRead,
     setChannelUnread,
     setHasMoreMessages,
     setIsLoadingMessages,
     setIsLoadingMoreMessages,
-    setTypingUser,
   } = useChatStore();
 
   const activeChannelIdRef = useRef<string | null>(null);
@@ -159,10 +117,7 @@ export const ChatPage: React.FC = () => {
     setDmConversations,
     setActiveDmId,
     setWorkspaceMembers,
-    updateUserStatus,
     updateDmSnippet,
-    upgradePendingDm,
-    updateMemberProfile,
   } = useDmStore();
 
   // 4. UI Store
@@ -171,56 +126,41 @@ export const ChatPage: React.FC = () => {
     isThreadOpen,
     activeThreadMessage,
     isMemberListOpen,
-    isSearchOpen,
     isPinnedSidebarOpen,
-    isTaskSidebarOpen,
     channelWidth,
-    threadWidth,
-    memberWidth,
-    searchWidth,
-    pinnedSidebarWidth,
-    taskSidebarWidth,
-    isSettingsOpen,
-    isCreateWorkspaceOpen,
-    isEditWorkspaceOpen,
-    isCreateChannelOpen,
-    createChannelType,
-    channelToEdit,
-    channelToAddMember,
-    isNewDmOpen,
-    memberToKick,
     setActiveSidebarView,
     openThread,
     closeThread,
     toggleMemberList,
-    setMemberListOpen,
-    closeSearch,
     togglePinnedSidebar,
-    closePinnedSidebar,
-    setPinnedSidebarWidth,
-    closeTaskSidebar,
-    setTaskSidebarWidth,
-    setSettingsOpen,
     setCreateWorkspaceOpen,
-    setEditWorkspaceOpen,
     setCreateChannelOpen,
     setChannelToEdit,
     setChannelToAddMember,
     setNewDmOpen,
-    setMemberToKick,
-    setChannelWidth,
-    setThreadWidth,
-    setMemberWidth,
-    setSearchWidth,
+    setSettingsOpen,
     expandThread,
   } = useUiStore();
 
   const activeSidebarViewRef = useRef(activeSidebarView);
   activeSidebarViewRef.current = activeSidebarView;
 
-  const [isResizingSearch, setIsResizingSearch] = useState(false);
-  const [isResizingPinned, setIsResizingPinned] = useState(false);
-  const [isResizingTask, setIsResizingTask] = useState(false);
+  // Panel Resizers Hook
+  const {
+    isResizingChannel,
+    isResizingThread,
+    isResizingMember,
+    isResizingSearch,
+    isResizingPinned,
+    isResizingTask,
+    handleChannelResizeStart,
+    handleThreadResizeStart,
+    handleMemberResizeStart,
+    handleSearchResizeStart,
+    handlePinnedResizeStart,
+    handleTaskResizeStart,
+  } = usePanelResizers();
+
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
   const [inspectingUser, setInspectingUser] = useState<UserProfileData | null>(
     null,
@@ -269,7 +209,6 @@ export const ChatPage: React.FC = () => {
           [channelId]: memberIds,
         }));
 
-        // Augment workspaceMembers if any channel member profile is missing
         if (data.length > 0) {
           setWorkspaceMembers((prev) => {
             const existingIds = new Set(prev.map((m) => m.id));
@@ -299,151 +238,6 @@ export const ChatPage: React.FC = () => {
     },
     [channelMemberIdsMap, setWorkspaceMembers],
   );
-
-  // Resize Drag Handlers
-  const handleSearchResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizingSearch(true);
-    const startX = e.clientX;
-    const startWidth = searchWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(
-        MIN_SEARCH_WIDTH,
-        Math.min(MAX_SEARCH_WIDTH, startWidth + (startX - moveEvent.clientX)),
-      );
-      setSearchWidth(newWidth);
-    };
-
-    const onMouseUp = () => {
-      setIsResizingSearch(false);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
-
-  const handlePinnedResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizingPinned(true);
-    const startX = e.clientX;
-    const startWidth = pinnedSidebarWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(
-        MIN_PINNED_WIDTH,
-        Math.min(MAX_PINNED_WIDTH, startWidth + (startX - moveEvent.clientX)),
-      );
-      setPinnedSidebarWidth(newWidth);
-    };
-
-    const onMouseUp = () => {
-      setIsResizingPinned(false);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
-
-  const handleTaskResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizingTask(true);
-    const startX = e.clientX;
-    const startWidth = taskSidebarWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(
-        MIN_TASK_WIDTH,
-        Math.min(MAX_TASK_WIDTH, startWidth + (startX - moveEvent.clientX)),
-      );
-      setTaskSidebarWidth(newWidth);
-    };
-
-    const onMouseUp = () => {
-      setIsResizingTask(false);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
-
-  const handleChannelResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizingChannel(true);
-    const startX = e.clientX;
-    const startWidth = channelWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(
-        MIN_CHANNEL_WIDTH,
-        Math.min(MAX_CHANNEL_WIDTH, startWidth + (moveEvent.clientX - startX)),
-      );
-      setChannelWidth(newWidth);
-    };
-
-    const onMouseUp = () => {
-      setIsResizingChannel(false);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
-
-  const handleThreadResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizingThread(true);
-    const startX = e.clientX;
-    const startWidth = threadWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(
-        MIN_THREAD_WIDTH,
-        Math.min(MAX_THREAD_WIDTH, startWidth + (startX - moveEvent.clientX)),
-      );
-      setThreadWidth(newWidth);
-    };
-
-    const onMouseUp = () => {
-      setIsResizingThread(false);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
-
-  const handleMemberResizeStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizingMember(true);
-    const startX = e.clientX;
-    const startWidth = memberWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(
-        MIN_MEMBER_WIDTH,
-        Math.min(MAX_MEMBER_WIDTH, startWidth + (startX - moveEvent.clientX)),
-      );
-      setMemberWidth(newWidth);
-    };
-
-    const onMouseUp = () => {
-      setIsResizingMember(false);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
 
   // Fetch Channel Messages
   const loadMessages = async (channelId: string) => {
@@ -494,13 +288,9 @@ export const ChatPage: React.FC = () => {
     activeChannelIdRef.current = channelId;
     setActiveDmId(null);
 
-    // Optimistically clear unread on client immediately
     markChannelRead(channelId);
-
-    // Asynchronously notify server
     channelApi.markAsRead(channelId);
 
-    // If channel is private, eagerly trigger members fetch
     const targetCh = channels.find((c) => c.id === channelId);
     if (targetCh?.isPrivate) {
       fetchChannelMembers(channelId);
@@ -545,7 +335,6 @@ export const ChatPage: React.FC = () => {
         return;
       }
 
-      // Default: Chat / Mention / Thread
       setActiveSidebarView("channels");
       if (
         notif.workspaceId &&
@@ -648,7 +437,6 @@ export const ChatPage: React.FC = () => {
 
       setChannels(chs);
 
-      // Format real DM conversations
       const formattedDms: DirectMessageItem[] = (dms || []).map((d) => ({
         id: d.id,
         workspaceId: d.workspaceId,
@@ -669,7 +457,6 @@ export const ChatPage: React.FC = () => {
       }));
       setDmConversations(formattedDms);
 
-      // Format members
       const formattedMembers: DirectMessageUser[] = (members || []).map(
         (m) => ({
           id: m.userId,
@@ -725,12 +512,10 @@ export const ChatPage: React.FC = () => {
   // SignalR message handler callback with Optimistic reconciliation
   const handleIncomingMessage = useCallback(
     (msg: Message) => {
-      // Append or replace optimistic temp message
       setMessages((prev) => {
         if (msg.channelId !== activeChannelIdRef.current) return prev;
         if (prev.some((m) => m.id === msg.id)) return prev;
 
-        // Reconcile optimistic temp message
         const tempIndex = prev.findIndex(
           (m) =>
             m.id.startsWith("temp-") &&
@@ -746,14 +531,12 @@ export const ChatPage: React.FC = () => {
         return [...prev, msg];
       });
 
-      // Update channel unread status and lastMessageAt
       setChannelUnread(
         msg.channelId,
         msg.createdAt,
         msg.channelId !== activeChannelIdRef.current,
       );
 
-      // Update DM snippet
       updateDmSnippet(
         msg.channelId,
         msg.content,
@@ -762,6 +545,22 @@ export const ChatPage: React.FC = () => {
     },
     [setMessages, setChannelUnread, updateDmSnippet],
   );
+
+  // Hook for all SignalR realtime listeners
+  const { setupSignalR } = useChatSignalR({
+    currentUser,
+    activeWorkspaceIdRef,
+    activeChannelIdRef,
+    activeSidebarViewRef,
+    handleIncomingMessage,
+    handleNotificationSelect,
+    handleSelectChannel,
+    setActiveWorkspaceId,
+    setToast,
+    setPinnedMessages,
+    setNotifications,
+    setChannelMemberIdsMap,
+  });
 
   // Initialize Chat App & Verify User Session
   const initApp = async () => {
@@ -777,177 +576,17 @@ export const ChatPage: React.FC = () => {
       setCurrentUser(user);
       localStorage.setItem("nomna_logged_in", "true");
 
-      // Fetch notifications
       try {
         const fetchedNotifs = await notificationApi.getNotifications();
         if (fetchedNotifs && fetchedNotifs.length > 0) {
           setNotifications(fetchedNotifs);
         }
       } catch (err) {
-        // Keep initial mock notifications if backend notifications not yet populated
+        // Keep initial mock notifications if backend not yet ready
       }
 
-      // Connect SignalR
-      await signalRService.startConnection(
-        handleIncomingMessage,
-        (data) => setTypingUser(data.username),
-        () => setTypingUser(null),
-      );
-
-      // Listen for thread replies count
-      signalRService.onThreadReplyCountUpdated((data) => {
-        updateReplyCount(
-          data.parentMessageId,
-          typeof data.replyCount === "number" ? data.replyCount : undefined,
-        );
-      });
-
-      // Listen for reactions
-      signalRService.onReactionUpdated((update) => {
-        if ("isAdded" in update && update.emoji) {
-          applyReactionDelta(update as any, currentUser?.id);
-        } else if (update.reactions) {
-          setReactions(update.messageId, update.reactions);
-        }
-      });
-
-      // Listen for edits
-      signalRService.onMessageEdited((edited) => {
-        updateMessage(edited);
-      });
-
-      // Listen for deletions
-      signalRService.onMessageDeleted((deleted) => {
-        deleteMessage(deleted.messageId);
-      });
-
-      // Listen for user presence
-      signalRService.onUserStatusChanged((data) => {
-        const normalized = data.status.toLowerCase() as
-          | "online"
-          | "offline"
-          | "away"
-          | "dnd";
-        updateUserStatus(data.userId, normalized);
-      });
-
-      // Listen for being added to a private channel
-      signalRService.onAddedToChannel((newChannel) => {
-        if (newChannel.workspaceId === activeWorkspaceIdRef.current) {
-          setChannels((prev) => {
-            if (prev.some((c) => c.id === newChannel.id)) return prev;
-            return [...prev, newChannel];
-          });
-        }
-
-        // Show Toast popup for the added user
-        setToast({
-          id: newChannel.id,
-          title: "Kênh riêng tư mới",
-          description: `Bạn vừa được thêm vào #${newChannel.name}`,
-          actionLabel: "Xem ngay",
-          onAction: () => {
-            if (newChannel.workspaceId !== activeWorkspaceIdRef.current) {
-              setActiveWorkspaceId(newChannel.workspaceId);
-            }
-            handleSelectChannel(newChannel.id);
-            setToast(null);
-          },
-        });
-      });
-
-      // Listen for new workspace members joining
-      signalRService.onWorkspaceMemberJoined((data) => {
-        const currentWs = useWorkspaceStore
-          .getState()
-          .workspaces.find((w) => w.id === data.workspaceId);
-        if (currentWs) {
-          updateWorkspace({ ...currentWs, memberCount: data.memberCount });
-        }
-
-        // Realtime update member list in MemberListPanel without F5
-        if (data.workspaceId === activeWorkspaceIdRef.current && data.member) {
-          const newMem: DirectMessageUser = {
-            id: data.member.userId,
-            displayName: data.member.displayName,
-            username: data.member.username,
-            email: data.member.email || "",
-            avatarUrl: data.member.avatarUrl,
-            status: "online",
-            role:
-              data.member.role === "Admin"
-                ? "Quản trị viên"
-                : data.member.role === "Owner"
-                  ? "Chủ phòng"
-                  : "Thành viên",
-          };
-          setWorkspaceMembers((prev) => {
-            if (prev.some((m) => m.id === newMem.id)) return prev;
-            return [...prev, newMem];
-          });
-        }
-      });
-
-      // Listen for members being added to private channels
-      signalRService.onChannelMemberAdded((data) => {
-        setChannelMemberIdsMap((prev) => {
-          const existing = prev[data.channelId] || [];
-          if (existing.includes(data.userId)) return prev;
-          return {
-            ...prev,
-            [data.channelId]: [...existing, data.userId],
-          };
-        });
-      });
-
-      // Listen for message pinned event
-      signalRService.onMessagePinned((pinned: any) => {
-        if (pinned.channelId === activeChannelIdRef.current) {
-          setPinnedMessages((prev) => {
-            if (prev.some((p) => p.messageId === pinned.messageId)) return prev;
-            return [...prev, pinned];
-          });
-        }
-      });
-
-      // Listen for message unpinned event
-      signalRService.onMessageUnpinned(
-        (data: { channelId: string; messageId: string }) => {
-          if (data.channelId === activeChannelIdRef.current) {
-            setPinnedMessages((prev) =>
-              prev.filter((p) => p.messageId !== data.messageId),
-            );
-          }
-        },
-      );
-
-      // Listen for incoming notifications (Mentions, Thread Replies, etc.)
-      signalRService.onReceiveNotification((notif) => {
-        setNotifications((prev) => [
-          notif,
-          ...prev.filter((n) => n.id !== notif.id),
-        ]);
-
-        // Don't show toast if user is ALREADY active in this channel viewing messages
-        const isViewingChannel =
-          notif.channelId &&
-          notif.channelId === activeChannelIdRef.current &&
-          activeSidebarViewRef.current === "channels" &&
-          document.visibilityState === "visible";
-
-        if (!isViewingChannel) {
-          setToast({
-            id: notif.id,
-            title: notif.title || "Thông báo mới",
-            description: notif.content || undefined,
-            actionLabel: "Xem ngay",
-            onAction: () => {
-              handleNotificationSelect(notif);
-              setToast(null);
-            },
-          });
-        }
-      });
+      // Connect SignalR & subscribe to real-time events
+      await setupSignalR();
 
       // Load Workspaces
       const wsList = await workspaceApi.getWorkspaces();
@@ -963,11 +602,10 @@ export const ChatPage: React.FC = () => {
           user.id,
         );
 
-        // Sync initial online presence
         try {
           const onlineUserIds = await signalRService.getOnlineUsers();
           if (onlineUserIds.length > 0) {
-            onlineUserIds.forEach((uid) => updateUserStatus(uid, "online"));
+            onlineUserIds.forEach((uid) => useDmStore.getState().updateUserStatus(uid, "online"));
           }
         } catch (presenceErr) {
           console.warn("Could not sync online users:", presenceErr);
@@ -977,15 +615,11 @@ export const ChatPage: React.FC = () => {
           const defaultCh =
             chList.find((c) => c.name?.toLowerCase() === "general") ||
             chList[0];
-          setActiveChannelId(defaultCh.id);
-          await loadMessages(defaultCh.id);
-          await signalRService.joinChannel(defaultCh.id);
+          await handleSelectChannel(defaultCh.id);
         }
-      } else {
-        navigate("/", { replace: true });
       }
     } catch (err) {
-      console.error("Authentication error:", err);
+      console.error("Session verification failed, redirecting to login:", err);
       localStorage.removeItem("nomna_logged_in");
       navigate("/login", { replace: true });
     } finally {
@@ -995,31 +629,14 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     initApp();
+
     return () => {
-      signalRService.disconnect();
+      signalRService.disconnect().catch(console.error);
     };
   }, []);
 
-  // Logout Handler
-  const handleLogout = async () => {
-    try {
-      await authApi.logout();
-    } catch {
-      // ignore
-    }
-    localStorage.removeItem("nomna_logged_in");
-    signalRService.disconnect();
-    setCurrentUser(null);
-    setWorkspaces([]);
-    setChannels([]);
-    setMessages([]);
-    setSettingsOpen(false);
-    navigate("/login");
-  };
-
-  // Optimistic Message Sending
   const handleSendMessage = async (
-    content: string,
+    msgContent: string,
     attachments?: Array<{
       url: string;
       fileName: string;
@@ -1028,159 +645,83 @@ export const ChatPage: React.FC = () => {
       type: "image" | "video" | "file";
     }>,
   ) => {
-    if (!activeChannelId || !currentUser) return;
-    let targetChannelId = activeChannelId;
+    if (!activeChannelId && !activeDmId) return;
+    const targetChannelId = activeChannelId || activeDmId!;
 
-    // Deferred DM creation
-    const currentDm = dmConversations.find((c) => c.id === activeChannelId);
-    if (currentDm?.isPending) {
-      if (!activeWorkspaceId) return;
+    if (activeDmId && activeDmId.startsWith("pending-dm-")) {
+      const targetUserId = activeDmId.replace("pending-dm-", "");
       try {
         const realDm = await channelApi.createOrGetDm(
-          activeWorkspaceId,
-          currentDm.user.id,
+          activeWorkspaceId!,
+          targetUserId,
         );
-        targetChannelId = realDm.id;
-        upgradePendingDm(currentDm.id, realDm.id);
+        useDmStore.getState().upgradePendingDm(activeDmId, realDm.id);
+        setActiveDmId(realDm.id);
         setActiveChannelId(realDm.id);
         await signalRService.joinChannel(realDm.id);
+
+        const realSent = await signalRService.sendMessage(
+          realDm.id,
+          msgContent,
+          undefined,
+          attachments,
+        );
+        if (realSent) {
+          addMessage(realSent);
+        }
+        return;
       } catch (err) {
-        console.error("Failed to create DM channel:", err);
-        alert("Không thể bắt đầu cuộc trò chuyện. Vui lòng thử lại.");
+        console.error("Failed to materialize DM conversation:", err);
         return;
       }
     }
 
-    // 1. Optimistic Message creation
     const tempId = `temp-${Date.now()}`;
-    const optimisticMsg: Message = {
+    const optimisticMessage: Message = {
       id: tempId,
       channelId: targetChannelId,
-      senderId: currentUser.id,
-      senderDisplayName: currentUser.displayName,
-      senderUsername: currentUser.username,
-      senderAvatarUrl: currentUser.avatarUrl,
-      content,
-      isEdited: false,
+      senderId: currentUser?.id || "temp-me",
+      senderDisplayName: currentUser?.displayName || "Me",
+      senderUsername: currentUser?.username || "me",
+      senderAvatarUrl: currentUser?.avatarUrl,
+      content: msgContent,
       createdAt: new Date().toISOString(),
-      replyCount: 0,
-      reactions: [],
-      attachments: attachments || [],
+      isEdited: false,
+      attachments: attachments?.map((a) => ({
+        id: `att-${Date.now()}`,
+        url: a.url,
+        fileName: a.fileName,
+        fileSize: a.fileSize,
+        contentType: a.contentType,
+        type: a.type,
+      })),
     };
 
-    addMessage(optimisticMsg);
-    const snippetText =
-      content || (attachments && attachments.length > 0 ? "[Hình ảnh]" : "");
-    updateDmSnippet(
-      targetChannelId,
-      snippetText,
-      formatMessageTime(new Date()),
-    );
+    addMessage(optimisticMessage);
 
-    // 2. Dispatch to server
     try {
-      const msg = await signalRService.sendMessage(
+      const realMessage = await signalRService.sendMessage(
         targetChannelId,
-        content,
+        msgContent,
         undefined,
         attachments,
       );
-      if (msg) {
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)));
-      }
-    } catch {
-      try {
-        const msg = await messageApi.sendMessage(
-          targetChannelId,
-          content,
-          undefined,
-          attachments,
+      if (realMessage) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? realMessage : m)),
         );
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)));
-      } catch (sendErr) {
-        console.error("Failed to send message:", sendErr);
-        deleteMessage(tempId);
-        alert("Không thể gửi tin nhắn. Vui lòng thử lại.");
       }
+    } catch (err) {
+      console.error("Failed to send message via SignalR:", err);
     }
   };
 
-  // Optimistic Reaction Toggle
-  const handleToggleReaction = async (messageId: string, emoji: string) => {
-    if (!currentUser) return;
-    const targetMsg = messages.find((m) => m.id === messageId);
-    if (!targetMsg) return;
-
-    const previousReactions = targetMsg.reactions || [];
-    const existingGroup = previousReactions.find((r) => r.emoji === emoji);
-    const userId = currentUser.id.toLowerCase();
-
-    let newReactions: ReactionGroup[];
-    if (existingGroup) {
-      const hasUser = existingGroup.userIds.some(
-        (id) => id.toLowerCase() === userId,
-      );
-      if (hasUser) {
-        const nextUserIds = existingGroup.userIds.filter(
-          (id) => id.toLowerCase() !== userId,
-        );
-        if (nextUserIds.length === 0) {
-          newReactions = previousReactions.filter((r) => r.emoji !== emoji);
-        } else {
-          newReactions = previousReactions.map((r) =>
-            r.emoji === emoji
-              ? {
-                  ...r,
-                  count: r.count - 1,
-                  userIds: nextUserIds,
-                  hasReacted: false,
-                }
-              : r,
-          );
-        }
-      } else {
-        newReactions = previousReactions.map((r) =>
-          r.emoji === emoji
-            ? {
-                ...r,
-                count: r.count + 1,
-                userIds: [...r.userIds, currentUser.id],
-                hasReacted: true,
-              }
-            : r,
-        );
-      }
-    } else {
-      newReactions = [
-        ...previousReactions,
-        { emoji, count: 1, userIds: [currentUser.id], hasReacted: true },
-      ];
-    }
-
-    // Immediate optimistic update
-    setReactions(messageId, newReactions);
-
+  const handleEditMessage = async (messageId: string, newContent: string) => {
+    updateMessage({ id: messageId, content: newContent, isEdited: true });
     try {
-      await signalRService.toggleReaction(messageId, emoji);
-    } catch {
-      try {
-        await messageApi.toggleReaction(messageId, emoji);
-      } catch {
-        // Rollback
-        setReactions(messageId, previousReactions);
-      }
-    }
-  };
-
-  const handleEditMessage = async (messageId: string, content: string) => {
-    try {
-      const updated = await signalRService.editMessage(messageId, content);
-      if (updated) {
-        updateMessage(updated);
-      }
-    } catch {
-      const updated = await messageApi.editMessage(messageId, content);
-      updateMessage(updated);
+      await signalRService.editMessage(messageId, newContent);
+    } catch (err) {
+      console.error("Failed to edit message:", err);
     }
   };
 
@@ -1188,9 +729,35 @@ export const ChatPage: React.FC = () => {
     deleteMessage(messageId);
     try {
       await signalRService.deleteMessage(messageId);
-    } catch {
-      await messageApi.deleteMessage(messageId);
+    } catch (err) {
+      console.error("Failed to delete message:", err);
     }
+  };
+
+  const handleToggleReaction = async (messageId: string, emoji: string) => {
+    try {
+      const update = await signalRService.toggleReaction(messageId, emoji);
+      if (update) {
+        if ("isAdded" in update && update.emoji) {
+          useChatStore.getState().applyReactionDelta(update as any, currentUser?.id);
+        } else if (update.reactions) {
+          setReactions(update.messageId, update.reactions);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to toggle reaction:", err);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (err) {
+      console.error("Logout API failed, continuing local clear:", err);
+    }
+    localStorage.removeItem("nomna_logged_in");
+    await signalRService.disconnect();
+    navigate("/login", { replace: true });
   };
 
   const handleCreateChannel = (type: ChannelType) => {
@@ -1337,13 +904,11 @@ export const ChatPage: React.FC = () => {
 
   const handleKickMember = async (member: DirectMessageUser) => {
     if (!activeWorkspaceId) return;
-    // Optimistic member removal
     setWorkspaceMembers((prev) => prev.filter((m) => m.id !== member.id));
     try {
       await workspaceApi.kickMember(activeWorkspaceId, member.id);
     } catch (err: unknown) {
       console.error("Failed to kick member:", err);
-      // Re-fetch on error
       const members = await workspaceApi
         .getMembers(activeWorkspaceId)
         .catch(() => []);
@@ -1387,12 +952,10 @@ export const ChatPage: React.FC = () => {
         : null
       : channels.find((c) => c.id === activeChannelId) || null;
 
-  // Reset channel members map when workspace switches
   useEffect(() => {
     setChannelMemberIdsMap({});
   }, [activeWorkspaceId]);
 
-  // Fetch private channel members when current channel is private
   useEffect(() => {
     if (
       !currentChannel ||
@@ -1410,7 +973,6 @@ export const ChatPage: React.FC = () => {
     fetchChannelMembers,
   ]);
 
-  // Filter members displayed in MemberListPanel
   const displayedMembers = useMemo(() => {
     if (!currentChannel) return workspaceMembers;
 
@@ -1503,7 +1065,7 @@ export const ChatPage: React.FC = () => {
                 onCreateChannel={handleCreateChannel}
                 onOpenSettings={() => setSettingsOpen(true)}
                 isOwner={isOwner}
-                onOpenEditWorkspace={() => setEditWorkspaceOpen(true)}
+                onOpenEditWorkspace={() => useUiStore.getState().setEditWorkspaceOpen(true)}
                 onLeaveWorkspace={handleLeaveWorkspace}
                 onOpenEditChannel={(ch) => setChannelToEdit(ch)}
                 onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
@@ -1553,7 +1115,7 @@ export const ChatPage: React.FC = () => {
             )}
           </div>
 
-          {/* User Account Footer Bar (Cleaned up, no cramped popover) */}
+          {/* User Account Footer Bar */}
           <UserFooterBar
             currentUser={currentUser}
             onOpenSettings={() => setSettingsOpen(true)}
@@ -1640,330 +1202,64 @@ export const ChatPage: React.FC = () => {
           />
         )}
 
-        {/* 3.5 Resizer Divider & Thread Panel */}
-        {isThreadOpen && (
-          <>
-            <div
-              className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-                isResizingThread
-                  ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
-                  : "bg-[var(--border-color)]"
-              }`}
-              onMouseDown={handleThreadResizeStart}
-              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thread"
-            />
-            <ThreadPanel
-              isOpen={isThreadOpen}
-              onClose={closeThread}
-              currentUser={currentUser}
-              parentMessage={activeThreadMessage}
-              width={threadWidth}
-              onExpandWidth={expandThread}
-              onToggleReaction={handleToggleReaction}
-              onEditMessage={handleEditMessage}
-              onDeleteMessage={handleDeleteMessage}
-            />
-          </>
-        )}
-
-        {/* 4. Resizer Divider & Member List Panel (Mutually Exclusive) */}
-        {!isThreadOpen && isMemberListOpen && (
-          <>
-            <div
-              className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-                isResizingMember
-                  ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
-                  : "bg-[var(--border-color)]"
-              }`}
-              onMouseDown={handleMemberResizeStart}
-              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thành viên"
-            />
-            <MemberListPanel
-              isOpen={isMemberListOpen}
-              onClose={() => setMemberListOpen(false)}
-              members={displayedMembers}
-              currentUser={currentUser}
-              currentUserRole={currentUserRole}
-              width={memberWidth}
-              channelName={currentChannel?.name || undefined}
-              isPrivateChannel={
-                !!(
-                  currentChannel?.isPrivate &&
-                  currentChannel.type !== ChannelType.DirectMessage
-                )
-              }
-              isLoading={
-                !!(
-                  currentChannel?.isPrivate &&
-                  currentChannel.type !== ChannelType.DirectMessage &&
-                  loadingChannelMemberIds[currentChannel.id]
-                )
-              }
-              onOpenAddMember={() =>
-                currentChannel && setChannelToAddMember(currentChannel)
-              }
-              onOpenUserProfile={handleOpenUserProfile}
-              onStartDmWithUser={handleStartDmWithUser}
-              onOpenSettings={() => setSettingsOpen(true)}
-              onRequestKickMember={(m) => setMemberToKick(m)}
-            />
-          </>
-        )}
-
-        {/* 5. Resizer Divider & Search Sidebar (Mutually Exclusive) */}
-        {!isThreadOpen && !isMemberListOpen && isSearchOpen && (
-          <>
-            <div
-              className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-                isResizingSearch
-                  ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
-                  : "bg-[var(--border-color)]"
-              }`}
-              onMouseDown={handleSearchResizeStart}
-              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tìm kiếm"
-            />
-            <SearchSidebar
-              isOpen={isSearchOpen}
-              onClose={closeSearch}
-              width={searchWidth}
-              currentChannel={currentChannel}
-              workspaceId={activeWorkspaceId}
-              workspaceMembers={workspaceMembers}
-              onJumpToMessage={(channelId, messageId) => {
-                if (channelId !== activeChannelId) {
-                  setActiveChannelId(channelId);
-                }
-                setTimeout(() => {
-                  const el = document.getElementById(`msg-${messageId}`);
-                  if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    el.classList.remove("animate-message-highlight");
-                    void el.offsetWidth;
-                    el.classList.add("animate-message-highlight");
-                    setTimeout(() => {
-                      el.classList.remove("animate-message-highlight");
-                    }, 2200);
-                  }
-                }, 300);
-              }}
-            />
-          </>
-        )}
-
-        {/* 6. Resizer Divider & Pinned Messages Sidebar (Mutually Exclusive) */}
-        {!isThreadOpen &&
-          !isMemberListOpen &&
-          !isSearchOpen &&
-          isPinnedSidebarOpen && (
-            <>
-              <div
-                className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-                  isResizingPinned
-                    ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
-                    : "bg-[var(--border-color)]"
-                }`}
-                onMouseDown={handlePinnedResizeStart}
-                title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tin nhắn đã ghim"
-              />
-              <PinnedMessagesSidebar
-                isOpen={isPinnedSidebarOpen}
-                onClose={closePinnedSidebar}
-                width={pinnedSidebarWidth}
-                pinnedMessages={pinnedMessages}
-                onJumpToMessage={(messageId) => {
-                  const el = document.getElementById(`msg-${messageId}`);
-                  if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    el.classList.remove("animate-message-highlight");
-                    void el.offsetWidth;
-                    el.classList.add("animate-message-highlight");
-                    setTimeout(() => {
-                      el.classList.remove("animate-message-highlight");
-                    }, 2200);
-                  }
-                }}
-                onUnpinMessage={handleUnpinMessage}
-              />
-            </>
-          )}
-
-        {/* 7. Resizer Divider & Tasks Sidebar (Mutually Exclusive) */}
-        {!isThreadOpen &&
-          !isMemberListOpen &&
-          !isSearchOpen &&
-          !isPinnedSidebarOpen &&
-          isTaskSidebarOpen && (
-            <>
-              <div
-                className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-                  isResizingTask
-                    ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
-                    : "bg-[var(--border-color)]"
-                }`}
-                onMouseDown={handleTaskResizeStart}
-                title="Kéo sang trái/phải để chỉnh kích thước Sidebar Công việc"
-              />
-              <ChannelTasksSidebar
-                isOpen={isTaskSidebarOpen}
-                onClose={closeTaskSidebar}
-                width={taskSidebarWidth}
-                currentChannel={currentChannel}
-                workspaceMembers={workspaceMembers}
-                currentUserId={currentUser?.id}
-                onJumpToMessage={(messageId) => {
-                  const el = document.getElementById(`msg-${messageId}`);
-                  if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    el.classList.remove("animate-message-highlight");
-                    void el.offsetWidth;
-                    el.classList.add("animate-message-highlight");
-                    setTimeout(() => {
-                      el.classList.remove("animate-message-highlight");
-                    }, 2200);
-                  }
-                }}
-              />
-            </>
-          )}
+        {/* 4. Right Sidebars Container (Thread, Members, Search, Pinned, Tasks) */}
+        <ChatRightPanels
+          currentUser={currentUser}
+          currentUserRole={currentUserRole}
+          currentChannel={currentChannel}
+          workspaceMembers={workspaceMembers}
+          displayedMembers={displayedMembers}
+          loadingChannelMemberIds={loadingChannelMemberIds}
+          pinnedMessages={pinnedMessages}
+          handleOpenUserProfile={handleOpenUserProfile}
+          handleStartDmWithUser={handleStartDmWithUser}
+          handleToggleReaction={handleToggleReaction}
+          handleEditMessage={handleEditMessage}
+          handleDeleteMessage={handleDeleteMessage}
+          handleUnpinMessage={handleUnpinMessage}
+          isResizingThread={isResizingThread}
+          isResizingMember={isResizingMember}
+          isResizingSearch={isResizingSearch}
+          isResizingPinned={isResizingPinned}
+          isResizingTask={isResizingTask}
+          handleThreadResizeStart={handleThreadResizeStart}
+          handleMemberResizeStart={handleMemberResizeStart}
+          handleSearchResizeStart={handleSearchResizeStart}
+          handlePinnedResizeStart={handlePinnedResizeStart}
+          handleTaskResizeStart={handleTaskResizeStart}
+        />
       </main>
 
-      {/* Modals */}
-      <KickMemberModal
-        isOpen={!!memberToKick}
-        onClose={() => setMemberToKick(null)}
-        member={memberToKick}
-        workspaceName={currentWorkspace?.name}
-        onConfirmKick={handleKickMember}
-      />
-
-      <CreateWorkspaceModal
-        isOpen={isCreateWorkspaceOpen}
-        onClose={() => setCreateWorkspaceOpen(false)}
-        onWorkspaceCreated={handleWorkspaceCreated}
-      />
-
-      <EditWorkspaceModal
-        isOpen={isEditWorkspaceOpen}
-        onClose={() => setEditWorkspaceOpen(false)}
-        workspace={currentWorkspace}
-        isOwner={isOwner}
-        onWorkspaceUpdated={handleWorkspaceUpdated}
-        onWorkspaceDeleted={handleWorkspaceDeleted}
-      />
-
-      <CreateChannelModal
-        isOpen={isCreateChannelOpen}
-        onClose={() => setCreateChannelOpen(false)}
-        workspaceId={activeWorkspaceId}
-        channelType={createChannelType}
-        onChannelCreated={handleChannelCreated}
-      />
-
-      <EditChannelModal
-        isOpen={!!channelToEdit}
-        onClose={() => setChannelToEdit(null)}
-        channel={channelToEdit}
-        onChannelUpdated={handleChannelUpdated}
-        onChannelDeleted={handleChannelDeleted}
-      />
-
-      <AddChannelMemberModal
-        isOpen={!!channelToAddMember}
-        onClose={() => setChannelToAddMember(null)}
-        channel={channelToAddMember}
-        members={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
-        onMemberAdded={(userId) => {
-          if (channelToAddMember) {
-            const chId = channelToAddMember.id;
-            setChannelMemberIdsMap((prev) => {
-              const existing = prev[chId] || [];
-              if (existing.includes(userId)) return prev;
-              return { ...prev, [chId]: [...existing, userId] };
-            });
-          }
-        }}
-      />
-
-      <NewDirectMessageModal
-        isOpen={isNewDmOpen}
-        onClose={() => setNewDmOpen(false)}
-        onStartDm={handleStartDm}
-        existingDmUserIds={dmConversations.map((c) => c.user.id)}
-        members={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
-      />
-
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setSettingsOpen(false)}
+      {/* 5. Modals Container (All 12 Modals) */}
+      <ChatModals
         currentUser={currentUser}
-        onLogout={handleLogout}
-        currentTheme={theme}
-        onThemeChange={changeTheme}
-        onUserUpdated={(u) => {
-          setCurrentUser(u);
-          // Optimistically update member list & messages without re-querying DB!
-          updateMemberProfile(u.id, {
-            displayName: u.displayName,
-            avatarUrl: u.avatarUrl || undefined,
-          });
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.senderId === u.id
-                ? {
-                    ...m,
-                    senderDisplayName: u.displayName,
-                    senderAvatarUrl: u.avatarUrl,
-                  }
-                : m,
-            ),
-          );
-        }}
-      />
-
-      {/* Unified Modern User Profile Popout (Discord-style) */}
-      <UserProfileModal
-        isOpen={!!inspectingUser}
-        onClose={() => {
-          setInspectingUser(null);
-          setUserProfileAnchor(null);
-        }}
-        user={inspectingUser}
-        anchorRect={userProfileAnchor}
-        currentUserId={currentUser?.id}
-        onStartDm={(u) => {
-          handleStartDmWithUser({
-            id: u.id,
-            displayName: u.displayName,
-            username: u.username,
-            avatarUrl: u.avatarUrl || undefined,
-          });
-        }}
-        onOpenSettings={() => setSettingsOpen(true)}
-        canKick={
-          !!currentUserRole &&
-          (currentUserRole.toLowerCase() === "owner" ||
-            (currentUserRole.toLowerCase() === "admin" &&
-              (inspectingUser?.role || "").toLowerCase() !== "owner" &&
-              (inspectingUser?.role || "").toLowerCase() !== "admin"))
-        }
-        onKickMember={(u) => {
-          const found = workspaceMembers.find((m) => m.id === u.id);
-          if (found) setMemberToKick(found);
-        }}
-      />
-
-      {/* Task Modals */}
-      <CreateTaskModal
-        isOpen={false}
-        onClose={() => {}}
-        workspaceMembers={workspaceMembers}
+        setCurrentUser={setCurrentUser}
+        currentWorkspace={currentWorkspace}
         currentChannel={currentChannel}
-        currentUserId={currentUser?.id}
+        workspaceMembers={workspaceMembers}
+        currentUserRole={currentUserRole}
+        isOwner={isOwner}
+        theme={theme}
+        changeTheme={changeTheme}
+        handleLogout={handleLogout}
+        handleWorkspaceCreated={handleWorkspaceCreated}
+        handleWorkspaceUpdated={handleWorkspaceUpdated}
+        handleWorkspaceDeleted={handleWorkspaceDeleted}
+        handleChannelCreated={handleChannelCreated}
+        handleChannelUpdated={handleChannelUpdated}
+        handleChannelDeleted={handleChannelDeleted}
+        handleKickMember={handleKickMember}
+        handleStartDm={handleStartDm}
+        handleStartDmWithUser={handleStartDmWithUser}
+        inspectingUser={inspectingUser}
+        setInspectingUser={setInspectingUser}
+        userProfileAnchor={userProfileAnchor}
+        setUserProfileAnchor={setUserProfileAnchor}
+        setChannelMemberIdsMap={setChannelMemberIdsMap}
+        dmConversations={dmConversations}
       />
 
-      <EditTaskModal workspaceMembers={workspaceMembers} />
-
-      {/* Floating Toast Notification */}
+      {/* 6. Floating Toast Notification */}
       {toast && (
         <Toast
           id={toast.id}
@@ -1977,3 +1273,4 @@ export const ChatPage: React.FC = () => {
     </>
   );
 };
+export default ChatPage;

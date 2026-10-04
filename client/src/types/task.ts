@@ -27,6 +27,8 @@ export interface TaskItem {
   channelId: string;
   title: string;
   note?: string | null;
+  attachmentUrl?: string | null;
+  completionNote?: string | null;
   status: TaskItemStatus;
   priority: TaskPriority;
   dueDate?: string | null;

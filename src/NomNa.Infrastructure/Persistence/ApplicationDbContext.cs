@@ -20,6 +20,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public DbSet<ChannelPinnedMessage> ChannelPinnedMessages => Set<ChannelPinnedMessage>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<TaskItem> Tasks => Set<TaskItem>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -271,6 +272,47 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .WithMany()
                 .HasForeignKey(e => e.MessageId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<TaskItem>(entity =>
+        {
+            entity.ToTable("task_items");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ChannelId, e.Status });
+            entity.HasIndex(e => new { e.WorkspaceId, e.Status });
+            entity.HasIndex(e => e.AssigneeId);
+            entity.HasIndex(e => e.CreatedById);
+            entity.HasIndex(e => e.DueDate);
+
+            entity.Property(e => e.Title).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.Note).HasMaxLength(2000);
+            entity.Property(e => e.AttachmentUrl).HasMaxLength(1000);
+            entity.Property(e => e.CompletionNote).HasMaxLength(2000);
+
+            entity.HasOne(e => e.Workspace)
+                .WithMany()
+                .HasForeignKey(e => e.WorkspaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Channel)
+                .WithMany()
+                .HasForeignKey(e => e.ChannelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Creator)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Assignee)
+                .WithMany()
+                .HasForeignKey(e => e.AssigneeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.SourceMessage)
+                .WithMany()
+                .HasForeignKey(e => e.SourceMessageId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
