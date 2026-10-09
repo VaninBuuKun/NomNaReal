@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './services';
-import { AuthPage, ChatPage, HomePage, JoinPage, LandingPage } from './pages';
+import { AuthPage, ChatPage, JoinPage } from './pages';
 import './styles/globals.css';
 
 // Protected Route Component: requires auth session
@@ -14,19 +14,13 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// Public Only Route Component: redirects authenticated users to root /
+// Public Only Route Component: redirects authenticated users to main app /
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isLoggedIn = localStorage.getItem('nomna_logged_in') === 'true';
   if (isLoggedIn) {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
-};
-
-// Root Route: authenticated goes to HomePage, unauthenticated goes to LandingPage
-const RootRoute: React.FC = () => {
-  const isLoggedIn = localStorage.getItem('nomna_logged_in') === 'true';
-  return isLoggedIn ? <HomePage /> : <LandingPage />;
 };
 
 export const App: React.FC = () => {
@@ -41,8 +35,33 @@ export const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<RootRoute />} />
-          <Route path="/landing" element={<LandingPage />} />
+          {/* Main App is ONE single page: ChatPage like Discord */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/channels/:serverId"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/workspace/:workspaceId"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Auth Pages */}
           <Route
             path="/login"
             element={
@@ -83,14 +102,7 @@ export const App: React.FC = () => {
               </PublicRoute>
             }
           />
-          <Route
-            path="/workspace/:workspaceId"
-            element={
-              <ProtectedRoute>
-                <ChatPage />
-              </ProtectedRoute>
-            }
-          />
+
           <Route path="/join/:inviteCode" element={<JoinPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
