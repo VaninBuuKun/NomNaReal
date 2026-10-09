@@ -52,10 +52,10 @@ public class MarkChannelAsReadCommandHandler : IRequestHandler<MarkChannelAsRead
         }
         else
         {
-            var isWorkspaceMember = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
-            if (!isWorkspaceMember)
-                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+            var isServerMember = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId.Value, cancellationToken);
+            if (!isServerMember)
+                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
             // Public channels: avoid creating fake ChannelMember rows.
             // Client-side real-time SignalR handles UI unread indicators efficiently.

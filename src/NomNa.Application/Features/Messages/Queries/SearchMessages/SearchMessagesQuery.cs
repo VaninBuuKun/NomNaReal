@@ -5,7 +5,7 @@ using NomNa.Application.Features.Messages.DTOs;
 namespace NomNa.Application.Features.Messages.Queries.SearchMessages;
 
 public record SearchMessagesQuery(
-    Guid WorkspaceId,
+    Guid ServerId,
     string? Keyword,
     Guid? ChannelId = null,
     Guid? SenderId = null,

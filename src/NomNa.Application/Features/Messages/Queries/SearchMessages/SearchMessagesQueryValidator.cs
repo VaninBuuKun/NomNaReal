@@ -6,7 +6,7 @@ public class SearchMessagesQueryValidator : AbstractValidator<SearchMessagesQuer
 {
     public SearchMessagesQueryValidator()
     {
-        RuleFor(x => x.WorkspaceId).NotEmpty();
+        RuleFor(x => x.ServerId).NotEmpty();
         RuleFor(x => x.Limit).InclusiveBetween(1, 100);
 
         RuleFor(x => x)

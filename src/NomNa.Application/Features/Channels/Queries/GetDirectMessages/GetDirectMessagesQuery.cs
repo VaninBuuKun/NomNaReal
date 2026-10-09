@@ -3,11 +3,11 @@ using NomNa.Application.Common.Models;
 
 namespace NomNa.Application.Features.Channels.Queries.GetDirectMessages;
 
-public record GetDirectMessagesQuery(Guid WorkspaceId) : IRequest<Result<List<DirectMessageChannelDto>>>;
+public record GetDirectMessagesQuery(Guid ServerId) : IRequest<Result<List<DirectMessageChannelDto>>>;
 
 public record DirectMessageChannelDto(
     Guid Id,
-    Guid WorkspaceId,
+    Guid ServerId,
     Guid TargetUserId,
     string TargetDisplayName,
     string TargetUsername,

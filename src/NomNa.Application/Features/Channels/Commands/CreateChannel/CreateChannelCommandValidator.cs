@@ -6,7 +6,7 @@ public class CreateChannelCommandValidator : AbstractValidator<CreateChannelComm
 {
     public CreateChannelCommandValidator()
     {
-        RuleFor(x => x.WorkspaceId).NotEmpty();
+        RuleFor(x => x.ServerId).NotEmpty();
         RuleFor(x => x.Name).NotEmpty().MaximumLength(50).Matches(@"^[a-z0-9\-]+$")
             .WithMessage("Channel names must contain only lowercase letters, numbers, and hyphens.");
     }

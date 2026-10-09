@@ -35,30 +35,30 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
         if (!channel.IsPrivate)
             return Error.Validation("Channel.NotPrivate", "Chỉ kênh riêng tư mới cần thêm thành viên chỉ định.");
 
-        // 2. Check quyền của người gọi (Caller): Phải là Channel Member HOẶC Workspace Admin/Owner
-        var workspaceMember = await _context.WorkspaceMembers
-            .FirstOrDefaultAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == currentUserId.Value, cancellationToken);
+        // 2. Check quyền của người gọi (Caller): Phải là Channel Member HOẶC Server Admin/Owner
+        var serverMember = await _context.ServerMembers
+            .FirstOrDefaultAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == currentUserId.Value, cancellationToken);
 
-        if (workspaceMember == null)
-            return Error.Forbidden("Workspace.Forbidden", "Bạn không thuộc workspace này.");
+        if (serverMember == null)
+            return Error.Forbidden("Server.Forbidden", "Bạn không thuộc server này.");
 
-        var isWorkspaceAdminOrOwner = workspaceMember.Role == WorkspaceRole.Owner || workspaceMember.Role == WorkspaceRole.Admin;
+        var isServerAdminOrOwner = serverMember.Role == ServerRole.Owner || serverMember.Role == ServerRole.Admin;
 
         var isChannelMember = await _context.ChannelMembers
             .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == currentUserId.Value, cancellationToken);
 
         var isCreator = channel.CreatedById == currentUserId.Value;
 
-        if (!isChannelMember && !isWorkspaceAdminOrOwner && !isCreator)
+        if (!isChannelMember && !isServerAdminOrOwner && !isCreator)
             return Error.Forbidden("Channel.Forbidden", "Bạn không có quyền thêm thành viên vào kênh riêng tư này.");
 
-        // 3. Verify người được thêm (Target User) có thuộc Workspace hay không
-        var targetWorkspaceMember = await _context.WorkspaceMembers
+        // 3. Verify người được thêm (Target User) có thuộc Server hay không
+        var targetServerMember = await _context.ServerMembers
             .Include(wm => wm.User)
-            .FirstOrDefaultAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == request.UserId, cancellationToken);
+            .FirstOrDefaultAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == request.UserId, cancellationToken);
 
-        if (targetWorkspaceMember == null)
-            return Error.NotFound("Workspace.UserNotFound", "Người dùng không thuộc workspace này.");
+        if (targetServerMember == null)
+            return Error.NotFound("Server.UserNotFound", "Người dùng không thuộc server này.");
 
         // 4. Check xem Target User đã có sẵn trong Channel chưa (Query AnyAsync trực tiếp xuống DB)
         var isTargetAlreadyMember = await _context.ChannelMembers
@@ -83,7 +83,7 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
         {
             ChannelId = channel.Id,
             SenderId = currentUserId.Value,
-            Content = $"đã thêm @{targetWorkspaceMember.User.DisplayName} vào kênh riêng tư.",
+            Content = $"đã thêm @{targetServerMember.User.DisplayName} vào kênh riêng tư.",
             CreatedAt = DateTime.UtcNow
         };
         _context.Messages.Add(joinMessage);
@@ -112,7 +112,7 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
 
         var channelDto = new ChannelDto(
             channel.Id,
-            channel.WorkspaceId,
+            channel.ServerId,
             channel.Name,
             channel.Type,
             channel.IsPrivate,
@@ -123,7 +123,7 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
         return new AddChannelMemberResultDto(
             channel.Id,
             request.UserId,
-            targetWorkspaceMember.User.DisplayName,
+            targetServerMember.User.DisplayName,
             channelDto,
             messageDto
         );

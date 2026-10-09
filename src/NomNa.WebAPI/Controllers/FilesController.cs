@@ -52,7 +52,7 @@ public class FilesController : ApiControllerBase
         var safeFolder = folder.ToLowerInvariant() switch
         {
             "avatars" => "avatars",
-            "workspaces" => "workspaces",
+            "servers" => "servers",
             "videos" => "videos",
             "attachments" => "attachments",
             _ => "uploads"

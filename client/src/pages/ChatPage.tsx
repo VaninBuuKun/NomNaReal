@@ -827,7 +827,7 @@ export const ChatPage: React.FC = () => {
 
   const activeDm = dmConversations.find((d) => d.id === activeDmId);
   const currentWorkspace =
-    workspaces.find((w) => w.id === activeWorkspaceId) || null;
+    workspaces.find((w: any) => w.id === activeWorkspaceId) || null;
   const currentUserMember = workspaceMembers.find(
     (m) => m.id === currentUser?.id,
   );
@@ -844,7 +844,7 @@ export const ChatPage: React.FC = () => {
 
   const handleWorkspaceDeleted = (deletedId: string) => {
     removeWorkspace(deletedId);
-    const remaining = workspaces.filter((w) => w.id !== deletedId);
+    const remaining = workspaces.filter((w: any) => w.id !== deletedId);
     if (remaining.length > 0) {
       handleSelectWorkspace(remaining[0].id);
     } else {

@@ -186,14 +186,28 @@ export class SignalRService {
   }
 
   public onWorkspaceMemberJoined(callback: (data: { workspaceId: string; member?: any; memberCount: number }) => void): void {
-    if (this.connection) {
-      this.connection.on('WorkspaceMemberJoined', callback);
-    }
+    this.onServerMemberJoined((data: any) => {
+      callback({
+        workspaceId: data.serverId || data.workspaceId,
+        member: data.member,
+        memberCount: data.memberCount,
+      });
+    });
   }
 
   public offWorkspaceMemberJoined(callback: (data: any) => void): void {
+    this.offServerMemberJoined(callback);
+  }
+
+  public onServerMemberJoined(callback: (data: { serverId: string; member?: any; memberCount: number }) => void): void {
     if (this.connection) {
-      this.connection.off('WorkspaceMemberJoined', callback);
+      this.connection.on('ServerMemberJoined', callback);
+    }
+  }
+
+  public offServerMemberJoined(callback: (data: any) => void): void {
+    if (this.connection) {
+      this.connection.off('ServerMemberJoined', callback);
     }
   }
 

@@ -31,12 +31,12 @@ public class GetChannelMembersQueryHandler : IRequestHandler<GetChannelMembersQu
         if (channel == null)
             return Error.NotFound("Channel.NotFound", "Kênh không tồn tại.");
 
-        // Check workspace membership
-        var isWorkspaceMember = await _context.WorkspaceMembers
-            .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == currentUserId.Value, cancellationToken);
+        // Check server membership
+        var isServerMember = await _context.ServerMembers
+            .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == currentUserId.Value, cancellationToken);
 
-        if (!isWorkspaceMember)
-            return Error.Forbidden("Workspace.Forbidden", "Bạn không thuộc workspace này.");
+        if (!isServerMember)
+            return Error.Forbidden("Server.Forbidden", "Bạn không thuộc server này.");
 
         if (channel.IsPrivate)
         {
@@ -44,11 +44,11 @@ public class GetChannelMembersQueryHandler : IRequestHandler<GetChannelMembersQu
             var isChannelMember = await _context.ChannelMembers
                 .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == currentUserId.Value, cancellationToken);
 
-            var isWorkspaceAdmin = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == currentUserId.Value &&
-                               (wm.Role == WorkspaceRole.Owner || wm.Role == WorkspaceRole.Admin), cancellationToken);
+            var isServerAdmin = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == currentUserId.Value &&
+                               (wm.Role == ServerRole.Owner || wm.Role == ServerRole.Admin), cancellationToken);
 
-            if (!isChannelMember && !isWorkspaceAdmin && !isCreator)
+            if (!isChannelMember && !isServerAdmin && !isCreator)
                 return Error.Forbidden("Channel.Forbidden", "Bạn không có quyền xem thành viên của kênh riêng tư này.");
 
             var members = await _context.ChannelMembers
@@ -86,10 +86,10 @@ public class GetChannelMembersQueryHandler : IRequestHandler<GetChannelMembersQu
             return members;
         }
 
-        // For public channels, return all workspace members
-        var allMembers = await _context.WorkspaceMembers
+        // For public channels, return all server members
+        var allMembers = await _context.ServerMembers
             .AsNoTracking()
-            .Where(wm => wm.WorkspaceId == channel.WorkspaceId)
+            .Where(wm => wm.ServerId == channel.ServerId)
             .Include(wm => wm.User)
             .Select(wm => new ChannelMemberDto(
                 wm.UserId,

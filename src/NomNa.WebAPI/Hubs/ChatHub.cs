@@ -78,11 +78,11 @@ public class ChatHub : Hub
             }
             else
             {
-                var isMember = await db.WorkspaceMembers
-                    .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == userId);
+                var isMember = await db.ServerMembers
+                    .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId);
                 if (!isMember)
                 {
-                    throw new HubException("Access denied to this workspace.");
+                    throw new HubException("Access denied to this server.");
                 }
             }
         }

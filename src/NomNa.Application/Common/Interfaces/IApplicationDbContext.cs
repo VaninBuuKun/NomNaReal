@@ -6,8 +6,8 @@ namespace NomNa.Application.Common.Interfaces;
 public interface IApplicationDbContext
 {
     DbSet<User> Users { get; }
-    DbSet<Workspace> Workspaces { get; }
-    DbSet<WorkspaceMember> WorkspaceMembers { get; }
+    DbSet<Server> Servers { get; }
+    DbSet<ServerMember> ServerMembers { get; }
     DbSet<Channel> Channels { get; }
     DbSet<ChannelMember> ChannelMembers { get; }
     DbSet<Message> Messages { get; }

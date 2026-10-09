@@ -5,13 +5,15 @@ namespace NomNa.Domain.Entities;
 
 public class Channel : BaseEntity
 {
-    public Guid WorkspaceId { get; set; }
-    public Workspace Workspace { get; set; } = null!;
+    public Guid ServerId { get; set; }
+    public Server Server { get; set; } = null!;
 
     public string? Name { get; set; }
     public ChannelType Type { get; set; } = ChannelType.Text;
     public bool IsPrivate { get; set; } = false;
     public Guid CreatedById { get; set; }
+
+    // Denormalized fields for quick display
     public DateTime? LastMessageAt { get; set; }
     public string? LastMessageContent { get; set; }
     public Guid? LastMessageSenderId { get; set; }

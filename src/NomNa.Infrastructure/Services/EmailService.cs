@@ -19,14 +19,14 @@ public class EmailService : IEmailService
 
     public async Task SendInviteEmailAsync(
         string toEmail,
-        string workspaceName,
+        string serverName,
         string inviteCode,
         string inviterName,
         string? joinUrl = null,
         CancellationToken cancellationToken = default)
     {
         var effectiveJoinUrl = joinUrl ?? $"http://localhost:5173/join/{inviteCode}";
-        var subject = $"[NomNa] {inviterName} đã mời bạn tham gia workspace \"{workspaceName}\"";
+        var subject = $"[NomNa] {inviterName} đã mời bạn tham gia server \"{serverName}\"";
 
         var bodyHtml = $@"
 <!DOCTYPE html>
@@ -51,17 +51,17 @@ public class EmailService : IEmailService
   <div class=""container"">
     <div class=""header"">
       <div class=""logo"">NomNa</div>
-      <div class=""title"">Lời mời tham gia Workspace</div>
+      <div class=""title"">Lời mời tham gia Server</div>
     </div>
     <div class=""content"">
       Xin chào,<br><br>
-      <strong>{inviterName}</strong> vừa gửi lời mời bạn cùng tham gia trò chuyện và làm việc tại workspace <strong>""{workspaceName}""</strong> trên NomNa.
+      <strong>{inviterName}</strong> vừa gửi lời mời bạn cùng tham gia trò chuyện và làm việc tại server <strong>""{serverName}""</strong> trên NomNa.
     </div>
     <div class=""code-box"">
       <span class=""code-label"">Mã tham gia trực tiếp</span>
       <span class=""code"" select-all>{inviteCode}</span>
     </div>
-    <a href=""{effectiveJoinUrl}"" class=""btn"" target=""_blank"">Tham gia Workspace ngay</a>
+    <a href=""{effectiveJoinUrl}"" class=""btn"" target=""_blank"">Tham gia Server ngay</a>
     <div class=""footer"">
       Nếu bạn không biết người gửi hoặc không yêu cầu lời mời này, bạn có thể yên tâm bỏ qua email.<br>
       NomNa — Nền tảng giao tiếp theo thời gian thực.
@@ -70,7 +70,7 @@ public class EmailService : IEmailService
 </body>
 </html>";
 
-        var devSummary = $"[DEV EMAIL INVITE] Sent to: {toEmail} | Workspace: {workspaceName} | Code: {inviteCode} | Link: {effectiveJoinUrl}";
+        var devSummary = $"[DEV EMAIL INVITE] Sent to: {toEmail} | Server: {serverName} | Code: {inviteCode} | Link: {effectiveJoinUrl}";
         await SendHtmlEmailAsync(toEmail, subject, bodyHtml, devSummary, cancellationToken);
     }
 

@@ -15,7 +15,7 @@ public enum ChannelType
     DirectMessage = 2
 }
 
-public enum WorkspaceRole
+public enum ServerRole
 {
     Member = 0,
     Admin = 1,
@@ -27,5 +27,5 @@ public enum NotificationType
     Mention = 1,
     ThreadReply = 2,
     ChannelInvite = 3,
-    WorkspaceInvite = 4
+    ServerInvite = 4
 }

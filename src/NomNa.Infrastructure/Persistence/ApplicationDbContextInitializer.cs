@@ -73,8 +73,8 @@ public class ApplicationDbContextInitializer
         await _userManager.CreateAsync(minh, "Password123!");
         await _userManager.CreateAsync(van, "Password123!");
 
-        // 2. Seed Workspace
-        var workspace = new Workspace
+        // 2. Seed Server
+        var server = new Server
         {
             Name = "Nexus Hub",
             Description = "Trung tâm làm việc & phát triển sản phẩm của team NomNa",
@@ -83,9 +83,9 @@ public class ApplicationDbContextInitializer
             Owner = alex
         };
 
-        workspace.Members.Add(new WorkspaceMember { User = alex, Role = WorkspaceRole.Owner });
-        workspace.Members.Add(new WorkspaceMember { User = minh, Role = WorkspaceRole.Admin });
-        workspace.Members.Add(new WorkspaceMember { User = van, Role = WorkspaceRole.Member });
+        server.Members.Add(new ServerMember { User = alex, Role = ServerRole.Owner });
+        server.Members.Add(new ServerMember { User = minh, Role = ServerRole.Admin });
+        server.Members.Add(new ServerMember { User = van, Role = ServerRole.Member });
 
         // 3. Seed Channels
         var generalChannel = new Channel
@@ -93,7 +93,7 @@ public class ApplicationDbContextInitializer
             Name = "general",
             Type = ChannelType.Text,
             CreatedById = alex.Id,
-            Workspace = workspace
+            Server = server
         };
 
         var backendChannel = new Channel
@@ -101,7 +101,7 @@ public class ApplicationDbContextInitializer
             Name = "backend-net9",
             Type = ChannelType.Text,
             CreatedById = minh.Id,
-            Workspace = workspace
+            Server = server
         };
 
         var frontendChannel = new Channel
@@ -109,7 +109,7 @@ public class ApplicationDbContextInitializer
             Name = "react-frontend",
             Type = ChannelType.Text,
             CreatedById = van.Id,
-            Workspace = workspace
+            Server = server
         };
 
         // Add channel members
@@ -120,11 +120,11 @@ public class ApplicationDbContextInitializer
             frontendChannel.Members.Add(new ChannelMember { User = user });
         }
 
-        workspace.Channels.Add(generalChannel);
-        workspace.Channels.Add(backendChannel);
-        workspace.Channels.Add(frontendChannel);
+        server.Channels.Add(generalChannel);
+        server.Channels.Add(backendChannel);
+        server.Channels.Add(frontendChannel);
 
-        _context.Workspaces.Add(workspace);
+        _context.Servers.Add(server);
 
         // 4. Seed Messages
         var msg1 = new Message

@@ -17,7 +17,7 @@ public static class SignalRConstants
         public const string UserStatusChanged = "UserStatusChanged";
         public const string AddedToChannel = "AddedToChannel";
         public const string ChannelMemberAdded = "ChannelMemberAdded";
-        public const string WorkspaceMemberJoined = "WorkspaceMemberJoined";
+        public const string ServerMemberJoined = "ServerMemberJoined";
         public const string MessagePinned = "MessagePinned";
         public const string MessageUnpinned = "MessageUnpinned";
         public const string ReceiveNotification = "ReceiveNotification";

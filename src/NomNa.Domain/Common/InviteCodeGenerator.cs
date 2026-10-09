@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 namespace NomNa.Domain.Common;
 
 /// <summary>
-/// Utility for generating cryptographically secure, collision-resistant workspace invite codes.
+/// Utility for generating cryptographically secure, collision-resistant server invite codes.
 /// Follows industry best practices (Discord / Slack style):
 /// - Cryptographically secure pseudo-random number generator (CSPRNG).
 /// - Unbiased uniform sampling (no modulo bias).

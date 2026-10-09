@@ -5,6 +5,6 @@ using NomNa.Application.Features.Channels.DTOs;
 namespace NomNa.Application.Features.Channels.Commands.CreateOrGetDmChannel;
 
 public record CreateOrGetDmChannelCommand(
-    Guid WorkspaceId,
+    Guid ServerId,
     Guid TargetUserId
 ) : IRequest<Result<ChannelDto>>;

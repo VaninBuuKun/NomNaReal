@@ -35,7 +35,7 @@ public class UnpinMessageCommandHandler : IRequestHandler<UnpinMessageCommand, R
                 ChannelIsPrivate = p.Channel.IsPrivate,
                 ChannelType = p.Channel.Type,
                 ChannelCreatedById = p.Channel.CreatedById,
-                WorkspaceId = p.Channel.WorkspaceId
+                ServerId = p.Channel.ServerId
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -56,11 +56,11 @@ public class UnpinMessageCommandHandler : IRequestHandler<UnpinMessageCommand, R
         }
         else
         {
-            var isMember = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == pinInfo.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+            var isMember = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == pinInfo.ServerId && wm.UserId == userId.Value, cancellationToken);
             if (!isMember)
             {
-                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
             }
         }
 

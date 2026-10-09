@@ -25,22 +25,22 @@ public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand,
         if (!userId.HasValue)
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
-        var isMember = await _context.WorkspaceMembers
-            .AnyAsync(wm => wm.WorkspaceId == request.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+        var isMember = await _context.ServerMembers
+            .AnyAsync(wm => wm.ServerId == request.ServerId && wm.UserId == userId.Value, cancellationToken);
 
         if (!isMember)
-            return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+            return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
         var channelName = request.Name.Trim().ToLowerInvariant();
 
-        if (await _context.Channels.AnyAsync(c => c.WorkspaceId == request.WorkspaceId && c.Name == channelName, cancellationToken))
+        if (await _context.Channels.AnyAsync(c => c.ServerId == request.ServerId && c.Name == channelName, cancellationToken))
         {
-            return Error.Conflict("Channel.AlreadyExists", $"Channel #{channelName} already exists in this workspace.");
+            return Error.Conflict("Channel.AlreadyExists", $"Channel #{channelName} already exists in this server.");
         }
 
         var channel = new Channel
         {
-            WorkspaceId = request.WorkspaceId,
+            ServerId = request.ServerId,
             Name = channelName,
             Type = request.Type,
             IsPrivate = request.IsPrivate,
@@ -61,7 +61,7 @@ public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand,
 
         return new ChannelDto(
             channel.Id,
-            channel.WorkspaceId,
+            channel.ServerId,
             channel.Name,
             channel.Type,
             channel.IsPrivate

@@ -32,25 +32,25 @@ public class UpdateChannelCommandHandler : IRequestHandler<UpdateChannelCommand,
         if (channel == null || channel.Type == ChannelType.DirectMessage)
             return Error.NotFound("Channel.NotFound", "Channel not found.");
 
-        // Check if user is workspace owner/admin or channel creator
-        var member = await _context.WorkspaceMembers
-            .FirstOrDefaultAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+        // Check if user is server owner/admin or channel creator
+        var member = await _context.ServerMembers
+            .FirstOrDefaultAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId.Value, cancellationToken);
 
         if (member == null)
-            return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+            return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
-        var isOwnerOrAdmin = member.Role == WorkspaceRole.Owner || member.Role == WorkspaceRole.Admin;
+        var isOwnerOrAdmin = member.Role == ServerRole.Owner || member.Role == ServerRole.Admin;
         var isCreator = channel.CreatedById == userId.Value;
 
         if (!isOwnerOrAdmin && !isCreator)
-            return Error.Forbidden("Channel.Forbidden", "Only workspace owners, admins, or the channel creator can update channel settings.");
+            return Error.Forbidden("Channel.Forbidden", "Only server owners, admins, or the channel creator can update channel settings.");
 
         channel.Name = request.Name.Trim().ToLower();
         await _context.SaveChangesAsync(cancellationToken);
 
         return new ChannelDto(
             channel.Id,
-            channel.WorkspaceId,
+            channel.ServerId,
             channel.Name,
             channel.Type,
             channel.IsPrivate,

@@ -24,17 +24,17 @@ public class SearchMessagesQueryHandler : IRequestHandler<SearchMessagesQuery, R
         if (!userId.HasValue)
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
-        // Verify workspace membership
-        var isMember = await _context.WorkspaceMembers
-            .AnyAsync(wm => wm.WorkspaceId == request.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+        // Verify server membership
+        var isMember = await _context.ServerMembers
+            .AnyAsync(wm => wm.ServerId == request.ServerId && wm.UserId == userId.Value, cancellationToken);
 
         if (!isMember)
-            return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+            return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
-        // Query accessible channel IDs for this user in the workspace
+        // Query accessible channel IDs for this user in the server
         var accessibleChannelIds = await _context.Channels
             .AsNoTracking()
-            .Where(c => c.WorkspaceId == request.WorkspaceId &&
+            .Where(c => c.ServerId == request.ServerId &&
                         ((!c.IsPrivate && c.Type != ChannelType.DirectMessage) ||
                          c.Members.Any(cm => cm.UserId == userId.Value)))
             .Select(c => c.Id)

@@ -104,7 +104,7 @@ public class MessagesController : ApiControllerBase
     public async Task<IActionResult> SearchMessages([FromQuery] SearchMessagesRequest request)
     {
         var result = await Mediator.Send(new SearchMessagesQuery(
-            request.WorkspaceId,
+            request.ServerId,
             request.Keyword,
             request.ChannelId,
             request.SenderId,
@@ -157,7 +157,7 @@ public record ReplyToThreadRequest(string Content);
 public record EditMessageRequest(string Content);
 public record ToggleReactionRequest(string Emoji);
 public record SearchMessagesRequest(
-    Guid WorkspaceId,
+    Guid ServerId,
     string? Keyword,
     Guid? ChannelId,
     Guid? SenderId,

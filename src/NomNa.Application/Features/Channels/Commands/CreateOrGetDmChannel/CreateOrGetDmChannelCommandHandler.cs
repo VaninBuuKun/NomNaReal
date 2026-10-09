@@ -41,10 +41,10 @@ public class CreateOrGetDmChannelCommandHandler : IRequestHandler<CreateOrGetDmC
             return Error.NotFound("User.NotFound", "Target user not found.");
         }
 
-        // Find existing DM channel between these 2 users in this workspace
+        // Find existing DM channel between these 2 users in this server
         var existingDmChannel = await _context.Channels
             .Include(c => c.Members)
-            .Where(c => c.WorkspaceId == request.WorkspaceId && c.Type == ChannelType.DirectMessage)
+            .Where(c => c.ServerId == request.ServerId && c.Type == ChannelType.DirectMessage)
             .FirstOrDefaultAsync(c => c.Members.Any(m => m.UserId == currentUserId.Value) &&
                                       c.Members.Any(m => m.UserId == request.TargetUserId), cancellationToken);
 
@@ -52,7 +52,7 @@ public class CreateOrGetDmChannelCommandHandler : IRequestHandler<CreateOrGetDmC
         {
             return new ChannelDto(
                 existingDmChannel.Id,
-                existingDmChannel.WorkspaceId,
+                existingDmChannel.ServerId,
                 targetUser.DisplayName,
                 existingDmChannel.Type,
                 existingDmChannel.IsPrivate
@@ -62,7 +62,7 @@ public class CreateOrGetDmChannelCommandHandler : IRequestHandler<CreateOrGetDmC
         // Create new DM channel (Slack model: DMs have no name in DB, derived from participants)
         var newChannel = new Channel
         {
-            WorkspaceId = request.WorkspaceId,
+            ServerId = request.ServerId,
             Name = null,
             Type = ChannelType.DirectMessage,
             IsPrivate = true,
@@ -78,7 +78,7 @@ public class CreateOrGetDmChannelCommandHandler : IRequestHandler<CreateOrGetDmC
 
         return new ChannelDto(
             newChannel.Id,
-            newChannel.WorkspaceId,
+            newChannel.ServerId,
             targetUser.DisplayName,
             newChannel.Type,
             newChannel.IsPrivate

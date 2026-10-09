@@ -11,8 +11,8 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
-    public DbSet<Workspace> Workspaces => Set<Workspace>();
-    public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();
+    public DbSet<Server> Servers => Set<Server>();
+    public DbSet<ServerMember> ServerMembers => Set<ServerMember>();
     public DbSet<Channel> Channels => Set<Channel>();
     public DbSet<ChannelMember> ChannelMembers => Set<ChannelMember>();
     public DbSet<Message> Messages => Set<Message>();
@@ -74,10 +74,10 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         builder.Entity<IdentityUserToken<Guid>>(b => b.ToTable("user_tokens"));
         builder.Entity<IdentityRoleClaim<Guid>>(b => b.ToTable("role_claims"));
 
-        // Workspace Configuration
-        builder.Entity<Workspace>(entity =>
+        // Server Configuration
+        builder.Entity<Server>(entity =>
         {
-            entity.ToTable("workspaces");
+            entity.ToTable("servers");
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.InviteCode).IsUnique();
             entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
@@ -89,20 +89,20 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // WorkspaceMember Configuration
-        builder.Entity<WorkspaceMember>(entity =>
+        // ServerMember Configuration
+        builder.Entity<ServerMember>(entity =>
         {
-            entity.ToTable("workspace_members");
+            entity.ToTable("server_members");
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.WorkspaceId, e.UserId }).IsUnique();
+            entity.HasIndex(e => new { e.ServerId, e.UserId }).IsUnique();
 
-            entity.HasOne(e => e.Workspace)
+            entity.HasOne(e => e.Server)
                 .WithMany(w => w.Members)
-                .HasForeignKey(e => e.WorkspaceId)
+                .HasForeignKey(e => e.ServerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.User)
-                .WithMany(u => u.WorkspaceMembers)
+                .WithMany(u => u.ServerMembers)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
@@ -112,7 +112,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         {
             entity.ToTable("channels");
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.WorkspaceId, e.Name })
+            entity.HasIndex(e => new { e.ServerId, e.Name })
                 .IsUnique()
                 .HasFilter("\"Name\" IS NOT NULL");
             entity.HasIndex(e => e.LastMessageAt);
@@ -120,9 +120,9 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             entity.Property(e => e.LastMessageContent).HasMaxLength(500);
             entity.Property(e => e.LastMessageSenderId);
 
-            entity.HasOne(e => e.Workspace)
+            entity.HasOne(e => e.Server)
                 .WithMany(w => w.Channels)
-                .HasForeignKey(e => e.WorkspaceId)
+                .HasForeignKey(e => e.ServerId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
@@ -257,9 +257,9 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .HasForeignKey(e => e.ActorId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasOne(e => e.Workspace)
+            entity.HasOne(e => e.Server)
                 .WithMany()
-                .HasForeignKey(e => e.WorkspaceId)
+                .HasForeignKey(e => e.ServerId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.Channel)

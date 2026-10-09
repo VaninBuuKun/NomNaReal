@@ -26,7 +26,9 @@ export interface AppNotification {
   actorDisplayName?: string;
   actorUsername?: string;
   actorAvatarUrl?: string;
+  serverId?: string;
   workspaceId?: string;
+  serverName?: string;
   workspaceName?: string;
   channelId?: string;
   channelName?: string;

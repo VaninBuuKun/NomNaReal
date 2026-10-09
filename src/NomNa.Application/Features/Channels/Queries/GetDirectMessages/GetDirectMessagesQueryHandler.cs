@@ -28,18 +28,18 @@ public class GetDirectMessagesQueryHandler : IRequestHandler<GetDirectMessagesQu
         if (!currentUserId.HasValue)
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
-        var isMember = await _context.WorkspaceMembers
-            .AnyAsync(m => m.WorkspaceId == request.WorkspaceId && m.UserId == currentUserId.Value, cancellationToken);
+        var isMember = await _context.ServerMembers
+            .AnyAsync(m => m.ServerId == request.ServerId && m.UserId == currentUserId.Value, cancellationToken);
 
         if (!isMember)
-            return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+            return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
         var onlineUsers = await _presenceTracker.GetOnlineUsersAsync();
 
         // Find DM channels where current user is a participant
         var dmChannels = await _context.Channels
             .AsNoTracking()
-            .Where(c => c.WorkspaceId == request.WorkspaceId && c.Type == ChannelType.DirectMessage &&
+            .Where(c => c.ServerId == request.ServerId && c.Type == ChannelType.DirectMessage &&
                         c.Members.Any(m => m.UserId == currentUserId.Value))
             .Include(c => c.Members)
                 .ThenInclude(m => m.User)
@@ -59,7 +59,7 @@ public class GetDirectMessagesQueryHandler : IRequestHandler<GetDirectMessagesQu
 
             result.Add(new DirectMessageChannelDto(
                 ch.Id,
-                ch.WorkspaceId,
+                ch.ServerId,
                 otherMember.Id,
                 otherMember.DisplayName,
                 otherMember.UserName ?? string.Empty,

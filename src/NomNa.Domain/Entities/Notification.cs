@@ -11,8 +11,12 @@ public class Notification : BaseEntity
     public Guid? ActorId { get; set; }
     public User? Actor { get; set; }
 
-    public Guid? WorkspaceId { get; set; }
-    public Workspace? Workspace { get; set; }
+    public NotificationType Type { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+
+    public Guid? ServerId { get; set; }
+    public Server? Server { get; set; }
 
     public Guid? ChannelId { get; set; }
     public Channel? Channel { get; set; }
@@ -20,8 +24,6 @@ public class Notification : BaseEntity
     public Guid? MessageId { get; set; }
     public Message? Message { get; set; }
 
-    public NotificationType Type { get; set; } = NotificationType.Mention;
-    public string Title { get; set; } = string.Empty;
-    public string Content { get; set; } = string.Empty;
     public bool IsRead { get; set; } = false;
+    public DateTime? ReadAt { get; set; }
 }

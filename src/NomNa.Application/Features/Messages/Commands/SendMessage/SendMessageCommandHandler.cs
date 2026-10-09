@@ -38,7 +38,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
         if (channel == null)
             return Error.NotFound("Channel.NotFound", $"Channel {request.ChannelId} not found.");
 
-        // Rule: Private channels verify ChannelMember; public channels verify WorkspaceMember.
+        // Rule: Private channels verify ChannelMember; public channels verify ServerMember.
         if (channel.IsPrivate || channel.Type == Domain.Enums.ChannelType.DirectMessage)
         {
             var isMember = await _context.ChannelMembers
@@ -48,10 +48,10 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
         }
         else
         {
-            var isMember = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+            var isMember = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId.Value, cancellationToken);
             if (!isMember)
-                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
         }
 
         // Fast In-Memory Cache Lookup (0 DB queries)
@@ -162,7 +162,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                 {
                     UserId = targetId,
                     ActorId = userId.Value,
-                    WorkspaceId = channel.WorkspaceId,
+                    ServerId = channel.ServerId,
                     ChannelId = channel.Id,
                     MessageId = message.Id,
                     Type = Domain.Enums.NotificationType.Mention,
@@ -181,7 +181,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                 {
                     UserId = parentMessage.SenderId,
                     ActorId = userId.Value,
-                    WorkspaceId = channel.WorkspaceId,
+                    ServerId = channel.ServerId,
                     ChannelId = channel.Id,
                     MessageId = message.Id,
                     Type = Domain.Enums.NotificationType.ThreadReply,
@@ -207,7 +207,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                         user.DisplayName,
                         user.UserName,
                         user.AvatarUrl,
-                        notif.WorkspaceId,
+                        notif.ServerId,
                         null,
                         notif.ChannelId,
                         channel.Name,

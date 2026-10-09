@@ -1,4 +1,4 @@
-export * from './useWorkspaceStore';
+export * from './useServerStore';
 export * from './useChatStore';
 export * from './useDmStore';
 export * from './useUiStore';

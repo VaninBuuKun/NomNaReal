@@ -25,7 +25,7 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         // 1. Channel membership verification
-        // Rule: Private channels verify ChannelMember; public channels verify WorkspaceMember.
+        // Rule: Private channels verify ChannelMember; public channels verify ServerMember.
         var channel = await _context.Channels
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.ChannelId, cancellationToken);
@@ -42,10 +42,10 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
         }
         else
         {
-            var isMember = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+            var isMember = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId.Value, cancellationToken);
             if (!isMember)
-                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
         }
 
         // 2. Cursor pagination query

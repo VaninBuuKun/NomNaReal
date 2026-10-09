@@ -53,10 +53,10 @@ public class ReplyToMessageCommandHandler : IRequestHandler<ReplyToMessageComman
         }
         else
         {
-            var isMember = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == parentMessage.Channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+            var isMember = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == parentMessage.Channel.ServerId && wm.UserId == userId.Value, cancellationToken);
             if (!isMember)
-                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
         }
 
         // Fast In-Memory Cache Lookup (0 DB queries)

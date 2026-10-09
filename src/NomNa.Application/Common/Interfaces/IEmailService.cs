@@ -4,7 +4,7 @@ public interface IEmailService
 {
     Task SendInviteEmailAsync(
         string toEmail,
-        string workspaceName,
+        string serverName,
         string inviteCode,
         string inviterName,
         string? joinUrl = null,

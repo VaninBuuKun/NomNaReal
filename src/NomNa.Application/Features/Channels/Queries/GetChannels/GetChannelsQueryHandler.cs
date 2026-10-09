@@ -24,25 +24,25 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
         if (!userId.HasValue)
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
-        // Check if user is a member of this workspace
-        var isMember = await _context.WorkspaceMembers
-            .AnyAsync(wm => wm.WorkspaceId == request.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+        // Check if user is a member of this server
+        var isMember = await _context.ServerMembers
+            .AnyAsync(wm => wm.ServerId == request.ServerId && wm.UserId == userId.Value, cancellationToken);
 
         if (!isMember)
-            return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+            return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
 
         // Avoid N+1 queries: c.Members.Any translates to EXISTS (SELECT 1 FROM ChannelMembers ...) in SQL
         // Exists in Sql where statment:  
         return await _context.Channels
             .AsNoTracking()
-            .Where(c => c.WorkspaceId == request.WorkspaceId 
+            .Where(c => c.ServerId == request.ServerId 
                      && c.Type != ChannelType.DirectMessage
                      && (!c.IsPrivate || c.CreatedById == userId.Value || c.Members.Any(m => m.UserId == userId.Value)))
             .OrderBy(c => c.CreatedAt)
             .Select(c => new ChannelDto(
                 c.Id,
-                c.WorkspaceId,
+                c.ServerId,
                 c.Name,
                 c.Type,
                 c.IsPrivate,

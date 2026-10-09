@@ -35,14 +35,14 @@ public class DeleteMessageCommandHandler : IRequestHandler<DeleteMessageCommand,
             return Error.NotFound("Message.NotFound", "Message not found or already deleted.");
         }
 
-        // Allow deletion if user is the sender OR is a workspace owner/admin
+        // Allow deletion if user is the sender OR is a server owner/admin
         var isAuthor = message.SenderId == userId.Value;
         if (!isAuthor)
         {
-            var isPrivileged = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == message.Channel.WorkspaceId 
+            var isPrivileged = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == message.Channel.ServerId 
                              && wm.UserId == userId.Value 
-                             && (wm.Role == WorkspaceRole.Owner || wm.Role == WorkspaceRole.Admin), cancellationToken);
+                             && (wm.Role == ServerRole.Owner || wm.Role == ServerRole.Admin), cancellationToken);
 
             if (!isPrivileged)
             {

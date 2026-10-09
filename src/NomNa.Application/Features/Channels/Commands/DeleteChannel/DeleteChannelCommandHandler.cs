@@ -34,17 +34,17 @@ public class DeleteChannelCommandHandler : IRequestHandler<DeleteChannelCommand,
         if (string.Equals(channel.Name, "general", StringComparison.OrdinalIgnoreCase))
             return Error.Conflict("Channel.CannotDeleteGeneral", "Kênh mặc định #general không thể bị xóa.");
 
-        var member = await _context.WorkspaceMembers
-            .FirstOrDefaultAsync(wm => wm.WorkspaceId == channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+        var member = await _context.ServerMembers
+            .FirstOrDefaultAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId.Value, cancellationToken);
 
         if (member == null)
-            return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+            return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
-        var isOwnerOrAdmin = member.Role == WorkspaceRole.Owner || member.Role == WorkspaceRole.Admin;
+        var isOwnerOrAdmin = member.Role == ServerRole.Owner || member.Role == ServerRole.Admin;
         var isCreator = channel.CreatedById == userId.Value;
 
         if (!isOwnerOrAdmin && !isCreator)
-            return Error.Forbidden("Channel.Forbidden", "Only workspace owners, admins, or the channel creator can delete channels.");
+            return Error.Forbidden("Channel.Forbidden", "Only server owners, admins, or the channel creator can delete channels.");
 
         _context.Channels.Remove(channel);
         await _context.SaveChangesAsync(cancellationToken);

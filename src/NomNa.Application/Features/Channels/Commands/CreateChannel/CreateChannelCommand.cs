@@ -6,7 +6,7 @@ using NomNa.Domain.Enums;
 namespace NomNa.Application.Features.Channels.Commands.CreateChannel;
 
 public record CreateChannelCommand(
-    Guid WorkspaceId,
+    Guid ServerId,
     string Name,
     ChannelType Type = ChannelType.Text,
     bool IsPrivate = false

@@ -6,8 +6,8 @@ public class CreateOrGetDmChannelCommandValidator : AbstractValidator<CreateOrGe
 {
     public CreateOrGetDmChannelCommandValidator()
     {
-        RuleFor(x => x.WorkspaceId)
-            .NotEmpty().WithMessage("WorkspaceId is required.");
+        RuleFor(x => x.ServerId)
+            .NotEmpty().WithMessage("ServerId is required.");
 
         RuleFor(x => x.TargetUserId)
             .NotEmpty().WithMessage("TargetUserId is required.");

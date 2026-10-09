@@ -115,8 +115,9 @@ export function useChatSignalR({
         description: `Bạn vừa được thêm vào #${newChannel.name}`,
         actionLabel: 'Xem ngay',
         onAction: () => {
-          if (newChannel.workspaceId !== activeWorkspaceIdRef.current) {
-            setActiveWorkspaceId(newChannel.workspaceId);
+          const targetWsId = newChannel.serverId || newChannel.workspaceId;
+          if (targetWsId && targetWsId !== activeWorkspaceIdRef.current) {
+            setActiveWorkspaceId(targetWsId);
           }
           handleSelectChannel(newChannel.id);
           setToast(null);

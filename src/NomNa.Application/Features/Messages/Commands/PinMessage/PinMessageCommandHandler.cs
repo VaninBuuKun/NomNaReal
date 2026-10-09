@@ -50,7 +50,7 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
                 ChannelIsPrivate = m.Channel.IsPrivate,
                 ChannelType = m.Channel.Type,
                 ChannelCreatedById = m.Channel.CreatedById,
-                WorkspaceId = m.Channel.WorkspaceId,
+                ServerId = m.Channel.ServerId,
                 Attachments = m.Attachments.Select(a => new MessageAttachmentDto(
                     a.Url,
                     a.FileName,
@@ -78,11 +78,11 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
         }
         else
         {
-            var isMember = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == messageInfo.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+            var isMember = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == messageInfo.ServerId && wm.UserId == userId.Value, cancellationToken);
             if (!isMember)
             {
-                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
             }
         }
 

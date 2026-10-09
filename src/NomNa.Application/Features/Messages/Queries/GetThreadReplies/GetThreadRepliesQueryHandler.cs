@@ -33,7 +33,7 @@ public class GetThreadRepliesQueryHandler : IRequestHandler<GetThreadRepliesQuer
         if (parent == null)
             return Error.NotFound("Message.NotFound", $"Parent message {request.ParentMessageId} not found.");
 
-        // 2. Check channel/workspace membership according to channel privacy
+        // 2. Check channel/server membership according to channel privacy
         if (parent.Channel.IsPrivate || parent.Channel.Type == Domain.Enums.ChannelType.DirectMessage)
         {
             var isMember = await _context.ChannelMembers
@@ -43,10 +43,10 @@ public class GetThreadRepliesQueryHandler : IRequestHandler<GetThreadRepliesQuer
         }
         else
         {
-            var isMember = await _context.WorkspaceMembers
-                .AnyAsync(wm => wm.WorkspaceId == parent.Channel.WorkspaceId && wm.UserId == userId.Value, cancellationToken);
+            var isMember = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == parent.Channel.ServerId && wm.UserId == userId.Value, cancellationToken);
             if (!isMember)
-                return Error.Forbidden("Workspace.Forbidden", "You are not a member of this workspace.");
+                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
         }
 
         // 3. Query all replies for this thread
