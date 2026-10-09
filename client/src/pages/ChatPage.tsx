@@ -18,11 +18,6 @@ import {
   NotificationsSidebar,
   NotificationDetailPane,
 } from "../components/notifications";
-import {
-  ActivitiesSidebar,
-  ActivitiesWorkspace,
-  type ActivityFilterType,
-} from "../components/activities";
 import { type UserProfileData } from "../components/profile";
 import { Toast } from "../components/ui";
 import { Chats } from "@phosphor-icons/react";
@@ -152,13 +147,11 @@ export const ChatPage: React.FC = () => {
     isResizingMember,
     isResizingSearch,
     isResizingPinned,
-    isResizingTask,
     handleChannelResizeStart,
     handleThreadResizeStart,
     handleMemberResizeStart,
     handleSearchResizeStart,
     handlePinnedResizeStart,
-    handleTaskResizeStart,
   } = usePanelResizers();
 
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
@@ -178,8 +171,6 @@ export const ChatPage: React.FC = () => {
   );
   const [selectedNotification, setSelectedNotification] =
     useState<AppNotification | null>(null);
-  const [activityFilter, setActivityFilter] =
-    useState<ActivityFilterType>("all");
   const [toast, setToast] = useState<{
     id: string;
     title: string;
@@ -320,20 +311,6 @@ export const ChatPage: React.FC = () => {
 
   const handleNavigateFromNotification = useCallback(
     (notif: AppNotification) => {
-      const isAssignment = notif.type === "Assignment" || notif.type === 3;
-      const isTask = notif.type === "TaskSchedule" || notif.type === 4;
-
-      if (isAssignment) {
-        setActivityFilter("assignments");
-        setActiveSidebarView("activities");
-        return;
-      }
-
-      if (isTask) {
-        setActivityFilter("schedules");
-        setActiveSidebarView("activities");
-        return;
-      }
 
       setActiveSidebarView("channels");
       if (
@@ -1098,21 +1075,7 @@ export const ChatPage: React.FC = () => {
                 onSelectNotification={handleNotificationSelect}
                 onMarkAllRead={handleMarkAllNotificationsRead}
               />
-            ) : (
-              <ActivitiesSidebar
-                activeFilter={activityFilter}
-                onFilterChange={setActivityFilter}
-                onClose={() => setActiveSidebarView("channels")}
-                onCreateActivity={() =>
-                  setToast({
-                    id: Date.now().toString(),
-                    title: "Tạo hoạt động mới",
-                    description:
-                      "Tính năng tạo bài tập & job sẽ khả dụng trong Phase 3.",
-                  })
-                }
-              />
-            )}
+            ) : null}
           </div>
 
           {/* User Account Footer Bar */}
@@ -1133,14 +1096,8 @@ export const ChatPage: React.FC = () => {
           title="Kéo sang trái/phải để chỉnh kích thước Sidebar Kênh"
         />
 
-        {/* 3. Active Chat Area or Activities Workspace or Notification Detail Pane */}
-        {activeSidebarView === "activities" ? (
-          <ActivitiesWorkspace
-            activeFilter={activityFilter}
-            onFilterChange={setActivityFilter}
-            onBackToChat={() => setActiveSidebarView("channels")}
-          />
-        ) : activeSidebarView === "notifications" ? (
+        {/* 3. Active Chat Area or Notification Detail Pane */}
+        {activeSidebarView === "notifications" ? (
           <NotificationDetailPane
             notification={selectedNotification}
             onNavigateToTarget={handleNavigateFromNotification}
@@ -1221,12 +1178,10 @@ export const ChatPage: React.FC = () => {
           isResizingMember={isResizingMember}
           isResizingSearch={isResizingSearch}
           isResizingPinned={isResizingPinned}
-          isResizingTask={isResizingTask}
           handleThreadResizeStart={handleThreadResizeStart}
           handleMemberResizeStart={handleMemberResizeStart}
           handleSearchResizeStart={handleSearchResizeStart}
           handlePinnedResizeStart={handlePinnedResizeStart}
-          handleTaskResizeStart={handleTaskResizeStart}
         />
       </main>
 
@@ -1235,7 +1190,6 @@ export const ChatPage: React.FC = () => {
         currentUser={currentUser}
         setCurrentUser={setCurrentUser}
         currentWorkspace={currentWorkspace}
-        currentChannel={currentChannel}
         workspaceMembers={workspaceMembers}
         currentUserRole={currentUserRole}
         isOwner={isOwner}

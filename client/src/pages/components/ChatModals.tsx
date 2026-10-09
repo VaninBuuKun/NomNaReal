@@ -12,7 +12,6 @@ import {
 import { NewDirectMessageModal, type DirectMessageUser } from '../../components/dm';
 import { SettingsModal } from '../../components/settings';
 import { UserProfileModal, type UserProfileData } from '../../components/profile';
-import { CreateTaskModal, EditTaskModal } from '../../components/tasks';
 import { useUiStore, useChatStore, useDmStore } from '../../stores';
 import type { User, Workspace, Channel } from '../../types';
 
@@ -20,7 +19,6 @@ interface ChatModalsProps {
   currentUser: User | null;
   setCurrentUser: (u: User | null) => void;
   currentWorkspace: Workspace | null;
-  currentChannel: Channel | null;
   workspaceMembers: DirectMessageUser[];
   currentUserRole?: string | null;
   isOwner: boolean;
@@ -48,7 +46,6 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
   currentUser,
   setCurrentUser,
   currentWorkspace,
-  currentChannel,
   workspaceMembers,
   currentUserRole,
   isOwner,
@@ -219,19 +216,7 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
         }}
       />
 
-      <CreateTaskModal
-        isOpen={false}
-        onClose={() => {}}
-        workspaceMembers={workspaceMembers}
-        currentChannel={currentChannel}
-        currentUserId={currentUser?.id}
-      />
-
-      <EditTaskModal
-        workspaceMembers={workspaceMembers}
-        currentUserId={currentUser?.id}
-        isWorkspaceManager={isOwner || currentUserRole?.toLowerCase() === 'admin'}
-      />
+      
     </>
   );
 };

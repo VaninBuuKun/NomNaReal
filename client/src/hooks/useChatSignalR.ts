@@ -4,7 +4,6 @@ import {
   useWorkspaceStore,
   useChatStore,
   useDmStore,
-  useTaskStore,
 } from '../stores';
 import type {
   User,
@@ -211,19 +210,6 @@ export function useChatSignalR({
       }
     });
 
-    // 11. Tasks Realtime
-    signalRService.onTaskCreated((task) => {
-      useTaskStore.getState().handleTaskCreated(task);
-    });
-    signalRService.onTaskUpdated((task) => {
-      useTaskStore.getState().handleTaskUpdated(task);
-    });
-    signalRService.onTaskStatusChanged((task) => {
-      useTaskStore.getState().handleTaskStatusChanged(task);
-    });
-    signalRService.onTaskDeleted((data) => {
-      useTaskStore.getState().handleTaskDeleted(data);
-    });
   }, [
     currentUser?.id,
     activeWorkspaceIdRef,

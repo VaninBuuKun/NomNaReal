@@ -21,13 +21,12 @@ export const MAX_TASK_WIDTH = 600;
 export const DEFAULT_TASK_WIDTH = 380;
 
 interface UiState {
-  activeSidebarView: 'channels' | 'dms' | 'notifications' | 'activities';
+  activeSidebarView: 'channels' | 'dms' | 'notifications';
   isThreadOpen: boolean;
   activeThreadMessage: Message | null;
   isMemberListOpen: boolean;
   isSearchOpen: boolean;
   isPinnedSidebarOpen: boolean;
-  isTaskSidebarOpen: boolean;
 
   // Modals
   isSettingsOpen: boolean;
@@ -46,10 +45,9 @@ interface UiState {
   memberWidth: number;
   searchWidth: number;
   pinnedSidebarWidth: number;
-  taskSidebarWidth: number;
 
   // Actions
-  setActiveSidebarView: (view: 'channels' | 'dms' | 'notifications' | 'activities') => void;
+  setActiveSidebarView: (view: 'channels' | 'dms' | 'notifications') => void;
   openThread: (message: Message) => void;
   closeThread: () => void;
   toggleMemberList: () => void;
@@ -62,10 +60,6 @@ interface UiState {
   closePinnedSidebar: () => void;
   togglePinnedSidebar: () => void;
   setPinnedSidebarWidth: (width: number) => void;
-  openTaskSidebar: () => void;
-  closeTaskSidebar: () => void;
-  toggleTaskSidebar: () => void;
-  setTaskSidebarWidth: (width: number) => void;
 
   setSettingsOpen: (open: boolean) => void;
   setCreateWorkspaceOpen: (open: boolean) => void;
@@ -134,15 +128,8 @@ export const useUiStore = create<UiState>((set) => ({
       : DEFAULT_PINNED_WIDTH;
   })(),
 
-  taskSidebarWidth: (() => {
-    const saved = localStorage.getItem('nomna_task_width');
-    return saved
-      ? Math.max(MIN_TASK_WIDTH, Math.min(MAX_TASK_WIDTH, parseInt(saved, 10)))
-      : DEFAULT_TASK_WIDTH;
-  })(),
 
   isPinnedSidebarOpen: false,
-  isTaskSidebarOpen: false,
 
   setActiveSidebarView: (view) =>
     set((state) => ({
@@ -158,8 +145,7 @@ export const useUiStore = create<UiState>((set) => ({
       isMemberListOpen: false,
       isSearchOpen: false,
       isPinnedSidebarOpen: false,
-      isTaskSidebarOpen: false,
-    }),
+        }),
 
   closeThread: () =>
     set({
@@ -173,7 +159,7 @@ export const useUiStore = create<UiState>((set) => ({
       localStorage.setItem('nomna_member_list_open', String(next));
       return {
         isMemberListOpen: next,
-        ...(next ? { isThreadOpen: false, activeThreadMessage: null, isSearchOpen: false, isPinnedSidebarOpen: false, isTaskSidebarOpen: false } : {}),
+        ...(next ? { isThreadOpen: false, activeThreadMessage: null, isSearchOpen: false, isPinnedSidebarOpen: false } : {}),
       };
     }),
 
@@ -189,8 +175,7 @@ export const useUiStore = create<UiState>((set) => ({
       activeThreadMessage: null,
       isMemberListOpen: false,
       isPinnedSidebarOpen: false,
-      isTaskSidebarOpen: false,
-    }),
+        }),
 
   closeSearch: () => set({ isSearchOpen: false }),
 
@@ -205,8 +190,7 @@ export const useUiStore = create<UiState>((set) => ({
               activeThreadMessage: null,
               isMemberListOpen: false,
               isPinnedSidebarOpen: false,
-              isTaskSidebarOpen: false,
-            }
+                        }
           : {}),
       };
     }),
@@ -223,8 +207,7 @@ export const useUiStore = create<UiState>((set) => ({
       activeThreadMessage: null,
       isMemberListOpen: false,
       isSearchOpen: false,
-      isTaskSidebarOpen: false,
-    }),
+        }),
 
   closePinnedSidebar: () => set({ isPinnedSidebarOpen: false }),
 
@@ -239,8 +222,7 @@ export const useUiStore = create<UiState>((set) => ({
               activeThreadMessage: null,
               isMemberListOpen: false,
               isSearchOpen: false,
-              isTaskSidebarOpen: false,
-            }
+                        }
           : {}),
       };
     }),
@@ -250,39 +232,6 @@ export const useUiStore = create<UiState>((set) => ({
     set({ pinnedSidebarWidth: width });
   },
 
-  openTaskSidebar: () =>
-    set({
-      isTaskSidebarOpen: true,
-      isThreadOpen: false,
-      activeThreadMessage: null,
-      isMemberListOpen: false,
-      isSearchOpen: false,
-      isPinnedSidebarOpen: false,
-    }),
-
-  closeTaskSidebar: () => set({ isTaskSidebarOpen: false }),
-
-  toggleTaskSidebar: () =>
-    set((state) => {
-      const next = !state.isTaskSidebarOpen;
-      return {
-        isTaskSidebarOpen: next,
-        ...(next
-          ? {
-              isThreadOpen: false,
-              activeThreadMessage: null,
-              isMemberListOpen: false,
-              isSearchOpen: false,
-              isPinnedSidebarOpen: false,
-            }
-          : {}),
-      };
-    }),
-
-  setTaskSidebarWidth: (width) => {
-    localStorage.setItem('nomna_task_width', width.toString());
-    set({ taskSidebarWidth: width });
-  },
 
   setSettingsOpen: (open) => set({ isSettingsOpen: open }),
   setCreateWorkspaceOpen: (open) => set({ isCreateWorkspaceOpen: open }),

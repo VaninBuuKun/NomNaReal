@@ -6,7 +6,6 @@ import {
   Plus,
   Check,
   WechatLogoIcon,
-  ClipboardText,
   Bell,
 } from '@phosphor-icons/react';
 import { WorkspaceAvatar } from '../ui';
@@ -15,8 +14,8 @@ import type { Workspace } from '../../types';
 interface WorkspaceRailProps {
   workspaces: Workspace[];
   activeWorkspaceId: string | null;
-  activeSidebarView?: 'channels' | 'dms' | 'notifications' | 'activities';
-  onSelectView?: (view: 'channels' | 'dms' | 'notifications' | 'activities') => void;
+  activeSidebarView?: 'channels' | 'dms' | 'notifications';
+  onSelectView?: (view: 'channels' | 'dms' | 'notifications') => void;
   onSelectWorkspace: (id: string) => void;
   onCreateWorkspace?: () => void;
   onGoHome?: () => void;
@@ -126,29 +125,6 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
 
       {/* Divider */}
       <div className="w-8 h-px bg-[var(--border-color)] my-0.5" />
-
-      {/* 4. Activities (Hoạt động & Bài tập) */}
-      <div className="relative">
-        {activeSidebarView === 'activities' && (
-          <div className="absolute -left-[14px] top-1/2 -translate-y-1/2 w-[3.5px] h-7 bg-[var(--accent-primary)] rounded-[2px] shadow-[0_0_8px_var(--accent-glow)]" />
-        )}
-
-        <button
-          type="button"
-          title="Hoạt động & Bài tập (Activities)"
-          onClick={() => onSelectView?.('activities')}
-          className={`w-11 h-11 rounded-[14px] flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 border shadow-xs ${
-            activeSidebarView === 'activities'
-              ? 'bg-[var(--accent-primary)] text-white border-transparent shadow-[0_4px_14px_var(--accent-glow)]'
-              : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--accent-soft)] hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]'
-          }`}
-        >
-          <ClipboardText
-            size={22}
-            weight={activeSidebarView === 'activities' ? 'fill' : 'duotone'}
-          />
-        </button>
-      </div>
 
       {/* 5. Notifications (Thông báo) */}
       <div className="relative">

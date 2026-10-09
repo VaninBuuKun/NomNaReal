@@ -11,8 +11,6 @@ import {
   MAX_SEARCH_WIDTH,
   MIN_PINNED_WIDTH,
   MAX_PINNED_WIDTH,
-  MIN_TASK_WIDTH,
-  MAX_TASK_WIDTH,
 } from '../stores';
 
 export function usePanelResizers() {
@@ -22,13 +20,11 @@ export function usePanelResizers() {
     memberWidth,
     searchWidth,
     pinnedSidebarWidth,
-    taskSidebarWidth,
     setChannelWidth,
     setThreadWidth,
     setMemberWidth,
     setSearchWidth,
     setPinnedSidebarWidth,
-    setTaskSidebarWidth,
   } = useUiStore();
 
   const [isResizingChannel, setIsResizingChannel] = useState(false);
@@ -36,7 +32,6 @@ export function usePanelResizers() {
   const [isResizingMember, setIsResizingMember] = useState(false);
   const [isResizingSearch, setIsResizingSearch] = useState(false);
   const [isResizingPinned, setIsResizingPinned] = useState(false);
-  const [isResizingTask, setIsResizingTask] = useState(false);
 
   // Left Sidebar: Dragging to the right increases width
   const handleChannelResizeStart = useCallback((e: React.MouseEvent) => {
@@ -160,29 +155,6 @@ export function usePanelResizers() {
     window.addEventListener('mouseup', onMouseUp);
   }, [pinnedSidebarWidth, setPinnedSidebarWidth]);
 
-  const handleTaskResizeStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizingTask(true);
-    const startX = e.clientX;
-    const startWidth = taskSidebarWidth;
-
-    const onMouseMove = (moveEvent: MouseEvent) => {
-      const newWidth = Math.max(
-        MIN_TASK_WIDTH,
-        Math.min(MAX_TASK_WIDTH, startWidth + (startX - moveEvent.clientX))
-      );
-      setTaskSidebarWidth(newWidth);
-    };
-
-    const onMouseUp = () => {
-      setIsResizingTask(false);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-  }, [taskSidebarWidth, setTaskSidebarWidth]);
 
   return {
     isResizingChannel,
@@ -190,12 +162,10 @@ export function usePanelResizers() {
     isResizingMember,
     isResizingSearch,
     isResizingPinned,
-    isResizingTask,
     handleChannelResizeStart,
     handleThreadResizeStart,
     handleMemberResizeStart,
     handleSearchResizeStart,
     handlePinnedResizeStart,
-    handleTaskResizeStart,
   };
 }

@@ -29,18 +29,3 @@ public enum NotificationType
     ChannelInvite = 3,
     WorkspaceInvite = 4
 }
-
-public enum TaskItemStatus
-{
-    Todo = 0,
-    InProgress = 1,
-    Done = 2
-}
-
-public enum TaskPriority
-{
-    Low = 0,
-    Normal = 1,
-    High = 2
-}
-

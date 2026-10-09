@@ -2,7 +2,6 @@ import React from 'react';
 import { MemberListPanel } from '../../components/channel';
 import { ThreadPanel } from '../../components/thread';
 import { SearchSidebar, PinnedMessagesSidebar } from '../../components/chat';
-import { ChannelTasksSidebar } from '../../components/tasks';
 import { useUiStore, useChatStore } from '../../stores';
 import { ChannelType, type User, type Channel, type PinnedMessage } from '../../types';
 import type { DirectMessageUser } from '../../components/dm';
@@ -26,12 +25,10 @@ interface ChatRightPanelsProps {
   isResizingMember: boolean;
   isResizingSearch: boolean;
   isResizingPinned: boolean;
-  isResizingTask: boolean;
   handleThreadResizeStart: (e: React.MouseEvent) => void;
   handleMemberResizeStart: (e: React.MouseEvent) => void;
   handleSearchResizeStart: (e: React.MouseEvent) => void;
   handlePinnedResizeStart: (e: React.MouseEvent) => void;
-  handleTaskResizeStart: (e: React.MouseEvent) => void;
 }
 
 export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
@@ -52,12 +49,10 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
   isResizingMember,
   isResizingSearch,
   isResizingPinned,
-  isResizingTask,
   handleThreadResizeStart,
   handleMemberResizeStart,
   handleSearchResizeStart,
   handlePinnedResizeStart,
-  handleTaskResizeStart,
 }) => {
   const {
     isThreadOpen,
@@ -65,18 +60,15 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
     isMemberListOpen,
     isSearchOpen,
     isPinnedSidebarOpen,
-    isTaskSidebarOpen,
     threadWidth,
     memberWidth,
     searchWidth,
     pinnedSidebarWidth,
-    taskSidebarWidth,
     closeThread,
     expandThread,
     setMemberListOpen,
     closeSearch,
     closePinnedSidebar,
-    closeTaskSidebar,
     setChannelToAddMember,
     setMemberToKick,
     setSettingsOpen,
@@ -228,33 +220,6 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
           </>
         )}
 
-      {/* 7. Resizer Divider & Tasks Sidebar (Mutually Exclusive) */}
-      {!isThreadOpen &&
-        !isMemberListOpen &&
-        !isSearchOpen &&
-        !isPinnedSidebarOpen &&
-        isTaskSidebarOpen && (
-          <>
-            <div
-              className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-                isResizingTask
-                  ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]'
-                  : 'bg-[var(--border-color)]'
-              }`}
-              onMouseDown={handleTaskResizeStart}
-              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Công việc"
-            />
-            <ChannelTasksSidebar
-              isOpen={isTaskSidebarOpen}
-              onClose={closeTaskSidebar}
-              width={taskSidebarWidth}
-              currentChannel={currentChannel}
-              workspaceMembers={workspaceMembers}
-              currentUserId={currentUser?.id}
-              onJumpToMessage={handleJumpToMessage}
-            />
-          </>
-        )}
     </>
   );
 };

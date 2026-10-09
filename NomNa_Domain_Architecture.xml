@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<NomNaDomainArchitecture>
+  <Metadata>
+    <Project>NomNa Real-Time Chat &amp; LMS Application</Project>
+    <Layer>Domain Layer (Clean Architecture - Zero External Dependencies)</Layer>
+    <Framework>.NET 9</Framework>
+    <DatabaseEngine>PostgreSQL with Entity Framework Core 9</DatabaseEngine>
+    <GeneratedAt>2026-10-09T15:25:00Z</GeneratedAt>
+  </Metadata>
+
+  <!-- ==================== ENUMS ==================== -->
+  <Enums>
+    <Enum name="UserStatus">
+      <Value name="Online" id="0" description="Đang hoạt động trực tuyến" />
+      <Value name="Away" id="1" description="Tạm vắng mặt" />
+      <Value name="DoNotDisturb" id="2" description="Không làm phiền" />
+      <Value name="Offline" id="3" description="Ngoại tuyến" />
+    </Enum>
+
+    <Enum name="ClassroomRole">
+      <Value name="Student" id="0" description="Học viên: Xem bài giảng, nộp bài, trao đổi" />
+      <Value name="Teacher" id="1" description="Giảng viên: Soạn bài giảng, chấm điểm, quản lý kênh" />
+      <Value name="Owner" id="2" description="Chủ nhiệm lớp: Toàn quyền cấu hình lớp học và nhân sự" />
+    </Enum>
+
+    <Enum name="ChannelType">
+      <Value name="Text" id="0" description="Kênh trò chuyện văn bản" />
+      <Value name="Voice" id="1" description="Kênh đàm thoại âm thanh / phòng học" />
+      <Value name="DirectMessage" id="2" description="Hộp thư nhắn tin riêng 1-1" />
+      <Value name="Announcement" id="3" description="Kênh thông báo chỉ dành cho giáo viên phát sóng" />
+    </Enum>
+
+    <Enum name="ClassroomItemType">
+      <Value name="Assignment" id="0" description="Bài tập nộp tệp: Cấu hình deadline, dung lượng, đuôi file, chấm điểm" />
+      <Value name="Video" id="1" description="Bài giảng Video: Nhúng YouTube, Vimeo hoặc video tệp" />
+      <Value name="Document" id="2" description="Tài liệu học tập: File slide, PDF, sách tham khảo tải về" />
+      <Value name="Url" id="3" description="Liên kết tài nguyên ngoài: Trang web, Google Drive, Miro, Figma" />
+    </Enum>
+
+    <Enum name="NotificationType">
+      <Value name="Mention" id="1" description="Được gắn thẻ @user trong tin nhắn" />
+      <Value name="ThreadReply" id="2" description="Phản hồi trong luồng thảo luận mà user tham gia" />
+      <Value name="ChannelInvite" id="3" description="Lời mời tham gia kênh riêng" />
+      <Value name="ClassroomInvite" id="4" description="Lời mời tham gia lớp học mới" />
+    </Enum>
+
+    <Enum name="TaskItemStatus">
+      <Value name="Todo" id="0" description="Cần làm" />
+      <Value name="InProgress" id="1" description="Đang tiến hành" />
+      <Value name="Done" id="2" description="Đã hoàn thành" />
+    </Enum>
+
+    <Enum name="TaskPriority">
+      <Value name="Low" id="0" description="Thấp" />
+      <Value name="Normal" id="1" description="Bình thường" />
+      <Value name="High" id="2" description="Khẩn cấp" />
+    </Enum>
+  </Enums>
+
+  <!-- ==================== ENTITIES ==================== -->
+  <Entities>
+    <!-- 1. USER -->
+    <Entity name="User" table="AspNetUsers" base="IdentityUser&lt;Guid&gt;">
+      <Description>Tài khoản người dùng trong toàn hệ thống NomNa</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" description="UUID v7" />
+        <Property name="UserName" type="string" nullable="true" description="Tên đăng nhập (@username)" />
+        <Property name="Email" type="string" nullable="true" description="Email xác thực" />
+        <Property name="DisplayName" type="string" nullable="false" description="Tên hiển thị công khai" />
+        <Property name="AvatarUrl" type="string" nullable="true" description="Ảnh đại diện" />
+        <Property name="Bio" type="string" nullable="true" description="Tiểu sử / giới thiệu cá nhân" />
+        <Property name="Status" type="UserStatus" nullable="false" default="Offline" />
+        <Property name="LastSeenAt" type="DateTime" nullable="true" />
+        <Property name="CreatedAt" type="DateTime" nullable="false" />
+        <Property name="UpdatedAt" type="DateTime" nullable="true" />
+      </Properties>
+      <Relationships>
+        <OneToMany target="ClassroomMember" foreignKey="UserId" />
+        <OneToMany target="ChannelMember" foreignKey="UserId" />
+        <OneToMany target="Message" foreignKey="SenderId" />
+        <OneToMany target="RefreshToken" foreignKey="UserId" />
+      </Relationships>
+    </Entity>
+
+    <!-- 2. CLASSROOM -->
+    <Entity name="Classroom" table="classrooms" base="BaseEntity">
+      <Description>Không gian lớp học học tập và làm việc nhóm</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="Name" type="string" nullable="false" />
+        <Property name="Description" type="string" nullable="true" />
+        <Property name="IconUrl" type="string" nullable="true" />
+        <Property name="InviteCode" type="string" nullable="false" description="Mã mời tham gia gồm 8 ký tự" />
+        <Property name="OwnerId" type="Guid" isForeignKey="true" target="User" />
+        <Property name="CreatedAt" type="DateTime" nullable="false" />
+        <Property name="UpdatedAt" type="DateTime" nullable="true" />
+      </Properties>
+      <Relationships>
+        <ManyToOne target="User" foreignKey="OwnerId" navigation="Owner" />
+        <OneToMany target="ClassroomMember" foreignKey="ClassroomId" navigation="Members" />
+        <OneToMany target="Channel" foreignKey="ClassroomId" navigation="Channels" />
+        <OneToMany target="ClassScheduleItem" foreignKey="ClassroomId" navigation="Schedules" />
+        <OneToMany target="ClassroomTopic" foreignKey="ClassroomId" navigation="Topics" />
+      </Relationships>
+    </Entity>
+
+    <!-- 3. CLASSROOM MEMBER -->
+    <Entity name="ClassroomMember" table="classroom_members" base="BaseEntity">
+      <Description>Bảng liên kết thành viên lớp học và vai trò</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="ClassroomId" type="Guid" isForeignKey="true" target="Classroom" />
+        <Property name="UserId" type="Guid" isForeignKey="true" target="User" />
+        <Property name="Role" type="ClassroomRole" nullable="false" default="Student" />
+        <Property name="JoinedAt" type="DateTime" nullable="false" />
+      </Properties>
+      <Relationships>
+        <ManyToOne target="Classroom" foreignKey="ClassroomId" navigation="Classroom" />
+        <ManyToOne target="User" foreignKey="UserId" navigation="User" />
+      </Relationships>
+    </Entity>
+
+    <!-- 4. CHANNEL -->
+    <Entity name="Channel" table="channels" base="BaseEntity">
+      <Description>Kênh thảo luận trong lớp học hoặc cuộc trò chuyện trực tiếp (DM)</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="ClassroomId" type="Guid" isForeignKey="true" target="Classroom" />
+        <Property name="Name" type="string" nullable="true" />
+        <Property name="Type" type="ChannelType" nullable="false" default="Text" />
+        <Property name="IsPrivate" type="bool" nullable="false" default="false" />
+        <Property name="CreatedById" type="Guid" />
+        <Property name="LastMessageAt" type="DateTime" nullable="true" />
+        <Property name="LastMessageContent" type="string" nullable="true" />
+        <Property name="LastMessageSenderId" type="Guid" nullable="true" />
+      </Properties>
+      <Relationships>
+        <ManyToOne target="Classroom" foreignKey="ClassroomId" navigation="Classroom" />
+        <OneToMany target="ChannelMember" foreignKey="ChannelId" navigation="Members" />
+        <OneToMany target="Message" foreignKey="ChannelId" navigation="Messages" />
+      </Relationships>
+    </Entity>
+
+    <!-- 5. CHANNEL MEMBER -->
+    <Entity name="ChannelMember" table="channel_members" base="BaseEntity">
+      <Description>Thành viên được chỉ định tham gia kênh riêng tư</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="ChannelId" type="Guid" isForeignKey="true" target="Channel" />
+        <Property name="UserId" type="Guid" isForeignKey="true" target="User" />
+        <Property name="JoinedAt" type="DateTime" nullable="false" />
+      </Properties>
+    </Entity>
+
+    <!-- 6. MESSAGE -->
+    <Entity name="Message" table="messages" base="BaseEntity">
+      <Description>Tin nhắn trao đổi thời gian thực trong kênh chat</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="ChannelId" type="Guid" isForeignKey="true" target="Channel" />
+        <Property name="SenderId" type="Guid" isForeignKey="true" target="User" />
+        <Property name="Content" type="string" nullable="false" />
+        <Property name="ThreadId" type="Guid" nullable="true" description="Khóa ngoại đệ quy trỏ đến tin nhắn gốc nếu là Thread Reply" />
+        <Property name="IsEdited" type="bool" default="false" />
+        <Property name="EditedAt" type="DateTime" nullable="true" />
+        <Property name="DeletedAt" type="DateTime" nullable="true" description="Soft delete" />
+        <Property name="ReplyCount" type="int" default="0" />
+      </Properties>
+      <Relationships>
+        <ManyToOne target="Channel" foreignKey="ChannelId" navigation="Channel" />
+        <ManyToOne target="User" foreignKey="SenderId" navigation="Sender" />
+        <ManyToOne target="Message" foreignKey="ThreadId" navigation="ParentMessage" />
+        <OneToMany target="Message" foreignKey="ThreadId" navigation="Replies" />
+        <OneToMany target="MessageReaction" foreignKey="MessageId" navigation="Reactions" />
+      </Relationships>
+    </Entity>
+
+    <!-- 7. MESSAGE REACTION -->
+    <Entity name="MessageReaction" table="message_reactions" base="BaseEntity">
+      <Description>Cảm xúc Emoji của người dùng trên tin nhắn</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="MessageId" type="Guid" isForeignKey="true" target="Message" />
+        <Property name="UserId" type="Guid" isForeignKey="true" target="User" />
+        <Property name="Emoji" type="string" nullable="false" />
+      </Properties>
+    </Entity>
+
+    <!-- 8. PINNED MESSAGE -->
+    <Entity name="ChannelPinnedMessage" table="channel_pinned_messages" base="BaseEntity">
+      <Description>Tin nhắn được ghim lên đầu kênh chat</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="ChannelId" type="Guid" isForeignKey="true" target="Channel" />
+        <Property name="MessageId" type="Guid" isForeignKey="true" target="Message" />
+        <Property name="PinnedById" type="Guid" isForeignKey="true" target="User" />
+        <Property name="PinnedAt" type="DateTime" nullable="false" />
+      </Properties>
+    </Entity>
+
+    <!-- 9. TASK ITEM -->
+    <Entity name="TaskItem" table="task_items" base="BaseEntity">
+      <Description>Công việc Kanban tích hợp trực tiếp từ tin nhắn kênh</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="ClassroomId" type="Guid" isForeignKey="true" target="Classroom" />
+        <Property name="ChannelId" type="Guid" isForeignKey="true" target="Channel" />
+        <Property name="Title" type="string" nullable="false" />
+        <Property name="Note" type="string" nullable="true" />
+        <Property name="AttachmentUrl" type="string" nullable="true" />
+        <Property name="CompletionNote" type="string" nullable="true" />
+        <Property name="Status" type="TaskItemStatus" default="Todo" />
+        <Property name="Priority" type="TaskPriority" default="Normal" />
+        <Property name="DueDate" type="DateTime" nullable="true" />
+        <Property name="CompletedAt" type="DateTime" nullable="true" />
+        <Property name="CreatedById" type="Guid" isForeignKey="true" target="User" />
+        <Property name="AssigneeId" type="Guid" nullable="true" isForeignKey="true" target="User" />
+        <Property name="SourceMessageId" type="Guid" nullable="true" isForeignKey="true" target="Message" />
+      </Properties>
+    </Entity>
+
+    <!-- 10. CLASS SCHEDULE ITEM -->
+    <Entity name="ClassScheduleItem" table="class_schedule_items" base="BaseEntity">
+      <Description>Thời khóa biểu học tập cố định hàng tuần của lớp học</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="ClassroomId" type="Guid" isForeignKey="true" target="Classroom" />
+        <Property name="ChannelId" type="Guid" nullable="true" isForeignKey="true" target="Channel" />
+        <Property name="Title" type="string" nullable="false" />
+        <Property name="Subject" type="string" nullable="true" />
+        <Property name="InstructorName" type="string" nullable="true" />
+        <Property name="InstructorRole" type="string" nullable="true" />
+        <Property name="DayOfWeek" type="int" description="1 = Thứ 2 ... 6 = Thứ 7, 0 = Chủ nhật" />
+        <Property name="StartTime" type="TimeSpan" />
+        <Property name="EndTime" type="TimeSpan" />
+        <Property name="Location" type="string" nullable="true" />
+        <Property name="Description" type="string" nullable="true" />
+        <Property name="CreatedById" type="Guid" isForeignKey="true" target="User" />
+      </Properties>
+    </Entity>
+
+    <!-- 11. STUDY REMINDER -->
+    <Entity name="StudyReminder" table="study_reminders" base="BaseEntity">
+      <Description>Lời nhắc học tập và ôn bài cá nhân của sinh viên</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="UserId" type="Guid" isForeignKey="true" target="User" />
+        <Property name="Title" type="string" nullable="false" />
+        <Property name="RemindAt" type="DateTime" nullable="false" />
+        <Property name="IsDismissed" type="bool" default="false" />
+      </Properties>
+    </Entity>
+
+    <!-- 12. CLASSROOM TOPIC (CHƯƠNG HỌC) -->
+    <Entity name="ClassroomTopic" table="classroom_topics" base="BaseEntity">
+      <Description>Chương / Chủ đề trong lộ trình khóa học (Curriculum Section)</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="ClassroomId" type="Guid" isForeignKey="true" target="Classroom" />
+        <Property name="Title" type="string" nullable="false" description="Tiêu đề chương (ví dụ: Chương 1: CSDL &amp; ERD)" />
+        <Property name="Description" type="string" nullable="true" description="Mục tiêu và tóm tắt chương" />
+        <Property name="OrderIndex" type="int" default="1" description="Thứ tự hiển thị trong cây chương trình" />
+      </Properties>
+      <Relationships>
+        <ManyToOne target="Classroom" foreignKey="ClassroomId" navigation="Classroom" />
+        <OneToMany target="ClassroomItem" foreignKey="TopicId" navigation="Items" />
+      </Relationships>
+    </Entity>
+
+    <!-- 13. CLASSROOM ITEM (BÀI HỌC / BÀI TẬP / VIDEO / TÀI LIỆU) -->
+    <Entity name="ClassroomItem" table="classroom_items" base="BaseEntity">
+      <Description>Phần tử bài học cụ thể: Assignment, Video, Document hoặc External URL</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="TopicId" type="Guid" isForeignKey="true" target="ClassroomTopic" />
+        <Property name="ClassroomId" type="Guid" isForeignKey="true" target="Classroom" />
+        <Property name="Title" type="string" nullable="false" />
+        <Property name="Description" type="string" nullable="true" description="Mô tả, đề bài, yêu cầu chi tiết" />
+        <Property name="Type" type="ClassroomItemType" nullable="false" default="Assignment" />
+        <Property name="OrderIndex" type="int" default="1" />
+        
+        <!-- Cột tài nguyên gom chung tinh gọn cho Video / Document / URL -->
+        <Property name="ResourceUrl" type="string" nullable="true" description="URL video YouTube / file download / liên kết ngoài" />
+        <Property name="ResourceName" type="string" nullable="true" description="Tên tệp đính kèm gốc hoặc tiêu đề liên kết" />
+
+        <!-- Cột cấu hình riêng cho Bài tập nộp (Assignment) -->
+        <Property name="DueDate" type="DateTime" nullable="true" description="Hạn nộp bài" />
+        <Property name="MaxFileSizeMb" type="int" default="25" description="Dung lượng MB tối đa mỗi tệp" />
+        <Property name="MaxFiles" type="int" default="1" description="Số lượng tệp tối đa được nộp" />
+        <Property name="AllowedExtensions" type="string" default=".zip,.pdf,.docx" description="Chuỗi định dạng cho phép" />
+        <Property name="MaxScore" type="decimal" default="10.0" precision="4,1" description="Thang điểm tối đa" />
+      </Properties>
+      <Relationships>
+        <ManyToOne target="ClassroomTopic" foreignKey="TopicId" navigation="Topic" />
+        <ManyToOne target="Classroom" foreignKey="ClassroomId" navigation="Classroom" />
+        <OneToMany target="ClassroomItemSubmission" foreignKey="ClassroomItemId" navigation="Submissions" />
+      </Relationships>
+    </Entity>
+
+    <!-- 14. CLASSROOM ITEM SUBMISSION (BÀI NỘP HỌC VIÊN) -->
+    <Entity name="ClassroomItemSubmission" table="classroom_item_submissions" base="BaseEntity">
+      <Description>Bản nộp bài của học viên (Mỗi học viên có DUY NHẤT 1 bản ghi per bài tập, sửa thì ghi đè file)</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="ClassroomItemId" type="Guid" isForeignKey="true" target="ClassroomItem" />
+        <Property name="StudentId" type="Guid" isForeignKey="true" target="User" />
+        <Property name="SubmittedAt" type="DateTime" nullable="false" />
+        <Property name="IsCompleted" type="bool" default="true" />
+        
+        <!-- Chấm điểm & Feedback textarea của Giáo viên -->
+        <Property name="Score" type="decimal" nullable="true" precision="4,1" description="Điểm số đạt được" />
+        <Property name="Feedback" type="string" nullable="true" description="Lời phê / Nhận xét chi tiết nhiều dòng" />
+        <Property name="GradedById" type="Guid" nullable="true" isForeignKey="true" target="User" />
+        <Property name="GradedAt" type="DateTime" nullable="true" />
+      </Properties>
+      <Relationships>
+        <ManyToOne target="ClassroomItem" foreignKey="ClassroomItemId" navigation="ClassroomItem" />
+        <ManyToOne target="User" foreignKey="StudentId" navigation="Student" />
+        <ManyToOne target="User" foreignKey="GradedById" navigation="GradedBy" />
+        <OneToMany target="SubmissionAttachmentItem" foreignKey="SubmissionId" navigation="Attachments" />
+      </Relationships>
+    </Entity>
+
+    <!-- 15. SUBMISSION ATTACHMENT ITEM -->
+    <Entity name="SubmissionAttachmentItem" table="submission_attachment_items" base="BaseEntity">
+      <Description>Tệp đính kèm trong bài nộp của học viên</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="SubmissionId" type="Guid" isForeignKey="true" target="ClassroomItemSubmission" />
+        <Property name="Url" type="string" nullable="false" />
+        <Property name="FileName" type="string" nullable="false" />
+        <Property name="FileSize" type="long" nullable="false" description="Dung lượng tệp tính theo Bytes" />
+        <Property name="ContentType" type="string" nullable="false" description="MIME type" />
+        <Property name="UploadedAt" type="DateTime" nullable="false" />
+      </Properties>
+    </Entity>
+
+    <!-- 16. NOTIFICATION -->
+    <Entity name="Notification" table="notifications" base="BaseEntity">
+      <Description>Thông báo đẩy thời gian thực cho người dùng</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="UserId" type="Guid" isForeignKey="true" target="User" />
+        <Property name="ActorId" type="Guid" nullable="true" isForeignKey="true" target="User" />
+        <Property name="ClassroomId" type="Guid" nullable="true" isForeignKey="true" target="Classroom" />
+        <Property name="ChannelId" type="Guid" nullable="true" isForeignKey="true" target="Channel" />
+        <Property name="MessageId" type="Guid" nullable="true" isForeignKey="true" target="Message" />
+        <Property name="Type" type="NotificationType" default="Mention" />
+        <Property name="Title" type="string" nullable="false" />
+        <Property name="Content" type="string" nullable="false" />
+        <Property name="IsRead" type="bool" default="false" />
+      </Properties>
+    </Entity>
+
+    <!-- 17. REFRESH TOKEN -->
+    <Entity name="RefreshToken" table="refresh_tokens" base="BaseEntity">
+      <Description>Phiên đăng nhập và chu kỳ quay vòng JWT Refresh Token</Description>
+      <Properties>
+        <Property name="Id" type="Guid" isKey="true" />
+        <Property name="UserId" type="Guid" isForeignKey="true" target="User" />
+        <Property name="Token" type="string" nullable="false" />
+        <Property name="ExpiresAt" type="DateTime" nullable="false" />
+        <Property name="IsRevoked" type="bool" default="false" />
+        <Property name="ReplacedByToken" type="string" nullable="true" />
+      </Properties>
+    </Entity>
+  </Entities>
+</NomNaDomainArchitecture>

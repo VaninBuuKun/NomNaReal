@@ -22,10 +22,6 @@ public static class SignalRConstants
         public const string MessageUnpinned = "MessageUnpinned";
         public const string ReceiveNotification = "ReceiveNotification";
         public const string NotificationCountUpdated = "NotificationCountUpdated";
-        public const string TaskCreated = "TaskCreated";
-        public const string TaskUpdated = "TaskUpdated";
-        public const string TaskStatusChanged = "TaskStatusChanged";
-        public const string TaskDeleted = "TaskDeleted";
     }
 
     public static class Methods

@@ -17,9 +17,7 @@ import {
   Plus,
   Play,
   FileText,
-  CheckSquare,
-  CheckSquareOffset,
-} from "@phosphor-icons/react";
+    } from "@phosphor-icons/react";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
@@ -33,7 +31,7 @@ import { ImageGalleryGrid } from "./ImageGalleryGrid";
 import { StickyPinBar } from "./StickyPinBar";
 import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
 import { InputLinkPreviewStrip } from "./InputLinkPreviewStrip";
-import { useChatStore, useUiStore, useTaskStore } from "../../stores";
+import { useChatStore, useUiStore } from "../../stores";
 import type { UserProfileData } from "../profile";
 
 interface PendingAttachment {
@@ -123,24 +121,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const isSearchOpen = useUiStore((state) => state.isSearchOpen);
   const toggleSearch = useUiStore((state) => state.toggleSearch);
-  const isTaskSidebarOpen = useUiStore((state) => state.isTaskSidebarOpen);
-  const toggleTaskSidebar = useUiStore((state) => state.toggleTaskSidebar);
-
-  const openCreateTaskModal = useTaskStore((state) => state.openCreateModal);
-  const tasks = useTaskStore((state) => state.tasks);
-  const fetchTasks = useTaskStore((state) => state.fetchTasks);
-
-  // Fetch real channel tasks on channel load
-  useEffect(() => {
-    if (currentChannel?.id) {
-      fetchTasks(currentChannel.id);
-    }
-  }, [currentChannel?.id, fetchTasks]);
-
-  const pendingChannelTasksCount = useMemo(() => {
-    if (!currentChannel) return 0;
-    return tasks.filter((t) => t.channelId === currentChannel.id && t.status !== 2).length;
-  }, [tasks, currentChannel?.id]);
 
   const [isStickyDismissed, setIsStickyDismissed] = useState(false);
 
@@ -820,24 +800,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               </span>
             )}
           </button>
-          <button
-            type="button"
-            onClick={toggleTaskSidebar}
-            className={`p-1.5 rounded-md transition-colors cursor-pointer relative inline-flex items-center justify-center ${isTaskSidebarOpen
-                ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
-                : pendingChannelTasksCount > 0
-                  ? "text-[var(--accent-primary)] hover:bg-[var(--bg-surface-active)]"
-                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
-              }`}
-            title={isTaskSidebarOpen ? "Đóng danh sách công việc" : "Xem công việc trong kênh"}
-          >
-            <CheckSquare size={17} weight={isTaskSidebarOpen || pendingChannelTasksCount > 0 ? "bold" : "regular"} />
-            {pendingChannelTasksCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-[var(--accent-primary)] text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
-                {pendingChannelTasksCount}
-              </span>
-            )}
-          </button>
         </div>
       </div>
 
@@ -1275,25 +1237,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                       <PushPin size={15} weight={pinnedMessageIds.has(msg.id) ? "fill" : "regular"} />
                     </button>
 
-                    {/* Create Task from Message */}
-                    <button
-                      type="button"
-                      className="p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--accent-primary)] rounded-lg text-xs transition-colors cursor-pointer"
-                      title="Tạo công việc từ tin nhắn"
-                      onClick={() => {
-                        openCreateTaskModal({
-                          title: msg.content,
-                          note: `Được tạo từ tin nhắn của ${msg.senderDisplayName || msg.senderUsername || "thành viên"}`,
-                          sourceMessageId: msg.id,
-                          channelId: currentChannel?.id,
-                          workspaceId: currentChannel?.workspaceId,
-                        });
-                      }}
-                    >
-                      <CheckSquareOffset size={15} />
-                    </button>
-
-                    {/* Edit Message (Sender Only) */}
+                                        {/* Edit Message (Sender Only) */}
                     {isMe && (
                       <button
                         type="button"
