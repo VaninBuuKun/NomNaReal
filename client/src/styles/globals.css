@@ -31,7 +31,43 @@
    THEME 1: TRẮNG CAM HIỆN ĐẠI (Warm Sunset Orange) - MẶC ĐỊNH
    Phong cách Arc Browser / Substack / Linear Warm Light
 ----------------------------------------------------------- */
+/* -----------------------------------------------------------
+   THEME 0: DISCORD DARK (MẶC ĐỊNH)
+   Phong cách Discord Dark Theme chuẩn chỉnh
+----------------------------------------------------------- */
 :root,
+[data-theme="discord-dark"] {
+  --spacing: 0.25rem;
+  --bg-rail: #1e1f22;
+  --bg-sidebar: #2b2d31;
+  --bg-chat: #313338;
+  --bg-surface: #383a40;
+  --bg-surface-active: #35373c;
+  --border-color: #232428;
+  --border-hover: #3f4147;
+
+  --accent-primary: #5865f2;
+  --accent-hover: #4752c4;
+  --accent-soft: rgba(88, 101, 242, 0.16);
+  --accent-glow: rgba(88, 101, 242, 0.35);
+
+  --status-online: #23a55a;
+  --status-away: #f0b232;
+  --status-dnd: #f23f43;
+
+  --text-primary: #f2f3f5;
+  --text-secondary: #dbdee1;
+  --text-muted: #949ba4;
+
+  --code-bg: #1e1f22;
+  --code-text: #e0e1e5;
+  --scrollbar-thumb: #1a1b1e;
+
+  --dot-color: rgba(255, 255, 255, 0.05);
+  --card-glass-bg: rgba(43, 45, 49, 0.95);
+  --card-glass-border: rgba(255, 255, 255, 0.06);
+}
+
 [data-theme="warm-orange"] {
   --spacing: 0.25rem;
   --bg-rail: #f6f5f2;

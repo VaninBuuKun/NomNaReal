@@ -1,15 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  Hash,
+  SpeakerHigh,
   CaretDown,
   CaretRight,
   Plus,
-  Hash,
-  SpeakerHigh,
-  Key,
   Gear,
   UserPlus,
   SignOut,
+  Lock,
 } from '@phosphor-icons/react';
 import { ChannelType, type Channel, type Workspace } from '../../types';
 import { WorkspaceAvatar } from '../ui';
@@ -35,7 +35,6 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   activeChannelId,
   onSelectChannel,
   onCreateChannel,
-  onOpenSettings: _onOpenSettings,
   isOwner,
   onOpenEditWorkspace,
   onLeaveWorkspace,
@@ -79,72 +78,59 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   return (
     <aside
       id="channelSidebar"
-      className="h-full min-h-0 flex-1 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col overflow-visible min-w-[200px] relative z-30"
+      className="h-full min-h-0 flex-1 shrink-0 bg-[var(--bg-sidebar)] flex flex-col overflow-hidden min-w-[200px] select-none"
     >
-      {/* Workspace Header with Dropdown */}
-      <div className="relative shrink-0 z-50">
-        <div className="h-[54px] px-3.5 border-b border-[var(--border-color)] flex items-center justify-between gap-2 font-bold text-[0.95rem] bg-[var(--bg-sidebar)] select-none">
-          <button
-            ref={buttonRef}
-            type="button"
-            onClick={() => setIsMenuOpen((prev) => !prev)}
-            className="flex items-center gap-2 min-w-0 flex-1 px-2 py-1.5 rounded-lg hover:bg-[var(--bg-surface)] transition-colors cursor-pointer text-left group"
-            title="Tùy chọn Workspace"
-          >
-            <span className="truncate text-[var(--text-primary)] font-bold text-[0.95rem]">
-              {currentWorkspace?.name || 'Nexus Hub'}
-            </span>
-            <CaretDown
-              size={13}
-              weight="bold"
-              className={`text-[var(--text-muted)] group-hover:text-[var(--text-primary)] shrink-0 transition-transform duration-200 ${
-                isMenuOpen ? 'rotate-180 text-[var(--accent-primary)]' : ''
-              }`}
-            />
-          </button>
+      {/* 1. Server Header with Discord Dropdown */}
+      <div className="relative shrink-0">
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={() => setIsMenuOpen((prev) => !prev)}
+          className="w-full h-[54px] px-4 border-b border-[var(--border-color)] flex items-center justify-between gap-2 font-bold text-[15px] text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer text-left shadow-xs"
+          title="Tùy chọn Server"
+        >
+          <span className="truncate">{currentWorkspace?.name || 'Discord Server'}</span>
+          <CaretDown
+            size={14}
+            weight="bold"
+            className={`text-[var(--text-muted)] shrink-0 transition-transform duration-200 ${
+              isMenuOpen ? 'rotate-180 text-white' : ''
+            }`}
+          />
+        </button>
 
-          {/* Quick Invite Member button */}
-          <button
-            type="button"
-            onClick={() => setIsInviteModalOpen(true)}
-            title="Mời thêm thành viên vào Workspace"
-            className="w-7 h-7 rounded-[4px] bg-[var(--bg-surface)] hover:bg-[var(--accent-soft)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] border border-[var(--border-color)]/70 flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer shrink-0 shadow-2xs"
-          >
-            <UserPlus size={15} weight="bold" />
-          </button>
-        </div>
-
-        {/* Fullscreen Backdrop & Dropdown Menu Portaled to document.body */}
+        {/* Dropdown Menu */}
         {isMenuOpen &&
           createPortal(
             <>
               <div
-                className="fixed inset-0 z-[999] bg-black/20 backdrop-blur-[1px]"
+                className="fixed inset-0 z-[999] bg-black/30"
                 onClick={() => setIsMenuOpen(false)}
               />
 
               <div
                 ref={menuRef}
-                className="fixed top-[52px] left-[76px] w-[280px] z-[1000] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-[4px] shadow-2xl p-1.5 flex flex-col gap-0.5"
+                className="fixed top-[52px] left-[78px] w-[240px] z-[1000] bg-[var(--bg-rail)] border border-[var(--border-color)] rounded-[6px] shadow-2xl p-1.5 flex flex-col gap-0.5 text-xs select-none"
               >
-                <div className="flex items-center gap-2.5 p-2 rounded-[3px] bg-[var(--bg-surface)] border border-[var(--border-color)]/60">
+                {/* Header Info */}
+                <div className="flex items-center gap-2 p-2 rounded-[4px] bg-[var(--bg-surface)]">
                   <WorkspaceAvatar
-                    name={currentWorkspace?.name || 'Workspace'}
+                    name={currentWorkspace?.name || 'Server'}
                     iconUrl={currentWorkspace?.iconUrl}
-                    size="md"
+                    size="sm"
                     roundedClassName="rounded-[4px]"
                   />
-                  <div className="min-w-0 flex-1">
-                    <div className="font-extrabold text-sm text-[var(--text-primary)] leading-tight truncate">
-                      {currentWorkspace?.name || 'Nexus Hub'}
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <div className="font-bold text-[var(--text-primary)] truncate">
+                      {currentWorkspace?.name || 'Server'}
                     </div>
-                    <div className="text-[0.68rem] text-[var(--text-muted)] font-normal truncate mt-0.5">
-                      {currentWorkspace?.memberCount ? `${currentWorkspace.memberCount} thành viên` : 'Workspace'}
+                    <div className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
+                      {currentWorkspace?.memberCount ? `${currentWorkspace.memberCount} thành viên` : 'Server'}
                     </div>
                   </div>
                 </div>
 
-                <div className="h-px bg-[var(--border-color)]/70 my-1" />
+                <div className="h-px bg-[var(--border-color)] my-1" />
 
                 <button
                   type="button"
@@ -152,10 +138,22 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     setIsMenuOpen(false);
                     setIsInviteModalOpen(true);
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-[3px] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left"
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[4px] font-semibold text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white transition-colors cursor-pointer"
                 >
-                  <UserPlus size={16} weight="bold" className="shrink-0 text-[var(--text-muted)]" />
-                  <span>Mời thêm thành viên</span>
+                  <span>Mời bạn bè</span>
+                  <UserPlus size={16} weight="bold" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onCreateChannel(ChannelType.Text);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[4px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-white transition-colors cursor-pointer"
+                >
+                  <span>Tạo kênh</span>
+                  <Plus size={16} weight="bold" />
                 </button>
 
                 {onOpenEditWorkspace && (isOwner === undefined || isOwner) && (
@@ -165,14 +163,14 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                       setIsMenuOpen(false);
                       onOpenEditWorkspace();
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-[3px] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer text-left"
+                    className="w-full flex items-center justify-between px-2.5 py-2 rounded-[4px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-white transition-colors cursor-pointer"
                   >
-                    <Gear size={16} weight="bold" className="shrink-0 text-[var(--text-muted)]" />
-                    <span>Cài đặt Workspace</span>
+                    <span>Cài đặt máy chủ</span>
+                    <Gear size={16} weight="bold" />
                   </button>
                 )}
 
-                <div className="h-px bg-[var(--border-color)]/70 my-1" />
+                <div className="h-px bg-[var(--border-color)] my-1" />
 
                 <button
                   type="button"
@@ -180,10 +178,10 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     setIsMenuOpen(false);
                     onLeaveWorkspace?.();
                   }}
-                  className="w-full flex items-center gap-2 px-2.5 py-1.75 rounded-[3px] text-xs font-bold text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer text-left"
+                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[4px] font-bold text-rose-500 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
                 >
-                  <SignOut size={16} weight="bold" className="shrink-0 text-red-500" />
-                  <span>Rời Workspace</span>
+                  <span>Rời khỏi máy chủ</span>
+                  <SignOut size={16} weight="bold" />
                 </button>
               </div>
             </>,
@@ -191,28 +189,28 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           )}
       </div>
 
-      {/* Scroll Area */}
-      <div className="flex-1 min-h-0 px-2 py-3.5 overflow-y-auto flex flex-col gap-4 select-none">
-        {/* 1. Text Channels Section (Kênh thảo luận) */}
+      {/* 2. Channel List (Scrollable Area) */}
+      <div className="flex-1 min-h-0 px-2 py-3 overflow-y-auto space-y-4 no-scrollbar">
+        {/* Category: KÊNH VĂN BẢN (Text Channels) */}
         <div>
-          <div className="flex items-center justify-between px-2 mb-1 group">
+          <div className="flex items-center justify-between px-1.5 mb-1 group">
             <button
               type="button"
               onClick={() => setIsTextCollapsed((prev) => !prev)}
-              className="flex items-center gap-1.5 text-[0.68rem] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
             >
               {isTextCollapsed ? (
-                <CaretRight size={12} weight="bold" />
+                <CaretRight size={11} weight="bold" />
               ) : (
-                <CaretDown size={12} weight="bold" />
+                <CaretDown size={11} weight="bold" />
               )}
-              <span>Kênh thảo luận</span>
-              <span className="text-[10px] text-[var(--text-muted)] font-normal">({textChannels.length})</span>
+              <span>Kênh chat</span>
+              <span className="text-[10px] opacity-70">({textChannels.length})</span>
             </button>
             <button
               type="button"
-              className="p-1 hover:text-[var(--accent-primary)] hover:bg-[var(--bg-surface)] rounded-[3px] transition-colors cursor-pointer"
-              title="Tạo kênh thảo luận mới"
+              className="p-1 hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] rounded-[3px] transition-colors cursor-pointer text-[var(--text-muted)]"
+              title="Tạo kênh chat"
               onClick={() => onCreateChannel(ChannelType.Text)}
             >
               <Plus size={13} weight="bold" />
@@ -220,34 +218,36 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           </div>
 
           {!isTextCollapsed && (
-            <ul className="list-none flex flex-col gap-0.5 m-0 p-0">
+            <div className="space-y-0.5">
               {textChannels.map((ch) => {
                 const isActive = activeChannelId === ch.id;
                 const isUnread = !!ch.hasUnread && !isActive;
+
                 return (
-                  <li
+                  <div
                     key={ch.id}
                     onClick={() => onSelectChannel(ch.id)}
-                    className={`group/ch relative flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] cursor-pointer transition-all duration-150 border-none w-full text-left ${
+                    className={`group/ch relative flex items-center justify-between px-2 py-1.5 rounded-[4px] text-[13px] cursor-pointer transition-colors ${
                       isActive
-                        ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
+                        ? 'bg-[var(--bg-surface-active)] text-white font-medium'
                         : isUnread
-                        ? 'text-[var(--text-primary)] font-bold hover:bg-[var(--bg-surface)]'
-                        : 'text-[var(--text-secondary)] font-medium hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                        ? 'text-white font-bold hover:bg-[var(--bg-surface)]'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    <span className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       {isUnread && (
-                        <span className="absolute -left-1.5 w-1 h-2.5 rounded-r-full bg-[var(--text-primary)] shadow-xs" />
+                        <span className="absolute -left-1.5 w-1 h-2 rounded-r-full bg-white shadow-xs" />
                       )}
                       {ch.isPrivate ? (
-                        <Key size={15} weight="bold" className="text-amber-500/90 shrink-0" />
+                        <Lock size={15} weight="bold" className="text-[var(--text-muted)] shrink-0" />
                       ) : (
-                        <Hash size={16} weight="bold" className={`shrink-0 ${isUnread ? 'opacity-100 text-[var(--text-primary)]' : 'opacity-65'}`} />
+                        <Hash size={16} weight="bold" className={`shrink-0 ${isUnread ? 'text-white' : 'text-[var(--text-muted)]'}`} />
                       )}
                       <span className="truncate">{ch.name}</span>
-                    </span>
-                    <span className="flex items-center gap-1.5 shrink-0">
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
                       {ch.isPrivate && onOpenAddChannelMember && (
                         <button
                           type="button"
@@ -255,8 +255,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                             e.stopPropagation();
                             onOpenAddChannelMember(ch);
                           }}
-                          title="Thêm thành viên vào kênh riêng tư"
-                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] rounded transition-all cursor-pointer text-[var(--text-muted)]"
+                          title="Thêm thành viên"
+                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-white rounded transition-opacity cursor-pointer text-[var(--text-muted)]"
                         >
                           <UserPlus size={13} weight="bold" />
                         </button>
@@ -269,42 +269,42 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                             onOpenEditChannel(ch);
                           }}
                           title="Cài đặt kênh"
-                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] rounded transition-all cursor-pointer text-[var(--text-muted)]"
+                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-white rounded transition-opacity cursor-pointer text-[var(--text-muted)]"
                         >
                           <Gear size={13} weight="bold" />
                         </button>
                       )}
                       {isUnread && (
-                        <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] shrink-0 shadow-xs" title="Có tin mới" />
+                        <span className="w-2 h-2 rounded-full bg-white shrink-0 shadow-xs" />
                       )}
-                    </span>
-                  </li>
+                    </div>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           )}
         </div>
 
-        {/* 2. Voice Channels Section (Kênh thoại) */}
+        {/* Category: KÊNH THOẠI (Voice Channels) */}
         <div>
-          <div className="flex items-center justify-between px-2 mb-1 group">
+          <div className="flex items-center justify-between px-1.5 mb-1 group">
             <button
               type="button"
               onClick={() => setIsVoiceCollapsed((prev) => !prev)}
-              className="flex items-center gap-1.5 text-[0.68rem] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
             >
               {isVoiceCollapsed ? (
-                <CaretRight size={12} weight="bold" />
+                <CaretRight size={11} weight="bold" />
               ) : (
-                <CaretDown size={12} weight="bold" />
+                <CaretDown size={11} weight="bold" />
               )}
               <span>Kênh thoại</span>
-              <span className="text-[10px] text-[var(--text-muted)] font-normal">({voiceChannels.length})</span>
+              <span className="text-[10px] opacity-70">({voiceChannels.length})</span>
             </button>
             <button
               type="button"
-              className="p-1 hover:text-[var(--accent-primary)] hover:bg-[var(--bg-surface)] rounded-[3px] transition-colors cursor-pointer"
-              title="Tạo kênh thoại mới"
+              className="p-1 hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] rounded-[3px] transition-colors cursor-pointer text-[var(--text-muted)]"
+              title="Tạo kênh thoại"
               onClick={() => onCreateChannel(ChannelType.Voice)}
             >
               <Plus size={13} weight="bold" />
@@ -312,47 +312,30 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           </div>
 
           {!isVoiceCollapsed && (
-            <ul className="list-none flex flex-col gap-0.5 m-0 p-0">
+            <div className="space-y-0.5">
               {voiceChannels.map((ch) => {
                 const isActive = activeChannelId === ch.id;
-                const isUnread = !!ch.hasUnread && !isActive;
+
                 return (
-                  <li
+                  <div
                     key={ch.id}
                     onClick={() => onSelectChannel(ch.id)}
-                    className={`group/ch relative flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[0.88rem] cursor-pointer transition-all duration-150 border-none w-full text-left ${
+                    className={`group/ch relative flex items-center justify-between px-2 py-1.5 rounded-[4px] text-[13px] cursor-pointer transition-colors ${
                       isActive
-                        ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold'
-                        : isUnread
-                        ? 'text-[var(--text-primary)] font-bold hover:bg-[var(--bg-surface)]'
-                        : 'text-[var(--text-secondary)] font-medium hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                        ? 'bg-[var(--bg-surface-active)] text-white font-medium'
+                        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
                     }`}
                   >
-                    <span className="flex items-center gap-2 min-w-0 flex-1">
-                      {isUnread && (
-                        <span className="absolute -left-1.5 w-1 h-2.5 rounded-r-full bg-[var(--text-primary)] shadow-xs" />
-                      )}
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
                       {ch.isPrivate ? (
-                        <Key size={15} weight="bold" className="text-amber-500/90 shrink-0" />
+                        <Lock size={15} weight="bold" className="text-[var(--text-muted)] shrink-0" />
                       ) : (
-                        <SpeakerHigh size={16} weight="bold" className="opacity-75 text-[var(--accent-primary)] shrink-0" />
+                        <SpeakerHigh size={16} weight="bold" className="text-[var(--text-muted)] shrink-0" />
                       )}
                       <span className="truncate">{ch.name}</span>
-                    </span>
-                    <span className="flex items-center gap-1.5 shrink-0">
-                      {ch.isPrivate && onOpenAddChannelMember && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenAddChannelMember(ch);
-                          }}
-                          title="Thêm thành viên vào kênh riêng tư"
-                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] rounded transition-all cursor-pointer text-[var(--text-muted)]"
-                        >
-                          <UserPlus size={13} weight="bold" />
-                        </button>
-                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
                       {onOpenEditChannel && (
                         <button
                           type="button"
@@ -361,19 +344,16 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                             onOpenEditChannel(ch);
                           }}
                           title="Cài đặt kênh"
-                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-[var(--text-primary)] hover:bg-[var(--bg-chat)] rounded transition-all cursor-pointer text-[var(--text-muted)]"
+                          className="opacity-0 group-hover/ch:opacity-100 p-0.5 hover:text-white rounded transition-opacity cursor-pointer text-[var(--text-muted)]"
                         >
                           <Gear size={13} weight="bold" />
                         </button>
                       )}
-                      {isUnread && (
-                        <span className="w-2 h-2 rounded-full bg-[var(--accent-primary)] shrink-0 shadow-xs" title="Có tin mới" />
-                      )}
-                    </span>
-                  </li>
+                    </div>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           )}
         </div>
       </div>

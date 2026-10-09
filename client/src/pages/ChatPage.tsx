@@ -20,7 +20,7 @@ import {
 } from "../components/notifications";
 import { type UserProfileData } from "../components/profile";
 import { Toast } from "../components/ui";
-import { Chats } from "@phosphor-icons/react";
+import { FriendsDashboard } from "../components/friends/FriendsDashboard";
 import { formatMessageTime } from "../utils/formatDate";
 import {
   authApi,
@@ -1014,25 +1014,27 @@ export const ChatPage: React.FC = () => {
               : "auto",
         }}
       >
-        {/* 1 & 2. Unified Left Dock (Workspace Rail + Channel Sidebar + Spanning User Footer) */}
+        {/* 1. Discord Server Rail (Full Height, Leftmost 72px) */}
+        <WorkspaceRail
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          activeSidebarView={activeSidebarView}
+          onSelectView={(view) => setActiveSidebarView(view)}
+          onSelectWorkspace={handleSelectWorkspace}
+          onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
+          onGoHome={() => navigate("/")}
+          unreadNotificationCount={unreadNotificationCount}
+        />
+
+        {/* 2. Sub-Sidebar Column (Channel / DM / Notification Sidebar + User Footer Bar) */}
         <div
-          className="h-full flex flex-col shrink-0 overflow-hidden"
+          className="h-full flex flex-col shrink-0 overflow-hidden bg-[var(--bg-sidebar)]"
           style={{
-            width: `${68 + (activeSidebarView === "notifications" ? Math.max(channelWidth, 310) : channelWidth)}px`,
+            width: `${activeSidebarView === "notifications" ? Math.max(channelWidth, 310) : channelWidth}px`,
           }}
         >
-          {/* Top Columns */}
-          <div className="flex-1 min-h-0 flex flex-row overflow-hidden">
-            <WorkspaceRail
-              workspaces={workspaces}
-              activeWorkspaceId={activeWorkspaceId}
-              activeSidebarView={activeSidebarView}
-              onSelectView={(view) => setActiveSidebarView(view)}
-              onSelectWorkspace={handleSelectWorkspace}
-              onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
-              onGoHome={() => navigate("/")}
-              unreadNotificationCount={unreadNotificationCount}
-            />
+          {/* Main Sub-Sidebar Content */}
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
             {activeSidebarView === "channels" ? (
               <ChannelSidebar
                 currentWorkspace={currentWorkspace}
@@ -1053,20 +1055,26 @@ export const ChatPage: React.FC = () => {
                   (c) => !c.workspaceId || c.workspaceId === activeWorkspaceId,
                 )}
                 activeConversationId={activeDmId}
+                isFriendsActive={!activeDmId}
+                onSelectFriends={() => {
+                  setActiveDmId(null);
+                  setActiveChannelId(null);
+                }}
                 onSelectConversation={handleSelectDmConversation}
                 onOpenNewDm={() => setNewDmOpen(true)}
                 onRemoveConversation={(id, e) => {
                   e.stopPropagation();
                   setDmConversations((prev) => prev.filter((c) => c.id !== id));
                   if (activeDmId === id) {
-                    const remaining = dmConversations.filter(
-                      (c) => c.id !== id,
-                    );
-                    if (remaining.length > 0) {
-                      handleSelectDmConversation(remaining[0]);
-                    }
+                    setActiveDmId(null);
+                    setActiveChannelId(null);
                   }
                 }}
+                onlineFriendsCount={
+                  workspaceMembers.filter(
+                    (m) => m.status === "online" || m.status === "dnd" || m.status === "away"
+                  ).length
+                }
               />
             ) : activeSidebarView === "notifications" ? (
               <NotificationsSidebar
@@ -1078,7 +1086,7 @@ export const ChatPage: React.FC = () => {
             ) : null}
           </div>
 
-          {/* User Account Footer Bar */}
+          {/* User Account Footer Bar (pinned directly at bottom of sub-sidebar) */}
           <UserFooterBar
             currentUser={currentUser}
             onOpenSettings={() => setSettingsOpen(true)}
@@ -1103,18 +1111,13 @@ export const ChatPage: React.FC = () => {
             onNavigateToTarget={handleNavigateFromNotification}
           />
         ) : activeSidebarView === "dms" && (!activeDmId || !activeDm) ? (
-          <div className="flex-1 min-h-0 flex flex-col items-center justify-center bg-[var(--bg-chat)] p-8 text-center select-none">
-            <div className="w-16 h-16 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-color)] flex items-center justify-center text-[var(--accent-primary)] mb-3 shadow-xs">
-              <Chats size={36} weight="duotone" className="opacity-60" />
-            </div>
-            <p className="text-base font-bold text-[var(--text-primary)] mb-1">
-              Chưa chọn cuộc trò chuyện
-            </p>
-            <p className="text-xs text-[var(--text-muted)] max-w-sm leading-relaxed">
-              Chọn một tin nhắn trực tiếp ở danh sách bên trái hoặc nhấn nút +
-              để tìm kiếm thành viên và bắt đầu cuộc trò chuyện riêng tư.
-            </p>
-          </div>
+          <FriendsDashboard
+            currentUser={currentUser}
+            friends={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
+            onStartDm={(friend) => handleStartDmWithUser(friend)}
+            onOpenUserProfile={(friend) => handleOpenUserProfile(friend as any)}
+            onToast={(t) => setToast(t)}
+          />
         ) : (
           <ChatArea
             currentChannel={currentChannel}

@@ -1,141 +1,126 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
-  MagnifyingGlass,
-  UserPlus,
-  PaperPlaneTilt,
+  Users,
+  Plus,
   X,
+  MagnifyingGlass,
   WechatLogoIcon,
 } from '@phosphor-icons/react';
-import type { DirectMessageUser } from './NewDirectMessageModal';
 import { useChatStore } from '../../stores';
-
-export interface DirectMessageItem {
-  id: string; // DM channel ID or temporary conversation ID
-  workspaceId?: string;
-  user: DirectMessageUser;
-  lastMessage?: string;
-  lastMessageTime?: string;
-  unreadCount?: number;
-  isPending?: boolean;
-}
+import type { DirectMessageItem } from './types';
 
 interface DirectMessagesSidebarProps {
   conversations: DirectMessageItem[];
   activeConversationId: string | null;
-  onSelectConversation: (conversation: DirectMessageItem) => void;
+  isFriendsActive?: boolean;
+  onSelectFriends?: () => void;
+  onSelectConversation: (item: DirectMessageItem) => void;
   onOpenNewDm: () => void;
   onRemoveConversation?: (id: string, e: React.MouseEvent) => void;
+  onlineFriendsCount?: number;
 }
 
 export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
   conversations,
   activeConversationId,
+  isFriendsActive = false,
+  onSelectFriends,
   onSelectConversation,
   onOpenNewDm,
-  onRemoveConversation: _onRemoveConversation,
+  onRemoveConversation,
+  onlineFriendsCount = 0,
 }) => {
-  const [filterQuery, setFilterQuery] = useState('');
+  const [filterQuery] = useState('');
   const drafts = useChatStore((state) => state.drafts);
 
-  const filteredConversations = useMemo(() => {
-    const term = filterQuery.trim().toLowerCase();
-    if (!term) return conversations;
-    return conversations.filter(
-      (c) =>
-        c.user.displayName.toLowerCase().includes(term) ||
-        c.user.username.toLowerCase().includes(term) ||
-        (c.lastMessage && c.lastMessage.toLowerCase().includes(term))
+  const filteredConversations = conversations.filter((item) => {
+    if (!filterQuery.trim()) return true;
+    const q = filterQuery.toLowerCase();
+    return (
+      item.user.displayName.toLowerCase().includes(q) ||
+      item.user.username.toLowerCase().includes(q)
     );
-  }, [conversations, filterQuery]);
+  });
 
-  const getStatusColor = (status: DirectMessageUser['status']) => {
-    switch (status) {
+  const getStatusColor = (status?: string) => {
+    switch (status?.toLowerCase()) {
       case 'online':
-        return 'bg-[var(--status-online)] shadow-[0_0_6px_rgba(22,163,74,0.4)]';
+        return 'bg-[#23a55a]';
       case 'away':
-        return 'bg-[var(--status-away)]';
+      case 'idle':
+        return 'bg-[#f0b232]';
       case 'dnd':
-        return 'bg-[var(--status-dnd)]';
+        return 'bg-[#f23f43]';
       case 'offline':
       default:
-        return 'bg-neutral-400';
+        return 'bg-neutral-500';
     }
   };
 
   return (
     <aside
       id="directMessagesSidebar"
-      className="h-full min-h-0 flex-1 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col overflow-visible min-w-[200px] relative z-30"
+      className="h-full min-h-0 flex-1 shrink-0 bg-[var(--bg-sidebar)] flex flex-col overflow-hidden min-w-[200px] select-none"
     >
-      {/* 1. Header (Fixed 54px matching ChannelSidebar, fully responsive) */}
-      <div className="h-[54px] px-3.5 border-b border-[var(--border-color)] flex items-center justify-between gap-2 font-bold text-[0.95rem] bg-[var(--bg-sidebar)] select-none shrink-0">
-        <div className="flex items-center gap-2 text-[var(--text-primary)] min-w-0 flex-1">
-          <div className="w-7 h-7 rounded-[4px] bg-[var(--accent-soft)] flex items-center justify-center text-[var(--accent-primary)] shrink-0">
-            <WechatLogoIcon size={20} weight="fill" />
-          </div>
-          <span className="truncate font-bold text-[0.95rem]">Tin nhắn trực tiếp</span>
-        </div>
-
-        {/* Quick New DM button */}
+      {/* 1. Discord-style Search / Find DM bar */}
+      <div className="h-[54px] px-2.5 border-b border-[var(--border-color)] flex items-center shrink-0">
         <button
           type="button"
           onClick={onOpenNewDm}
-          title="Nhắn tin với thành viên mới"
-          className="w-7 h-7 rounded-[4px] bg-[var(--bg-surface)] hover:bg-[var(--accent-soft)] text-[var(--text-secondary)] hover:text-[var(--accent-primary)] border border-[var(--border-color)]/70 flex items-center justify-center transition-all duration-150 active:scale-95 cursor-pointer shrink-0 shadow-2xs"
+          className="w-full h-7 px-2 rounded-[4px] bg-[var(--bg-chat)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs flex items-center justify-between transition-colors cursor-pointer border border-[var(--border-color)]/60"
         >
-          <UserPlus size={15} weight="bold" />
+          <span className="truncate">Tìm hoặc bắt đầu trò chuyện</span>
+          <MagnifyingGlass size={13} weight="bold" />
         </button>
       </div>
 
-      {/* 2. Messenger-style Search Bar */}
-      <div className="p-3 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0">
-        <div className="flex items-center gap-2">
-          {/* Search Input Box */}
-          <div className="relative flex-1 flex items-center min-w-0">
-            <MagnifyingGlass
-              size={14}
-              weight="bold"
-              className="absolute left-2.5 text-[var(--text-muted)] pointer-events-none"
-            />
-            <input
-              type="text"
-              value={filterQuery}
-              onChange={(e) => setFilterQuery(e.target.value)}
-              placeholder="Tìm kiếm tin nhắn..."
-              className="w-full pl-8 pr-2.5 py-1.5 text-xs rounded-[3px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all"
-            />
-            {filterQuery && (
-              <button
-                type="button"
-                onClick={() => setFilterQuery('')}
-                className="absolute right-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs cursor-pointer"
-              >
-                <X size={12} weight="bold" />
-              </button>
-            )}
+      {/* 2. Top Navigation: Friends Button (Iconic Discord top tab) */}
+      <div className="p-2 shrink-0">
+        <button
+          type="button"
+          onClick={onSelectFriends}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-[13px] font-semibold cursor-pointer transition-colors ${
+            isFriendsActive && !activeConversationId
+              ? 'bg-[var(--bg-surface-active)] text-white'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Users size={18} weight={isFriendsActive ? 'fill' : 'bold'} />
+            <span>Bạn bè</span>
           </div>
-        </div>
+          {onlineFriendsCount > 0 && (
+            <span className="text-[11px] font-bold px-1.5 py-0.2 rounded-full bg-[var(--accent-primary)] text-white">
+              {onlineFriendsCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* 3. Conversation List */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1">
-        <div className="flex items-center justify-between px-2 pt-1 pb-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] select-none">
-          <span>Hộp thư cá nhân</span>
-          <span>{filteredConversations.length}</span>
-        </div>
+      {/* 3. Section Title: TIN NHẮN TRỰC TIẾP */}
+      <div className="flex items-center justify-between px-4 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] shrink-0 group">
+        <span>Tin nhắn trực tiếp</span>
+        <button
+          type="button"
+          onClick={onOpenNewDm}
+          title="Tạo tin nhắn trực tiếp mới"
+          className="p-0.5 hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+        >
+          <Plus size={14} weight="bold" />
+        </button>
+      </div>
 
+      {/* 4. DM Conversation List */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-0.5 no-scrollbar">
         {filteredConversations.length === 0 ? (
           <div className="p-6 text-center text-xs text-[var(--text-muted)] flex flex-col items-center gap-2">
-            <div className="w-10 h-10 rounded-[4px] bg-[var(--bg-surface)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)]">
-              <PaperPlaneTilt size={20} className="opacity-60" />
+            <div className="w-10 h-10 rounded-[4px] bg-[var(--bg-surface)] flex items-center justify-center text-[var(--text-muted)]">
+              <WechatLogoIcon size={20} weight="fill" className="opacity-60" />
             </div>
             {filterQuery ? (
-              <span>Không có tin nhắn nào khớp với &quot;{filterQuery}&quot;</span>
+              <span>Không tìm thấy &quot;{filterQuery}&quot;</span>
             ) : (
-              <>
-                <span className="font-medium text-[var(--text-secondary)]">Chưa có tin nhắn nào</span>
-                <span className="text-[11px]">Bấm dấu + ở trên để tìm thành viên và bắt đầu trò chuyện</span>
-              </>
+              <span>Chưa có tin nhắn trực tiếp nào</span>
             )}
           </div>
         ) : (
@@ -147,72 +132,70 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
               <div
                 key={item.id}
                 onClick={() => onSelectConversation(item)}
-                className={`group relative flex items-center gap-3 px-2.5 py-2 rounded-[4px] cursor-pointer transition-all select-none ${isActive
-                  ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] font-medium shadow-2xs'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
-                  }`}
+                className={`group relative flex items-center justify-between px-2.5 py-2 rounded-[4px] cursor-pointer transition-colors ${
+                  isActive
+                    ? 'bg-[var(--bg-surface-active)] text-white'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                }`}
               >
-                {/* User Avatar with Status Indicator */}
-                <div className="relative shrink-0">
-                  <div className="w-9 h-9 rounded-[4px] bg-[var(--bg-surface)] flex items-center justify-center border border-[var(--border-color)] overflow-hidden shadow-2xs">
-                    <img
-                      src={avatarSrc}
-                      alt={item.user.displayName}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = '/default-avatar.png';
-                      }}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  {/* Avatar + Status Indicator */}
+                  <div className="relative shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-[var(--bg-surface)] flex items-center justify-center overflow-hidden">
+                      <img
+                        src={avatarSrc}
+                        alt={item.user.displayName}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = '/default-avatar.png';
+                        }}
+                      />
+                    </div>
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-sidebar)] ${getStatusColor(
+                        item.user.status
+                      )}`}
                     />
                   </div>
-                  {/* Status dot */}
-                  <span
-                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-sidebar)] ${getStatusColor(
-                      item.user.status
-                    )}`}
-                  />
-                </div>
 
-                {/* Conversation Details */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1 leading-tight">
-                    <span
-                      className={`text-xs truncate ${isActive
-                        ? 'font-bold text-[var(--accent-primary)]'
-                        : 'font-semibold text-[var(--text-primary)]'
-                        }`}
-                    >
+                  {/* Name and last message / draft */}
+                  <div className="min-w-0 flex-1 leading-tight">
+                    <div className="text-[13px] font-medium truncate">
                       {item.user.displayName}
-                    </span>
-                    {item.lastMessageTime && (
-                      <span className="text-[10px] text-[var(--text-muted)] shrink-0">
-                        {item.lastMessageTime}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between gap-1 mt-0.5">
-                    <span className="text-[11px] text-[var(--text-muted)] truncate">
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] truncate">
                       {(() => {
                         const draft = (drafts[item.id] || '').trim();
                         if (draft) {
                           return (
-                            <span className="text-amber-500 italic">
-                              <span className="font-semibold not-italic">Bản nháp: </span>
-                              {draft}
+                            <span className="text-amber-400 italic">
+                              Bản nháp: {draft}
                             </span>
                           );
                         }
-                        return item.lastMessage || 'Bắt đầu cuộc trò chuyện';
+                        return item.lastMessage || `@${item.user.username}`;
                       })()}
-                    </span>
-
-                    {/* Unread badge */}
-                    {item.unreadCount !== undefined && item.unreadCount > 0 && (
-                      <span className="px-1.5 py-0.2 rounded-full bg-[var(--accent-primary)] text-white text-[9px] font-bold shrink-0">
-                        {item.unreadCount}
-                      </span>
-                    )}
+                    </div>
                   </div>
+                </div>
+
+                {/* Right badges & Close button on hover */}
+                <div className="flex items-center gap-1 shrink-0 ml-1">
+                  {item.unreadCount !== undefined && item.unreadCount > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-[var(--accent-primary)] text-white text-[9px] font-bold">
+                      {item.unreadCount}
+                    </span>
+                  )}
+                  {onRemoveConversation && (
+                    <button
+                      type="button"
+                      onClick={(e) => onRemoveConversation(item.id, e)}
+                      title="Đóng cuộc trò chuyện"
+                      className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-white rounded transition-opacity cursor-pointer text-[var(--text-muted)]"
+                    >
+                      <X size={13} weight="bold" />
+                    </button>
+                  )}
                 </div>
               </div>
             );

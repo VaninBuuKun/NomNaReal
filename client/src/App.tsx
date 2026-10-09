@@ -26,7 +26,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 export const App: React.FC = () => {
   // Ensure default theme is applied on initial mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem('nomna_theme') || 'warm-orange';
+    const savedTheme = localStorage.getItem('nomna_theme') || 'discord-dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
     document.body.setAttribute('data-theme', savedTheme);
   }, []);

@@ -1,32 +1,32 @@
-import React from 'react';
-import { Gear } from '@phosphor-icons/react';
+import React, { useState } from 'react';
+import { Microphone, MicrophoneSlash, Headphones, Gear } from '@phosphor-icons/react';
 import { Avatar } from '../ui';
 import type { User } from '../../types';
 
 interface UserFooterBarProps {
   currentUser: User | null;
   onOpenSettings: () => void;
-  unreadCount?: number;
-  onSelectNotification?: any;
-  onUnreadCountChange?: any;
 }
 
 export const UserFooterBar: React.FC<UserFooterBarProps> = ({
   currentUser,
   onOpenSettings,
 }) => {
+  const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
+
   return (
     <div
-      className="h-14 bg-[var(--bg-rail)] border-t border-r border-[var(--border-color)] flex items-center shrink-0 select-none relative z-30"
-      title="Tài khoản cá nhân & Cài đặt"
+      className="h-[52px] bg-[var(--bg-surface-active)]/95 border-t border-[var(--border-color)] px-2 flex items-center justify-between shrink-0 select-none z-30"
     >
-      {/* 1. Left Area (aligned with 68px Workspace Rail) */}
-      <div
-        className="w-[68px] shrink-0 flex items-center justify-center cursor-pointer group"
+      {/* User profile button */}
+      <button
+        type="button"
         onClick={onOpenSettings}
-        title="Mở Cài đặt tài khoản"
+        title="Mở cài đặt tài khoản"
+        className="flex items-center gap-2 min-w-0 p-1 -ml-1 rounded-[4px] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer text-left group max-w-[130px]"
       >
-        <div className="relative group-hover:scale-105 transition-transform">
+        <div className="relative shrink-0">
           <Avatar
             src={currentUser?.avatarUrl}
             fallback={currentUser?.displayName || 'User'}
@@ -34,35 +34,52 @@ export const UserFooterBar: React.FC<UserFooterBarProps> = ({
             status="online"
           />
         </div>
-      </div>
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="text-[13px] font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-primary)] transition-colors">
+            {currentUser?.displayName || 'Người dùng'}
+          </div>
+          <div className="text-[11px] text-[var(--text-muted)] truncate font-mono">
+            @{currentUser?.username || 'user'}
+          </div>
+        </div>
+      </button>
 
-      {/* 2. Right Area (aligned with Channel Sidebar) */}
-      <div className="flex-1 min-w-0 pr-2 flex items-center justify-between gap-1">
-        <div
-          className="min-w-0 flex-1 cursor-pointer group py-1"
-          onClick={onOpenSettings}
-          title="Mở Cài đặt tài khoản"
+      {/* Media & Settings Controls */}
+      <div className="flex items-center gap-0.5 shrink-0 text-[var(--text-muted)]">
+        <button
+          type="button"
+          onClick={() => setIsMuted((prev) => !prev)}
+          title={isMuted ? 'Bật Mic' : 'Tắt Mic'}
+          className={`p-1.5 rounded-[4px] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer ${
+            isMuted ? 'text-rose-500 hover:text-rose-400' : ''
+          }`}
         >
-          <div className="text-[0.82rem] font-bold truncate text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
-            {currentUser?.displayName || 'Alex Rivers'}
-          </div>
-          <div className="text-[0.68rem] text-[var(--text-muted)] flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-online)] shadow-[0_0_4px_rgba(22,163,74,0.6)] shrink-0" />
-            <span className="truncate">Online</span>
-          </div>
-        </div>
+          {isMuted ? (
+            <MicrophoneSlash size={18} weight="bold" />
+          ) : (
+            <Microphone size={18} weight="bold" />
+          )}
+        </button>
 
-        {/* Action Button: Gear / Settings */}
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            type="button"
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-            onClick={onOpenSettings}
-            title="Cài đặt & Giao diện"
-          >
-            <Gear size={18} weight="bold" />
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsDeafened((prev) => !prev)}
+          title={isDeafened ? 'Bật Âm thanh' : 'Tắt Âm thanh'}
+          className={`p-1.5 rounded-[4px] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer ${
+            isDeafened ? 'text-rose-500 hover:text-rose-400' : ''
+          }`}
+        >
+          <Headphones size={18} weight={isDeafened ? 'fill' : 'bold'} className={isDeafened ? 'text-rose-500' : ''} />
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          title="Cài đặt người dùng"
+          className="p-1.5 rounded-[4px] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+        >
+          <Gear size={18} weight="bold" />
+        </button>
       </div>
     </div>
   );

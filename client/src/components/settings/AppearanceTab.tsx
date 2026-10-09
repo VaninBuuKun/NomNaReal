@@ -21,6 +21,12 @@ export const AppearanceTab: React.FC<AppearanceTabProps> = ({
 
   const themes = [
     {
+      id: "discord-dark",
+      name: "Discord Dark (Mặc định)",
+      desc: "Giao diện tối chuẩn Discord kinh điển với sắc tím blurple",
+      colors: ["#1e1f22", "#5865f2", "#f2f3f5"],
+    },
+    {
       id: "warm-orange",
       name: "Trắng Cam Ấm (Warm Light)",
       desc: "Phong cách Arc Browser & Substack, màu cam ấm áp",

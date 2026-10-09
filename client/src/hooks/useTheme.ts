@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 export function useTheme() {
   const [theme, setTheme] = useState<string>(() => {
-    return localStorage.getItem('nomna_theme') || 'warm-orange';
+    return localStorage.getItem('nomna_theme') || 'discord-dark';
   });
 
   useEffect(() => {
