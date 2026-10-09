@@ -14,8 +14,20 @@ public class FileStorageService : IFileStorageService
 
     public async Task<string> SaveFileAsync(Stream fileStream, string fileName, string folder, string? contentType = null, CancellationToken cancellationToken = default)
     {
-        var webRoot = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-        var targetDir = Path.Combine(webRoot, folder);
+        string webRoot;
+        if (!string.IsNullOrWhiteSpace(_environment.WebRootPath) && Directory.Exists(_environment.WebRootPath))
+        {
+            webRoot = _environment.WebRootPath;
+        }
+        else
+        {
+            var cur = Directory.GetCurrentDirectory();
+            var apiWwwRoot = Path.Combine(cur, "src", "NomNa.WebAPI", "wwwroot");
+            webRoot = Directory.Exists(apiWwwRoot) ? apiWwwRoot : Path.Combine(cur, "wwwroot");
+        }
+
+        var cleanFolder = folder.Trim().Trim('/');
+        var targetDir = Path.Combine(webRoot, cleanFolder);
 
         if (!Directory.Exists(targetDir))
         {

@@ -6,13 +6,17 @@ import {
   CaretDown,
   CaretRight,
   Plus,
+  PlusCircle,
+  FolderPlus,
   Gear,
   UserPlus,
   SignOut,
   Lock,
+  Bell,
+  ShieldCheck,
+  PencilSimple,
 } from '@phosphor-icons/react';
 import { ChannelType, type Channel, type Workspace } from '../../types';
-import { WorkspaceAvatar } from '../ui';
 import { InviteMemberModal } from '../workspace';
 
 interface ChannelSidebarProps {
@@ -35,6 +39,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   activeChannelId,
   onSelectChannel,
   onCreateChannel,
+  onOpenSettings,
   isOwner,
   onOpenEditWorkspace,
   onLeaveWorkspace,
@@ -104,58 +109,28 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           createPortal(
             <>
               <div
-                className="fixed inset-0 z-[999] bg-black/30"
+                className="fixed inset-0 z-[999] bg-black/20"
                 onClick={() => setIsMenuOpen(false)}
               />
 
               <div
                 ref={menuRef}
-                className="fixed top-[52px] left-[78px] w-[240px] z-[1000] bg-[var(--bg-rail)] border border-[var(--border-color)] rounded-[6px] shadow-2xl p-1.5 flex flex-col gap-0.5 text-xs select-none"
+                className="fixed top-[52px] left-[78px] w-[220px] z-[1000] bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-2xl rounded-[6px] shadow-2xl p-1.5 flex flex-col gap-0.5 text-xs select-none backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
               >
-                {/* Header Info */}
-                <div className="flex items-center gap-2 p-2 rounded-[4px] bg-[var(--bg-surface)]">
-                  <WorkspaceAvatar
-                    name={currentWorkspace?.name || 'Server'}
-                    iconUrl={currentWorkspace?.iconUrl}
-                    size="sm"
-                    roundedClassName="rounded-[4px]"
-                  />
-                  <div className="min-w-0 flex-1 leading-tight">
-                    <div className="font-bold text-[var(--text-primary)] truncate">
-                      {currentWorkspace?.name || 'Server'}
-                    </div>
-                    <div className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
-                      {currentWorkspace?.memberCount ? `${currentWorkspace.memberCount} thành viên` : 'Server'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="h-px bg-[var(--border-color)] my-1" />
-
+                {/* 1. Mời bạn bè (Discord blurple highlight) */}
                 <button
                   type="button"
                   onClick={() => {
                     setIsMenuOpen(false);
                     setIsInviteModalOpen(true);
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[4px] font-semibold text-[var(--accent-primary)] hover:bg-[var(--accent-primary)] hover:text-white transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] font-semibold text-[var(--accent-primary,#5865f2)] hover:bg-[var(--accent-primary,#5865f2)] hover:text-white transition-colors cursor-pointer group"
                 >
-                  <span>Mời bạn bè</span>
-                  <UserPlus size={16} weight="bold" />
+                  <span>Mời mọi người</span>
+                  <UserPlus size={16} weight="bold" className="text-current opacity-80 group-hover:opacity-100" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onCreateChannel(ChannelType.Text);
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[4px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-white transition-colors cursor-pointer"
-                >
-                  <span>Tạo kênh</span>
-                  <Plus size={16} weight="bold" />
-                </button>
-
+                {/* 2. Cài đặt máy chủ */}
                 {onOpenEditWorkspace && (isOwner === undefined || isOwner) && (
                   <button
                     type="button"
@@ -163,25 +138,91 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                       setIsMenuOpen(false);
                       onOpenEditWorkspace();
                     }}
-                    className="w-full flex items-center justify-between px-2.5 py-2 rounded-[4px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-white transition-colors cursor-pointer"
+                    className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] font-medium text-[var(--text-secondary)] hover:bg-[var(--accent-primary,#5865f2)] hover:text-white transition-colors cursor-pointer group"
                   >
                     <span>Cài đặt máy chủ</span>
-                    <Gear size={16} weight="bold" />
+                    <Gear size={16} weight="bold" className="text-current opacity-70 group-hover:opacity-100" />
                   </button>
                 )}
 
-                <div className="h-px bg-[var(--border-color)] my-1" />
+                {/* 3. Tạo kênh */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onCreateChannel(ChannelType.Text);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] font-medium text-[var(--text-secondary)] hover:bg-[var(--accent-primary,#5865f2)] hover:text-white transition-colors cursor-pointer group"
+                >
+                  <span>Tạo kênh</span>
+                  <PlusCircle size={16} weight="bold" className="text-current opacity-70 group-hover:opacity-100" />
+                </button>
 
+                {/* 4. Tạo danh mục */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onCreateChannel(ChannelType.Text);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] font-medium text-[var(--text-secondary)] hover:bg-[var(--accent-primary,#5865f2)] hover:text-white transition-colors cursor-pointer group"
+                >
+                  <span>Tạo danh mục</span>
+                  <FolderPlus size={16} weight="bold" className="text-current opacity-70 group-hover:opacity-100" />
+                </button>
+
+                <div className="h-px bg-[var(--border-color)]/60 my-1 mx-1" />
+
+                {/* 5. Cài đặt thông báo */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] font-medium text-[var(--text-secondary)] hover:bg-[var(--accent-primary,#5865f2)] hover:text-white transition-colors cursor-pointer group"
+                >
+                  <span>Cài đặt thông báo</span>
+                  <Bell size={16} weight="bold" className="text-current opacity-70 group-hover:opacity-100" />
+                </button>
+
+                {/* 6. Cài đặt bảo mật */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] font-medium text-[var(--text-secondary)] hover:bg-[var(--accent-primary,#5865f2)] hover:text-white transition-colors cursor-pointer group"
+                >
+                  <span>Cài đặt bảo mật</span>
+                  <ShieldCheck size={16} weight="bold" className="text-current opacity-70 group-hover:opacity-100" />
+                </button>
+
+                {/* 7. Chỉnh sửa hồ sơ máy chủ */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onOpenSettings?.();
+                  }}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] font-medium text-[var(--text-secondary)] hover:bg-[var(--accent-primary,#5865f2)] hover:text-white transition-colors cursor-pointer group"
+                >
+                  <span>Chỉnh sửa hồ sơ máy chủ</span>
+                  <PencilSimple size={16} weight="bold" className="text-current opacity-70 group-hover:opacity-100" />
+                </button>
+
+                <div className="h-px bg-[var(--border-color)]/60 my-1 mx-1" />
+
+                {/* 8. Rời khỏi máy chủ */}
                 <button
                   type="button"
                   onClick={() => {
                     setIsMenuOpen(false);
                     onLeaveWorkspace?.();
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-2 rounded-[4px] font-bold text-rose-500 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[3px] font-semibold text-[#f23f43] hover:bg-[#f23f43] hover:text-white transition-colors cursor-pointer group"
                 >
                   <span>Rời khỏi máy chủ</span>
-                  <SignOut size={16} weight="bold" />
+                  <SignOut size={16} weight="bold" className="text-current opacity-80 group-hover:opacity-100" />
                 </button>
               </div>
             </>,

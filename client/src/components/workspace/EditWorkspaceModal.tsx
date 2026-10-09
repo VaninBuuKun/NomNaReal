@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { UploadCloud, Trash, Loader2, Sparkles, Check } from "lucide-react";
+import { UploadCloud, Trash, Loader2 } from "lucide-react";
 import { Modal, Button, Input } from "../ui";
 import { getMediaUrl } from "../../utils/constants";
 import { workspaceApi } from "../../services/workspaceApi";
@@ -14,12 +14,6 @@ interface EditWorkspaceModalProps {
   onWorkspaceUpdated: (workspace: Workspace) => void;
   onWorkspaceDeleted: (workspaceId: string) => void;
 }
-
-const PRESET_AVATARS = [
-  { id: "cyan", label: "Mascot Cyan", url: "/default-avatar.png" },
-  { id: "orange", label: "Mascot Cam", url: "/avatars/avatar-orange.jpg" },
-  { id: "purple", label: "Mascot Tím", url: "/avatars/avatar-purple.jpg" },
-];
 
 export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
   isOpen,
@@ -153,7 +147,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Cài đặt Workspace"
+      title="Cài đặt Server"
       subtitle="Cập nhật thông tin, ảnh đại diện S3 và quản lý không gian làm việc."
       className="max-w-[480px]"
     >
@@ -167,7 +161,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
         {/* Workspace Avatar & S3 Upload */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
-            Ảnh đại diện Workspace <span className="text-[var(--accent-primary)]">*</span>
+            Ảnh đại diện Server <span className="text-[var(--accent-primary)]">*</span>
           </label>
 
           <div className="flex items-center gap-4">
@@ -227,48 +221,12 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
             </div>
           </div>
 
-          {/* Preset Mascots */}
-          <div className="mt-3.5">
-            <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] mb-2">
-              <Sparkles size={13} className="text-[var(--accent-primary)]" />
-              <span>Hoặc chọn biểu tượng Mascot NomNa:</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2.5">
-              {PRESET_AVATARS.map((preset) => {
-                const isSelected = iconUrl === preset.url;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => setIconUrl(preset.url)}
-                    className={`flex items-center gap-2 px-2.5 py-2 rounded-[3px] border transition-all cursor-pointer ${
-                      isSelected
-                        ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] shadow-2xs"
-                        : "border-[var(--border-color)] hover:border-[var(--text-muted)] bg-[var(--bg-surface)]"
-                    }`}
-                  >
-                    <img
-                      src={preset.url}
-                      alt={preset.label}
-                      className="w-7 h-7 rounded-[2px] object-cover shrink-0"
-                    />
-                    <span className="text-xs font-semibold truncate text-[var(--text-primary)]">
-                      {preset.label.replace("Mascot ", "")}
-                    </span>
-                    {isSelected && (
-                      <Check size={13} className="ml-auto text-[var(--accent-primary)] shrink-0" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
           </div>
-        </div>
 
         {/* Workspace Name */}
         <div>
           <Input
-            label="Tên Workspace *"
+            label="Tên Server *"
             placeholder="Nhập tên workspace..."
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -335,7 +293,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
                   className="text-rose-500 hover:bg-rose-500/10 border-rose-500/30 text-xs shrink-0 rounded-[3px]"
                   leftIcon={<Trash size={14} />}
                 >
-                  Xóa Workspace
+                  Xóa Server
                 </Button>
               )}
             </div>

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { UploadCloud, Sparkles, Check, Loader2 } from 'lucide-react';
+import { UploadCloud, Loader2 } from 'lucide-react';
+import { getMediaUrl } from '../../utils/constants';
 import { Modal, Button, Input } from '../ui';
 import { workspaceApi } from '../../services/workspaceApi';
 import { fileApi } from '../../services/fileApi';
@@ -11,19 +12,13 @@ interface CreateWorkspaceModalProps {
   onWorkspaceCreated: (workspace: Workspace) => void;
 }
 
-const PRESET_AVATARS = [
-  { id: 'cyan', label: 'Mascot Cyan', url: '/default-avatar.png' },
-  { id: 'orange', label: 'Mascot Cam', url: '/avatars/avatar-orange.jpg' },
-  { id: 'purple', label: 'Mascot Tím', url: '/avatars/avatar-purple.jpg' },
-];
-
 export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
   isOpen,
   onClose,
   onWorkspaceCreated,
 }) => {
   const [name, setName] = useState('');
-  const [iconUrl, setIconUrl] = useState('/default-avatar.png');
+  const [iconUrl, setIconUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,11 +55,11 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError('Vui lòng nhập tên Workspace.');
+      setError('Vui lòng nhập tên Server.');
       return;
     }
     if (!iconUrl.trim()) {
-      setError('Vui lòng chọn hoặc tải lên ảnh đại diện Workspace.');
+      setError('Vui lòng tải lên ảnh đại diện cho Server.');
       return;
     }
 
@@ -76,7 +71,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
       handleClose();
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
-      setError(errorObj?.response?.data?.message || 'Tạo Workspace thất bại.');
+      setError(errorObj?.response?.data?.message || 'Tạo Server thất bại.');
     } finally {
       setIsSubmitting(false);
     }
@@ -93,8 +88,8 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Tạo Workspace mới"
-      subtitle="Workspace là nơi nhóm của bạn cùng trò chuyện, kết nối và cộng tác."
+      title="Tạo Server mới"
+      subtitle="Server là nơi bạn và cộng đồng cùng trò chuyện, kết nối và giao lưu."
       className="max-w-[480px]"
     >
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -107,14 +102,14 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
         {/* Avatar Selection (Mandatory) */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
-            Ảnh đại diện Workspace <span className="text-[var(--accent-primary)]">*</span>
+            Ảnh đại diện Server <span className="text-[var(--accent-primary)]">*</span>
           </label>
 
           <div className="flex items-center gap-4">
             {/* Current Selected Avatar Preview */}
             <div className="relative group shrink-0">
               <img
-                src={iconUrl || '/default-avatar.png'}
+                src={getMediaUrl(iconUrl)}
                 alt="Workspace Icon Preview"
                 className="w-16 h-16 rounded-[4px] object-cover border-2 border-[var(--border-color)] group-hover:border-[var(--accent-primary)] transition-all shadow-sm"
                 onError={(e) => {
@@ -154,49 +149,13 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
             </div>
           </div>
 
-          {/* Quick Mascot Presets */}
-          <div className="mt-3.5">
-            <div className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)] mb-2">
-              <Sparkles size={13} className="text-[var(--accent-primary)]" />
-              <span>Hoặc chọn biểu tượng Mascot NomNa:</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2.5">
-              {PRESET_AVATARS.map((preset) => {
-                const isSelected = iconUrl === preset.url;
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => setIconUrl(preset.url)}
-                    className={`flex items-center gap-2 px-2.5 py-2 rounded-[3px] border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-[var(--accent-primary)] bg-[var(--accent-soft)] shadow-xs'
-                        : 'border-[var(--border-color)] hover:border-[var(--text-muted)] bg-[var(--bg-surface)]'
-                    }`}
-                  >
-                    <img
-                      src={preset.url}
-                      alt={preset.label}
-                      className="w-7 h-7 rounded-[2px] object-cover shrink-0"
-                    />
-                    <span className="text-xs font-semibold truncate text-[var(--text-primary)]">
-                      {preset.label.replace('Mascot ', '')}
-                    </span>
-                    {isSelected && (
-                      <Check size={13} className="ml-auto text-[var(--accent-primary)] shrink-0" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
           </div>
-        </div>
 
         {/* Workspace Name (Mandatory) */}
         <div>
           <Input
-            label="Tên Workspace *"
-            placeholder="VD: NomNa Devs, Anime Lounge..."
+            label="Tên Server *"
+            placeholder="VD: NomNa Gaming, Câu Lạc Bộ Lập Trình..."
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
@@ -216,7 +175,7 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
             isLoading={isSubmitting}
             disabled={!name.trim() || !iconUrl.trim() || isUploading}
           >
-            Tạo Workspace
+            Tạo Server
           </Button>
         </div>
       </form>

@@ -1,19 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+
+/** NomNa uses a single Discord-style dark palette. */
+export const APP_THEME = 'discord-dark';
 
 export function useTheme() {
-  const [theme, setTheme] = useState<string>(() => {
-    return localStorage.getItem('nomna_theme') || 'discord-dark';
-  });
-
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.setAttribute('data-theme', theme);
-    localStorage.setItem('nomna_theme', theme);
-  }, [theme]);
-
-  const changeTheme = (newTheme: string) => {
-    setTheme(newTheme);
-  };
-
-  return { theme, changeTheme };
+    document.documentElement.setAttribute('data-theme', APP_THEME);
+    document.body.setAttribute('data-theme', APP_THEME);
+    localStorage.removeItem('nomna_theme');
+  }, []);
 }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ImageLightboxModal } from './ImageLightboxModal';
+import { getMediaUrl } from '../../utils/constants';
 
 export interface GalleryImage {
   url: string;
@@ -33,7 +34,7 @@ export const ImageGalleryGrid: React.FC<ImageGalleryGridProps> = ({ images }) =>
       <>
         <div className="relative max-w-md rounded-xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-surface)] my-1 shadow-xs group">
           <img
-            src={img.url}
+            src={getMediaUrl(img.url)}
             alt={img.alt || 'Hình ảnh'}
             loading="lazy"
             onClick={() => openLightbox(0)}
@@ -67,7 +68,7 @@ export const ImageGalleryGrid: React.FC<ImageGalleryGridProps> = ({ images }) =>
               onClick={() => openLightbox(idx)}
             >
               <img
-                src={img.url}
+                src={getMediaUrl(img.url)}
                 alt={img.alt || `Hình ảnh ${idx + 1}`}
                 loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-103"
@@ -101,7 +102,7 @@ export const ImageGalleryGrid: React.FC<ImageGalleryGridProps> = ({ images }) =>
             onClick={() => openLightbox(0)}
           >
             <img
-              src={images[0].url}
+              src={getMediaUrl(images[0].url)}
               alt={images[0].alt || 'Hình ảnh 1'}
               loading="lazy"
               className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-103"
@@ -121,7 +122,7 @@ export const ImageGalleryGrid: React.FC<ImageGalleryGridProps> = ({ images }) =>
               onClick={() => openLightbox(idx + 1)}
             >
               <img
-                src={img.url}
+                src={getMediaUrl(img.url)}
                 alt={img.alt || `Hình ảnh ${idx + 2}`}
                 loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-103"
@@ -160,7 +161,7 @@ export const ImageGalleryGrid: React.FC<ImageGalleryGridProps> = ({ images }) =>
               onClick={() => openLightbox(idx)}
             >
               <img
-                src={img.url}
+                src={getMediaUrl(img.url)}
                 alt={img.alt || `Hình ảnh ${idx + 1}`}
                 loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-103"

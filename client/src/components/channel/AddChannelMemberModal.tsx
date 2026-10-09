@@ -127,7 +127,7 @@ export const AddChannelMemberModal: React.FC<AddChannelMemberModalProps> = ({
           <span>Thêm thành viên vào #{channel?.name || 'kênh'}</span>
         </div>
       }
-      subtitle="Tìm kiếm thành viên trong Workspace để cấp quyền vào kênh riêng tư này."
+      subtitle="Tìm kiếm thành viên trong Server để cấp quyền vào kênh riêng tư này."
       className="max-w-[500px]"
     >
       <div className="p-5 flex flex-col gap-4">
@@ -162,7 +162,7 @@ export const AddChannelMemberModal: React.FC<AddChannelMemberModalProps> = ({
         {/* Member Results List */}
         <div>
           <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2 px-1">
-            <span>Thành viên Workspace ({filteredMembers.length})</span>
+            <span>Thành viên Server ({filteredMembers.length})</span>
             {isLoadingMembers && (
               <span className="flex items-center gap-1 normal-case font-normal text-[var(--text-muted)]">
                 <Spinner size="sm" />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getMediaUrl } from '../../utils/constants';
 import {
   X,
   CaretLeft,
@@ -65,7 +66,7 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
     const link = document.createElement('a');
-    link.href = currentImage.url;
+    link.href = getMediaUrl(currentImage.url);
     link.download = currentImage.alt || 'image';
     link.target = '_blank';
     document.body.appendChild(link);
@@ -105,7 +106,7 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => window.open(currentImage.url, '_blank')}
+            onClick={() => window.open(getMediaUrl(currentImage.url), '_blank')}
             className="p-2 rounded-lg text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Mở ảnh gốc trong tab mới"
           >
@@ -128,7 +129,7 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <img
-          src={currentImage.url}
+          src={getMediaUrl(currentImage.url)}
           alt={currentImage.alt || 'Xem ảnh'}
           className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-150"
         />

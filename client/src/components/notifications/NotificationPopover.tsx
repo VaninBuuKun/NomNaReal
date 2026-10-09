@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Bell,
+  Tray,
   Checks,
   At,
   ChatTeardropDots,
@@ -9,6 +9,7 @@ import {
 } from '@phosphor-icons/react';
 import type { AppNotification } from '../../types';
 import { notificationApi } from '../../services';
+import { getMediaUrl } from '../../utils/constants';
 
 interface NotificationPopoverProps {
   isOpen: boolean;
@@ -192,10 +193,10 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
       {/* 1. Header (Gọn gàng, tối giản) */}
       <div className="px-3.5 py-2.5 border-b border-[var(--border-color)]/70 flex items-center justify-between shrink-0 bg-[var(--bg-surface)]">
         <div className="flex items-center gap-1.5">
-          <Bell size={15} weight="fill" className="text-[var(--accent-primary)]" />
-          <h3 className="font-semibold text-xs text-[var(--text-primary)]">Thông báo</h3>
+          <Tray size={16} weight="fill" className="text-[var(--accent-primary)]" />
+          <h3 className="font-bold text-xs text-[var(--text-primary)]">Hộp thư đến</h3>
           {unreadCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-500 text-white leading-tight">
+            <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full text-[10px] font-bold bg-[#f23f43] text-white leading-none">
               {unreadCount}
             </span>
           )}
@@ -268,7 +269,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
           </div>
         ) : notifications.length === 0 ? (
           <div className="py-8 px-4 flex flex-col items-center justify-center text-center gap-1 text-[var(--text-muted)]">
-            <Bell size={22} className="opacity-25 mb-1" />
+            <Tray size={24} weight="duotone" className="opacity-30 mb-1 text-[var(--text-muted)]" />
             <p className="text-xs font-medium text-[var(--text-secondary)]">Không có thông báo nào</p>
             <p className="text-[11px] opacity-70">
               {activeTab === 'unread'
@@ -293,7 +294,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                 {/* Mini Actor Avatar with small badge */}
                 <div className="relative shrink-0 mt-0.5">
                   <img
-                    src={notif.actorAvatarUrl || '/default-avatar.png'}
+                    src={getMediaUrl(notif.actorAvatarUrl)}
                     alt=""
                     className="w-6 h-6 rounded-full object-cover border border-[var(--border-color)]"
                     onError={(e) => {

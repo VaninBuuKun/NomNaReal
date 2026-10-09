@@ -25,6 +25,18 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
       },
+      '/uploads': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/avatars': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
+      '/servers': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+      },
     },
   },
 })

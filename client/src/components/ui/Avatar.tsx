@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
-import { DEFAULT_AVATAR } from '../../utils/constants';
+import { DEFAULT_AVATAR, getMediaUrl } from '../../utils/constants';
 
 export interface AvatarProps {
   src?: string | null;
@@ -18,7 +18,7 @@ export const Avatar: React.FC<AvatarProps> = ({
   className,
 }) => {
   const [imageError, setImageError] = React.useState(false);
-  const effectiveSrc = src && src.trim() !== '' ? src : DEFAULT_AVATAR;
+  const effectiveSrc = getMediaUrl(src);
 
   const sizeClasses = {
     sm: 'w-7 h-7 text-xs rounded-lg',

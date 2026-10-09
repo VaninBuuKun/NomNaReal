@@ -39,12 +39,15 @@ public class S3FileStorageService : IFileStorageService
         _publicBaseUrl = s3Section["PublicBaseUrl"] ?? Environment.GetEnvironmentVariable("AWS_S3_PUBLIC_BASE_URL");
         var forcePathStyle = s3Section.GetValue<bool>("ForcePathStyle", !string.IsNullOrEmpty(_serviceUrl));
 
-        if (!string.IsNullOrWhiteSpace(_bucketName))
+        var hasAwsKeys = !string.IsNullOrWhiteSpace(accessKey) && !string.IsNullOrWhiteSpace(secretKey);
+        var hasCustomEndpoint = !string.IsNullOrWhiteSpace(_serviceUrl);
+
+        if (!string.IsNullOrWhiteSpace(_bucketName) && (hasAwsKeys || hasCustomEndpoint))
         {
             try
             {
                 var s3Config = new AmazonS3Config();
-                if (!string.IsNullOrEmpty(_serviceUrl))
+                if (hasCustomEndpoint)
                 {
                     s3Config.ServiceURL = _serviceUrl;
                     s3Config.ForcePathStyle = forcePathStyle;
@@ -54,14 +57,13 @@ public class S3FileStorageService : IFileStorageService
                     s3Config.RegionEndpoint = RegionEndpoint.GetBySystemName(_region);
                 }
 
-                if (!string.IsNullOrWhiteSpace(accessKey) && !string.IsNullOrWhiteSpace(secretKey))
+                if (hasAwsKeys)
                 {
                     var credentials = new BasicAWSCredentials(accessKey, secretKey);
                     _s3Client = new AmazonS3Client(credentials, s3Config);
                 }
                 else
                 {
-                    // Use default credential provider chain (IAM role, ~/.aws/credentials, env vars)
                     _s3Client = new AmazonS3Client(s3Config);
                 }
 
@@ -75,7 +77,7 @@ public class S3FileStorageService : IFileStorageService
         }
         else
         {
-            _logger.LogInformation("AWS S3 BucketName is not configured. Using local file storage fallback.");
+            _logger.LogInformation("AWS S3 credentials or custom endpoint not configured. Using local server storage directly.");
             _s3Client = null;
         }
     }
@@ -87,15 +89,15 @@ public class S3FileStorageService : IFileStorageService
         string? contentType = null,
         CancellationToken cancellationToken = default)
     {
-        // If S3 client or bucket is not active
+        // Read file stream into seekable memory stream
+        using var memStream = new MemoryStream();
+        await fileStream.CopyToAsync(memStream, cancellationToken);
+        memStream.Position = 0;
+
+        // If S3 client or bucket is not active -> use local storage directly!
         if (_s3Client == null || string.IsNullOrWhiteSpace(_bucketName))
         {
-            if (_environment.IsDevelopment())
-            {
-                return await _fallbackLocalStorage.SaveFileAsync(fileStream, fileName, folder, contentType, cancellationToken);
-            }
-
-            throw new InvalidOperationException("AWS S3 / Cloud storage is not configured. Local fallback is disabled in Production to prevent data loss when server is destroyed.");
+            return await _fallbackLocalStorage.SaveFileAsync(memStream, fileName, folder, contentType, cancellationToken);
         }
 
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
@@ -109,7 +111,7 @@ public class S3FileStorageService : IFileStorageService
         {
             BucketName = _bucketName,
             Key = s3Key,
-            InputStream = fileStream,
+            InputStream = memStream,
             ContentType = resolvedContentType,
             AutoCloseStream = false
         };
@@ -135,19 +137,10 @@ public class S3FileStorageService : IFileStorageService
         {
             _logger.LogError(ex, "Error uploading file '{FileName}' to AWS S3.", fileName);
 
-            // In Development: fallback to local storage
-            if (_environment.IsDevelopment())
-            {
-                _logger.LogWarning("Falling back to local file storage (Development environment).");
-                if (fileStream.CanSeek)
-                {
-                    fileStream.Position = 0;
-                }
-                return await _fallbackLocalStorage.SaveFileAsync(fileStream, fileName, folder, contentType, cancellationToken);
-            }
-
-            // In Production: fail fast to prevent ephemeral data loss on server destruction
-            throw;
+            // Fallback to local storage
+            _logger.LogWarning("Falling back to local file storage.");
+            memStream.Position = 0;
+            return await _fallbackLocalStorage.SaveFileAsync(memStream, fileName, folder, contentType, cancellationToken);
         }
     }
 

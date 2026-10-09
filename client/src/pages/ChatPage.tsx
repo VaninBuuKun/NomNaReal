@@ -30,6 +30,7 @@ import {
   notificationApi,
   signalRService,
 } from "../services";
+import { TitleBar, type TitleBarContext } from "../components/layout";
 import { useTheme } from "../hooks/useTheme";
 import { usePanelResizers } from "../hooks/usePanelResizers";
 import { useChatSignalR } from "../hooks/useChatSignalR";
@@ -56,7 +57,7 @@ export const ChatPage: React.FC = () => {
   const { workspaceId: paramWorkspaceId } = useParams<{
     workspaceId?: string;
   }>();
-  const { theme, changeTheme } = useTheme();
+  useTheme();
   const friendsList = useFriendStore((state) => state.friends);
   const onlineFriendsCount = useMemo(() => {
     return friendsList.filter((f) => {
@@ -75,13 +76,11 @@ export const ChatPage: React.FC = () => {
   const {
     workspaces,
     activeWorkspaceId,
-    isSwitchingWorkspace,
     setWorkspaces,
     setActiveWorkspaceId,
     addWorkspace,
     updateWorkspace,
     removeWorkspace,
-    setIsSwitchingWorkspace,
   } = useWorkspaceStore();
 
   // 2. Chat Store
@@ -467,7 +466,6 @@ export const ChatPage: React.FC = () => {
   // Switch Active Workspace
   const handleSelectWorkspace = async (workspaceId: string) => {
     if (workspaceId === activeWorkspaceId) return;
-    setIsSwitchingWorkspace(true);
     setActiveWorkspaceId(workspaceId);
     navigate(`/workspace/${workspaceId}`, { replace: true });
     try {
@@ -484,10 +482,8 @@ export const ChatPage: React.FC = () => {
         setMessages([]);
         setHasMoreMessages(false);
       }
-    } finally {
-      setTimeout(() => {
-        setIsSwitchingWorkspace(false);
-      }, 120);
+    } catch (err) {
+      console.error("Failed to switch workspace:", err);
     }
   };
 
@@ -1005,15 +1001,18 @@ export const ChatPage: React.FC = () => {
     return <></>;
   }
 
+  const titleContext: TitleBarContext =
+    activeSidebarView === "channels" && currentWorkspace
+      ? { kind: "server", name: currentWorkspace.name, iconUrl: currentWorkspace.iconUrl }
+      : activeSidebarView === "dms" && activeDm
+        ? { kind: "dm", name: activeDm.user.displayName }
+        : { kind: "friends" };
+
   return (
     <>
       <main
         id="appLayout"
-        className={`flex-1 min-h-0 flex overflow-hidden h-screen h-[100dvh] w-screen relative animate-in fade-in duration-200 ${
-          isSwitchingWorkspace
-            ? "opacity-70 transition-opacity duration-150 pointer-events-none"
-            : "opacity-100 transition-opacity duration-150"
-        }`}
+        className="flex flex-col overflow-hidden h-[100dvh] w-screen relative"
         style={{
           userSelect:
             isResizingChannel || isResizingThread || isResizingMember
@@ -1025,6 +1024,12 @@ export const ChatPage: React.FC = () => {
               : "auto",
         }}
       >
+        <TitleBar
+          context={titleContext}
+          unreadNotificationCount={unreadNotificationCount}
+          onSelectNotification={handleNavigateFromNotification}
+        />
+        <div className="flex-1 min-h-0 flex overflow-hidden">
         {/* 1. Discord Server Rail (Full Height, Leftmost 72px) */}
         <WorkspaceRail
           workspaces={workspaces}
@@ -1034,7 +1039,6 @@ export const ChatPage: React.FC = () => {
           onSelectWorkspace={handleSelectWorkspace}
           onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
           onGoHome={() => navigate("/")}
-          unreadNotificationCount={unreadNotificationCount}
         />
 
         {/* 2. Sub-Sidebar Column (Channel / DM / Notification Sidebar + User Footer Bar) */}
@@ -1049,7 +1053,7 @@ export const ChatPage: React.FC = () => {
             {activeSidebarView === "channels" ? (
               <ChannelSidebar
                 currentWorkspace={currentWorkspace}
-                channels={channels}
+                    channels={channels}
                 activeChannelId={activeChannelId}
                 onSelectChannel={handleSelectChannel}
                 onCreateChannel={handleCreateChannel}
@@ -1082,6 +1086,7 @@ export const ChatPage: React.FC = () => {
                   }
                 }}
                 onlineFriendsCount={onlineFriendsCount}
+                onStartDmWithFriend={(friend) => handleStartDmWithUser(friend)}
               />
             ) : activeSidebarView === "notifications" ? (
               <NotificationsSidebar
@@ -1123,8 +1128,6 @@ export const ChatPage: React.FC = () => {
             onStartDm={(friend) => handleStartDmWithUser(friend)}
             onOpenUserProfile={(friend) => handleOpenUserProfile(friend as any)}
             onToast={(t) => setToast(t)}
-            unreadNotificationCount={unreadNotificationCount}
-            onSelectNotification={handleNavigateFromNotification}
           />
         ) : (
           <ChatArea
@@ -1167,8 +1170,6 @@ export const ChatPage: React.FC = () => {
             onUnpinMessage={handleUnpinMessage}
             isPinnedSidebarOpen={isPinnedSidebarOpen}
             onTogglePinnedSidebar={togglePinnedSidebar}
-            unreadNotificationCount={unreadNotificationCount}
-            onSelectNotification={handleNavigateFromNotification}
           />
         )}
 
@@ -1196,6 +1197,7 @@ export const ChatPage: React.FC = () => {
           handleSearchResizeStart={handleSearchResizeStart}
           handlePinnedResizeStart={handlePinnedResizeStart}
         />
+        </div>
       </main>
 
       {/* 5. Modals Container (All 12 Modals) */}
@@ -1206,8 +1208,6 @@ export const ChatPage: React.FC = () => {
         workspaceMembers={workspaceMembers}
         currentUserRole={currentUserRole}
         isOwner={isOwner}
-        theme={theme}
-        changeTheme={changeTheme}
         handleLogout={handleLogout}
         handleWorkspaceCreated={handleWorkspaceCreated}
         handleWorkspaceUpdated={handleWorkspaceUpdated}

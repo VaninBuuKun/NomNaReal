@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   CreateWorkspaceModal,
   EditWorkspaceModal,
@@ -12,7 +12,7 @@ import {
 import { NewDirectMessageModal, type DirectMessageUser } from '../../components/dm';
 import { SettingsModal } from '../../components/settings';
 import { UserProfileModal, type UserProfileData } from '../../components/profile';
-import { useUiStore, useChatStore, useDmStore } from '../../stores';
+import { useUiStore, useChatStore, useDmStore, useFriendStore } from '../../stores';
 import type { User, Workspace, Channel } from '../../types';
 
 interface ChatModalsProps {
@@ -22,8 +22,6 @@ interface ChatModalsProps {
   workspaceMembers: DirectMessageUser[];
   currentUserRole?: string | null;
   isOwner: boolean;
-  theme: string;
-  changeTheme: (t: string) => void;
   handleLogout: () => void;
   handleWorkspaceCreated: (ws: Workspace) => void;
   handleWorkspaceUpdated: (ws: Workspace) => void;
@@ -49,8 +47,6 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
   workspaceMembers,
   currentUserRole,
   isOwner,
-  theme,
-  changeTheme,
   handleLogout,
   handleWorkspaceCreated,
   handleWorkspaceUpdated,
@@ -91,6 +87,29 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
   const { activeWorkspaceId } = currentWorkspace ? { activeWorkspaceId: currentWorkspace.id } : { activeWorkspaceId: null };
   const { setMessages } = useChatStore();
   const { updateMemberProfile } = useDmStore();
+  const friends = useFriendStore((state) => state.friends);
+
+  const dmCandidateMembers = useMemo(() => {
+    const map = new Map<string, DirectMessageUser>();
+    for (const f of friends) {
+      if (f.userId !== currentUser?.id) {
+        map.set(f.userId, {
+          id: f.userId,
+          displayName: f.displayName,
+          username: f.username,
+          email: '',
+          avatarUrl: f.avatarUrl,
+          status: f.status === 'online' ? 'online' : 'offline',
+        });
+      }
+    }
+    for (const m of workspaceMembers) {
+      if (m.id !== currentUser?.id && !map.has(m.id)) {
+        map.set(m.id, m);
+      }
+    }
+    return Array.from(map.values());
+  }, [friends, workspaceMembers, currentUser?.id]);
 
   return (
     <>
@@ -137,7 +156,7 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
         isOpen={Boolean(channelToAddMember)}
         onClose={() => setChannelToAddMember(null)}
         channel={channelToAddMember}
-        members={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
+        members={dmCandidateMembers}
         onMemberAdded={(userId) => {
           if (channelToAddMember) {
             const chId = channelToAddMember.id;
@@ -155,7 +174,7 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
         onClose={() => setNewDmOpen(false)}
         onStartDm={handleStartDm}
         existingDmUserIds={dmConversations.map((c) => c.user.id)}
-        members={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
+        members={dmCandidateMembers}
       />
 
       <SettingsModal
@@ -163,8 +182,6 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
         onClose={() => setSettingsOpen(false)}
         currentUser={currentUser}
         onLogout={handleLogout}
-        currentTheme={theme}
-        onThemeChange={changeTheme}
         onUserUpdated={(u) => {
           setCurrentUser(u);
           updateMemberProfile(u.id, {

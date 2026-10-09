@@ -6,7 +6,9 @@ import {
   MagnifyingGlass,
   WechatLogoIcon,
 } from '@phosphor-icons/react';
-import { useChatStore } from '../../stores';
+import { useChatStore, useFriendStore } from '../../stores';
+import { Avatar } from '../ui';
+import { getMediaUrl } from '../../utils/constants';
 import type { DirectMessageItem } from './types';
 
 interface DirectMessagesSidebarProps {
@@ -18,6 +20,7 @@ interface DirectMessagesSidebarProps {
   onOpenNewDm: () => void;
   onRemoveConversation?: (id: string, e: React.MouseEvent) => void;
   onlineFriendsCount?: number;
+  onStartDmWithFriend?: (friend: any) => void;
 }
 
 export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
@@ -29,7 +32,9 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
   onOpenNewDm,
   onRemoveConversation,
   onlineFriendsCount = 0,
+  onStartDmWithFriend,
 }) => {
+  const friends = useFriendStore((state) => state.friends);
   const [filterQuery] = useState('');
   const drafts = useChatStore((state) => state.drafts);
 
@@ -81,7 +86,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
           onClick={onSelectFriends}
           className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-[13px] font-semibold cursor-pointer transition-colors ${
             isFriendsActive && !activeConversationId
-              ? 'bg-[var(--bg-surface-active)] text-white'
+              ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-bold'
               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
           }`}
         >
@@ -90,7 +95,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
             <span>Bạn bè</span>
           </div>
           {onlineFriendsCount > 0 && (
-            <span className="text-[11px] font-bold px-1.5 py-0.2 rounded-full bg-[var(--accent-primary)] text-white">
+            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[11px] font-bold rounded-full bg-[var(--accent-primary)] text-white leading-none shrink-0 shadow-xs">
               {onlineFriendsCount}
             </span>
           )}
@@ -113,20 +118,72 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
       {/* 4. DM Conversation List */}
       <div className="flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-0.5 no-scrollbar">
         {filteredConversations.length === 0 ? (
-          <div className="p-6 text-center text-xs text-[var(--text-muted)] flex flex-col items-center gap-2">
-            <div className="w-10 h-10 rounded-[4px] bg-[var(--bg-surface)] flex items-center justify-center text-[var(--text-muted)]">
-              <WechatLogoIcon size={20} weight="fill" className="opacity-60" />
+          <div className="py-3 px-1 flex flex-col gap-3">
+            <div className="p-3 text-center flex flex-col items-center gap-1.5 rounded-[6px] bg-[var(--bg-surface)]/50 border border-[var(--border-color)]/50">
+              <div className="w-9 h-9 rounded-[8px] bg-[var(--bg-surface)] flex items-center justify-center text-[var(--text-muted)]">
+                <WechatLogoIcon size={18} weight="fill" className="opacity-70 text-[var(--accent-primary)]" />
+              </div>
+              <div className="text-xs font-semibold text-[var(--text-primary)]">
+                {filterQuery ? `Không tìm thấy "${filterQuery}"` : "Chưa có cuộc trò chuyện"}
+              </div>
+              <p className="text-[11px] text-[var(--text-muted)] leading-tight">
+                {filterQuery
+                  ? "Hãy thử tìm bằng tên khác"
+                  : "Bấm vào bạn bè bên dưới để trò chuyện ngay!"}
+              </p>
             </div>
-            {filterQuery ? (
-              <span>Không tìm thấy &quot;{filterQuery}&quot;</span>
-            ) : (
-              <span>Chưa có tin nhắn trực tiếp nào</span>
+
+            {/* List of Friends to Start DM */}
+            {friends.length > 0 && (
+              <div className="mt-1">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] px-2 py-1 mb-0.5">
+                  Bạn bè ({friends.length})
+                </div>
+                <div className="space-y-0.5">
+                  {friends.map((friend) => (
+                    <button
+                      key={friend.friendshipId || friend.userId}
+                      type="button"
+                      onClick={() =>
+                        onStartDmWithFriend?.({
+                          id: friend.userId,
+                          displayName: friend.displayName,
+                          username: friend.username,
+                          avatarUrl: friend.avatarUrl,
+                          status: friend.status === 'online' ? 'online' : 'offline',
+                        })
+                      }
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] transition-colors cursor-pointer group text-left"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Avatar
+                          src={friend.avatarUrl}
+                          fallback={friend.displayName}
+                          size="sm"
+                          status={friend.status === 'online' ? 'online' : 'offline'}
+                        />
+                        <div className="min-w-0 flex-1 leading-tight">
+                          <div className="text-xs font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent-primary)]">
+                            {friend.displayName}
+                          </div>
+                          <div className="text-[10px] text-[var(--text-muted)] truncate">
+                            @{friend.username}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="opacity-0 group-hover:opacity-100 text-[10px] font-semibold text-[var(--accent-primary)] shrink-0">
+                        Nhắn tin
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         ) : (
           filteredConversations.map((item) => {
             const isActive = activeConversationId === item.id;
-            const avatarSrc = item.user.avatarUrl || '/default-avatar.png';
+            const avatarSrc = getMediaUrl(item.user.avatarUrl);
 
             return (
               <div
@@ -134,7 +191,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
                 onClick={() => onSelectConversation(item)}
                 className={`group relative flex items-center justify-between px-2.5 py-2 rounded-[4px] cursor-pointer transition-colors ${
                   isActive
-                    ? 'bg-[var(--bg-surface-active)] text-white'
+                    ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-bold'
                     : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -182,7 +239,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
                 {/* Right badges & Close button on hover */}
                 <div className="flex items-center gap-1 shrink-0 ml-1">
                   {item.unreadCount !== undefined && item.unreadCount > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full bg-[var(--accent-primary)] text-white text-[9px] font-bold">
+                    <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--accent-primary)] text-white text-[10px] font-bold leading-none shrink-0">
                       {item.unreadCount}
                     </span>
                   )}

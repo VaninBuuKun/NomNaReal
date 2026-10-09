@@ -2,7 +2,8 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from "re
 import {
   MagnifyingGlass,
   Users,
-  Bell,
+  At,
+  Hash,
   PushPin,
   ChatCenteredDots,
   Paperclip,
@@ -30,7 +31,7 @@ import { GifPicker } from "./GifPicker";
 import { DeleteMessageModal } from "./DeleteMessageModal";
 import { ImageGalleryGrid } from "./ImageGalleryGrid";
 import { StickyPinBar } from "./StickyPinBar";
-import { NotificationPopover } from "../notifications/NotificationPopover";
+import { getMediaUrl } from "../../utils/constants";
 import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
 import { InputLinkPreviewStrip } from "./InputLinkPreviewStrip";
 import { useChatStore, useUiStore } from "../../stores";
@@ -85,9 +86,6 @@ interface ChatAreaProps {
   onUnpinMessage?: (messageId: string) => Promise<void>;
   isPinnedSidebarOpen?: boolean;
   onTogglePinnedSidebar?: () => void;
-  unreadNotificationCount?: number;
-  onSelectNotification?: (notification: any) => void;
-  onUnreadCountChange?: (newCount: number) => void;
 }
 
 const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
@@ -119,11 +117,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onUnpinMessage,
   isPinnedSidebarOpen = false,
   onTogglePinnedSidebar,
-  unreadNotificationCount = 0,
-  onSelectNotification,
-  onUnreadCountChange,
 }) => {
-  const [isNotificationPopoverOpen, setIsNotificationPopoverOpen] = useState(false);
   const drafts = useChatStore((state) => state.drafts);
   const setDraft = useChatStore((state) => state.setDraft);
   const clearDraft = useChatStore((state) => state.clearDraft);
@@ -759,58 +753,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     <section className="flex-1 h-full min-h-0 bg-[var(--bg-chat)] flex flex-col overflow-hidden relative">
       {/* Header Chat */}
       <div className="h-[54px] border-b border-[var(--border-color)] px-5 flex items-center justify-between bg-[var(--bg-chat)] shrink-0 select-none">
-        <div className="flex items-center gap-2.5 overflow-hidden">
-          <h2 className="text-[1rem] font-bold text-[var(--text-primary)] whitespace-nowrap">
-            {currentChannel
-              ? currentChannel.type === 2 || currentChannel.type === ChannelType.DirectMessage
-                ? `@ ${currentChannel.name}`
-                : `# ${currentChannel.name}`
-              : "NomNa Workspace"}
+        <div className="flex items-center gap-2 min-w-0">
+          {currentChannel && (currentChannel.type === 2 || currentChannel.type === ChannelType.DirectMessage) ? (
+            <At size={19} className="text-[var(--text-muted)] shrink-0" />
+          ) : (
+            <Hash size={19} className="text-[var(--text-muted)] shrink-0" />
+          )}
+          <h2 className="text-sm font-bold text-[var(--text-primary)] truncate">
+            {currentChannel ? currentChannel.name : "NomNa"}
           </h2>
         </div>
         <div className="flex items-center gap-1">
-          {/* Notification Inbox Bell */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsNotificationPopoverOpen((prev) => !prev)}
-              className={`p-1.5 rounded-md transition-colors cursor-pointer relative inline-flex items-center justify-center ${
-                isNotificationPopoverOpen
-                  ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
-                  : unreadNotificationCount > 0
-                  ? "text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
-                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
-              }`}
-              title="Hộp thư thông báo"
-            >
-              <Bell
-                size={17}
-                weight={
-                  isNotificationPopoverOpen || unreadNotificationCount > 0
-                    ? "fill"
-                    : "regular"
-                }
-              />
-              {unreadNotificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-[#f23f43] text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
-                  {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-                </span>
-              )}
-            </button>
-
-            <NotificationPopover
-              isOpen={isNotificationPopoverOpen}
-              onClose={() => setIsNotificationPopoverOpen(false)}
-              onSelectNotification={(notif: any) => {
-                setIsNotificationPopoverOpen(false);
-                onSelectNotification?.(notif);
-              }}
-              unreadCount={unreadNotificationCount}
-              onUnreadCountChange={onUnreadCountChange}
-              align="top-right"
-            />
-          </div>
-
           <button
             type="button"
             onClick={toggleSearch}
@@ -936,7 +889,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             const isMe = currentUser && (msg.senderId === currentUser.id || msg.senderUsername === currentUser.username);
             const isEditingThis = editingMessageId === msg.id;
             const timeStr = formatMessageTime(msg.createdAt);
-            const avatarSrc = msg.senderAvatarUrl || (import.meta.env.VITE_DEFAULT_AVATAR as string) || "/default-avatar.png";
+            const avatarSrc = getMediaUrl(msg.senderAvatarUrl);
 
             const isMentioningMe =
               Boolean(

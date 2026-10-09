@@ -23,13 +23,11 @@ import {
 import { SettingsModal } from "../components/settings";
 import { WorkspaceAvatar, UserAvatar } from "../components/ui";
 import { authApi, workspaceApi } from "../services";
-import { useTheme } from "../hooks/useTheme";
 import type { User, Workspace } from "../types";
 import { LockKeyIcon } from "@phosphor-icons/react/dist/ssr";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const { theme, changeTheme } = useTheme();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -451,8 +449,6 @@ export const HomePage: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         currentUser={currentUser}
         onLogout={handleLogout}
-        currentTheme={theme}
-        onThemeChange={changeTheme}
         onUserUpdated={(u) => setCurrentUser(u)}
       />
 

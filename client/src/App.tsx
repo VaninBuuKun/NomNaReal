@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './services';
 import { AuthPage, ChatPage, JoinPage } from './pages';
 import './styles/globals.css';
+import { useTheme } from './hooks/useTheme';
 
 // Protected Route Component: requires auth session
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -24,12 +25,7 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 export const App: React.FC = () => {
-  // Ensure default theme is applied on initial mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('nomna_theme') || 'discord-dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-    document.body.setAttribute('data-theme', savedTheme);
-  }, []);
+  useTheme();
 
   return (
     <QueryClientProvider client={queryClient}>

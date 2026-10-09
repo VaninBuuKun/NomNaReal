@@ -22,8 +22,6 @@ interface SettingsModalProps {
   onClose: () => void;
   currentUser: User | null;
   onLogout: () => void;
-  currentTheme: string;
-  onThemeChange: (theme: string) => void;
   onUserUpdated?: (user: User) => void;
 }
 
@@ -39,8 +37,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   currentUser,
   onLogout,
-  currentTheme,
-  onThemeChange,
   onUserUpdated,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("profile");
@@ -266,10 +262,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             )}
             {activeTab === "security" && <SecurityTab />}
             {activeTab === "appearance" && (
-              <AppearanceTab
-                currentTheme={currentTheme}
-                onThemeChange={onThemeChange}
-              />
+              <AppearanceTab />
             )}
             {activeTab === "notifications" && <NotificationsTab />}
             {activeTab === "shortcuts" && <ShortcutsTab />}

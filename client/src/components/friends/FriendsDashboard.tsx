@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
-  Bell,
   ChatDots,
   Phone,
   DotsThreeVertical,
@@ -15,8 +14,7 @@ import {
 } from '@phosphor-icons/react';
 import { Avatar } from '../ui';
 import { useFriendStore } from '../../stores';
-import type { User, AppNotification } from '../../types';
-import { NotificationPopover } from '../notifications/NotificationPopover';
+import type { User } from '../../types';
 import type { DirectMessageUser } from '../dm';
 
 type FriendsTab = 'online' | 'all' | 'pending' | 'blocked' | 'add';
@@ -26,9 +24,6 @@ interface FriendsDashboardProps {
   onStartDm: (user: DirectMessageUser) => void;
   onOpenUserProfile?: (user: DirectMessageUser) => void;
   onToast?: (toast: { id: string; title: string; description?: string }) => void;
-  unreadNotificationCount?: number;
-  onSelectNotification?: (notification: AppNotification) => void;
-  onUnreadCountChange?: (newCount: number) => void;
 }
 
 export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
@@ -36,11 +31,7 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
   onStartDm,
   onOpenUserProfile,
   onToast,
-  unreadNotificationCount = 0,
-  onSelectNotification,
-  onUnreadCountChange,
 }) => {
-  const [isNotificationPopoverOpen, setIsNotificationPopoverOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<FriendsTab>('online');
   const [searchQuery, setSearchQuery] = useState('');
   const [addFriendInput, setAddFriendInput] = useState('');
@@ -214,7 +205,7 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
               }}
               className={`px-2.5 py-1 rounded-[4px] transition-colors cursor-pointer ${
                 activeTab === 'online'
-                  ? 'bg-[var(--bg-surface-active)] text-white'
+                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
               }`}
             >
@@ -234,7 +225,7 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
               }}
               className={`px-2.5 py-1 rounded-[4px] transition-colors cursor-pointer ${
                 activeTab === 'all'
-                  ? 'bg-[var(--bg-surface-active)] text-white'
+                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
               }`}
             >
@@ -254,7 +245,7 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
               }}
               className={`px-2.5 py-1 rounded-[4px] transition-colors cursor-pointer flex items-center gap-1.5 ${
                 activeTab === 'pending'
-                  ? 'bg-[var(--bg-surface-active)] text-white'
+                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
               }`}
             >
@@ -274,7 +265,7 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
               }}
               className={`px-2.5 py-1 rounded-[4px] transition-colors cursor-pointer ${
                 activeTab === 'blocked'
-                  ? 'bg-[var(--bg-surface-active)] text-white'
+                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
               }`}
             >
@@ -304,50 +295,6 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
           </div>
         </div>
 
-        {/* Right Actions: Notification Bell */}
-        <div className="relative flex items-center shrink-0">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsNotificationPopoverOpen((prev) => !prev);
-            }}
-            className={`p-1.5 rounded-[4px] transition-colors cursor-pointer relative inline-flex items-center justify-center ${
-              isNotificationPopoverOpen
-                ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
-                : unreadNotificationCount > 0
-                ? "text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
-            }`}
-            title="Hộp thư thông báo"
-          >
-            <Bell
-              size={18}
-              weight={
-                isNotificationPopoverOpen || unreadNotificationCount > 0
-                  ? "fill"
-                  : "regular"
-              }
-            />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-[#f23f43] text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
-                {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-              </span>
-            )}
-          </button>
-
-          <NotificationPopover
-            isOpen={isNotificationPopoverOpen}
-            onClose={() => setIsNotificationPopoverOpen(false)}
-            onSelectNotification={(notif) => {
-              setIsNotificationPopoverOpen(false);
-              onSelectNotification?.(notif);
-            }}
-            unreadCount={unreadNotificationCount}
-            onUnreadCountChange={onUnreadCountChange}
-            align="top-right"
-          />
-        </div>
       </header>
 
 
@@ -760,22 +707,30 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
         </div>
 
         {/* Right Column: Discord "Đang hoạt động" (Active Now) Rail */}
-        <aside className="w-[320px] shrink-0 border-l border-[var(--border-color)] p-5 hidden xl:flex flex-col gap-4 bg-[var(--bg-sidebar)]/40 select-none">
-          <h3 className="text-sm font-extrabold uppercase tracking-wide text-[var(--text-primary)]">
-            Đang hoạt động
-          </h3>
+        <aside className="w-[280px] shrink-0 border-l border-[var(--border-color)] p-4 hidden xl:flex flex-col gap-3.5 bg-[var(--bg-sidebar)]/30 select-none">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+              Đang hoạt động
+            </h3>
+            {onlineFriends.length > 0 && (
+              <span className="flex items-center gap-1.5 text-[10px] font-bold text-[#23a55a]">
+                <span className="w-2 h-2 rounded-full bg-[#23a55a] animate-pulse" />
+                {onlineFriends.length} trực tuyến
+              </span>
+            )}
+          </div>
 
           {onlineFriends.length > 0 ? (
-            <div className="space-y-3">
-              {onlineFriends.slice(0, 6).map((f) => {
+            <div className="space-y-1.5 overflow-y-auto pr-0.5 no-scrollbar max-h-[calc(100vh-140px)]">
+              {onlineFriends.map((f) => {
                 const dmUser = toDmUser(f);
                 return (
                   <div
                     key={f.friendshipId}
                     onClick={() => onOpenUserProfile?.(dmUser)}
-                    className="p-3 rounded-[6px] bg-[var(--bg-chat)] border border-[var(--border-color)] hover:border-[var(--accent-primary)] transition-all cursor-pointer shadow-2xs group"
+                    className="p-2 rounded-[6px] bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-active)] border border-[var(--border-color)]/60 hover:border-[var(--accent-primary)]/40 transition-all cursor-pointer group flex items-center justify-between gap-2 shadow-2xs"
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar
                         src={f.avatarUrl}
                         fallback={f.displayName}
@@ -783,23 +738,39 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
                         status="online"
                       />
                       <div className="min-w-0 flex-1 leading-tight">
-                        <div className="text-xs font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-primary)]">
+                        <div className="text-xs font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-primary)] transition-colors">
                           {f.displayName}
                         </div>
-                        <div className="text-[10px] text-[#23a55a] font-medium truncate mt-0.5">
-                          Đang trực tuyến trên NomNa
+                        <div className="text-[10px] text-[var(--text-muted)] truncate mt-0.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#23a55a] shrink-0" />
+                          <span>Đang trực tuyến</span>
                         </div>
                       </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onStartDm(dmUser);
+                      }}
+                      title="Nhắn tin"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-[4px] hover:bg-[var(--bg-sidebar)] text-[var(--text-muted)] hover:text-white transition-all cursor-pointer"
+                    >
+                      <ChatDots size={15} weight="bold" />
+                    </button>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-4 gap-2">
-              <p className="text-xs font-bold text-[var(--text-primary)]">
+            <div className="p-4 rounded-[8px] bg-[var(--bg-surface)]/60 border border-[var(--border-color)]/50 text-center flex flex-col items-center gap-2 my-auto">
+              <div className="w-8 h-8 rounded-full bg-[var(--bg-surface-active)] flex items-center justify-center text-[var(--text-muted)]">
+                <Sparkle size={16} weight="fill" className="text-[var(--accent-primary)]" />
+              </div>
+              <div className="text-xs font-bold text-[var(--text-primary)]">
                 Hiện tại yên ắng...
-              </p>
+              </div>
               <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
                 Khi bạn bè trực tuyến hoặc tham gia trò chuyện, hoạt động sẽ xuất hiện ngay tại đây!
               </p>

@@ -181,7 +181,7 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             }`}
           >
-            Toàn bộ Workspace
+            Toàn bộ Server
           </button>
         </div>
 

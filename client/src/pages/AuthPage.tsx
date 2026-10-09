@@ -27,7 +27,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
   const navigate = useNavigate();
   const isRegister = mode === 'register';
   const [error, setError] = useState<string | null>(null);
-  const { theme: activeTheme, changeTheme } = useTheme();
+  useTheme();
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
 
   // Reset error when mode changes
@@ -81,7 +81,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
 
         if (googleBtnContainerRef.current && isMounted) {
           google.accounts.id.renderButton(googleBtnContainerRef.current, {
-            theme: activeTheme === 'dark-zinc' ? 'filled_black' : 'outline',
+            theme: 'filled_black',
             size: 'large',
             width: 400,
             text: isRegister ? 'signup_with' : 'signin_with',
@@ -117,7 +117,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
     return () => {
       isMounted = false;
     };
-  }, [activeTheme, isRegister]);
+  }, [isRegister]);
 
   const handleGoogleLoginFallback = () => {
     const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -150,43 +150,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 dot-matrix-bg overflow-x-hidden animate-in fade-in duration-200">
       {/* Ambient Center Warm Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[580px] h-[580px] rounded-full bg-[radial-gradient(circle,var(--accent-glow)_0%,transparent_70%)] blur-[80px] pointer-events-none z-0" />
-
-      {/* Top Floating Theme Switcher */}
-      <aside className="absolute top-5 right-6 hidden sm:flex items-center gap-1.5 bg-[var(--card-glass-bg)] border border-[var(--border-color)] p-1 rounded-full backdrop-blur-md z-20 shadow-xs">
-        <button
-          type="button"
-          onClick={() => changeTheme('warm-orange')}
-          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-            activeTheme === 'warm-orange'
-              ? 'bg-[var(--accent-primary)] text-white shadow-xs'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-          }`}
-        >
-          🍊 Trắng Cam
-        </button>
-        <button
-          type="button"
-          onClick={() => changeTheme('dark-zinc')}
-          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-            activeTheme === 'dark-zinc'
-              ? 'bg-[var(--accent-primary)] text-white shadow-xs'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-          }`}
-        >
-          🌙 Dark Zinc
-        </button>
-        <button
-          type="button"
-          onClick={() => changeTheme('clean-coral')}
-          className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-            activeTheme === 'clean-coral'
-              ? 'bg-[var(--accent-primary)] text-white shadow-xs'
-              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-          }`}
-        >
-          ☀️ San Hô
-        </button>
-      </aside>
 
       {/* Main Glassmorphic Card */}
       <div className="w-full max-w-[480px] md:max-w-[500px] bg-[var(--card-glass-bg)] border border-[var(--card-glass-border)] rounded-3xl p-7 sm:p-8 shadow-2xl backdrop-blur-xl relative z-10 flex flex-col gap-4">

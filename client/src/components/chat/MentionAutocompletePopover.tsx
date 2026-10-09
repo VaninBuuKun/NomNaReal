@@ -51,7 +51,7 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
       id: 'special-everyone',
       username: 'everyone',
       displayName: 'everyone',
-      description: 'Nhắc toàn bộ thành viên trong Workspace',
+      description: 'Nhắc toàn bộ thành viên trong Server',
       badgeColor: 'bg-amber-500/20 text-amber-500 border border-amber-500/30',
       icon: <Megaphone size={16} weight="bold" className="text-amber-500" />,
     },
