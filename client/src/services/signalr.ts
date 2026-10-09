@@ -247,6 +247,55 @@ export class SignalRService {
     }
   }
 
+  
+  public onFriendRequestReceived(callback: (data: any) => void): void {
+    if (this.connection) {
+      this.connection.on("FriendRequestReceived", callback);
+    }
+  }
+
+  public offFriendRequestReceived(callback?: (data: any) => void): void {
+    if (this.connection) {
+      if (callback) {
+        this.connection.off("FriendRequestReceived", callback);
+      } else {
+        this.connection.off("FriendRequestReceived");
+      }
+    }
+  }
+
+  public onFriendRequestAccepted(callback: (data: any) => void): void {
+    if (this.connection) {
+      this.connection.on("FriendRequestAccepted", callback);
+    }
+  }
+
+  public offFriendRequestAccepted(callback?: (data: any) => void): void {
+    if (this.connection) {
+      if (callback) {
+        this.connection.off("FriendRequestAccepted", callback);
+      } else {
+        this.connection.off("FriendRequestAccepted");
+      }
+    }
+  }
+
+  public onFriendshipRemoved(callback: (data: any) => void): void {
+    if (this.connection) {
+      this.connection.on("FriendshipRemoved", callback);
+    }
+  }
+
+  public offFriendshipRemoved(callback?: (data: any) => void): void {
+    if (this.connection) {
+      if (callback) {
+        this.connection.off("FriendshipRemoved", callback);
+      } else {
+        this.connection.off("FriendshipRemoved");
+      }
+    }
+  }
+
   public async getOnlineUsers(): Promise<string[]> {
     if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
       return [];

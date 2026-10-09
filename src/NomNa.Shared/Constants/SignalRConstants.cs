@@ -22,6 +22,9 @@ public static class SignalRConstants
         public const string MessageUnpinned = "MessageUnpinned";
         public const string ReceiveNotification = "ReceiveNotification";
         public const string NotificationCountUpdated = "NotificationCountUpdated";
+        public const string FriendRequestReceived = "FriendRequestReceived";
+        public const string FriendRequestAccepted = "FriendRequestAccepted";
+        public const string FriendshipRemoved = "FriendshipRemoved";
     }
 
     public static class Methods

@@ -15,7 +15,8 @@ interface NotificationPopoverProps {
   onClose: () => void;
   onSelectNotification: (notification: AppNotification) => void;
   unreadCount: number;
-  onUnreadCountChange: (newCount: number) => void;
+  onUnreadCountChange?: (newCount: number) => void;
+  align?: 'top-right' | 'bottom-left';
 }
 
 type TabType = 'all' | 'unread' | 'mention';
@@ -26,6 +27,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
   onSelectNotification,
   unreadCount,
   onUnreadCountChange,
+  align = 'top-right',
 }) => {
   // Tab order as requested: 1. Tất cả (All), 2. Chưa đọc (Unread), 3. Nhắc đến (Mention)
   const [activeTab, setActiveTab] = useState<TabType>('all');
@@ -73,7 +75,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         )
       );
       const unreadData = await notificationApi.getUnreadCount();
-      onUnreadCountChange(unreadData.totalUnread);
+      onUnreadCountChange?.(unreadData.totalUnread);
     } catch (err) {
       console.error('Failed to mark all as read:', err);
     } finally {
@@ -88,7 +90,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         setNotifications((prev) =>
           prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
         );
-        onUnreadCountChange(Math.max(0, unreadCount - 1));
+        onUnreadCountChange?.(Math.max(0, unreadCount - 1));
       } catch (err) {
         console.error('Failed to mark notification as read:', err);
       }
@@ -173,12 +175,20 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
     );
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className="absolute bottom-full left-3 mb-2 w-[340px] max-w-[calc(100vw-24px)] bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-2xl rounded-xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-150 select-none flex flex-col"
-      style={{ maxHeight: '420px' }}
-    >
+    <>
+      <div className="fixed inset-0 z-40 bg-transparent" onClick={onClose} />
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`absolute ${
+          align === "bottom-left"
+            ? "bottom-full left-3 mb-2 slide-in-from-bottom-2"
+            : "top-full right-0 mt-2 slide-in-from-top-2"
+        } w-[360px] max-w-[calc(100vw-24px)] bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-2xl rounded-xl overflow-hidden z-50 animate-in fade-in duration-150 select-none flex flex-col`}
+        style={{ maxHeight: "440px" }}
+      >
       {/* 1. Header (Gọn gàng, tối giản) */}
       <div className="px-3.5 py-2.5 border-b border-[var(--border-color)]/70 flex items-center justify-between shrink-0 bg-[var(--bg-surface)]">
         <div className="flex items-center gap-1.5">
@@ -321,5 +331,6 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         )}
       </div>
     </div>
+    </>
   );
 };

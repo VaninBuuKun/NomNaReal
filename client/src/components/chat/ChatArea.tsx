@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from "re
 import {
   MagnifyingGlass,
   Users,
+  Bell,
   PushPin,
   ChatCenteredDots,
   Paperclip,
@@ -29,6 +30,7 @@ import { GifPicker } from "./GifPicker";
 import { DeleteMessageModal } from "./DeleteMessageModal";
 import { ImageGalleryGrid } from "./ImageGalleryGrid";
 import { StickyPinBar } from "./StickyPinBar";
+import { NotificationPopover } from "../notifications/NotificationPopover";
 import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
 import { InputLinkPreviewStrip } from "./InputLinkPreviewStrip";
 import { useChatStore, useUiStore } from "../../stores";
@@ -83,6 +85,9 @@ interface ChatAreaProps {
   onUnpinMessage?: (messageId: string) => Promise<void>;
   isPinnedSidebarOpen?: boolean;
   onTogglePinnedSidebar?: () => void;
+  unreadNotificationCount?: number;
+  onSelectNotification?: (notification: any) => void;
+  onUnreadCountChange?: (newCount: number) => void;
 }
 
 const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
@@ -114,7 +119,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onUnpinMessage,
   isPinnedSidebarOpen = false,
   onTogglePinnedSidebar,
+  unreadNotificationCount = 0,
+  onSelectNotification,
+  onUnreadCountChange,
 }) => {
+  const [isNotificationPopoverOpen, setIsNotificationPopoverOpen] = useState(false);
   const drafts = useChatStore((state) => state.drafts);
   const setDraft = useChatStore((state) => state.setDraft);
   const clearDraft = useChatStore((state) => state.clearDraft);
@@ -760,6 +769,48 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </h2>
         </div>
         <div className="flex items-center gap-1">
+          {/* Notification Inbox Bell */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsNotificationPopoverOpen((prev) => !prev)}
+              className={`p-1.5 rounded-md transition-colors cursor-pointer relative inline-flex items-center justify-center ${
+                isNotificationPopoverOpen
+                  ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
+                  : unreadNotificationCount > 0
+                  ? "text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
+              }`}
+              title="Hộp thư thông báo"
+            >
+              <Bell
+                size={17}
+                weight={
+                  isNotificationPopoverOpen || unreadNotificationCount > 0
+                    ? "fill"
+                    : "regular"
+                }
+              />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[15px] h-[15px] px-1 bg-[#f23f43] text-white text-[9px] font-black rounded-full flex items-center justify-center shadow">
+                  {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
+                </span>
+              )}
+            </button>
+
+            <NotificationPopover
+              isOpen={isNotificationPopoverOpen}
+              onClose={() => setIsNotificationPopoverOpen(false)}
+              onSelectNotification={(notif: any) => {
+                setIsNotificationPopoverOpen(false);
+                onSelectNotification?.(notif);
+              }}
+              unreadCount={unreadNotificationCount}
+              onUnreadCountChange={onUnreadCountChange}
+              align="top-right"
+            />
+          </div>
+
           <button
             type="button"
             onClick={toggleSearch}

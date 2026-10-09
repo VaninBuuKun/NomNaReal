@@ -18,6 +18,8 @@ public class User : IdentityUser<Guid>
     public ICollection<ChannelMember> ChannelMembers { get; set; } = new List<ChannelMember>();
     public ICollection<Message> Messages { get; set; } = new List<Message>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<Friendship> SentFriendRequests { get; set; } = new List<Friendship>();
+    public ICollection<Friendship> ReceivedFriendRequests { get; set; } = new List<Friendship>();
 
     public User()
     {

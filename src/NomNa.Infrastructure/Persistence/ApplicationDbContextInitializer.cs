@@ -153,6 +153,34 @@ public class ApplicationDbContextInitializer
 
         _context.Messages.AddRange(msg1, msg2, msg3);
 
+        // 5. Seed Friendships
+        var friendship1 = new Friendship
+        {
+            Requester = alex,
+            Addressee = minh,
+            Status = FriendshipStatus.Accepted
+        };
+
+        var friendship2 = new Friendship
+        {
+            Requester = van,
+            Addressee = alex,
+            Status = FriendshipStatus.Pending
+        };
+
+        _context.Friendships.AddRange(friendship1, friendship2);
+
+        var friendNotif = new Notification
+        {
+            User = alex,
+            Actor = van,
+            Type = NotificationType.FriendRequest,
+            Title = $"{van.DisplayName} đã gửi cho bạn lời mời kết bạn",
+            Content = $"@{van.UserName} muốn kết nối với bạn trên NomNa."
+        };
+        _context.Notifications.Add(friendNotif);
+
+
         await _context.SaveChangesAsync();
     }
 }

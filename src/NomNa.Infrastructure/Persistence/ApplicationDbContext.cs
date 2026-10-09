@@ -19,6 +19,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public DbSet<MessageReaction> MessageReactions => Set<MessageReaction>();
     public DbSet<ChannelPinnedMessage> ChannelPinnedMessages => Set<ChannelPinnedMessage>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<Friendship> Friendships => Set<Friendship>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -236,6 +237,27 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         });
 
         // Notification Configuration
+        
+        // Friendship Configuration
+        builder.Entity<Friendship>(entity =>
+        {
+            entity.ToTable("friendships");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.RequesterId, e.AddresseeId }).IsUnique();
+            entity.HasIndex(e => new { e.RequesterId, e.Status });
+            entity.HasIndex(e => new { e.AddresseeId, e.Status });
+
+            entity.HasOne(e => e.Requester)
+                .WithMany(u => u.SentFriendRequests)
+                .HasForeignKey(e => e.RequesterId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Addressee)
+                .WithMany(u => u.ReceivedFriendRequests)
+                .HasForeignKey(e => e.AddresseeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<Notification>(entity =>
         {
             entity.ToTable("notifications");

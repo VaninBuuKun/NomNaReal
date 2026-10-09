@@ -8,3 +8,4 @@ export * from './notificationApi';
 export * from './signalr';
 export * from './queryClient';
 
+export * from './friendApi';

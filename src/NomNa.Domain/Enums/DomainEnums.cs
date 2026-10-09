@@ -27,5 +27,14 @@ public enum NotificationType
     Mention = 1,
     ThreadReply = 2,
     ChannelInvite = 3,
-    ServerInvite = 4
+    ServerInvite = 4,
+    FriendRequest = 5,
+    FriendAccepted = 6
+}
+
+public enum FriendshipStatus
+{
+    Pending = 0,
+    Accepted = 1,
+    Blocked = 2
 }

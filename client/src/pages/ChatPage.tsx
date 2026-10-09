@@ -48,6 +48,7 @@ import {
   useChatStore,
   useDmStore,
   useUiStore,
+  useFriendStore,
 } from "../stores";
 
 export const ChatPage: React.FC = () => {
@@ -56,6 +57,15 @@ export const ChatPage: React.FC = () => {
     workspaceId?: string;
   }>();
   const { theme, changeTheme } = useTheme();
+  const friendsList = useFriendStore((state) => state.friends);
+  const onlineFriendsCount = useMemo(() => {
+    return friendsList.filter((f) => {
+      const s = typeof f.status === "number"
+        ? f.status === 0 ? "online" : f.status === 1 ? "away" : f.status === 2 ? "dnd" : "offline"
+        : f.status;
+      return s === "online" || s === "away" || s === "dnd";
+    }).length;
+  }, [friendsList]);
 
   // Local Session State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -564,6 +574,7 @@ export const ChatPage: React.FC = () => {
 
       // Connect SignalR & subscribe to real-time events
       await setupSignalR();
+      useFriendStore.getState().fetchFriends().catch(console.error);
 
       // Load Workspaces
       const wsList = await workspaceApi.getWorkspaces();
@@ -1070,11 +1081,7 @@ export const ChatPage: React.FC = () => {
                     setActiveChannelId(null);
                   }
                 }}
-                onlineFriendsCount={
-                  workspaceMembers.filter(
-                    (m) => m.status === "online" || m.status === "dnd" || m.status === "away"
-                  ).length
-                }
+                onlineFriendsCount={onlineFriendsCount}
               />
             ) : activeSidebarView === "notifications" ? (
               <NotificationsSidebar
@@ -1113,10 +1120,11 @@ export const ChatPage: React.FC = () => {
         ) : activeSidebarView === "dms" && (!activeDmId || !activeDm) ? (
           <FriendsDashboard
             currentUser={currentUser}
-            friends={workspaceMembers.filter((m) => m.id !== currentUser?.id)}
             onStartDm={(friend) => handleStartDmWithUser(friend)}
             onOpenUserProfile={(friend) => handleOpenUserProfile(friend as any)}
             onToast={(t) => setToast(t)}
+            unreadNotificationCount={unreadNotificationCount}
+            onSelectNotification={handleNavigateFromNotification}
           />
         ) : (
           <ChatArea
@@ -1159,6 +1167,8 @@ export const ChatPage: React.FC = () => {
             onUnpinMessage={handleUnpinMessage}
             isPinnedSidebarOpen={isPinnedSidebarOpen}
             onTogglePinnedSidebar={togglePinnedSidebar}
+            unreadNotificationCount={unreadNotificationCount}
+            onSelectNotification={handleNavigateFromNotification}
           />
         )}
 

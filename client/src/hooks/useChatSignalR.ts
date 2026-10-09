@@ -1,3 +1,4 @@
+import { useFriendStore } from "../stores";
 import { useCallback } from 'react';
 import { signalRService } from '../services';
 import {
@@ -185,6 +186,30 @@ export function useChatSignalR({
     });
 
     // 10. Notifications
+    
+    // 11. Friends Realtime Events
+    signalRService.onFriendRequestReceived((data) => {
+      useFriendStore.getState().fetchFriends();
+      setToast({
+        id: Date.now().toString(),
+        title: "Lời mời kết bạn mới",
+        description: `${data.displayName || "Ai đó"} đã gửi cho bạn một lời mời kết bạn.`,
+      });
+    });
+
+    signalRService.onFriendRequestAccepted((data) => {
+      useFriendStore.getState().fetchFriends();
+      setToast({
+        id: Date.now().toString(),
+        title: "Đã chấp nhận kết bạn",
+        description: `${data.displayName || "Bạn bè"} đã chấp nhận lời mời kết bạn của bạn.`,
+      });
+    });
+
+    signalRService.onFriendshipRemoved(() => {
+      useFriendStore.getState().fetchFriends();
+    });
+
     signalRService.onReceiveNotification((notif) => {
       setNotifications((prev) => [
         notif,
