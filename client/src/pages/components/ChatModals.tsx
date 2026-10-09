@@ -3,7 +3,7 @@ import {
   CreateWorkspaceModal,
   EditWorkspaceModal,
   KickMemberModal,
-} from '../../components/workspace';
+} from '../../components/server';
 import {
   CreateChannelModal,
   EditChannelModal,

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { workspaceApi } from '../services/workspaceApi';
+import { workspaceApi } from '../services/serverApi';
 import type { Workspace } from '../types';
 
 export function useWorkspaces() {

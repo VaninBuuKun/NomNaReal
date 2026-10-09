@@ -17,7 +17,7 @@ import {
   PencilSimple,
 } from '@phosphor-icons/react';
 import { ChannelType, type Channel, type Workspace } from '../../types';
-import { InviteMemberModal } from '../workspace';
+import { InviteMemberModal } from '../server';
 
 interface ChannelSidebarProps {
   currentWorkspace: Workspace | null;

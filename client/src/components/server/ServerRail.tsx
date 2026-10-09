@@ -138,3 +138,4 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
       </aside>
   );
 };
+export const ServerRail = WorkspaceRail;

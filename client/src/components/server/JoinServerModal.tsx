@@ -118,3 +118,4 @@ export const JoinWorkspaceModal: React.FC<JoinWorkspaceModalProps> = ({
     </Modal>
   );
 };
+export const JoinServerModal = JoinWorkspaceModal;

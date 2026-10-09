@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { UploadCloud, Loader2 } from 'lucide-react';
 import { getMediaUrl } from '../../utils/constants';
 import { Modal, Button, Input } from '../ui';
-import { workspaceApi } from '../../services/workspaceApi';
+import { workspaceApi } from '../../services/serverApi';
 import { fileApi } from '../../services/fileApi';
 import type { Workspace } from '../../types';
 
@@ -182,3 +182,4 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
     </Modal>
   );
 };
+export const CreateServerModal = CreateWorkspaceModal;

@@ -19,7 +19,7 @@ import {
 import {
   CreateWorkspaceModal,
   JoinWorkspaceModal,
-} from "../components/workspace";
+} from "../components/server";
 import { SettingsModal } from "../components/settings";
 import { WorkspaceAvatar, UserAvatar } from "../components/ui";
 import { authApi, workspaceApi } from "../services";

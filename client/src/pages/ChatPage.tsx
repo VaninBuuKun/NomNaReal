@@ -6,7 +6,7 @@ import React, {
   useRef,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { WorkspaceRail } from "../components/workspace";
+import { WorkspaceRail } from "../components/server";
 import { ChannelSidebar, UserFooterBar } from "../components/channel";
 import {
   DirectMessagesSidebar,
@@ -1035,7 +1035,7 @@ export const ChatPage: React.FC = () => {
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
           activeSidebarView={activeSidebarView}
-          onSelectView={(view) => setActiveSidebarView(view)}
+          onSelectView={(view: any) => setActiveSidebarView(view)}
           onSelectWorkspace={handleSelectWorkspace}
           onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
           onGoHome={() => navigate("/")}

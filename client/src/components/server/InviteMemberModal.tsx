@@ -10,7 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import { Modal, Button } from '../ui';
 import type { Workspace } from '../../types';
-import { workspaceApi } from '../../services/workspaceApi';
+import { workspaceApi } from '../../services/serverApi';
 
 interface InviteMemberModalProps {
   isOpen: boolean;

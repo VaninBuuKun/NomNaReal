@@ -1,6 +1,0 @@
-export * from './WorkspaceRail';
-export * from './CreateWorkspaceModal';
-export * from './InviteMemberModal';
-export * from './JoinWorkspaceModal';
-export * from './EditWorkspaceModal';
-export * from './KickMemberModal';
