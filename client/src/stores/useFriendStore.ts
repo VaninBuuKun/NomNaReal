@@ -17,6 +17,7 @@ interface FriendState {
   removeFriend: (friendshipId: string) => Promise<void>;
   blockUser: (targetUserId: string) => Promise<void>;
   unblockUser: (targetUserId: string) => Promise<void>;
+  updateFriendStatus: (userId: string, status: 'online' | 'offline' | 'away' | 'dnd' | number) => void;
 }
 
 export const useFriendStore = create<FriendState>((set, get) => ({
@@ -95,6 +96,26 @@ export const useFriendStore = create<FriendState>((set, get) => ({
     await friendApi.unblockUser(targetUserId);
     set((state) => ({
       blocked: state.blocked.filter((b) => b.userId !== targetUserId),
+    }));
+  },
+
+  updateFriendStatus: (userId, status) => {
+    const statusNum =
+      typeof status === 'number'
+        ? status
+        : status === 'online'
+        ? 0
+        : status === 'away'
+        ? 1
+        : status === 'dnd'
+        ? 2
+        : 3;
+    set((state) => ({
+      friends: state.friends.map((f) =>
+        f.userId.toLowerCase() === userId.toLowerCase()
+          ? { ...f, status: statusNum }
+          : f
+      ),
     }));
   },
 }));

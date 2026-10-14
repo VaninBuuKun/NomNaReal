@@ -158,6 +158,9 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CategoryId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -178,11 +181,18 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Name")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("ServerId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Topic")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)");
 
                     b.Property<int>("Type")
                         .HasColumnType("integer");
@@ -192,11 +202,11 @@ namespace NomNa.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryId");
+
                     b.HasIndex("LastMessageAt");
 
-                    b.HasIndex("ServerId", "Name")
-                        .IsUnique()
-                        .HasFilter("\"Name\" IS NOT NULL");
+                    b.HasIndex("ServerId", "Position");
 
                     b.ToTable("channels", (string)null);
                 });
@@ -230,6 +240,41 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("channel_members", (string)null);
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.ChannelPermissionOverwrite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Allow")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ChannelId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("Deny")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("TargetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TargetType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChannelId", "TargetId", "TargetType")
+                        .IsUnique();
+
+                    b.ToTable("channel_permission_overwrites", (string)null);
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.ChannelPinnedMessage", b =>
@@ -304,6 +349,37 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.HasIndex("RequesterId", "Status");
 
                     b.ToTable("friendships", (string)null);
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.MemberRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ServerMemberId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
+
+                    b.HasIndex("ServerMemberId", "RoleId")
+                        .IsUnique();
+
+                    b.ToTable("member_roles", (string)null);
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.Message", b =>
@@ -489,6 +565,52 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("refresh_tokens", (string)null);
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.Role", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ColorHex")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsHoisted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsMentionable")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<long>("Permissions")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ServerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServerId", "Position");
+
+                    b.ToTable("server_roles", (string)null);
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.Server", b =>
@@ -709,11 +831,18 @@ namespace NomNa.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("NomNa.Domain.Entities.Channel", b =>
                 {
+                    b.HasOne("NomNa.Domain.Entities.Channel", "Category")
+                        .WithMany("ChildChannels")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("NomNa.Domain.Entities.Server", "Server")
                         .WithMany("Channels")
                         .HasForeignKey("ServerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Category");
 
                     b.Navigation("Server");
                 });
@@ -735,6 +864,17 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.Navigation("Channel");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.ChannelPermissionOverwrite", b =>
+                {
+                    b.HasOne("NomNa.Domain.Entities.Channel", "Channel")
+                        .WithMany("Overwrites")
+                        .HasForeignKey("ChannelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Channel");
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.ChannelPinnedMessage", b =>
@@ -781,6 +921,25 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.Navigation("Addressee");
 
                     b.Navigation("Requester");
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.MemberRole", b =>
+                {
+                    b.HasOne("NomNa.Domain.Entities.Role", "Role")
+                        .WithMany("MemberRoles")
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNa.Domain.Entities.ServerMember", "ServerMember")
+                        .WithMany("MemberRoles")
+                        .HasForeignKey("ServerMemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
+
+                    b.Navigation("ServerMember");
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.Message", b =>
@@ -920,6 +1079,17 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("NomNa.Domain.Entities.Role", b =>
+                {
+                    b.HasOne("NomNa.Domain.Entities.Server", "Server")
+                        .WithMany("Roles")
+                        .HasForeignKey("ServerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Server");
+                });
+
             modelBuilder.Entity("NomNa.Domain.Entities.Server", b =>
                 {
                     b.HasOne("NomNa.Domain.Entities.User", "Owner")
@@ -952,9 +1122,13 @@ namespace NomNa.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("NomNa.Domain.Entities.Channel", b =>
                 {
+                    b.Navigation("ChildChannels");
+
                     b.Navigation("Members");
 
                     b.Navigation("Messages");
+
+                    b.Navigation("Overwrites");
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.Message", b =>
@@ -964,11 +1138,23 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.Navigation("Replies");
                 });
 
+            modelBuilder.Entity("NomNa.Domain.Entities.Role", b =>
+                {
+                    b.Navigation("MemberRoles");
+                });
+
             modelBuilder.Entity("NomNa.Domain.Entities.Server", b =>
                 {
                     b.Navigation("Channels");
 
                     b.Navigation("Members");
+
+                    b.Navigation("Roles");
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.ServerMember", b =>
+                {
+                    b.Navigation("MemberRoles");
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.User", b =>

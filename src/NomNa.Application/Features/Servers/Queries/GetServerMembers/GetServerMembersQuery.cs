@@ -1,6 +1,8 @@
 using MediatR;
 using NomNa.Application.Common.Models;
 
+using NomNa.Application.Features.Roles.DTOs;
+
 namespace NomNa.Application.Features.Servers.Queries.GetServerMembers;
 
 public record GetServerMembersQuery(Guid ServerId) : IRequest<Result<List<ServerMemberDto>>>;
@@ -13,5 +15,6 @@ public record ServerMemberDto(
     string? AvatarUrl,
     string? Email,
     string Role,
-    string Status
+    string Status,
+    List<RoleDto>? Roles = null
 );

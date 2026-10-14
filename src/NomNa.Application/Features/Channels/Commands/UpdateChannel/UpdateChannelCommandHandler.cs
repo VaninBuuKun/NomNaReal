@@ -45,7 +45,46 @@ public class UpdateChannelCommandHandler : IRequestHandler<UpdateChannelCommand,
         if (!isOwnerOrAdmin && !isCreator)
             return Error.Forbidden("Channel.Forbidden", "Only server owners, admins, or the channel creator can update channel settings.");
 
-        channel.Name = request.Name.Trim().ToLower();
+        if (!string.IsNullOrWhiteSpace(request.Name))
+        {
+            channel.Name = channel.Type == ChannelType.Category
+                ? request.Name.Trim().ToUpperInvariant()
+                : channel.Type == ChannelType.Text
+                    ? request.Name.Trim().ToLowerInvariant().Replace(' ', '-')
+                    : request.Name.Trim();
+        }
+
+        if (request.Topic != null)
+        {
+            channel.Topic = string.IsNullOrWhiteSpace(request.Topic) ? null : request.Topic.Trim();
+        }
+
+        if (request.CategoryId.HasValue)
+        {
+            if (request.CategoryId.Value == Guid.Empty)
+            {
+                channel.CategoryId = null;
+            }
+            else
+            {
+                var categoryExists = await _context.Channels
+                    .AnyAsync(c => c.Id == request.CategoryId.Value && c.ServerId == channel.ServerId && c.Type == ChannelType.Category, cancellationToken);
+                if (!categoryExists)
+                    return Error.NotFound("Category.NotFound", "Danh mục không tồn tại.");
+                channel.CategoryId = request.CategoryId.Value;
+            }
+        }
+
+        if (request.Position.HasValue)
+        {
+            channel.Position = request.Position.Value;
+        }
+
+        if (request.IsPrivate.HasValue)
+        {
+            channel.IsPrivate = request.IsPrivate.Value;
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return new ChannelDto(
@@ -54,7 +93,13 @@ public class UpdateChannelCommandHandler : IRequestHandler<UpdateChannelCommand,
             channel.Name,
             channel.Type,
             channel.IsPrivate,
-            channel.LastMessageAt
+            channel.LastMessageAt,
+            false,
+            (long)NomNa.Domain.Enums.Permissions.Default,
+            channel.CategoryId,
+            channel.Position,
+            channel.Topic
         );
     }
 }
+

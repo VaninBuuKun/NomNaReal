@@ -99,6 +99,7 @@ export function useChatSignalR({
         | 'away'
         | 'dnd';
       updateUserStatus(data.userId, normalized);
+      useFriendStore.getState().updateFriendStatus(data.userId, normalized);
     });
 
     // 6. Added to Private Channel

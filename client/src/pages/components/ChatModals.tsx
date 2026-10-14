@@ -6,7 +6,7 @@ import {
 } from '../../components/server';
 import {
   CreateChannelModal,
-  EditChannelModal,
+  ChannelSettingsModal,
   AddChannelMemberModal,
 } from '../../components/channel';
 import { NewDirectMessageModal, type DirectMessageUser } from '../../components/dm';
@@ -38,6 +38,8 @@ interface ChatModalsProps {
   setUserProfileAnchor: (anchor: { top: number; left: number; right: number; bottom: number } | null) => void;
   setChannelMemberIdsMap: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
   dmConversations: { user: { id: string } }[];
+  channels?: Channel[];
+  initialCategoryId?: string | null;
 }
 
 export const ChatModals: React.FC<ChatModalsProps> = ({
@@ -63,6 +65,8 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
   setUserProfileAnchor,
   setChannelMemberIdsMap,
   dmConversations,
+  channels = [],
+  initialCategoryId,
 }) => {
   const {
     isCreateWorkspaceOpen,
@@ -141,13 +145,17 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
         onClose={() => setCreateChannelOpen(false)}
         workspaceId={activeWorkspaceId}
         channelType={createChannelType}
+        initialCategoryId={initialCategoryId}
+        categories={channels.filter((c) => c.type === 3)}
         onChannelCreated={handleChannelCreated}
       />
 
-      <EditChannelModal
+      <ChannelSettingsModal
         isOpen={Boolean(channelToEdit)}
         onClose={() => setChannelToEdit(null)}
         channel={channelToEdit}
+        workspace={currentWorkspace}
+        categories={channels.filter((c) => c.type === 3 && c.id !== channelToEdit?.id)}
         onChannelUpdated={handleChannelUpdated}
         onChannelDeleted={handleChannelDeleted}
       />

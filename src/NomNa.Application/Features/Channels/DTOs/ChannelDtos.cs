@@ -10,7 +10,11 @@ public record ChannelDto(
     ChannelType Type,
     bool IsPrivate,
     DateTime? LastMessageAt = null,
-    bool HasUnread = false
+    bool HasUnread = false,
+    long Permissions = (long)NomNa.Domain.Enums.Permissions.Default,
+    Guid? CategoryId = null,
+    int Position = 0,
+    string? Topic = null
 );
 
 public record ChannelMemberDto(

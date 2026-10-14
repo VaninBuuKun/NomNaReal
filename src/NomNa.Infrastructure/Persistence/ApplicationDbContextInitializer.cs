@@ -83,9 +83,43 @@ public class ApplicationDbContextInitializer
             Owner = alex
         };
 
-        server.Members.Add(new ServerMember { User = alex, Role = ServerRole.Owner });
-        server.Members.Add(new ServerMember { User = minh, Role = ServerRole.Admin });
-        server.Members.Add(new ServerMember { User = van, Role = ServerRole.Member });
+        var alexMember = new ServerMember { User = alex, Role = ServerRole.Owner };
+        var minhMember = new ServerMember { User = minh, Role = ServerRole.Admin };
+        var vanMember = new ServerMember { User = van, Role = ServerRole.Member };
+
+        server.Members.Add(alexMember);
+        server.Members.Add(minhMember);
+        server.Members.Add(vanMember);
+
+        // Seed Roles
+        var everyoneRole = new Role
+        {
+            Name = "@everyone",
+            IsDefault = true,
+            Position = 0,
+            Permissions = Permissions.Default,
+            Server = server
+        };
+
+        var adminRole = new Role
+        {
+            Name = "Admin",
+            IsDefault = false,
+            Position = 1,
+            ColorHex = "#E02424",
+            Permissions = Permissions.Administrator,
+            Server = server
+        };
+
+        server.Roles.Add(everyoneRole);
+        server.Roles.Add(adminRole);
+
+        // Assign Admin role to minhMember
+        minhMember.MemberRoles.Add(new MemberRole
+        {
+            ServerMember = minhMember,
+            Role = adminRole
+        });
 
         // 3. Seed Channels
         var generalChannel = new Channel

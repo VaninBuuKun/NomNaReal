@@ -16,6 +16,9 @@ public interface IApplicationDbContext
     DbSet<Notification> Notifications { get; }
     DbSet<RefreshToken> RefreshTokens { get; }
     DbSet<Friendship> Friendships { get; }
+    DbSet<Role> Roles { get; }
+    DbSet<MemberRole> MemberRoles { get; }
+    DbSet<ChannelPermissionOverwrite> ChannelPermissionOverwrites { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

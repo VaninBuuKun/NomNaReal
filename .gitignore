@@ -48,3 +48,7 @@ appsettings.Local.json
 # OS generated
 .DS_Store
 Thumbs.db
+
+# Uploaded content
+src/NomNa.WebAPI/wwwroot/uploads/
+src/NomNa.WebAPI/wwwroot/avatars/

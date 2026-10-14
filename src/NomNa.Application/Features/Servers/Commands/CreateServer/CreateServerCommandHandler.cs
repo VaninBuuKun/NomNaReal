@@ -39,12 +39,36 @@ public class CreateServerCommandHandler : IRequestHandler<CreateServerCommand, R
             Role = ServerRole.Owner
         });
 
+        // Seed default @everyone role
+        server.Roles.Add(new Role
+        {
+            Name = "@everyone",
+            IsDefault = true,
+            Position = 0,
+            Permissions = Permissions.Default,
+            ServerId = server.Id
+        });
+
+        // 1. Default Category: KÊNH CHAT
+        var textCategory = new Channel
+        {
+            Name = "KÊNH CHAT",
+            Type = ChannelType.Category,
+            Position = 0,
+            CreatedById = userId.Value,
+            ServerId = server.Id
+        };
+        server.Channels.Add(textCategory);
+
         // Add default #general text channel
         var generalChannel = new Channel
         {
             Name = "general",
             Type = ChannelType.Text,
-            CreatedById = userId.Value
+            Position = 0,
+            CategoryId = textCategory.Id,
+            CreatedById = userId.Value,
+            ServerId = server.Id
         };
         generalChannel.Members.Add(new ChannelMember
         {
@@ -52,12 +76,26 @@ public class CreateServerCommandHandler : IRequestHandler<CreateServerCommand, R
         });
         server.Channels.Add(generalChannel);
 
+        // 2. Default Category: KÊNH THOẠI
+        var voiceCategory = new Channel
+        {
+            Name = "KÊNH THOẠI",
+            Type = ChannelType.Category,
+            Position = 1,
+            CreatedById = userId.Value,
+            ServerId = server.Id
+        };
+        server.Channels.Add(voiceCategory);
+
         // Add default voice channel
         var generalVoiceChannel = new Channel
         {
             Name = "general-voice",
             Type = ChannelType.Voice,
-            CreatedById = userId.Value
+            Position = 0,
+            CategoryId = voiceCategory.Id,
+            CreatedById = userId.Value,
+            ServerId = server.Id
         };
         generalVoiceChannel.Members.Add(new ChannelMember
         {

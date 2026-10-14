@@ -19,7 +19,10 @@ import {
   Plus,
   Play,
   FileText,
-    } from "@phosphor-icons/react";
+  Phone,
+  VideoCamera,
+} from "@phosphor-icons/react";
+import { Avatar } from "../ui";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
 import { messageApi } from "../../services/messageApi";
 import { fileApi } from "../../services/fileApi";
@@ -35,6 +38,7 @@ import { getMediaUrl } from "../../utils/constants";
 import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
 import { InputLinkPreviewStrip } from "./InputLinkPreviewStrip";
 import { useChatStore, useUiStore } from "../../stores";
+import { usePermissions } from "../../hooks/usePermissions";
 import type { UserProfileData } from "../profile";
 
 interface PendingAttachment {
@@ -54,10 +58,11 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-import type { DirectMessageUser } from "../dm";
+import type { DirectMessageItem, DirectMessageUser } from "../dm";
 
 interface ChatAreaProps {
   currentChannel: Channel | null;
+  activeDm?: DirectMessageItem | null;
   messages: Message[];
   currentUser: User | null;
   onSendMessage: (
@@ -92,6 +97,7 @@ const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
 
 export const ChatArea: React.FC<ChatAreaProps> = ({
   currentChannel,
+  activeDm,
   messages,
   currentUser,
   onSendMessage,
@@ -124,6 +130,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const isSearchOpen = useUiStore((state) => state.isSearchOpen);
   const toggleSearch = useUiStore((state) => state.toggleSearch);
+
+  const { canSendMessages, canAttachFiles, canManageMessages, isAdmin } = usePermissions(
+    currentChannel?.permissions
+  );
 
   const [isStickyDismissed, setIsStickyDismissed] = useState(false);
 
@@ -749,21 +759,89 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     return <MessageContent content={text} currentUsername={currentUser?.username} />;
   };
 
+  const isDm = Boolean(
+    activeDm ||
+      (currentChannel &&
+        (currentChannel.type === 2 ||
+          currentChannel.type === ChannelType.DirectMessage))
+  );
+  const dmUser = activeDm?.user;
+
   return (
     <section className="flex-1 h-full min-h-0 bg-[var(--bg-chat)] flex flex-col overflow-hidden relative">
       {/* Header Chat */}
       <div className="h-[54px] border-b border-[var(--border-color)] px-5 flex items-center justify-between bg-[var(--bg-chat)] shrink-0 select-none">
-        <div className="flex items-center gap-2 min-w-0">
-          {currentChannel && (currentChannel.type === 2 || currentChannel.type === ChannelType.DirectMessage) ? (
-            <At size={19} className="text-[var(--text-muted)] shrink-0" />
+        <div className="flex items-center gap-2.5 min-w-0">
+          {isDm && dmUser ? (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="relative shrink-0">
+                <Avatar
+                  src={dmUser.avatarUrl}
+                  fallback={dmUser.displayName || dmUser.username}
+                  size="sm"
+                />
+                <span
+                  className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-[var(--bg-chat)] ${
+                    dmUser.status === 'online'
+                      ? 'bg-[var(--status-online)]'
+                      : dmUser.status === 'dnd'
+                      ? 'bg-[var(--status-dnd)]'
+                      : dmUser.status === 'away'
+                      ? 'bg-amber-500'
+                      : 'bg-neutral-500'
+                  }`}
+                />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-[var(--text-primary)] truncate leading-tight">
+                  {dmUser.displayName}
+                </h2>
+                <p className="text-[11px] text-[var(--text-muted)] truncate leading-tight">
+                  {dmUser.status === 'online'
+                    ? 'Đang hoạt động'
+                    : dmUser.status === 'dnd'
+                    ? 'Không làm phiền'
+                    : dmUser.status === 'away'
+                    ? 'Chờ'
+                    : 'Ngoại tuyến'}
+                </p>
+              </div>
+            </div>
           ) : (
-            <Hash size={19} className="text-[var(--text-muted)] shrink-0" />
+            <div className="flex items-center gap-2 min-w-0">
+              {currentChannel && (currentChannel.type === 2 || currentChannel.type === ChannelType.DirectMessage) ? (
+                <At size={19} className="text-[var(--text-muted)] shrink-0" />
+              ) : (
+                <Hash size={19} className="text-[var(--text-muted)] shrink-0" />
+              )}
+              <h2 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                {currentChannel ? currentChannel.name : "NomNa"}
+              </h2>
+            </div>
           )}
-          <h2 className="text-sm font-bold text-[var(--text-primary)] truncate">
-            {currentChannel ? currentChannel.name : "NomNa"}
-          </h2>
         </div>
+
         <div className="flex items-center gap-1">
+          {/* Action Call & Video Call for DM */}
+          {isDm && (
+            <>
+              <button
+                type="button"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+                title="Bắt đầu cuộc gọi thoại"
+              >
+                <Phone size={17} weight="bold" />
+              </button>
+              <button
+                type="button"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+                title="Bắt đầu cuộc gọi video"
+              >
+                <VideoCamera size={17} weight="bold" />
+              </button>
+            </>
+          )}
+
           <button
             type="button"
             onClick={toggleSearch}
@@ -775,17 +853,21 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           >
             <MagnifyingGlass size={17} weight={isSearchOpen ? "bold" : "regular"} />
           </button>
-          <button
-            type="button"
-            onClick={onToggleMemberList}
-            className={`p-1.5 rounded-md transition-colors cursor-pointer inline-flex items-center justify-center ${isMemberListOpen
-                ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
-              }`}
-            title={isMemberListOpen ? "Ẩn danh sách thành viên" : "Hiển thị danh sách thành viên"}
-          >
-            <Users size={17} weight={isMemberListOpen ? "bold" : "regular"} />
-          </button>
+
+          {!isDm && (
+            <button
+              type="button"
+              onClick={onToggleMemberList}
+              className={`p-1.5 rounded-md transition-colors cursor-pointer inline-flex items-center justify-center ${isMemberListOpen
+                  ? "text-[var(--accent-primary)] bg-[var(--accent-soft)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
+                }`}
+              title={isMemberListOpen ? "Ẩn danh sách thành viên" : "Hiển thị danh sách thành viên"}
+            >
+              <Users size={17} weight={isMemberListOpen ? "bold" : "regular"} />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onTogglePinnedSidebar}
@@ -1253,12 +1335,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                       </button>
                     )}
 
-                    {/* Delete Message (Sender Only) */}
-                    {isMe && (
+                    {/* Delete Message (Sender or Admin/Mod with ManageMessages) */}
+                    {(isMe || canManageMessages || isAdmin) && (
                       <button
                         type="button"
                         className="p-1.5 text-rose-500 hover:bg-rose-500/10 rounded-lg text-xs transition-colors cursor-pointer"
-                        title="Xoá tin nhắn"
+                        title={isMe ? "Xoá tin nhắn" : "Xoá tin nhắn (Quản trị viên)"}
                         onClick={() => handleDeleteClick(msg)}
                       >
                         <Trash size={15} />
@@ -1420,11 +1502,13 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               value={content}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              disabled={!currentChannel}
+              disabled={!currentChannel || !canSendMessages}
               placeholder={
-                currentChannel
-                  ? `Nhắn tin tới #${currentChannel.name}... (Enter để gửi, hỗ trợ nhiều ảnh & file 100MB)`
-                  : "Vui lòng chọn một kênh ở danh sách bên trái để nhắn tin..."
+                !currentChannel
+                  ? "Vui lòng chọn một kênh ở danh sách bên trái để nhắn tin..."
+                  : !canSendMessages
+                  ? `Bạn không có quyền gửi tin nhắn trong kênh #${currentChannel.name || 'này'}.`
+                  : `Nhắn tin tới #${currentChannel.name}... (Enter để gửi, hỗ trợ nhiều ảnh & file 100MB)`
               }
             />
           </div>
@@ -1441,14 +1525,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 onChange={handleFileUpload}
               />
 
-              <button
-                type="button"
-                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-                title="Đính kèm tệp tin / Video (Tối đa 100MB)"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Paperclip size={17} />
-              </button>
+              {canAttachFiles && (
+                <button
+                  type="button"
+                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+                  title="Đính kèm tệp tin / Video (Tối đa 100MB)"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Paperclip size={17} />
+                </button>
+              )}
 
               <button
                 type="button"
@@ -1457,6 +1543,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
                   }`}
                 title="Thư viện ảnh GIF"
+                disabled={!canSendMessages}
                 onClick={() => {
                   setShowGifPicker((prev) => !prev);
                   setShowEmojiPicker(false);
@@ -1474,6 +1561,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                     : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
                   }`}
                 title="Thêm biểu cảm Emoji"
+                disabled={!canSendMessages}
                 onClick={() => {
                   setShowEmojiPicker((prev) => !prev);
                   setShowGifPicker(false);
@@ -1486,6 +1574,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 type="button"
                 className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
                 title="Chèn khối mã code"
+                disabled={!canSendMessages}
                 onClick={() => setContent((prev) => prev ? `${prev}\n\`\`\`csharp\n// Nhập mã code tại đây\n\`\`\`\n` : `\`\`\`csharp\n// Nhập mã code tại đây\n\`\`\`\n`)}
               >
                 <Code size={17} />
@@ -1497,7 +1586,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 type="button"
                 className="bg-[var(--accent-primary)] text-white border-none px-3.5 py-1.5 rounded-lg text-[0.82rem] font-semibold cursor-pointer transition-all duration-150 flex items-center gap-1.5 shadow-[0_2px_8px_var(--accent-glow)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_14px_var(--accent-glow)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
                 onClick={handleSend}
-                disabled={(!content.trim() && pendingAttachments.length === 0) || sending || pendingAttachments.some((a) => a.status === 'uploading')}
+                disabled={!canSendMessages || (!content.trim() && pendingAttachments.length === 0) || sending || pendingAttachments.some((a) => a.status === 'uploading')}
               >
                 <span>{sending ? "Đang gửi..." : pendingAttachments.some((a) => a.status === 'uploading') ? "Đang tải ảnh..." : "Gửi tin"}</span>
                 <PaperPlaneRight size={14} weight="fill" />

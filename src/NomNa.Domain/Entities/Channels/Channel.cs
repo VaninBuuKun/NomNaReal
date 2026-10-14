@@ -9,9 +9,15 @@ public class Channel : BaseEntity
     public Server Server { get; set; } = null!;
 
     public string? Name { get; set; }
+    public string? Topic { get; set; }
     public ChannelType Type { get; set; } = ChannelType.Text;
     public bool IsPrivate { get; set; } = false;
+    public int Position { get; set; } = 0;
     public Guid CreatedById { get; set; }
+
+    public Guid? CategoryId { get; set; }
+    public Channel? Category { get; set; }
+    public ICollection<Channel> ChildChannels { get; set; } = new List<Channel>();
 
     // Denormalized fields for quick display
     public DateTime? LastMessageAt { get; set; }

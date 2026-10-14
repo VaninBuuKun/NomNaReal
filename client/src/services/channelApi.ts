@@ -9,7 +9,7 @@ export const channelApi = {
 
   createChannel: async (
     serverIdOrWorkspaceId: string,
-    nameOrData: string | { name: string; type?: number; isPrivate?: boolean }
+    nameOrData: string | { name: string; type?: number; isPrivate?: boolean; categoryId?: string | null }
   ): Promise<Channel> => {
     const payload =
       typeof nameOrData === 'string'
@@ -32,8 +32,12 @@ export const channelApi = {
     }
   },
 
-  updateChannel: async (channelId: string, name: string): Promise<Channel> => {
-    const res = await httpClient.put<Channel>(`/channels/${channelId}`, { name });
+  updateChannel: async (
+    channelId: string,
+    data: string | { name?: string; topic?: string | null; categoryId?: string | null; position?: number; isPrivate?: boolean }
+  ): Promise<Channel> => {
+    const payload = typeof data === 'string' ? { name: data } : data;
+    const res = await httpClient.put<Channel>(`/channels/${channelId}`, payload);
     return res.data;
   },
 

@@ -87,7 +87,7 @@ public class ServersController : ApiControllerBase
     [HttpPost("{serverId}/channels")]
     public async Task<IActionResult> CreateChannel([FromRoute] Guid serverId, [FromBody] CreateChannelRequest request)
     {
-        var command = new CreateChannelCommand(serverId, request.Name, request.Type, request.IsPrivate);
+        var command = new CreateChannelCommand(serverId, request.Name, request.Type, request.IsPrivate, request.CategoryId);
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
@@ -156,7 +156,7 @@ public class ServersController : ApiControllerBase
     }
 }
 
-public record CreateChannelRequest(string Name, Domain.Enums.ChannelType Type = Domain.Enums.ChannelType.Text, bool IsPrivate = false);
+public record CreateChannelRequest(string Name, Domain.Enums.ChannelType Type = Domain.Enums.ChannelType.Text, bool IsPrivate = false, Guid? CategoryId = null);
 public record CreateDmRequest(Guid TargetUserId);
 public record SendServerInvitesRequest(List<string> Emails);
 public record UpdateServerRequest(string Name, string? Description = null, string? IconUrl = null);

@@ -9,5 +9,6 @@ public record CreateChannelCommand(
     Guid ServerId,
     string Name,
     ChannelType Type = ChannelType.Text,
-    bool IsPrivate = false
+    bool IsPrivate = false,
+    Guid? CategoryId = null
 ) : IRequest<Result<ChannelDto>>;

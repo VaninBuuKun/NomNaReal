@@ -45,9 +45,14 @@ export class SignalRService {
     }
 
     try {
-      await this.connection.start();
-      console.log('SignalR Connected successfully.');
-    } catch (err) {
+      if (this.connection.state === signalR.HubConnectionState.Disconnected) {
+        await this.connection.start();
+        console.log('SignalR Connected successfully.');
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || err?.message?.includes('stopped')) {
+        return;
+      }
       console.error('SignalR Connection Error: ', err);
     }
   }
@@ -342,22 +347,39 @@ export class SignalRService {
   }
 
   public async startTyping(channelId: string): Promise<void> {
+    if (!channelId || channelId.startsWith('pending-dm-')) return;
     if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
-      await this.connection.invoke('StartTyping', channelId);
+      try {
+        await this.connection.invoke('StartTyping', channelId);
+      } catch (err) {
+        console.warn('StartTyping warning:', err);
+      }
     }
   }
 
   public async stopTyping(channelId: string): Promise<void> {
+    if (!channelId || channelId.startsWith('pending-dm-')) return;
     if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
-      await this.connection.invoke('StopTyping', channelId);
+      try {
+        await this.connection.invoke('StopTyping', channelId);
+      } catch (err) {
+        console.warn('StopTyping warning:', err);
+      }
     }
   }
 
   public async disconnect(): Promise<void> {
     if (this.connection) {
-      await this.connection.stop();
+      const conn = this.connection;
       this.connection = null;
       this.currentChannelId = null;
+      try {
+        if (conn.state !== signalR.HubConnectionState.Disconnected) {
+          await conn.stop();
+        }
+      } catch {
+        // Ignore expected abort during unmounting
+      }
     }
   }
 }

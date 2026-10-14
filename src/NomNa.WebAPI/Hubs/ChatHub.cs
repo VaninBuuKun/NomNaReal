@@ -66,23 +66,22 @@ public class ChatHub : Hub
                 throw new HubException("Channel not found.");
             }
 
-            // Phân quyền riêng cho Channel Private / Direct Message vs Channel Public trong Workspace
-            if (channel.IsPrivate || channel.Type == ChannelType.DirectMessage)
+            if (channel.Type != ChannelType.DirectMessage)
+            {
+                var permService = scope.ServiceProvider.GetRequiredService<IPermissionService>();
+                var canView = await permService.HasChannelPermissionAsync(userId, channel.Id, Permissions.ViewChannel);
+                if (!canView)
+                {
+                    throw new HubException("Access denied: You do not have permission to view this channel.");
+                }
+            }
+            else
             {
                 var isMember = await db.ChannelMembers
                     .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId);
                 if (!isMember && channel.CreatedById != userId)
                 {
-                    throw new HubException("Access denied to this private channel.");
-                }
-            }
-            else
-            {
-                var isMember = await db.ServerMembers
-                    .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId);
-                if (!isMember)
-                {
-                    throw new HubException("Access denied to this server.");
+                    throw new HubException("Access denied to this direct message.");
                 }
             }
         }
@@ -150,6 +149,35 @@ public class ChatHub : Hub
             // Broadcast (Multicast) tin nhắn vừa tạo cho TẤT CẢ các Client đang ở trong Channel Group
             var groupName = channelId.ToString();
             await Clients.Group(groupName).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
+
+            // Cho kênh Direct Message: Đồng thời bắn thẳng tới UserId của người nhận (dù họ chưa mở tab chat đó)
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+                var channel = await db.Channels
+                    .AsNoTracking()
+                    .Select(c => new { c.Id, c.Type })
+                    .FirstOrDefaultAsync(c => c.Id == channelId);
+
+                if (channel != null && channel.Type == ChannelType.DirectMessage)
+                {
+                    var recipientUserIds = await db.ChannelMembers
+                        .AsNoTracking()
+                        .Where(cm => cm.ChannelId == channelId && cm.UserId != message.SenderId)
+                        .Select(cm => cm.UserId.ToString())
+                        .ToListAsync();
+
+                    if (recipientUserIds.Count > 0)
+                    {
+                        await Clients.Users(recipientUserIds).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to dispatch direct message to user clients for channel {ChannelId}", channelId);
+            }
 
             // Trả về cho caller (client vừa gọi SendMessage) kết quả để UI client nhận Promise/Task result
             return message;
@@ -289,9 +317,12 @@ public class ChatHub : Hub
     /// Trạng thái gõ phím (Typing Indicator) - Đây là dạng Ephemeral Data (dữ liệu tạm thời không lưu DB).
     /// Dùng `Clients.OthersInGroup` để gửi sự kiện cho TẤT CẢ mọi người trong channel NGOẠI TRỪ người đang gõ.
     /// </summary>
-    public async Task StartTyping(Guid channelId)
+    public async Task StartTyping(string channelId)
     {
-        var groupName = channelId.ToString();
+        if (string.IsNullOrWhiteSpace(channelId) || channelId.StartsWith("pending-dm-", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var groupName = channelId;
         var username = Context.User?.FindFirstValue(ClaimTypes.Name) ?? "Someone";
         var userId = Context.UserIdentifier;
 
@@ -306,9 +337,12 @@ public class ChatHub : Hub
     /// <summary>
     /// Thông báo dừng gõ phím để ẩn indicator trên UI các client khác.
     /// </summary>
-    public async Task StopTyping(Guid channelId)
+    public async Task StopTyping(string channelId)
     {
-        var groupName = channelId.ToString();
+        if (string.IsNullOrWhiteSpace(channelId) || channelId.StartsWith("pending-dm-", StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var groupName = channelId;
         var userId = Context.UserIdentifier;
 
         await Clients.OthersInGroup(groupName).SendAsync(SignalRConstants.Events.UserStoppedTyping, new

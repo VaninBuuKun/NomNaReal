@@ -31,12 +31,29 @@ public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand,
         if (!isMember)
             return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
-        var channelName = request.Name.Trim().ToLowerInvariant();
+        var channelName = request.Type == ChannelType.Category
+            ? request.Name.Trim().ToUpperInvariant()
+            : request.Type == ChannelType.Text
+                ? request.Name.Trim().ToLowerInvariant().Replace(' ', '-')
+                : request.Name.Trim();
 
-        if (await _context.Channels.AnyAsync(c => c.ServerId == request.ServerId && c.Name == channelName, cancellationToken))
+        if (request.CategoryId.HasValue)
         {
-            return Error.Conflict("Channel.AlreadyExists", $"Channel #{channelName} already exists in this server.");
+            var categoryExists = await _context.Channels
+                .AnyAsync(c => c.Id == request.CategoryId.Value && c.ServerId == request.ServerId && c.Type == ChannelType.Category, cancellationToken);
+            if (!categoryExists)
+                return Error.NotFound("Category.NotFound", "Danh mục không tồn tại trong máy chủ này.");
         }
+
+        if (await _context.Channels.AnyAsync(c => c.ServerId == request.ServerId && c.CategoryId == request.CategoryId && c.Name == channelName && c.Type == request.Type, cancellationToken))
+        {
+            return Error.Conflict("Channel.AlreadyExists", $"Kênh hoặc danh mục '{channelName}' đã tồn tại.");
+        }
+
+        var maxPos = await _context.Channels
+            .Where(c => c.ServerId == request.ServerId && c.CategoryId == request.CategoryId)
+            .Select(c => (int?)c.Position)
+            .MaxAsync(cancellationToken) ?? -1;
 
         var channel = new Channel
         {
@@ -44,6 +61,8 @@ public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand,
             Name = channelName,
             Type = request.Type,
             IsPrivate = request.IsPrivate,
+            CategoryId = request.CategoryId,
+            Position = maxPos + 1,
             CreatedById = userId.Value
         };
 
@@ -64,7 +83,14 @@ public class CreateChannelCommandHandler : IRequestHandler<CreateChannelCommand,
             channel.ServerId,
             channel.Name,
             channel.Type,
-            channel.IsPrivate
+            channel.IsPrivate,
+            null,
+            false,
+            (long)NomNa.Domain.Enums.Permissions.Default,
+            channel.CategoryId,
+            channel.Position,
+            channel.Topic
         );
     }
 }
+

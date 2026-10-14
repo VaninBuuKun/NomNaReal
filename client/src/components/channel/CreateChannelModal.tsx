@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Hash, SpeakerHigh, Key } from '@phosphor-icons/react';
-import { Modal, Button } from '../ui';
+import React, { useState, useEffect } from 'react';
+import { Hash, SpeakerHigh, Folder, Lock } from '@phosphor-icons/react';
+import { Modal, Button, Input } from '../ui';
 import { channelApi } from '../../services/channelApi';
 import { ChannelType, type Channel } from '../../types';
 
@@ -8,7 +8,9 @@ interface CreateChannelModalProps {
   isOpen: boolean;
   onClose: () => void;
   workspaceId: string | null;
-  channelType: ChannelType;
+  channelType?: ChannelType;
+  initialCategoryId?: string | null;
+  categories?: Channel[];
   onChannelCreated: (channel: Channel) => void;
 }
 
@@ -17,34 +19,51 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
   onClose,
   workspaceId,
   channelType = ChannelType.Text,
+  initialCategoryId = null,
+  categories = [],
   onChannelCreated,
 }) => {
+  const [type, setType] = useState<ChannelType>(channelType);
   const [name, setName] = useState('');
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>(initialCategoryId || '');
   const [isPrivate, setIsPrivate] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isVoice = channelType === ChannelType.Voice;
+  useEffect(() => {
+    if (isOpen) {
+      setType(channelType);
+      setSelectedCategoryId(initialCategoryId || '');
+      setName('');
+      setIsPrivate(false);
+      setError(null);
+    }
+  }, [isOpen, channelType, initialCategoryId]);
+
+  const isCategory = type === ChannelType.Category;
+  const isVoice = type === ChannelType.Voice;
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Format channel name slug: lowercase, replace spaces with hyphen
-    const formatted = e.target.value
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9-_]/g, '');
-    setName(formatted);
+    const val = e.target.value;
+    if (isCategory) {
+      setName(val);
+    } else if (isVoice) {
+      setName(val);
+    } else {
+      setName(val.toLowerCase().replace(/\s+/g, '-'));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!workspaceId) {
-      setError('Không tìm thấy không gian làm việc hiện tại.');
+      setError('Không tìm thấy máy chủ hiện tại.');
       return;
     }
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError('Vui lòng nhập tên kênh.');
+      setError('Vui lòng nhập tên.');
       return;
     }
 
@@ -52,14 +71,16 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
       setIsSubmitting(true);
       setError(null);
       const newChannel = await channelApi.createChannel(workspaceId, {
-        name: trimmedName,
-        type: channelType,
-        isPrivate,
+        name: isCategory ? trimmedName.toUpperCase() : trimmedName,
+        type,
+        isPrivate: isCategory ? false : isPrivate,
+        categoryId: isCategory || !selectedCategoryId ? null : selectedCategoryId,
       });
 
       onChannelCreated(newChannel);
       handleClose();
     } catch (err: unknown) {
+      console.error('Failed to create channel/category:', err);
       const errorObj = err as { response?: { data?: { message?: string } } };
       setError(errorObj?.response?.data?.message || 'Không thể tạo kênh. Vui lòng thử lại.');
     } finally {
@@ -74,90 +95,144 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
     onClose();
   };
 
+  const getModalTitle = () => {
+    if (isCategory) return 'Tạo danh mục mới';
+    if (isVoice) return 'Tạo kênh thoại mới';
+    return 'Tạo kênh chat mới';
+  };
+
+  const getModalSubtitle = () => {
+    if (isCategory) return 'Danh mục dùng để gom nhóm các kênh văn bản và âm thanh lại với nhau.';
+    if (isVoice) return 'Kênh thoại cho phép các thành viên trò chuyện bằng âm thanh và chia sẻ màn hình.';
+    return 'Kênh văn bản là nơi mọi người gửi tin nhắn, ảnh, tệp đính kèm và thảo luận.';
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isVoice ? 'Tạo Kênh Thoại Mới' : 'Tạo Kênh Thảo Luận Mới'}
-      subtitle={
-        isVoice
-          ? 'Kênh thoại cho phép các thành viên trò chuyện bằng âm thanh và chia sẻ màn hình.'
-          : 'Kênh văn bản là nơi nhóm trao đổi tin nhắn, tệp đính kèm và thảo luận.'
-      }
+      title={getModalTitle()}
+      subtitle={getModalSubtitle()}
       className="max-w-[480px]"
     >
-      <form onSubmit={handleSubmit} className="p-6 space-y-5">
+      <form onSubmit={handleSubmit} className="p-6 space-y-4">
         {error && (
-          <div className="p-3 text-xs rounded-[3px] bg-rose-500/10 border border-rose-500/20 text-rose-500 font-medium">
+          <div className="p-3 text-xs rounded-[3px] bg-[var(--status-dnd)]/10 border border-[var(--status-dnd)]/20 text-[var(--status-dnd)] font-medium">
             {error}
           </div>
         )}
 
-        {/* Channel Type Indicator Badge */}
-        <div className="flex items-center gap-2 p-2.5 rounded-[4px] bg-[var(--bg-surface)] border border-[var(--border-color)]">
-          <div className="w-8 h-8 rounded-[3px] bg-[var(--accent-soft)] flex items-center justify-center text-[var(--accent-primary)] shrink-0">
-            {isVoice ? <SpeakerHigh size={18} weight="bold" /> : <Hash size={18} weight="bold" />}
-          </div>
-          <div>
-            <div className="text-xs font-bold text-[var(--text-primary)]">
-              {isVoice ? 'Kênh thoại (Voice Channel)' : 'Kênh thảo luận (Text Channel)'}
-            </div>
-            <div className="text-[11px] text-[var(--text-muted)]">
-              {isVoice ? 'Âm thanh thời gian thực & kết nối trực tiếp' : 'Gửi tin nhắn, hình ảnh & tệp đính kèm'}
-            </div>
+        {/* Type Selector Tabs */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+            Loại kênh
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setType(ChannelType.Text)}
+              className={`p-2.5 rounded-[4px] border flex flex-col items-center gap-1.5 transition-colors cursor-pointer text-center ${
+                type === ChannelType.Text
+                  ? 'bg-[var(--bg-surface-active)] border-[var(--accent-primary)] text-[var(--text-primary)] font-semibold'
+                  : 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <Hash size={18} weight="bold" className="text-[var(--accent-primary)]" />
+              <span className="text-xs">Kênh chat</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setType(ChannelType.Voice)}
+              className={`p-2.5 rounded-[4px] border flex flex-col items-center gap-1.5 transition-colors cursor-pointer text-center ${
+                type === ChannelType.Voice
+                  ? 'bg-[var(--bg-surface-active)] border-[var(--accent-primary)] text-[var(--text-primary)] font-semibold'
+                  : 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <SpeakerHigh size={18} weight="bold" className="text-[var(--accent-primary)]" />
+              <span className="text-xs">Kênh thoại</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setType(ChannelType.Category)}
+              className={`p-2.5 rounded-[4px] border flex flex-col items-center gap-1.5 transition-colors cursor-pointer text-center ${
+                type === ChannelType.Category
+                  ? 'bg-[var(--bg-surface-active)] border-[var(--accent-primary)] text-[var(--text-primary)] font-semibold'
+                  : 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <Folder size={18} weight="bold" className="text-[var(--accent-primary)]" />
+              <span className="text-xs">Danh mục</span>
+            </button>
           </div>
         </div>
 
         {/* Channel Name Input */}
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-1.5">
-            Tên kênh <span className="text-[var(--accent-primary)]">*</span>
+          <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+            {isCategory ? 'Tên danh mục' : 'Tên kênh'}{' '}
+            <span className="text-[var(--status-dnd)]">*</span>
           </label>
-          <div className="relative flex items-center">
-            <span className="absolute left-3 text-[var(--text-muted)] font-bold text-sm pointer-events-none select-none">
-              {isVoice ? '🔊' : '#'}
-            </span>
-            <input
-              type="text"
-              value={name}
-              onChange={handleNameChange}
-              placeholder={isVoice ? 'vd: phong-hop-tuan, gaming-lounge' : 'vd: ke-hoach-quy-4, general, dev-ops'}
-              required
-              autoFocus
-              className="w-full pl-9 pr-3.5 py-2 text-sm rounded-[3px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all font-mono"
-            />
-          </div>
-          <p className="text-[11px] text-[var(--text-muted)] mt-1">
-            Chỉ được chứa chữ thường không dấu, số và dấu gạch nối (-).
-          </p>
+          <Input
+            value={name}
+            onChange={handleNameChange}
+            placeholder={
+              isCategory
+                ? 'vd: DỰ ÁN MỚI, TRÒ CHUYỆN'
+                : isVoice
+                ? 'vd: Phòng họp tuần, Phòng chơi game'
+                : 'vd: ke-hoach-quy-4, general, dev-ops'
+            }
+            required
+            autoFocus
+          />
         </div>
 
-        {/* Private Channel Toggle */}
-        <div className="p-3 rounded-[4px] border border-[var(--border-color)] bg-[var(--bg-surface)] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-[3px] bg-[var(--bg-chat)] border border-[var(--border-color)] flex items-center justify-center text-[var(--accent-primary)] shrink-0">
-              <Key size={18} weight="duotone" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-[var(--text-primary)]">
-                Kênh riêng tư
-              </div>
-              <div className="text-[11px] text-[var(--text-muted)] leading-tight">
-                Chỉ những thành viên được mời mới có thể xem và tham gia.
-              </div>
-            </div>
+        {/* Category Placement (Only for non-categories and when categories exist) */}
+        {!isCategory && categories.length > 0 && (
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+              Thuộc danh mục
+            </label>
+            <select
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+              className="w-full px-3 py-2 bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[4px] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--accent-primary)] cursor-pointer"
+            >
+              <option value="">(Không thuộc danh mục nào)</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  📁 {cat.name}
+                </option>
+              ))}
+            </select>
           </div>
+        )}
 
-          <label className="relative inline-flex items-center cursor-pointer shrink-0">
-            <input
-              type="checkbox"
-              checked={isPrivate}
-              onChange={(e) => setIsPrivate(e.target.checked)}
-              className="sr-only peer"
-            />
-            <div className="w-9 h-5 bg-neutral-300 peer-focus:outline-none rounded-full peer dark:bg-neutral-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[var(--accent-primary)]"></div>
-          </label>
-        </div>
+        {/* Private Channel Toggle (Non-categories only) */}
+        {!isCategory && (
+          <div className="pt-2 border-t border-[var(--border-color)]">
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={isPrivate}
+                onChange={(e) => setIsPrivate(e.target.checked)}
+                className="w-4 h-4 rounded-[3px] accent-[var(--accent-primary)] cursor-pointer mt-0.5"
+              />
+              <div>
+                <div className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 group-hover:text-[var(--accent-primary)] transition-colors">
+                  <Lock size={13} weight="bold" />
+                  <span>Kênh riêng tư</span>
+                </div>
+                <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                  Chỉ những thành viên hoặc vai trò được cấp quyền mới có thể xem và tham gia.
+                </div>
+              </div>
+            </label>
+          </div>
+        )}
 
         {/* Footer Actions */}
         <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border-color)]">
@@ -168,10 +243,9 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
             type="submit"
             variant="primary"
             size="sm"
-            isLoading={isSubmitting}
-            disabled={!name.trim()}
+            disabled={isSubmitting || !name.trim()}
           >
-            Tạo kênh
+            {isSubmitting ? 'Đang tạo...' : isCategory ? 'Tạo danh mục' : 'Tạo kênh'}
           </Button>
         </div>
       </form>

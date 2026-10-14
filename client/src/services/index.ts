@@ -9,3 +9,4 @@ export * from './signalr';
 export * from './queryClient';
 
 export * from './friendApi';
+export * from './roleApi';

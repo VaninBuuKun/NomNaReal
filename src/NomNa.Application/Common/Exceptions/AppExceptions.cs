@@ -17,6 +17,12 @@ public class UnauthorizedException : AppException
         : base(message) { }
 }
 
+public class ForbiddenException : AppException
+{
+    public ForbiddenException(string message = "You do not have permission to perform this action.") 
+        : base(message) { }
+}
+
 public class ValidationException : AppException
 {
     public IDictionary<string, string[]> Errors { get; }

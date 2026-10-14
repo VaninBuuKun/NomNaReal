@@ -15,11 +15,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-// Public Only Route Component: redirects authenticated users to main app /
+// Public Only Route Component: redirects authenticated users to main app /channels/@me
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isLoggedIn = localStorage.getItem('nomna_logged_in') === 'true';
   if (isLoggedIn) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/channels/@me" replace />;
   }
   return <>{children}</>;
 };
@@ -31,9 +31,21 @@ export const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          {/* Main App is ONE single page: ChatPage like Discord */}
+          {/* Main App Routes */}
           <Route
             path="/"
+            element={<Navigate to="/channels/@me" replace />}
+          />
+          <Route
+            path="/channels/@me"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/channels/@me/:chatId"
             element={
               <ProtectedRoute>
                 <ChatPage />
@@ -42,6 +54,14 @@ export const App: React.FC = () => {
           />
           <Route
             path="/channels/:serverId"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/channels/:serverId/:channelId"
             element={
               <ProtectedRoute>
                 <ChatPage />

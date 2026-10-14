@@ -4,6 +4,8 @@ export { JoinServerModal } from './JoinServerModal';
 export { EditServerModal } from './EditServerModal';
 export { InviteMemberModal } from './InviteMemberModal';
 export { KickMemberModal } from './KickMemberModal';
+export { RoleManagementModal } from './RoleManagementModal';
+export { ServerSettingsModal } from './ServerSettingsModal';
 
 // Compatibility aliases
 export { ServerRail as WorkspaceRail } from './ServerRail';

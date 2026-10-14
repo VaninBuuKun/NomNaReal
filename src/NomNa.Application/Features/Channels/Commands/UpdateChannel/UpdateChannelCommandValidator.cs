@@ -7,7 +7,19 @@ public class UpdateChannelCommandValidator : AbstractValidator<UpdateChannelComm
     public UpdateChannelCommandValidator()
     {
         RuleFor(x => x.ChannelId).NotEmpty();
-        RuleFor(x => x.Name).NotEmpty().MaximumLength(50).Matches(@"^[a-z0-9\-]+$")
-            .WithMessage("Channel names must contain only lowercase letters, numbers, and hyphens.");
+
+        When(x => x.Name != null, () =>
+        {
+            RuleFor(x => x.Name!)
+                .NotEmpty()
+                .MaximumLength(100);
+        });
+
+        When(x => x.Topic != null, () =>
+        {
+            RuleFor(x => x.Topic!)
+                .MaximumLength(1024);
+        });
     }
 }
+

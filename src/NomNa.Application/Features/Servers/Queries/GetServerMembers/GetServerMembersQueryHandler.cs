@@ -37,6 +37,8 @@ public class GetServerMembersQueryHandler : IRequestHandler<GetServerMembersQuer
             .AsNoTracking()
             .Where(m => m.ServerId == request.ServerId)
             .Include(m => m.User)
+            .Include(m => m.MemberRoles)
+                .ThenInclude(mr => mr.Role)
             .OrderBy(m => m.User.DisplayName)
             .ToListAsync(cancellationToken);
 
@@ -50,7 +52,18 @@ public class GetServerMembersQueryHandler : IRequestHandler<GetServerMembersQuer
             m.User.AvatarUrl,
             m.User.Email,
             m.Role.ToString(),
-            onlineUsers.Contains(m.UserId) ? "online" : m.User.Status.ToString().ToLower()
+            onlineUsers.Contains(m.UserId) ? "online" : m.User.Status.ToString().ToLower(),
+            m.MemberRoles.Select(mr => new NomNa.Application.Features.Roles.DTOs.RoleDto(
+                mr.Role.Id,
+                mr.Role.ServerId,
+                mr.Role.Name,
+                (long)mr.Role.Permissions,
+                mr.Role.Position,
+                mr.Role.ColorHex,
+                mr.Role.IsHoisted,
+                mr.Role.IsMentionable,
+                mr.Role.IsDefault
+            )).ToList()
         )).ToList();
     }
 }

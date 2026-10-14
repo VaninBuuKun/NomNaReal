@@ -38,6 +38,9 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
         if (channel == null)
             return Error.NotFound("Channel.NotFound", $"Channel {request.ChannelId} not found.");
 
+        if (channel.Type == Domain.Enums.ChannelType.Category)
+            return Error.Validation("Channel.InvalidType", "Không thể gửi tin nhắn vào danh mục.");
+
         // Rule: Private channels verify ChannelMember; public channels verify ServerMember.
         if (channel.IsPrivate || channel.Type == Domain.Enums.ChannelType.DirectMessage)
         {
@@ -110,87 +113,123 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
         await _context.SaveChangesAsync(cancellationToken);
 
         // 5. Parse Mentions and Create Notifications
-        if (!string.IsNullOrWhiteSpace(content))
+        var hasContent = !string.IsNullOrWhiteSpace(content);
+        var hasAttachments = message.Attachments.Count > 0;
+
+        if (hasContent || hasAttachments)
         {
-            var mentionMatches = System.Text.RegularExpressions.Regex.Matches(content, @"@([a-zA-Z0-9_\.]+)");
-            var targetUserIds = new HashSet<Guid>();
+            var snippet = hasContent
+                ? (content.Length > 150 ? content.Substring(0, 147) + "..." : content)
+                : (message.Attachments.Any(a => a.Type == "image" || a.ContentType.StartsWith("image/")) ? "[Hình ảnh]" : "[Tệp đính kèm]");
 
-            if (mentionMatches.Count > 0)
-            {
-                var mentionedTags = mentionMatches
-                    .Select(m => m.Groups[1].Value.ToLowerInvariant())
-                    .Distinct()
-                    .ToList();
-
-                if (mentionedTags.Contains("all") || mentionedTags.Contains("channel") || mentionedTags.Contains("here"))
-                {
-                    var channelMembers = await _context.ChannelMembers
-                        .Where(cm => cm.ChannelId == channel.Id && cm.UserId != userId.Value)
-                        .Select(cm => cm.UserId)
-                        .ToListAsync(cancellationToken);
-
-                    foreach (var mId in channelMembers)
-                    {
-                        targetUserIds.Add(mId);
-                    }
-                }
-
-                var specificUsernames = mentionedTags
-                    .Where(t => t != "all" && t != "channel" && t != "here")
-                    .ToList();
-
-                if (specificUsernames.Count > 0)
-                {
-                    var matchedUsers = await _context.Users
-                        .Where(u => u.UserName != null && specificUsernames.Contains(u.UserName.ToLower()) && u.Id != userId.Value)
-                        .Select(u => u.Id)
-                        .ToListAsync(cancellationToken);
-
-                    foreach (var uId in matchedUsers)
-                    {
-                        targetUserIds.Add(uId);
-                    }
-                }
-            }
-
-            var snippet = content.Length > 150 ? content.Substring(0, 147) + "..." : content;
             var createdNotifications = new List<Notification>();
 
-            foreach (var targetId in targetUserIds)
+            // A. Direct Message Notifications
+            if (channel.Type == Domain.Enums.ChannelType.DirectMessage)
             {
-                var notif = new Notification
-                {
-                    UserId = targetId,
-                    ActorId = userId.Value,
-                    ServerId = channel.ServerId,
-                    ChannelId = channel.Id,
-                    MessageId = message.Id,
-                    Type = Domain.Enums.NotificationType.Mention,
-                    Title = $"{user.DisplayName} đã nhắc đến bạn trong #{channel.Name}",
-                    Content = snippet,
-                    IsRead = false
-                };
-                createdNotifications.Add(notif);
-                _context.Notifications.Add(notif);
-            }
+                var dmRecipients = await _context.ChannelMembers
+                    .Where(cm => cm.ChannelId == channel.Id && cm.UserId != userId.Value)
+                    .Select(cm => cm.UserId)
+                    .ToListAsync(cancellationToken);
 
-            // Also check thread reply
-            if (parentMessage != null && parentMessage.SenderId != userId.Value && !targetUserIds.Contains(parentMessage.SenderId))
-            {
-                var threadNotif = new Notification
+                foreach (var rId in dmRecipients)
                 {
-                    UserId = parentMessage.SenderId,
-                    ActorId = userId.Value,
-                    ServerId = channel.ServerId,
-                    ChannelId = channel.Id,
-                    MessageId = message.Id,
-                    Type = Domain.Enums.NotificationType.ThreadReply,
-                    Title = $"{user.DisplayName} đã trả lời tin nhắn của bạn trong #{channel.Name}",
-                    Content = snippet,
-                    IsRead = false
-                };
-                createdNotifications.Add(threadNotif);
-                _context.Notifications.Add(threadNotif);
+                    var dmNotif = new Notification
+                    {
+                        UserId = rId,
+                        ActorId = userId.Value,
+                        ServerId = channel.ServerId,
+                        ChannelId = channel.Id,
+                        MessageId = message.Id,
+                        Type = Domain.Enums.NotificationType.DirectMessage,
+                        Title = user.DisplayName,
+                        Content = snippet,
+                        IsRead = false
+                    };
+                    createdNotifications.Add(dmNotif);
+                    _context.Notifications.Add(dmNotif);
+                }
+            }
+            else
+            {
+                // B. Parse Mentions
+                var mentionMatches = System.Text.RegularExpressions.Regex.Matches(content, @"@([a-zA-Z0-9_\.]+)");
+                var targetUserIds = new HashSet<Guid>();
+
+                if (mentionMatches.Count > 0)
+                {
+                    var mentionedTags = mentionMatches
+                        .Select(m => m.Groups[1].Value.ToLowerInvariant())
+                        .Distinct()
+                        .ToList();
+
+                    if (mentionedTags.Contains("all") || mentionedTags.Contains("channel") || mentionedTags.Contains("here"))
+                    {
+                        var channelMembers = await _context.ChannelMembers
+                            .Where(cm => cm.ChannelId == channel.Id && cm.UserId != userId.Value)
+                            .Select(cm => cm.UserId)
+                            .ToListAsync(cancellationToken);
+
+                        foreach (var mId in channelMembers)
+                        {
+                            targetUserIds.Add(mId);
+                        }
+                    }
+
+                    var specificUsernames = mentionedTags
+                        .Where(t => t != "all" && t != "channel" && t != "here")
+                        .ToList();
+
+                    if (specificUsernames.Count > 0)
+                    {
+                        var matchedUsers = await _context.Users
+                            .Where(u => u.UserName != null && specificUsernames.Contains(u.UserName.ToLower()) && u.Id != userId.Value)
+                            .Select(u => u.Id)
+                            .ToListAsync(cancellationToken);
+
+                        foreach (var uId in matchedUsers)
+                        {
+                            targetUserIds.Add(uId);
+                        }
+                    }
+                }
+
+                foreach (var targetId in targetUserIds)
+                {
+                    var notif = new Notification
+                    {
+                        UserId = targetId,
+                        ActorId = userId.Value,
+                        ServerId = channel.ServerId,
+                        ChannelId = channel.Id,
+                        MessageId = message.Id,
+                        Type = Domain.Enums.NotificationType.Mention,
+                        Title = $"{user.DisplayName} đã nhắc đến bạn trong #{channel.Name}",
+                        Content = snippet,
+                        IsRead = false
+                    };
+                    createdNotifications.Add(notif);
+                    _context.Notifications.Add(notif);
+                }
+
+                // Also check thread reply
+                if (parentMessage != null && parentMessage.SenderId != userId.Value && !targetUserIds.Contains(parentMessage.SenderId))
+                {
+                    var threadNotif = new Notification
+                    {
+                        UserId = parentMessage.SenderId,
+                        ActorId = userId.Value,
+                        ServerId = channel.ServerId,
+                        ChannelId = channel.Id,
+                        MessageId = message.Id,
+                        Type = Domain.Enums.NotificationType.ThreadReply,
+                        Title = $"{user.DisplayName} đã trả lời tin nhắn của bạn trong #{channel.Name}",
+                        Content = snippet,
+                        IsRead = false
+                    };
+                    createdNotifications.Add(threadNotif);
+                    _context.Notifications.Add(threadNotif);
+                }
             }
 
             if (createdNotifications.Count > 0)

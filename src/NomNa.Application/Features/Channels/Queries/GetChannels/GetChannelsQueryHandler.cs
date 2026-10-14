@@ -11,11 +11,16 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPermissionService _permissionService;
 
-    public GetChannelsQueryHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public GetChannelsQueryHandler(
+        IApplicationDbContext context, 
+        ICurrentUserService currentUserService,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<List<ChannelDto>>> Handle(GetChannelsQuery request, CancellationToken cancellationToken)
@@ -31,24 +36,49 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
         if (!isMember)
             return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
-
-        // Avoid N+1 queries: c.Members.Any translates to EXISTS (SELECT 1 FROM ChannelMembers ...) in SQL
-        // Exists in Sql where statment:  
-        return await _context.Channels
+        var channels = await _context.Channels
             .AsNoTracking()
-            .Where(c => c.ServerId == request.ServerId 
-                     && c.Type != ChannelType.DirectMessage
-                     && (!c.IsPrivate || c.CreatedById == userId.Value || c.Members.Any(m => m.UserId == userId.Value)))
-            .OrderBy(c => c.CreatedAt)
-            .Select(c => new ChannelDto(
+            .Where(c => c.ServerId == request.ServerId && c.Type != ChannelType.DirectMessage)
+            .OrderBy(c => c.Position)
+            .ThenBy(c => c.CreatedAt)
+            .Select(c => new
+            {
                 c.Id,
                 c.ServerId,
                 c.Name,
                 c.Type,
                 c.IsPrivate,
                 c.LastMessageAt,
-                false
-            ))
+                c.CategoryId,
+                c.Position,
+                c.Topic
+            })
             .ToListAsync(cancellationToken);
+
+        var result = new List<ChannelDto>();
+
+        foreach (var c in channels)
+        {
+            var perms = await _permissionService.GetChannelPermissionsAsync(userId.Value, c.Id, cancellationToken);
+            // Chỉ trả về các kênh mà user có quyền ViewChannel
+            if (NomNa.Domain.Services.PermissionCalculator.HasPermission(perms, Permissions.ViewChannel))
+            {
+                result.Add(new ChannelDto(
+                    c.Id,
+                    c.ServerId,
+                    c.Name,
+                    c.Type,
+                    c.IsPrivate,
+                    c.LastMessageAt,
+                    false,
+                    (long)perms,
+                    c.CategoryId,
+                    c.Position,
+                    c.Topic
+                ));
+            }
+        }
+
+        return result;
     }
 }

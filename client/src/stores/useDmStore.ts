@@ -16,6 +16,18 @@ interface DmState {
   ) => void;
   updateUserStatus: (userId: string, status: 'online' | 'offline' | 'away' | 'dnd') => void;
   updateDmSnippet: (channelId: string, lastMessage: string, lastMessageTime: string) => void;
+  upsertDmMessage: (
+    channelId: string,
+    msg: {
+      content: string;
+      createdAt: string;
+      senderId: string;
+      senderDisplayName: string;
+      senderUsername: string;
+      senderAvatarUrl?: string;
+    },
+    isCurrentActive: boolean
+  ) => void;
   upgradePendingDm: (oldId: string, newId: string) => void;
   updateMemberProfile: (userId: string, updates: { displayName?: string; avatarUrl?: string }) => void;
 }
@@ -68,6 +80,45 @@ export const useDmStore = create<DmState>((set) => ({
           : c
       ),
     })),
+
+  upsertDmMessage: (channelId, msg, isCurrentActive) =>
+    set((state) => {
+      const existingIndex = state.dmConversations.findIndex((c) => c.id === channelId);
+      if (existingIndex !== -1) {
+        const existing = state.dmConversations[existingIndex];
+        const updated: DirectMessageItem = {
+          ...existing,
+          lastMessage: msg.content,
+          lastMessageTime: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          unreadCount: isCurrentActive ? 0 : (existing.unreadCount || 0) + 1,
+        };
+        const rest = state.dmConversations.filter((_, idx) => idx !== existingIndex);
+        return {
+          dmConversations: [updated, ...rest],
+        };
+      }
+
+      // If new DM conversation received from another user
+      const newConv: DirectMessageItem = {
+        id: channelId,
+        user: {
+          id: msg.senderId,
+          displayName: msg.senderDisplayName || msg.senderUsername || 'Người dùng',
+          username: msg.senderUsername || 'user',
+          avatarUrl: msg.senderAvatarUrl,
+          email: '',
+          status: 'online',
+        },
+        lastMessage: msg.content,
+        lastMessageTime: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        unreadCount: isCurrentActive ? 0 : 1,
+        isPending: false,
+      };
+
+      return {
+        dmConversations: [newConv, ...state.dmConversations],
+      };
+    }),
 
   upgradePendingDm: (oldId, newId) =>
     set((state) => ({

@@ -21,6 +21,9 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Friendship> Friendships => Set<Friendship>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public new DbSet<Role> Roles => Set<Role>();
+    public DbSet<MemberRole> MemberRoles => Set<MemberRole>();
+    public DbSet<ChannelPermissionOverwrite> ChannelPermissionOverwrites => Set<ChannelPermissionOverwrite>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -113,11 +116,10 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         {
             entity.ToTable("channels");
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.ServerId, e.Name })
-                .IsUnique()
-                .HasFilter("\"Name\" IS NOT NULL");
+            entity.HasIndex(e => new { e.ServerId, e.Position });
             entity.HasIndex(e => e.LastMessageAt);
-            entity.Property(e => e.Name).HasMaxLength(50);
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Topic).HasMaxLength(1024);
             entity.Property(e => e.LastMessageContent).HasMaxLength(500);
             entity.Property(e => e.LastMessageSenderId);
 
@@ -125,6 +127,11 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .WithMany(w => w.Channels)
                 .HasForeignKey(e => e.ServerId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Category)
+                .WithMany(c => c.ChildChannels)
+                .HasForeignKey(e => e.CategoryId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ChannelMember Configuration
@@ -295,5 +302,53 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // Role Configuration
+        builder.Entity<Role>(entity =>
+        {
+            entity.ToTable("server_roles");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ServerId, e.Position });
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.ColorHex).HasMaxLength(10);
+            entity.Property(e => e.Permissions).HasConversion<long>();
+
+            entity.HasOne(e => e.Server)
+                .WithMany(s => s.Roles)
+                .HasForeignKey(e => e.ServerId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // MemberRole Configuration
+        builder.Entity<MemberRole>(entity =>
+        {
+            entity.ToTable("member_roles");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ServerMemberId, e.RoleId }).IsUnique();
+
+            entity.HasOne(e => e.ServerMember)
+                .WithMany(sm => sm.MemberRoles)
+                .HasForeignKey(e => e.ServerMemberId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Role)
+                .WithMany(r => r.MemberRoles)
+                .HasForeignKey(e => e.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ChannelPermissionOverwrite Configuration
+        builder.Entity<ChannelPermissionOverwrite>(entity =>
+        {
+            entity.ToTable("channel_permission_overwrites");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ChannelId, e.TargetId, e.TargetType }).IsUnique();
+            entity.Property(e => e.Allow).HasConversion<long>();
+            entity.Property(e => e.Deny).HasConversion<long>();
+
+            entity.HasOne(e => e.Channel)
+                .WithMany(c => c.Overwrites)
+                .HasForeignKey(e => e.ChannelId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }

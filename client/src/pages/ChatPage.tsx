@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { WorkspaceRail } from "../components/server";
 import { ChannelSidebar, UserFooterBar } from "../components/channel";
 import {
@@ -54,8 +54,12 @@ import {
 
 export const ChatPage: React.FC = () => {
   const navigate = useNavigate();
-  const { workspaceId: paramWorkspaceId } = useParams<{
+  const location = useLocation();
+  const { workspaceId, serverId, channelId, chatId } = useParams<{
     workspaceId?: string;
+    serverId?: string;
+    channelId?: string;
+    chatId?: string;
   }>();
   useTheme();
   const friendsList = useFriendStore((state) => state.friends);
@@ -121,7 +125,6 @@ export const ChatPage: React.FC = () => {
     setDmConversations,
     setActiveDmId,
     setWorkspaceMembers,
-    updateDmSnippet,
   } = useDmStore();
 
   // 4. UI Store
@@ -136,7 +139,10 @@ export const ChatPage: React.FC = () => {
     openThread,
     closeThread,
     toggleMemberList,
+    setMemberListOpen,
     togglePinnedSidebar,
+    closePinnedSidebar,
+    closeSearch,
     setCreateWorkspaceOpen,
     setCreateChannelOpen,
     setChannelToEdit,
@@ -145,6 +151,16 @@ export const ChatPage: React.FC = () => {
     setSettingsOpen,
     expandThread,
   } = useUiStore();
+
+  // Auto-close all right sidebars when switching to DMs view
+  useEffect(() => {
+    if (activeSidebarView === "dms") {
+      closeThread();
+      setMemberListOpen(false);
+      closePinnedSidebar();
+      closeSearch();
+    }
+  }, [activeSidebarView, closeThread, setMemberListOpen, closePinnedSidebar, closeSearch]);
 
   const activeSidebarViewRef = useRef(activeSidebarView);
   activeSidebarViewRef.current = activeSidebarView;
@@ -193,6 +209,7 @@ export const ChatPage: React.FC = () => {
   const [loadingChannelMemberIds, setLoadingChannelMemberIds] = useState<
     Record<string, boolean>
   >({});
+  const [targetCategoryId, setTargetCategoryId] = useState<string | null>(null);
 
   // Fetch members of a private channel (with cache check & merging)
   const fetchChannelMembers = useCallback(
@@ -283,21 +300,26 @@ export const ChatPage: React.FC = () => {
   };
 
   // Switch Active Channel
-  const handleSelectChannel = async (channelId: string) => {
-    setActiveChannelId(channelId);
-    activeChannelIdRef.current = channelId;
+  const handleSelectChannel = async (targetChannelId: string, wsId?: string) => {
+    setActiveChannelId(targetChannelId);
+    activeChannelIdRef.current = targetChannelId;
     setActiveDmId(null);
 
-    markChannelRead(channelId);
-    channelApi.markAsRead(channelId);
-
-    const targetCh = channels.find((c) => c.id === channelId);
-    if (targetCh?.isPrivate) {
-      fetchChannelMembers(channelId);
+    const targetWsId = wsId || activeWorkspaceIdRef.current || activeWorkspaceId;
+    if (targetWsId) {
+      navigate(`/channels/${targetWsId}/${targetChannelId}`);
     }
 
-    await loadMessages(channelId);
-    await signalRService.joinChannel(channelId);
+    markChannelRead(targetChannelId);
+    channelApi.markAsRead(targetChannelId);
+
+    const targetCh = channels.find((c) => c.id === targetChannelId);
+    if (targetCh?.isPrivate) {
+      fetchChannelMembers(targetChannelId);
+    }
+
+    await loadMessages(targetChannelId);
+    await signalRService.joinChannel(targetChannelId);
   };
 
   const loadPinnedMessages = async (channelId: string) => {
@@ -464,23 +486,24 @@ export const ChatPage: React.FC = () => {
   };
 
   // Switch Active Workspace
-  const handleSelectWorkspace = async (workspaceId: string) => {
-    if (workspaceId === activeWorkspaceId) return;
-    setActiveWorkspaceId(workspaceId);
-    navigate(`/workspace/${workspaceId}`, { replace: true });
+  const handleSelectWorkspace = async (workspaceIdToSelect: string) => {
+    if (workspaceIdToSelect === activeWorkspaceId && activeSidebarView === "channels") return;
+    setActiveSidebarView("channels");
+    setActiveWorkspaceId(workspaceIdToSelect);
     try {
       const { channels: chs } = await loadWorkspaceData(
-        workspaceId,
+        workspaceIdToSelect,
         currentUser?.id,
       );
       if (chs.length > 0) {
         const defaultCh =
           chs.find((c) => c.name?.toLowerCase() === "general") || chs[0];
-        await handleSelectChannel(defaultCh.id);
+        await handleSelectChannel(defaultCh.id, workspaceIdToSelect);
       } else {
         setActiveChannelId(null);
         setMessages([]);
         setHasMoreMessages(false);
+        navigate(`/channels/${workspaceIdToSelect}`);
       }
     } catch (err) {
       console.error("Failed to switch workspace:", err);
@@ -492,7 +515,7 @@ export const ChatPage: React.FC = () => {
     handleSelectWorkspace(ws.id);
   };
 
-  // SignalR message handler callback with Optimistic reconciliation
+  // SignalR message handler callback with Optimistic reconciliation & real-time notification
   const handleIncomingMessage = useCallback(
     (msg: Message) => {
       setMessages((prev) => {
@@ -514,19 +537,43 @@ export const ChatPage: React.FC = () => {
         return [...prev, msg];
       });
 
+      const isCurrent = msg.channelId === activeChannelIdRef.current;
       setChannelUnread(
         msg.channelId,
         msg.createdAt,
-        msg.channelId !== activeChannelIdRef.current,
+        !isCurrent,
       );
 
-      updateDmSnippet(
+      // Dynamically update or create DM snippet in conversation list
+      useDmStore.getState().upsertDmMessage(
         msg.channelId,
-        msg.content,
-        formatMessageTime(msg.createdAt),
+        {
+          content: msg.content,
+          createdAt: msg.createdAt,
+          senderId: msg.senderId,
+          senderDisplayName: msg.senderDisplayName,
+          senderUsername: msg.senderUsername,
+          senderAvatarUrl: msg.senderAvatarUrl || undefined,
+        },
+        isCurrent
       );
+
+      // If incoming message is from another user and not currently active channel
+      if (!isCurrent && msg.senderId !== currentUser?.id) {
+        setToast({
+          id: `msg-${msg.id}`,
+          title: msg.senderDisplayName || "Tin nhắn mới",
+          description: msg.content.length > 55 ? `${msg.content.slice(0, 55)}...` : msg.content,
+          actionLabel: "Xem tin nhắn",
+          onAction: () => {
+            setActiveSidebarView("dms");
+            navigate(`/channels/@me/${msg.channelId}`);
+            setToast(null);
+          },
+        });
+      }
     },
-    [setMessages, setChannelUnread, updateDmSnippet],
+    [currentUser?.id, navigate, setActiveSidebarView, setChannelUnread, setMessages],
   );
 
   // Hook for all SignalR realtime listeners
@@ -576,31 +623,64 @@ export const ChatPage: React.FC = () => {
       const wsList = await workspaceApi.getWorkspaces();
       setWorkspaces(wsList);
 
-      if (wsList.length > 0) {
+      const targetWsId = serverId || workspaceId;
+      const isDmRoute =
+        location.pathname.startsWith("/channels/@me") ||
+        location.pathname === "/" ||
+        !targetWsId;
+
+      if (isDmRoute) {
+        setActiveSidebarView("dms");
+        if (wsList.length > 0) {
+          const { dms } = await loadWorkspaceData(wsList[0].id, user.id);
+          if (chatId) {
+            const foundDm = dms.find((d) => d.id === chatId);
+            if (foundDm) {
+              await handleSelectDmConversation(foundDm);
+            } else {
+              setActiveDmId(chatId);
+              setActiveChannelId(chatId);
+              await loadMessages(chatId);
+              await signalRService.joinChannel(chatId);
+            }
+          } else {
+            setActiveDmId(null);
+            setActiveChannelId(null);
+          }
+        } else {
+          setActiveDmId(null);
+          setActiveChannelId(null);
+        }
+      } else if (wsList.length > 0) {
         const targetWs =
-          wsList.find((w) => w.id === paramWorkspaceId) || wsList[0];
+          wsList.find((w) => w.id === targetWsId) || wsList[0];
         setActiveWorkspaceId(targetWs.id);
+        setActiveSidebarView("channels");
 
         const { channels: chList } = await loadWorkspaceData(
           targetWs.id,
           user.id,
         );
 
-        try {
-          const onlineUserIds = await signalRService.getOnlineUsers();
-          if (onlineUserIds.length > 0) {
-            onlineUserIds.forEach((uid) => useDmStore.getState().updateUserStatus(uid, "online"));
-          }
-        } catch (presenceErr) {
-          console.warn("Could not sync online users:", presenceErr);
-        }
-
         if (chList.length > 0) {
           const defaultCh =
+            chList.find((c) => c.id === channelId) ||
             chList.find((c) => c.name?.toLowerCase() === "general") ||
             chList[0];
-          await handleSelectChannel(defaultCh.id);
+          await handleSelectChannel(defaultCh.id, targetWs.id);
         }
+      }
+
+      try {
+        const onlineUserIds = await signalRService.getOnlineUsers();
+        if (onlineUserIds.length > 0) {
+          onlineUserIds.forEach((uid) => {
+            useDmStore.getState().updateUserStatus(uid, "online");
+            useFriendStore.getState().updateFriendStatus(uid, "online");
+          });
+        }
+      } catch (presenceErr) {
+        console.warn("Could not sync online users:", presenceErr);
       }
     } catch (err) {
       console.error("Session verification failed, redirecting to login:", err);
@@ -618,6 +698,44 @@ export const ChatPage: React.FC = () => {
       signalRService.disconnect().catch(console.error);
     };
   }, []);
+
+  // Sync route changes (back/forward, external navigation) with state
+  useEffect(() => {
+    if (isInitializing) return;
+
+    if (location.pathname.startsWith("/channels/@me")) {
+      if (activeSidebarView !== "dms") {
+        setActiveSidebarView("dms");
+      }
+      if (chatId) {
+        if (activeDmId !== chatId) {
+          setActiveDmId(chatId);
+          setActiveChannelId(chatId);
+          loadMessages(chatId);
+          signalRService.joinChannel(chatId);
+        }
+      } else {
+        if (activeDmId !== null) {
+          setActiveDmId(null);
+          setActiveChannelId(null);
+        }
+      }
+    } else if (serverId && channelId) {
+      if (activeSidebarView !== "channels") {
+        setActiveSidebarView("channels");
+      }
+      if (activeWorkspaceId !== serverId) {
+        setActiveWorkspaceId(serverId);
+        loadWorkspaceData(serverId, currentUser?.id);
+      }
+      if (activeChannelId !== channelId) {
+        setActiveChannelId(channelId);
+        activeChannelIdRef.current = channelId;
+        loadMessages(channelId);
+        signalRService.joinChannel(channelId);
+      }
+    }
+  }, [location.pathname, serverId, channelId, chatId, isInitializing]);
 
   const handleSendMessage = async (
     msgContent: string,
@@ -744,7 +862,8 @@ export const ChatPage: React.FC = () => {
     navigate("/login", { replace: true });
   };
 
-  const handleCreateChannel = (type: ChannelType) => {
+  const handleCreateChannel = (type: ChannelType, categoryId?: string) => {
+    setTargetCategoryId(categoryId || null);
     setCreateChannelOpen(true, type);
   };
 
@@ -756,12 +875,16 @@ export const ChatPage: React.FC = () => {
         [newChannel.id]: [currentUser.id],
       }));
     }
-    handleSelectChannel(newChannel.id);
+    // Only select channel if it is a text or voice channel (not a category)
+    if (newChannel.type !== 3 && newChannel.type !== ChannelType.Category) {
+      handleSelectChannel(newChannel.id);
+    }
   };
 
   const handleSelectDmConversation = async (dm: DirectMessageItem) => {
     setActiveDmId(dm.id);
     setActiveChannelId(dm.id);
+    navigate(`/channels/@me/${dm.id}`);
 
     if (dm.isPending) {
       setMessages([]);
@@ -813,6 +936,7 @@ export const ChatPage: React.FC = () => {
     }
 
     setActiveSidebarView("dms");
+    navigate(`/channels/@me/${existing.id}`);
     handleSelectDmConversation(existing);
   };
 
@@ -1035,10 +1159,22 @@ export const ChatPage: React.FC = () => {
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
           activeSidebarView={activeSidebarView}
-          onSelectView={(view: any) => setActiveSidebarView(view)}
+          onSelectView={(view: any) => {
+            setActiveSidebarView(view);
+            if (view === "dms") {
+              if (activeDmId) {
+                navigate(`/channels/@me/${activeDmId}`);
+              } else {
+                navigate("/channels/@me");
+              }
+            }
+          }}
           onSelectWorkspace={handleSelectWorkspace}
           onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
-          onGoHome={() => navigate("/")}
+          onGoHome={() => {
+            setActiveSidebarView("dms");
+            navigate("/channels/@me");
+          }}
         />
 
         {/* 2. Sub-Sidebar Column (Channel / DM / Notification Sidebar + User Footer Bar) */}
@@ -1074,6 +1210,7 @@ export const ChatPage: React.FC = () => {
                 onSelectFriends={() => {
                   setActiveDmId(null);
                   setActiveChannelId(null);
+                  navigate("/channels/@me");
                 }}
                 onSelectConversation={handleSelectDmConversation}
                 onOpenNewDm={() => setNewDmOpen(true)}
@@ -1132,6 +1269,7 @@ export const ChatPage: React.FC = () => {
         ) : (
           <ChatArea
             currentChannel={currentChannel}
+            activeDm={activeDm}
             messages={messages}
             currentUser={currentUser}
             onSendMessage={handleSendMessage}
@@ -1224,6 +1362,8 @@ export const ChatPage: React.FC = () => {
         setUserProfileAnchor={setUserProfileAnchor}
         setChannelMemberIdsMap={setChannelMemberIdsMap}
         dmConversations={dmConversations}
+        channels={channels}
+        initialCategoryId={targetCategoryId}
       />
 
       {/* 6. Floating Toast Notification */}

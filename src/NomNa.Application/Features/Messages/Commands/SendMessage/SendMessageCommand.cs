@@ -2,6 +2,9 @@ using MediatR;
 using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Messages.DTOs;
 
+using NomNa.Application.Common.Security;
+using NomNa.Domain.Enums;
+
 namespace NomNa.Application.Features.Messages.Commands.SendMessage;
 
 public record SendMessageCommand(
@@ -9,4 +12,7 @@ public record SendMessageCommand(
     string? Content,
     Guid? ThreadId = null,
     List<AttachmentInputDto>? Attachments = null
-) : IRequest<Result<MessageDto>>;
+) : IRequest<Result<MessageDto>>, IRequireChannelPermission
+{
+    public Permissions RequiredPermission => Permissions.SendMessages;
+}

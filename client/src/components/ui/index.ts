@@ -8,3 +8,4 @@ export * from './ImageWithSkeleton';
 export * from './Toast';
 export * from './WorkspaceAvatar';
 export * from './UserAvatar';
+export * from './UnsavedChangesBar';

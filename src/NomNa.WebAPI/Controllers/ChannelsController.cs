@@ -86,7 +86,13 @@ public class ChannelsController : ApiControllerBase
     [HttpPut("{channelId}")]
     public async Task<IActionResult> UpdateChannel([FromRoute] Guid channelId, [FromBody] UpdateChannelRequest request)
     {
-        var result = await Mediator.Send(new NomNa.Application.Features.Channels.Commands.UpdateChannel.UpdateChannelCommand(channelId, request.Name));
+        var result = await Mediator.Send(new NomNa.Application.Features.Channels.Commands.UpdateChannel.UpdateChannelCommand(
+            channelId,
+            request.Name,
+            request.Topic,
+            request.CategoryId,
+            request.Position,
+            request.IsPrivate));
         return HandleResult(result);
     }
 
@@ -106,5 +112,5 @@ public class ChannelsController : ApiControllerBase
 }
 
 public record SendMessageRequest(string? Content, Guid? ThreadId = null, List<NomNa.Application.Features.Messages.DTOs.AttachmentInputDto>? Attachments = null);
-public record UpdateChannelRequest(string Name);
+public record UpdateChannelRequest(string? Name = null, string? Topic = null, Guid? CategoryId = null, int? Position = null, bool? IsPrivate = null);
 public record AddChannelMemberRequest(Guid UserId);

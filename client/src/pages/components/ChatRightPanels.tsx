@@ -55,6 +55,7 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
   handlePinnedResizeStart,
 }) => {
   const {
+    activeSidebarView,
     isThreadOpen,
     activeThreadMessage,
     isMemberListOpen,
@@ -74,8 +75,12 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
     setSettingsOpen,
   } = useUiStore();
 
-  const { activeWorkspaceId } = currentChannel ? { activeWorkspaceId: currentChannel.workspaceId } : { activeWorkspaceId: undefined };
   const { activeChannelId, setActiveChannelId } = useChatStore();
+  const activeWorkspaceId = currentChannel ? currentChannel.workspaceId : undefined;
+
+  if (activeSidebarView === 'dms') {
+    return null;
+  }
 
   const handleJumpToMessage = (messageId: string) => {
     const el = document.getElementById(`msg-${messageId}`);

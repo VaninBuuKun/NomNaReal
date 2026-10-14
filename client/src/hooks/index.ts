@@ -7,3 +7,4 @@ export * from './useThread';
 export * from './useFileUpload';
 export * from './usePanelResizers';
 export * from './useChatSignalR';
+export * from './usePermissions';

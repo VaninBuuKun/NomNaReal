@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddSingleton<IUserPresenceTracker, UserPresenceTracker>();
         services.AddMemoryCache();
         services.AddSingleton<IUserProfileCache, UserProfileCache>();
+        services.AddScoped<IPermissionService, PermissionService>();
 
         // Configure ASP.NET Core Identity Core for Web API
         services.AddIdentityCore<User>(options =>
