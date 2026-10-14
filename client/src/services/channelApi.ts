@@ -19,8 +19,16 @@ export const channelApi = {
     return res.data;
   },
 
-  createOrGetDm: async (serverIdOrWorkspaceId: string, targetUserId: string): Promise<Channel> => {
-    const res = await httpClient.post<Channel>(`/servers/${serverIdOrWorkspaceId}/dm`, { targetUserId });
+  createOrGetDm: async (targetUserId: string, serverId?: string | null): Promise<Channel> => {
+    const res = await httpClient.post<Channel>('/channels/dm', {
+      targetUserId,
+      serverId: serverId && serverId !== 'null' && serverId !== 'undefined' ? serverId : null,
+    });
+    return res.data;
+  },
+
+  getUserDms: async (): Promise<any[]> => {
+    const res = await httpClient.get<any[]>('/channels/dm');
     return res.data;
   },
 

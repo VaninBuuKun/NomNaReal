@@ -87,14 +87,29 @@ public class PermissionService : IPermissionService
             .Where(c => c.Id == channelId)
             .Select(c => new
             {
+                c.Type,
+                c.CreatedById,
                 c.ServerId,
-                c.Server.OwnerId,
-                EveryoneRole = c.Server.Roles.FirstOrDefault(r => r.IsDefault),
-                Overwrites = c.Overwrites.ToList()
+                OwnerId = c.Server != null ? c.Server.OwnerId : Guid.Empty,
+                EveryoneRole = c.Server != null ? c.Server.Roles.FirstOrDefault(r => r.IsDefault) : null,
+                Overwrites = c.Overwrites.ToList(),
+                IsMember = c.Members.Any(m => m.UserId == userId) || c.CreatedById == userId
             })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (channelInfo == null)
+            return Permissions.None;
+
+        if (channelInfo.Type == ChannelType.DirectMessage)
+        {
+            var dmPerms = channelInfo.IsMember
+                ? (Permissions.ViewChannel | Permissions.SendMessages | Permissions.AttachFiles | Permissions.AddReactions | Permissions.ReadMessageHistory)
+                : Permissions.None;
+            _cache.Set(cacheKey, dmPerms, DefaultCacheExpiration);
+            return dmPerms;
+        }
+
+        if (!channelInfo.ServerId.HasValue)
             return Permissions.None;
 
         if (userId == channelInfo.OwnerId)

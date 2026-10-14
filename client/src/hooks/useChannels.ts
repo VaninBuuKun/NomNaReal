@@ -50,7 +50,7 @@ export function useChannels(workspaceId?: string) {
 
   const createOrGetDm = async (targetUserId: string): Promise<Channel> => {
     if (!workspaceId) throw new Error('No active workspace selected');
-    const dmChan = await channelApi.createOrGetDm(workspaceId, targetUserId);
+    const dmChan = await channelApi.createOrGetDm(targetUserId, workspaceId);
     setChannels((prev) => {
       const exists = prev.some((c) => c.id === dmChan.id);
       return exists ? prev : [...prev, dmChan];

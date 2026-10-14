@@ -631,10 +631,31 @@ export const ChatPage: React.FC = () => {
 
       if (isDmRoute) {
         setActiveSidebarView("dms");
-        if (wsList.length > 0) {
-          const { dms } = await loadWorkspaceData(wsList[0].id, user.id);
+        setActiveWorkspaceId(null);
+        try {
+          const rawDms = await channelApi.getUserDms();
+          const formattedDms: DirectMessageItem[] = (rawDms || []).map((d: any) => ({
+            id: d.id,
+            workspaceId: d.serverId,
+            user: {
+              id: d.targetUserId,
+              displayName: d.targetDisplayName,
+              username: d.targetUsername,
+              avatarUrl: d.targetAvatarUrl,
+              email: d.targetEmail || "",
+              status: (d.targetStatus as any) || "offline",
+            },
+            lastMessage: d.lastMessage || "Cuộc trò chuyện mới",
+            lastMessageTime: d.lastMessageAt
+              ? formatMessageTime(d.lastMessageAt)
+              : undefined,
+            unreadCount: d.unreadCount || 0,
+            isPending: false,
+          }));
+          setDmConversations(formattedDms);
+
           if (chatId) {
-            const foundDm = dms.find((d) => d.id === chatId);
+            const foundDm = formattedDms.find((d) => d.id === chatId);
             if (foundDm) {
               await handleSelectDmConversation(foundDm);
             } else {
@@ -647,7 +668,8 @@ export const ChatPage: React.FC = () => {
             setActiveDmId(null);
             setActiveChannelId(null);
           }
-        } else {
+        } catch (err) {
+          console.error("Failed to fetch user DMs:", err);
           setActiveDmId(null);
           setActiveChannelId(null);
         }
@@ -754,12 +776,13 @@ export const ChatPage: React.FC = () => {
       const targetUserId = activeDmId.replace("pending-dm-", "");
       try {
         const realDm = await channelApi.createOrGetDm(
-          activeWorkspaceId!,
           targetUserId,
+          activeWorkspaceId || undefined,
         );
         useDmStore.getState().upgradePendingDm(activeDmId, realDm.id);
         setActiveDmId(realDm.id);
         setActiveChannelId(realDm.id);
+        navigate(`/channels/@me/${realDm.id}`, { replace: true });
         await signalRService.joinChannel(realDm.id);
 
         const realSent = await signalRService.sendMessage(

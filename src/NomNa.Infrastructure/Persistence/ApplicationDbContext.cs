@@ -126,6 +126,7 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             entity.HasOne(e => e.Server)
                 .WithMany(w => w.Channels)
                 .HasForeignKey(e => e.ServerId)
+                .IsRequired(false)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.Category)

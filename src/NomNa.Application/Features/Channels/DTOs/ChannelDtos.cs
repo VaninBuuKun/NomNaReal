@@ -5,7 +5,7 @@ namespace NomNa.Application.Features.Channels.DTOs;
 
 public record ChannelDto(
     Guid Id,
-    Guid ServerId,
+    Guid? ServerId,
     string? Name,
     ChannelType Type,
     bool IsPrivate,

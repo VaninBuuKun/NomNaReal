@@ -187,7 +187,7 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.Property<int>("Position")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("ServerId")
+                    b.Property<Guid?>("ServerId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Topic")
@@ -839,8 +839,7 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.HasOne("NomNa.Domain.Entities.Server", "Server")
                         .WithMany("Channels")
                         .HasForeignKey("ServerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("Category");
 

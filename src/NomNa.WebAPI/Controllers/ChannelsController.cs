@@ -109,8 +109,27 @@ public class ChannelsController : ApiControllerBase
         var result = await Mediator.Send(new NomNa.Application.Features.Messages.Queries.GetPinnedMessages.GetPinnedMessagesQuery(channelId));
         return HandleResult(result);
     }
+
+    [HttpGet("dm")]
+    public async Task<IActionResult> GetUserDirectMessages()
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Channels.Queries.GetDirectMessages.GetDirectMessagesQuery(null));
+        return HandleResult(result);
+    }
+
+    [HttpPost("dm")]
+    public async Task<IActionResult> CreateOrGetDm([FromBody] CreateDmChannelRequest request)
+    {
+        var command = new NomNa.Application.Features.Channels.Commands.CreateOrGetDmChannel.CreateOrGetDmChannelCommand(
+            request.ServerId,
+            request.TargetUserId
+        );
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
 }
 
+public record CreateDmChannelRequest(Guid TargetUserId, Guid? ServerId = null);
 public record SendMessageRequest(string? Content, Guid? ThreadId = null, List<NomNa.Application.Features.Messages.DTOs.AttachmentInputDto>? Attachments = null);
 public record UpdateChannelRequest(string? Name = null, string? Topic = null, Guid? CategoryId = null, int? Position = null, bool? IsPrivate = null);
 public record AddChannelMemberRequest(Guid UserId);

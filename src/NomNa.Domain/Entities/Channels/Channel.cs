@@ -5,8 +5,8 @@ namespace NomNa.Domain.Entities;
 
 public class Channel : BaseEntity
 {
-    public Guid ServerId { get; set; }
-    public Server Server { get; set; } = null!;
+    public Guid? ServerId { get; set; }
+    public Server? Server { get; set; }
 
     public string? Name { get; set; }
     public string? Topic { get; set; }

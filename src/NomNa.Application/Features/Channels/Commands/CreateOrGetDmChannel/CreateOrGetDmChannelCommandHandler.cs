@@ -41,10 +41,11 @@ public class CreateOrGetDmChannelCommandHandler : IRequestHandler<CreateOrGetDmC
             return Error.NotFound("User.NotFound", "Target user not found.");
         }
 
-        // Find existing DM channel between these 2 users in this server
+        // Find existing DM channel between these 2 users (global or matching server)
         var existingDmChannel = await _context.Channels
             .Include(c => c.Members)
-            .Where(c => c.ServerId == request.ServerId && c.Type == ChannelType.DirectMessage)
+            .Where(c => c.Type == ChannelType.DirectMessage &&
+                        (request.ServerId == null || c.ServerId == request.ServerId || c.ServerId == null))
             .FirstOrDefaultAsync(c => c.Members.Any(m => m.UserId == currentUserId.Value) &&
                                       c.Members.Any(m => m.UserId == request.TargetUserId), cancellationToken);
 
