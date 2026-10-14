@@ -1222,6 +1222,7 @@ export const ChatPage: React.FC = () => {
                 onLeaveWorkspace={handleLeaveWorkspace}
                 onOpenEditChannel={(ch) => setChannelToEdit(ch)}
                 onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
+                onChannelsReorder={(newChannels) => setChannels(newChannels)}
               />
             ) : activeSidebarView === "dms" ? (
               <DirectMessagesSidebar
