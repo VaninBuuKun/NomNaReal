@@ -20,4 +20,5 @@ public class Channel : BaseEntity
 
     public ICollection<ChannelMember> Members { get; set; } = new List<ChannelMember>();
     public ICollection<Message> Messages { get; set; } = new List<Message>();
+    public ICollection<ChannelPermissionOverwrite> Overwrites { get; set; } = new List<ChannelPermissionOverwrite>();
 }
