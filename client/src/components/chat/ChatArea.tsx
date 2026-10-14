@@ -39,6 +39,7 @@ import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
 import { InputLinkPreviewStrip } from "./InputLinkPreviewStrip";
 import { useChatStore, useUiStore } from "../../stores";
 import { usePermissions } from "../../hooks/usePermissions";
+import { VoiceChannelView } from "./VoiceChannelView";
 import type { UserProfileData } from "../profile";
 
 interface PendingAttachment {
@@ -766,6 +767,20 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           currentChannel.type === ChannelType.DirectMessage))
   );
   const dmUser = activeDm?.user;
+
+  if (currentChannel && currentChannel.type === ChannelType.Voice) {
+    return (
+      <VoiceChannelView
+        currentChannel={currentChannel}
+        currentUser={currentUser}
+        messages={messages}
+        onSendMessage={async (text) => {
+          await onSendMessage(text);
+        }}
+        onToggleReaction={handleReactionClick}
+      />
+    );
+  }
 
   return (
     <section className="flex-1 h-full min-h-0 bg-[var(--bg-chat)] flex flex-col overflow-hidden relative">
