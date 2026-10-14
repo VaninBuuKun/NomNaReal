@@ -1,12 +1,14 @@
 export type NotificationType =
   | 'Mention'
   | 'ThreadReply'
+  | 'ChannelInvite'
+  | 'ServerInvite'
+  | 'FriendRequest'
+  | 'FriendAccepted'
+  | 'DirectMessage'
   | 'Assignment'
   | 'TaskSchedule'
-  | 1
-  | 2
-  | 3
-  | 4;
+  | number;
 
 export interface NotificationMetadata {
   dueDate?: string;
