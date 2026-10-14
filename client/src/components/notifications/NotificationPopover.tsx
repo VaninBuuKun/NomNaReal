@@ -127,27 +127,27 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
   const getTypeBadge = (type: any) => {
     if (type === 'Mention' || type === 1) {
       return (
-        <span className="w-4 h-4 rounded-full bg-warning text-on-accent flex items-center justify-center ring-2 ring-surface shadow-xs">
+        <span className="w-4 h-4 rounded-full bg-warning text-on-accent flex items-center justify-center ring-2 ring-surface">
           <At size={10} weight="bold" />
         </span>
       );
     }
     if (type === 'ThreadReply' || type === 2) {
       return (
-        <span className="w-4 h-4 rounded-full bg-accent-primary text-on-accent flex items-center justify-center ring-2 ring-surface shadow-xs">
+        <span className="w-4 h-4 rounded-full bg-accent-primary text-on-accent flex items-center justify-center ring-2 ring-surface">
           <ChatCircleDots size={10} weight="bold" />
         </span>
       );
     }
     if (type === 'DirectMessage' || type === 7) {
       return (
-        <span className="w-4 h-4 rounded-full bg-accent-primary text-on-accent flex items-center justify-center ring-2 ring-surface shadow-xs">
+        <span className="w-4 h-4 rounded-full bg-accent-primary text-on-accent flex items-center justify-center ring-2 ring-surface">
           <ChatTeardropText size={10} weight="bold" />
         </span>
       );
     }
     return (
-      <span className="w-4 h-4 rounded-full bg-success text-on-accent flex items-center justify-center ring-2 ring-surface shadow-xs">
+      <span className="w-4 h-4 rounded-full bg-success text-on-accent flex items-center justify-center ring-2 ring-surface">
         <Users size={10} weight="bold" />
       </span>
     );
@@ -218,7 +218,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-[13px] text-text-primary">Thông báo</h3>
                 {unreadCount > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold bg-danger text-on-accent leading-none shadow-xs">
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold bg-danger text-on-accent leading-none">
                     {unreadCount}
                   </span>
                 )}
