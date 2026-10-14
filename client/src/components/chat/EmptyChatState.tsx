@@ -1,5 +1,5 @@
 import React from 'react';
-import { Hash, Sparkle, LockSimple, ChatCenteredDots } from '@phosphor-icons/react';
+import { Hash, LockSimple, ChatCenteredDots, Lightbulb } from '@phosphor-icons/react';
 import type { Channel } from '../../types';
 
 interface EmptyChatStateProps {
@@ -58,7 +58,7 @@ export const EmptyChatState: React.FC<EmptyChatStateProps> = ({
           </div>
         </div>
         <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-[var(--bg-chat)] flex items-center justify-center shadow-md animate-bounce">
-          <Sparkle size={12} weight="fill" className="text-white" />
+          <ChatCenteredDots size={12} weight="fill" className="text-white" />
         </div>
       </div>
 
@@ -75,7 +75,7 @@ export const EmptyChatState: React.FC<EmptyChatStateProps> = ({
       {/* Starter Prompts Box */}
       <div className="w-full max-w-lg">
         <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3 flex items-center justify-center gap-1.5">
-          <Sparkle size={14} weight="fill" className="text-amber-500" />
+          <Lightbulb size={14} weight="fill" className="text-amber-500" />
           <span>Gợi ý mở đầu cuộc trò chuyện</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">

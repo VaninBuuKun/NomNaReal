@@ -4,7 +4,7 @@ import {
   Users,
   SignIn,
   WarningCircle,
-  Sparkle,
+  EnvelopeSimple,
   ArrowLeft,
   CircleNotch,
 } from '@phosphor-icons/react';
@@ -118,7 +118,7 @@ export const JoinPage: React.FC = () => {
           <>
             {/* Header Badge */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--accent-soft)] border border-[var(--accent-primary)]/20 text-[11px] font-bold text-[var(--accent-primary)] mb-5 shadow-2xs">
-              <Sparkle size={13} weight="fill" />
+              <EnvelopeSimple size={13} weight="bold" />
               <span>Lời mời tham gia Không gian</span>
             </div>
 

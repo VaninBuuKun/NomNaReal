@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   FileText,
   PushPin,
-  Sparkle,
+  Rocket,
   ArrowRight,
   ListChecks,
   Star,
@@ -219,7 +219,7 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold mb-6">
-            <Sparkle size={14} weight="fill" />
+            <Rocket size={14} weight="fill" />
             <span>NomNa 1.0 — Không gian trò chuyện &amp; học tập nhóm cho người Việt</span>
           </div>
 

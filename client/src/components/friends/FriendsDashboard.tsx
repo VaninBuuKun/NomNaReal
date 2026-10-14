@@ -8,7 +8,8 @@ import {
   Check,
   X,
   CircleNotch,
-  Sparkle,
+  UserPlus,
+  Lightning,
   UserCircleMinus,
   Prohibit,
 } from '@phosphor-icons/react';
@@ -357,7 +358,7 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
               {/* Decorative Empty state art */}
               <div className="py-14 flex flex-col items-center justify-center text-center gap-3 select-none opacity-80">
                 <div className="w-16 h-16 rounded-2xl bg-[var(--bg-surface)] flex items-center justify-center text-[var(--accent-primary)] shadow-sm">
-                  <Sparkle size={32} weight="duotone" />
+                  <UserPlus size={32} weight="duotone" />
                 </div>
                 <p className="text-xs text-[var(--text-muted)] max-w-sm">
                   Wumpus đang chờ bạn bè mới. Hãy nhập tên tài khoản của đồng đội để bắt đầu kết nối!
@@ -766,7 +767,7 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
           ) : (
             <div className="p-4 rounded-[8px] bg-[var(--bg-surface)]/60 border border-[var(--border-color)]/50 text-center flex flex-col items-center gap-2 my-auto">
               <div className="w-8 h-8 rounded-full bg-[var(--bg-surface-active)] flex items-center justify-center text-[var(--text-muted)]">
-                <Sparkle size={16} weight="fill" className="text-[var(--accent-primary)]" />
+                <Lightning size={16} weight="fill" className="text-[var(--accent-primary)]" />
               </div>
               <div className="text-xs font-bold text-[var(--text-primary)]">
                 Hiện tại yên ắng...

@@ -5,7 +5,6 @@ import {
   Check,
   MagnifyingGlass,
   Warning,
-  Sparkle,
 } from '@phosphor-icons/react';
 import { Modal, Button, Input, Badge } from '../ui';
 import { roleApi } from '../../services/roleApi';
@@ -550,7 +549,7 @@ export const RoleManagementModal: React.FC<RoleManagementModalProps> = ({
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-[var(--text-muted)] p-6 text-center">
-              <Sparkle size={32} weight="light" className="mb-2 opacity-50" />
+              <ShieldCheck size={32} weight="light" className="mb-2 opacity-50" />
               <p className="text-sm font-semibold">Chưa chọn vai trò nào</p>
               <p className="text-xs">Chọn một vai trò ở danh sách bên trái để chỉnh sửa.</p>
             </div>

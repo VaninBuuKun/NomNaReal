@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { MagnifyingGlass, Smiley, Heart, HandWaving, Sparkle } from "@phosphor-icons/react";
+import { MagnifyingGlass, Smiley, Heart, HandWaving, ClockCounterClockwise } from "@phosphor-icons/react";
 
 interface EmojiPickerPopoverProps {
   isOpen: boolean;
@@ -11,7 +11,7 @@ const EMOJI_CATEGORIES = [
   {
     id: "frequent",
     label: "Thường dùng",
-    icon: Sparkle,
+    icon: ClockCounterClockwise,
     emojis: [
       "🔥", "❤️", "👍", "🚀", "😂", "🎉", "💡", "👏",
       "✨", "💯", "⚡", "🥳", "🤩", "🙏", "👀", "☕",

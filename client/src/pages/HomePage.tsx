@@ -166,7 +166,7 @@ export const HomePage: React.FC = () => {
 
           <div className="relative z-10 max-w-2xl flex flex-col gap-4">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent-soft)] border border-[var(--accent-primary)]/20 text-xs font-bold text-[var(--accent-primary)] w-fit shadow-2xs">
-              {/* <Sparkle size={14} weight="fill" /> */}
+              <ChatCircleDots size={14} weight="fill" />
               <span>Chào mừng bạn đến với NomNa!</span>
             </div>
 
