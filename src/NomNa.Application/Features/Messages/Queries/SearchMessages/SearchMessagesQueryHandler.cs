@@ -24,33 +24,78 @@ public class SearchMessagesQueryHandler : IRequestHandler<SearchMessagesQuery, R
         if (!userId.HasValue)
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
-        // Verify server membership
-        var isMember = await _context.ServerMembers
-            .AnyAsync(wm => wm.ServerId == request.ServerId && wm.UserId == userId.Value, cancellationToken);
+        List<Guid> targetChannelIds;
 
-        if (!isMember)
-            return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
-
-        // Query accessible channel IDs for this user in the server
-        var accessibleChannelIds = await _context.Channels
-            .AsNoTracking()
-            .Where(c => c.ServerId == request.ServerId &&
-                        ((!c.IsPrivate && c.Type != ChannelType.DirectMessage) ||
-                         c.Members.Any(cm => cm.UserId == userId.Value)))
-            .Select(c => c.Id)
-            .ToListAsync(cancellationToken);
-
-        if (request.ChannelId.HasValue)
+        if (request.ServerId.HasValue)
         {
-            if (!accessibleChannelIds.Contains(request.ChannelId.Value))
+            // Verify server membership
+            var isMember = await _context.ServerMembers
+                .AnyAsync(wm => wm.ServerId == request.ServerId.Value && wm.UserId == userId.Value, cancellationToken);
+
+            if (!isMember)
+                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
+
+            // Query accessible channel IDs for this user in the server
+            var accessibleChannelIds = await _context.Channels
+                .AsNoTracking()
+                .Where(c => c.ServerId == request.ServerId.Value &&
+                            ((!c.IsPrivate && c.Type != ChannelType.DirectMessage) ||
+                             c.Members.Any(cm => cm.UserId == userId.Value)))
+                .Select(c => c.Id)
+                .ToListAsync(cancellationToken);
+
+            if (request.ChannelId.HasValue)
             {
-                return Error.Forbidden("Channel.Forbidden", "You do not have access to search in this channel.");
+                if (!accessibleChannelIds.Contains(request.ChannelId.Value))
+                {
+                    return Error.Forbidden("Channel.Forbidden", "You do not have access to search in this channel.");
+                }
+                targetChannelIds = new List<Guid> { request.ChannelId.Value };
+            }
+            else
+            {
+                targetChannelIds = accessibleChannelIds;
             }
         }
+        else if (request.ChannelId.HasValue)
+        {
+            // Direct Message or specific channel search without serverId
+            var channel = await _context.Channels
+                .AsNoTracking()
+                .Where(c => c.Id == request.ChannelId.Value)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Type,
+                    c.IsPrivate,
+                    c.CreatedById,
+                    c.ServerId,
+                    IsMember = c.Members.Any(cm => cm.UserId == userId.Value) || c.CreatedById == userId.Value
+                })
+                .FirstOrDefaultAsync(cancellationToken);
 
-        var targetChannelIds = request.ChannelId.HasValue
-            ? new List<Guid> { request.ChannelId.Value }
-            : accessibleChannelIds;
+            if (channel == null)
+                return Error.NotFound("Channel.NotFound", "Kênh không tồn tại.");
+
+            if (channel.Type == ChannelType.DirectMessage || channel.IsPrivate)
+            {
+                if (!channel.IsMember)
+                    return Error.Forbidden("Channel.Forbidden", "Bạn không có quyền tìm kiếm trong cuộc trò chuyện này.");
+            }
+            else if (channel.ServerId.HasValue)
+            {
+                var isServerMember = await _context.ServerMembers
+                    .AnyAsync(sm => sm.ServerId == channel.ServerId.Value && sm.UserId == userId.Value, cancellationToken);
+                if (!isServerMember)
+                    return Error.Forbidden("Server.Forbidden", "Bạn không phải thành viên máy chủ.");
+            }
+
+            targetChannelIds = new List<Guid> { channel.Id };
+        }
+        else
+        {
+            return Error.Validation("Search.MissingScope", "Phải cung cấp ServerId hoặc ChannelId.");
+        }
 
         var query = _context.Messages
             .AsNoTracking()
@@ -74,26 +119,18 @@ public class SearchMessagesQueryHandler : IRequestHandler<SearchMessagesQuery, R
 
         if (request.ToDate.HasValue)
         {
-            // If end of day not specified, include until end of specified day
-            var toDate = request.ToDate.Value;
-            if (toDate.TimeOfDay == TimeSpan.Zero)
-            {
-                toDate = toDate.Date.AddDays(1).AddTicks(-1);
-            }
-            query = query.Where(m => m.CreatedAt <= toDate);
+            query = query.Where(m => m.CreatedAt <= request.ToDate.Value);
         }
 
-        var limit = Math.Clamp(request.Limit, 1, 100);
-
-        var messages = await query
+        var results = await query
             .OrderByDescending(m => m.CreatedAt)
-            .Take(limit)
+            .Take(request.Limit)
             .Select(m => new MessageDto(
                 m.Id,
                 m.ChannelId,
                 m.SenderId,
-                m.Sender.DisplayName,
-                m.Sender.UserName ?? string.Empty,
+                m.Sender.DisplayName ?? "Unknown",
+                m.Sender.UserName ?? "unknown",
                 m.Sender.AvatarUrl,
                 m.Content,
                 m.ThreadId,
@@ -111,6 +148,6 @@ public class SearchMessagesQueryHandler : IRequestHandler<SearchMessagesQuery, R
             ))
             .ToListAsync(cancellationToken);
 
-        return messages;
+        return results;
     }
 }

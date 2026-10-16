@@ -7,6 +7,11 @@ export const channelApi = {
     return res.data;
   },
 
+  getChannel: async (channelId: string): Promise<Channel> => {
+    const res = await httpClient.get<Channel>(`/channels/${channelId}`);
+    return res.data;
+  },
+
   createChannel: async (
     serverIdOrWorkspaceId: string,
     nameOrData: string | { name: string; type?: number; isPrivate?: boolean; categoryId?: string | null }

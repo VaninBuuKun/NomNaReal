@@ -661,12 +661,34 @@ export const ChatPage: React.FC = () => {
             } else {
               setActiveDmId(chatId);
               setActiveChannelId(chatId);
+              activeChannelIdRef.current = chatId;
+              try {
+                const chanInfo = await channelApi.getChannel(chatId);
+                const synthesizedDm: DirectMessageItem = {
+                  id: chanInfo.id,
+                  workspaceId: chanInfo.serverId || chanInfo.workspaceId,
+                  user: {
+                    id: chanInfo.id,
+                    displayName: chanInfo.name || "Direct Message",
+                    username: chanInfo.name?.toLowerCase().replace(/\s+/g, "") || "user",
+                    email: "",
+                    status: "online",
+                  },
+                  lastMessage: "Cuộc trò chuyện",
+                  unreadCount: 0,
+                  isPending: false,
+                };
+                setDmConversations((prev) => [synthesizedDm, ...prev.filter((c) => c.id !== chatId)]);
+              } catch (e) {
+                console.warn("Could not fetch channel metadata for DM:", e);
+              }
               await loadMessages(chatId);
               await signalRService.joinChannel(chatId);
             }
           } else {
             setActiveDmId(null);
             setActiveChannelId(null);
+            activeChannelIdRef.current = null;
           }
         } catch (err) {
           console.error("Failed to fetch user DMs:", err);
@@ -733,6 +755,7 @@ export const ChatPage: React.FC = () => {
         if (activeDmId !== chatId) {
           setActiveDmId(chatId);
           setActiveChannelId(chatId);
+          activeChannelIdRef.current = chatId;
           loadMessages(chatId);
           signalRService.joinChannel(chatId);
         }
@@ -740,6 +763,7 @@ export const ChatPage: React.FC = () => {
         if (activeDmId !== null) {
           setActiveDmId(null);
           setActiveChannelId(null);
+          activeChannelIdRef.current = null;
         }
       }
     } else if (serverId && channelId) {
@@ -782,6 +806,7 @@ export const ChatPage: React.FC = () => {
         useDmStore.getState().upgradePendingDm(activeDmId, realDm.id);
         setActiveDmId(realDm.id);
         setActiveChannelId(realDm.id);
+        activeChannelIdRef.current = realDm.id;
         navigate(`/channels/@me/${realDm.id}`, { replace: true });
         await signalRService.joinChannel(realDm.id);
 
@@ -907,6 +932,7 @@ export const ChatPage: React.FC = () => {
   const handleSelectDmConversation = async (dm: DirectMessageItem) => {
     setActiveDmId(dm.id);
     setActiveChannelId(dm.id);
+    activeChannelIdRef.current = dm.id;
     navigate(`/channels/@me/${dm.id}`);
 
     if (dm.isPending) {
@@ -979,7 +1005,24 @@ export const ChatPage: React.FC = () => {
     [],
   );
 
-  const activeDm = dmConversations.find((d) => d.id === activeDmId);
+  const activeDm =
+    dmConversations.find((d) => d.id === activeDmId) ||
+    (activeDmId
+      ? {
+          id: activeDmId,
+          workspaceId: activeWorkspaceId || undefined,
+          user: {
+            id: activeDmId,
+            displayName: "Direct Message",
+            username: "user",
+            email: "",
+            status: "online" as const,
+          },
+          lastMessage: "Cuộc trò chuyện",
+          unreadCount: 0,
+          isPending: false,
+        }
+      : undefined);
   const currentWorkspace =
     workspaces.find((w: any) => w.id === activeWorkspaceId) || null;
   const currentUserMember = workspaceMembers.find(

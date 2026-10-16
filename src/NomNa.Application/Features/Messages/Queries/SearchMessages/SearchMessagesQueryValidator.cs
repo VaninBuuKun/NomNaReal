@@ -6,18 +6,21 @@ public class SearchMessagesQueryValidator : AbstractValidator<SearchMessagesQuer
 {
     public SearchMessagesQueryValidator()
     {
-        RuleFor(x => x.ServerId).NotEmpty();
+        RuleFor(x => x)
+            .Must(x => x.ServerId.HasValue || x.ChannelId.HasValue)
+            .WithMessage("Phải cung cấp ServerId hoặc ChannelId để tìm kiếm.");
+
         RuleFor(x => x.Limit).InclusiveBetween(1, 100);
 
         RuleFor(x => x)
             .Must(x => !string.IsNullOrWhiteSpace(x.Keyword) || x.SenderId.HasValue || x.FromDate.HasValue || x.ToDate.HasValue)
-            .WithMessage("At least one search filter (keyword, sender, or date range) must be provided.");
+            .WithMessage("Ít nhất một bộ lọc tìm kiếm (từ khóa, người gửi, hoặc khoảng thời gian) phải được cung cấp.");
 
         When(x => x.FromDate.HasValue && x.ToDate.HasValue, () =>
         {
             RuleFor(x => x.ToDate)
                 .GreaterThanOrEqualTo(x => x.FromDate)
-                .WithMessage("End date must be greater than or equal to start date.");
+                .WithMessage("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
         });
     }
 }

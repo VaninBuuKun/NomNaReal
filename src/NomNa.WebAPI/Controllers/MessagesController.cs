@@ -157,12 +157,12 @@ public record ReplyToThreadRequest(string Content);
 public record EditMessageRequest(string Content);
 public record ToggleReactionRequest(string Emoji);
 public record SearchMessagesRequest(
-    Guid ServerId,
-    string? Keyword,
-    Guid? ChannelId,
-    Guid? SenderId,
-    DateTime? FromDate,
-    DateTime? ToDate,
-    int? Limit
+    Guid? ServerId = null,
+    string? Keyword = null,
+    Guid? ChannelId = null,
+    Guid? SenderId = null,
+    DateTime? FromDate = null,
+    DateTime? ToDate = null,
+    int? Limit = null
 );
 

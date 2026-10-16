@@ -22,6 +22,13 @@ public class ChannelsController : ApiControllerBase
         _hubContext = hubContext;
     }
 
+    [HttpGet("{channelId:guid}")]
+    public async Task<IActionResult> GetChannelById([FromRoute] Guid channelId)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Channels.Queries.GetChannelById.GetChannelByIdQuery(channelId));
+        return HandleResult(result);
+    }
+
     [HttpGet("{channelId}/members")]
     public async Task<IActionResult> GetMembers([FromRoute] Guid channelId)
     {
