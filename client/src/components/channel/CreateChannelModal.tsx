@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Hash, SpeakerHigh, Folder, Lock } from '@phosphor-icons/react';
+import { Hash, SpeakerHigh, Lock } from '@phosphor-icons/react';
 import { Modal, Button, Input } from '../ui';
 import { channelApi } from '../../services/channelApi';
 import { ChannelType, type Channel } from '../../types';
@@ -122,52 +122,41 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
           </div>
         )}
 
-        {/* Type Selector Tabs */}
-        <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">
-            Loại kênh
-          </label>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => setType(ChannelType.Text)}
-              className={`p-2.5 rounded-[4px] border flex flex-col items-center gap-1.5 transition-colors cursor-pointer text-center ${
-                type === ChannelType.Text
-                  ? 'bg-[var(--bg-surface-active)] border-[var(--accent-primary)] text-[var(--text-primary)] font-semibold'
-                  : 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <Hash size={18} weight="bold" className="text-[var(--accent-primary)]" />
-              <span className="text-xs">Kênh chat</span>
-            </button>
+        {/* Type Selector Tabs (Only shown when creating a channel, hidden when creating a category) */}
+        {!isCategory && (
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-2">
+              Loại kênh
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setType(ChannelType.Text)}
+                className={`p-3 rounded-control border flex flex-col items-center gap-1.5 transition-colors cursor-pointer text-center ${
+                  type === ChannelType.Text
+                    ? 'bg-surface-active border-accent-primary text-text-primary font-semibold'
+                    : 'bg-surface border-border text-text-muted hover:text-text-primary hover:border-border-hover'
+                }`}
+              >
+                <Hash size={20} weight="bold" className="text-accent-primary" />
+                <span className="text-xs font-medium">Kênh chat</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setType(ChannelType.Voice)}
-              className={`p-2.5 rounded-[4px] border flex flex-col items-center gap-1.5 transition-colors cursor-pointer text-center ${
-                type === ChannelType.Voice
-                  ? 'bg-[var(--bg-surface-active)] border-[var(--accent-primary)] text-[var(--text-primary)] font-semibold'
-                  : 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <SpeakerHigh size={18} weight="bold" className="text-[var(--accent-primary)]" />
-              <span className="text-xs">Kênh thoại</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setType(ChannelType.Category)}
-              className={`p-2.5 rounded-[4px] border flex flex-col items-center gap-1.5 transition-colors cursor-pointer text-center ${
-                type === ChannelType.Category
-                  ? 'bg-[var(--bg-surface-active)] border-[var(--accent-primary)] text-[var(--text-primary)] font-semibold'
-                  : 'bg-[var(--bg-surface)] border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <Folder size={18} weight="bold" className="text-[var(--accent-primary)]" />
-              <span className="text-xs">Danh mục</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setType(ChannelType.Voice)}
+                className={`p-3 rounded-control border flex flex-col items-center gap-1.5 transition-colors cursor-pointer text-center ${
+                  type === ChannelType.Voice
+                    ? 'bg-surface-active border-accent-primary text-text-primary font-semibold'
+                    : 'bg-surface border-border text-text-muted hover:text-text-primary hover:border-border-hover'
+                }`}
+              >
+                <SpeakerHigh size={20} weight="bold" className="text-accent-primary" />
+                <span className="text-xs font-medium">Kênh thoại</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Channel Name Input */}
         <div>
@@ -193,13 +182,13 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
         {/* Category Placement (Only for non-categories and when categories exist) */}
         {!isCategory && categories.length > 0 && (
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-text-muted mb-1.5">
               Thuộc danh mục
             </label>
             <select
               value={selectedCategoryId}
               onChange={(e) => setSelectedCategoryId(e.target.value)}
-              className="w-full px-3 py-2 bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[4px] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--accent-primary)] cursor-pointer"
+              className="w-full px-3 py-2 bg-sidebar border border-border rounded-control text-xs text-text-primary focus:outline-hidden focus:border-accent-primary cursor-pointer"
             >
               <option value="">(Không thuộc danh mục nào)</option>
               {categories.map((cat) => (
@@ -213,20 +202,20 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
 
         {/* Private Channel Toggle (Non-categories only) */}
         {!isCategory && (
-          <div className="pt-2 border-t border-[var(--border-color)]">
+          <div className="pt-2 border-t border-border">
             <label className="flex items-start gap-3 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={isPrivate}
                 onChange={(e) => setIsPrivate(e.target.checked)}
-                className="w-4 h-4 rounded-[3px] accent-[var(--accent-primary)] cursor-pointer mt-0.5"
+                className="w-4 h-4 rounded-control accent-accent-primary cursor-pointer mt-0.5"
               />
               <div>
-                <div className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 group-hover:text-[var(--accent-primary)] transition-colors">
+                <div className="text-xs font-bold text-text-primary flex items-center gap-1.5 group-hover:text-accent-primary transition-colors">
                   <Lock size={13} weight="bold" />
                   <span>Kênh riêng tư</span>
                 </div>
-                <div className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                <div className="text-[11px] text-text-muted leading-relaxed">
                   Chỉ những thành viên hoặc vai trò được cấp quyền mới có thể xem và tham gia.
                 </div>
               </div>
@@ -235,7 +224,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
         )}
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border-color)]">
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border">
           <Button type="button" variant="ghost" size="sm" onClick={handleClose} disabled={isSubmitting}>
             Hủy
           </Button>
