@@ -6,6 +6,8 @@ import {
   Headphones,
   PhoneDisconnect,
   Screencast,
+  VideoCamera,
+  VideoCameraSlash,
   ChatTeardropText,
   X,
   Waveform,
@@ -33,7 +35,6 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
   currentUser,
   messages,
   onSendMessage,
-  workspaceName,
   onLeaveVoice,
 }) => {
   const {
@@ -42,7 +43,6 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
     isDeafened,
     isScreenSharing,
     isTextChatOpen,
-    pingMs,
     participants,
     joinVoice,
     leaveVoice,
@@ -55,6 +55,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
 
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isCameraActive, setIsCameraActive] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-connect to voice channel when viewing this channel if not connected yet
@@ -108,14 +109,14 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
           <h2 className="text-sm font-bold text-text-primary truncate">
             {currentChannel.name}
           </h2>
-          <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-success-soft text-success border border-success/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-success animate-ping" />
-            Đã kết nối thoại (RTC {pingMs}ms)
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-success-soft text-success border border-success/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            Đã kết nối
           </span>
         </div>
 
-        {/* Right Tools: Toggle Text Chat Button */}
-        <div className="flex items-center gap-1.5">
+        {/* Right Tools: Toggle Text Chat Button & Quick Disconnect */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={toggleTextChat}
@@ -129,6 +130,16 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
             <ChatTeardropText size={16} weight={isTextChatOpen ? 'fill' : 'bold'} />
             <span className="hidden md:inline">Trò chuyện</span>
           </button>
+
+          <button
+            type="button"
+            onClick={handleDisconnect}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-control text-xs font-semibold text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+            title="Ngắt kết nối phòng thoại"
+          >
+            <PhoneDisconnect size={16} weight="bold" />
+            <span className="hidden sm:inline">Rời phòng</span>
+          </button>
         </div>
       </div>
 
@@ -136,15 +147,6 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* LEFT / CENTER: Voice Stage */}
         <div className="flex-1 flex flex-col min-h-0 p-4 relative justify-between overflow-y-auto no-scrollbar">
-          {/* Top connection notice */}
-          <div className="flex items-center justify-between text-xs text-text-muted max-w-4xl w-full mx-auto mb-4 px-2">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-success" />
-              Mã hóa âm thanh đầu cuối (End-to-End Encrypted)
-            </span>
-            <span>{workspaceName || 'NomNa Workspace'}</span>
-          </div>
-
           {/* Participant Cards Grid */}
           <div className="max-w-4xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 items-center justify-center my-auto">
             {participants.map((p) => {
@@ -169,7 +171,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                     </div>
                   )}
 
-                  {/* Avatar with speaking ring */}
+                  {/* Avatar with speaking ring or video preview */}
                   <div className="relative mb-3">
                     <div
                       className={`rounded-full transition-all duration-200 p-1 ${
@@ -206,27 +208,32 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                     )}
                   </div>
 
-                  {/* Speaking status label or interactive test button */}
+                  {/* Speaking status label or interactive speaking toggle */}
                   {isMe ? (
                     <button
                       type="button"
                       onClick={toggleSpeaking}
                       disabled={isMuted}
-                      className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-control text-xs font-semibold transition-all cursor-pointer ${
+                      className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold transition-all cursor-pointer ${
                         isMuted
                           ? 'opacity-40 cursor-not-allowed bg-surface-active text-text-muted'
                           : p.isSpeaking
-                          ? 'bg-success text-on-accent'
+                          ? 'bg-success text-on-accent shadow-xs'
                           : 'bg-surface-active hover:bg-surface text-text-secondary hover:text-text-primary'
                       }`}
                     >
-                      <Waveform size={14} weight="bold" />
-                      <span>{p.isSpeaking ? 'Đang nói...' : 'Bấm để thử nói (Mic Test)'}</span>
+                      <Waveform size={14} weight="bold" className={p.isSpeaking ? 'animate-pulse' : ''} />
+                      <span>{p.isSpeaking ? 'Đang nói' : 'Nói thử'}</span>
                     </button>
                   ) : (
-                    <span className="mt-2 text-xs text-text-muted">
-                      {p.isSpeaking ? 'Đang phát âm thanh...' : 'Đang lắng nghe'}
-                    </span>
+                    <div className="mt-3 flex items-center gap-1.5 text-xs text-text-muted">
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          p.isSpeaking ? 'bg-success animate-pulse' : 'bg-text-muted/40'
+                        }`}
+                      />
+                      <span>{p.isSpeaking ? 'Đang phát biểu' : 'Đang lắng nghe'}</span>
+                    </div>
                   )}
                 </div>
               );
@@ -264,6 +271,20 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                 <Headphones size={18} weight={isDeafened ? 'fill' : 'bold'} />
               </button>
 
+              {/* Video Camera Toggle */}
+              <button
+                type="button"
+                onClick={() => setIsCameraActive((prev) => !prev)}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                  isCameraActive
+                    ? 'bg-accent-primary text-on-accent'
+                    : 'text-text-primary hover:bg-surface-active'
+                }`}
+                title={isCameraActive ? 'Tắt Camera' : 'Bật Camera'}
+              >
+                {isCameraActive ? <VideoCamera size={18} weight="bold" /> : <VideoCameraSlash size={18} weight="bold" />}
+              </button>
+
               {/* Screen Share simulation */}
               <button
                 type="button"
@@ -273,7 +294,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                     ? 'bg-accent-primary text-on-accent'
                     : 'text-text-primary hover:bg-surface-active'
                 }`}
-                title="Chia sẻ màn hình (Giả lập)"
+                title="Chia sẻ màn hình"
               >
                 <Screencast size={18} weight="bold" />
               </button>
@@ -287,7 +308,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                     ? 'bg-surface-active text-accent-primary'
                     : 'text-text-primary hover:bg-surface-active'
                 }`}
-                title="Trò chuyện bằng văn bản trong phòng"
+                title="Trò chuyện bằng văn bản"
               >
                 <ChatTeardropText size={18} weight={isTextChatOpen ? 'fill' : 'bold'} />
               </button>
@@ -300,7 +321,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                 type="button"
                 onClick={handleDisconnect}
                 className="h-10 px-4 rounded-full bg-danger text-on-accent hover:bg-danger-hover transition-colors font-bold text-xs flex items-center gap-1.5 cursor-pointer"
-                title="Rời phòng thoại"
+                title="Ngắt kết nối"
               >
                 <PhoneDisconnect size={16} weight="bold" />
                 <span>Ngắt kết nối</span>
