@@ -66,6 +66,11 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   const [dropPosition, setDropPosition] = useState<'above' | 'below' | null>(null);
   const [dragOverCategoryId, setDragOverCategoryId] = useState<string | null>(null);
 
+  // Category drag and drop reordering state
+  const [draggedCategoryId, setDraggedCategoryId] = useState<string | null>(null);
+  const [dragOverCategoryTargetId, setDragOverCategoryTargetId] = useState<string | null>(null);
+  const [categoryDropPosition, setCategoryDropPosition] = useState<'above' | 'below' | null>(null);
+
   // Voice store state
   const {
     connectedChannelId,
@@ -73,7 +78,6 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
     isMuted,
     isDeafened,
     participants,
-    pingMs,
     leaveVoice,
     toggleMute,
     toggleDeafen,
@@ -185,6 +189,37 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
     }
   };
 
+  // Reorder category handler (drag entire category)
+  const handleReorderCategory = async (
+    sourceCatId: string,
+    targetCatId: string,
+    pos: 'above' | 'below'
+  ) => {
+    if (sourceCatId === targetCatId) return;
+    const sortedCats = [...categories];
+    const sourceCat = sortedCats.find((c) => c.id === sourceCatId);
+    if (!sourceCat) return;
+
+    const remainingCats = sortedCats.filter((c) => c.id !== sourceCatId);
+    const targetIndex = remainingCats.findIndex((c) => c.id === targetCatId);
+    if (targetIndex === -1) return;
+
+    const insertIndex = pos === 'above' ? targetIndex : targetIndex + 1;
+    remainingCats.splice(insertIndex, 0, sourceCat);
+
+    const updatedCats = remainingCats.map((cat, idx) => ({ ...cat, position: idx }));
+    const nonCategoryChannels = channels.filter((c) => c.type !== ChannelType.Category);
+    const newChannels = [...nonCategoryChannels, ...updatedCats];
+
+    onChannelsReorder?.(newChannels);
+
+    try {
+      await channelApi.updateChannel(sourceCatId, { position: insertIndex });
+    } catch (err) {
+      console.error('Failed to update category position:', err);
+    }
+  };
+
   const handleDropOnCategory = async (catId: string) => {
     if (!draggedChannelId) return;
     const source = channels.find((c) => c.id === draggedChannelId);
@@ -214,9 +249,21 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
     return (
       <div key={ch.id} className="relative">
+        {/* Discord-style drop indicator line with bullet dot */}
+        {isDragTarget && (
+          <div
+            className={`absolute left-0 right-0 h-0.5 bg-accent-primary z-20 pointer-events-none flex items-center ${
+              dropPosition === 'above' ? '-top-1' : '-bottom-1'
+            }`}
+          >
+            <div className="w-2 h-2 rounded-full bg-accent-primary -ml-1 ring-2 ring-sidebar" />
+          </div>
+        )}
+
         <div
           draggable={true}
           onDragStart={(e) => {
+            e.stopPropagation();
             e.dataTransfer.setData('text/plain', ch.id);
             setDraggedChannelId(ch.id);
           }}
@@ -227,7 +274,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           }}
           onDragOver={(e) => {
             e.preventDefault();
-            if (draggedChannelId === ch.id) return;
+            e.stopPropagation();
+            if (draggedChannelId === ch.id || draggedCategoryId) return;
             const rect = e.currentTarget.getBoundingClientRect();
             const isAbove = e.clientY - rect.top < rect.height / 2;
             setDragOverChannelId(ch.id);
@@ -241,6 +289,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           }}
           onDrop={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             if (!draggedChannelId || draggedChannelId === ch.id) return;
             handleReorderChannel(draggedChannelId, ch.id, dropPosition || 'below');
             setDraggedChannelId(null);
@@ -250,12 +299,6 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           onClick={() => onSelectChannel(ch.id)}
           className={`group/ch relative flex items-center justify-between px-2 py-1.5 rounded-control text-[13px] cursor-pointer transition-all ${
             isBeingDragged ? 'opacity-35 scale-[0.98]' : ''
-          } ${
-            isDragTarget
-              ? dropPosition === 'above'
-                ? 'border-t-2 border-accent-primary'
-                : 'border-b-2 border-accent-primary'
-              : ''
           } ${
             isActive
               ? 'bg-surface-active text-text-primary font-bold'
@@ -511,48 +554,119 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
               const isCollapsed = !!collapsedCategories[cat.id];
               const isCategoryDropTarget = dragOverCategoryId === cat.id;
+              const isBeingDragged = draggedCategoryId === cat.id;
+              const isCategoryReorderTarget = dragOverCategoryTargetId === cat.id;
 
               return (
                 <div
                   key={cat.id}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    setDragOverCategoryId(cat.id);
+                    if (draggedChannelId) {
+                      setDragOverCategoryId(cat.id);
+                    }
                   }}
                   onDragLeave={() => {
                     if (dragOverCategoryId === cat.id) setDragOverCategoryId(null);
                   }}
                   onDrop={(e) => {
                     e.preventDefault();
-                    setDragOverCategoryId(null);
-                    handleDropOnCategory(cat.id);
+                    if (draggedChannelId) {
+                      setDragOverCategoryId(null);
+                      handleDropOnCategory(cat.id);
+                    }
                   }}
-                  className={`transition-colors rounded-control p-0.5 ${
+                  className={`relative transition-all rounded-control p-0.5 ${
+                    isBeingDragged ? 'opacity-30 scale-[0.98]' : ''
+                  } ${
                     isCategoryDropTarget ? 'bg-accent-soft/30 ring-1 ring-accent-primary' : ''
                   }`}
                 >
-                  {/* Category Header Row */}
-                  <div className="flex items-center justify-between px-1.5 mb-1 group/cat">
-                    <button
-                      type="button"
-                      onClick={() => toggleCategory(cat.id)}
-                      className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-text-muted hover:text-text-primary cursor-pointer truncate"
+                  {/* Discord-style category drop indicator line with bullet dot */}
+                  {isCategoryReorderTarget && (
+                    <div
+                      className={`absolute left-0 right-0 h-0.5 bg-accent-primary z-20 pointer-events-none flex items-center ${
+                        categoryDropPosition === 'above' ? '-top-1' : '-bottom-1'
+                      }`}
                     >
-                      {isCollapsed ? (
-                        <CaretRight size={11} weight="bold" />
-                      ) : (
-                        <CaretDown size={11} weight="bold" />
-                      )}
-                      <span className="truncate">{cat.name}</span>
-                      <span className="text-[10px] opacity-70">({childChannels.length})</span>
-                    </button>
+                      <div className="w-2.5 h-2.5 rounded-full bg-accent-primary -ml-1 ring-2 ring-sidebar shadow-xs" />
+                    </div>
+                  )}
+
+                  {/* Category Header Row with Drag Capability */}
+                  <div
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', cat.id);
+                      setDraggedCategoryId(cat.id);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedCategoryId(null);
+                      setDragOverCategoryTargetId(null);
+                      setCategoryDropPosition(null);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!draggedCategoryId || draggedCategoryId === cat.id) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const isAbove = e.clientY - rect.top < rect.height / 2;
+                      setDragOverCategoryTargetId(cat.id);
+                      setCategoryDropPosition(isAbove ? 'above' : 'below');
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverCategoryTargetId === cat.id) {
+                        setDragOverCategoryTargetId(null);
+                        setCategoryDropPosition(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (!draggedCategoryId || draggedCategoryId === cat.id) return;
+                      handleReorderCategory(
+                        draggedCategoryId,
+                        cat.id,
+                        categoryDropPosition || 'below'
+                      );
+                      setDraggedCategoryId(null);
+                      setDragOverCategoryTargetId(null);
+                      setCategoryDropPosition(null);
+                    }}
+                    className="flex items-center justify-between px-1.5 py-1 mb-0.5 group/cat rounded-control hover:bg-surface/50 cursor-pointer select-none transition-colors"
+                  >
+                    <div className="flex items-center gap-1 min-w-0 flex-1">
+                      {/* Drag grip icon visible on category hover */}
+                      <span title="Kéo để đổi vị trí danh mục" className="shrink-0 flex items-center">
+                        <DotsSixVertical
+                          size={12}
+                          weight="bold"
+                          className="opacity-0 group-hover/cat:opacity-60 cursor-grab text-text-muted shrink-0 transition-opacity"
+                        />
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleCategory(cat.id)}
+                        className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-text-muted hover:text-text-primary cursor-pointer truncate"
+                      >
+                        {isCollapsed ? (
+                          <CaretRight size={11} weight="bold" />
+                        ) : (
+                          <CaretDown size={11} weight="bold" />
+                        )}
+                        <span className="truncate">{cat.name}</span>
+                        <span className="text-[10px] opacity-70">({childChannels.length})</span>
+                      </button>
+                    </div>
 
                     <div className="flex items-center gap-0.5 opacity-0 group-hover/cat:opacity-100 transition-opacity">
                       <button
                         type="button"
                         className="p-1 hover:text-text-primary hover:bg-surface rounded-control transition-colors cursor-pointer text-text-muted"
                         title="Tạo kênh trong danh mục này"
-                        onClick={() => onCreateChannel(ChannelType.Text, cat.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onCreateChannel(ChannelType.Text, cat.id);
+                        }}
                       >
                         <Plus size={13} weight="bold" />
                       </button>
@@ -561,7 +675,10 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                           type="button"
                           className="p-1 hover:text-text-primary hover:bg-surface rounded-control transition-colors cursor-pointer text-text-muted"
                           title="Cài đặt danh mục"
-                          onClick={() => onOpenEditChannel(cat)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenEditChannel(cat);
+                          }}
                         >
                           <Gear size={13} weight="bold" />
                         </button>
@@ -659,7 +776,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 Đã kết nối thoại
               </div>
               <div className="text-[10px] text-text-muted truncate leading-tight">
-                {connectedChannelName || 'Kênh thoại'} / RTC {pingMs}ms
+                {connectedChannelName || 'Kênh thoại'}
               </div>
             </div>
           </div>
