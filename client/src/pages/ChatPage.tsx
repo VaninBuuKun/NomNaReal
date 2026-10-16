@@ -623,6 +623,33 @@ export const ChatPage: React.FC = () => {
       const wsList = await workspaceApi.getWorkspaces();
       setWorkspaces(wsList);
 
+      // Always pre-load User DMs in background so switching between Servers and DMs is seamless
+      let loadedDms: DirectMessageItem[] = [];
+      try {
+        const rawDms = await channelApi.getUserDms();
+        loadedDms = (rawDms || []).map((d: any) => ({
+          id: d.id,
+          workspaceId: d.serverId,
+          user: {
+            id: d.targetUserId,
+            displayName: d.targetDisplayName,
+            username: d.targetUsername,
+            avatarUrl: d.targetAvatarUrl,
+            email: d.targetEmail || "",
+            status: (d.targetStatus as any) || "offline",
+          },
+          lastMessage: d.lastMessage || "Cuộc trò chuyện mới",
+          lastMessageTime: d.lastMessageAt
+            ? formatMessageTime(d.lastMessageAt)
+            : undefined,
+          unreadCount: d.unreadCount || 0,
+          isPending: false,
+        }));
+        setDmConversations(loadedDms);
+      } catch (dmErr) {
+        console.error("Failed to fetch user DMs:", dmErr);
+      }
+
       const targetWsId = serverId || workspaceId;
       const isDmRoute =
         location.pathname.startsWith("/channels/@me") ||
@@ -632,68 +659,41 @@ export const ChatPage: React.FC = () => {
       if (isDmRoute) {
         setActiveSidebarView("dms");
         setActiveWorkspaceId(null);
-        try {
-          const rawDms = await channelApi.getUserDms();
-          const formattedDms: DirectMessageItem[] = (rawDms || []).map((d: any) => ({
-            id: d.id,
-            workspaceId: d.serverId,
-            user: {
-              id: d.targetUserId,
-              displayName: d.targetDisplayName,
-              username: d.targetUsername,
-              avatarUrl: d.targetAvatarUrl,
-              email: d.targetEmail || "",
-              status: (d.targetStatus as any) || "offline",
-            },
-            lastMessage: d.lastMessage || "Cuộc trò chuyện mới",
-            lastMessageTime: d.lastMessageAt
-              ? formatMessageTime(d.lastMessageAt)
-              : undefined,
-            unreadCount: d.unreadCount || 0,
-            isPending: false,
-          }));
-          setDmConversations(formattedDms);
-
-          if (chatId) {
-            const foundDm = formattedDms.find((d) => d.id === chatId);
-            if (foundDm) {
-              await handleSelectDmConversation(foundDm);
-            } else {
-              setActiveDmId(chatId);
-              setActiveChannelId(chatId);
-              activeChannelIdRef.current = chatId;
-              try {
-                const chanInfo = await channelApi.getChannel(chatId);
-                const synthesizedDm: DirectMessageItem = {
-                  id: chanInfo.id,
-                  workspaceId: chanInfo.serverId || chanInfo.workspaceId,
-                  user: {
-                    id: chanInfo.id,
-                    displayName: chanInfo.name || "Direct Message",
-                    username: chanInfo.name?.toLowerCase().replace(/\s+/g, "") || "user",
-                    email: "",
-                    status: "online",
-                  },
-                  lastMessage: "Cuộc trò chuyện",
-                  unreadCount: 0,
-                  isPending: false,
-                };
-                setDmConversations((prev) => [synthesizedDm, ...prev.filter((c) => c.id !== chatId)]);
-              } catch (e) {
-                console.warn("Could not fetch channel metadata for DM:", e);
-              }
-              await loadMessages(chatId);
-              await signalRService.joinChannel(chatId);
-            }
+        if (chatId) {
+          const foundDm = loadedDms.find((d) => d.id === chatId);
+          if (foundDm) {
+            await handleSelectDmConversation(foundDm);
           } else {
-            setActiveDmId(null);
-            setActiveChannelId(null);
-            activeChannelIdRef.current = null;
+            setActiveDmId(chatId);
+            setActiveChannelId(chatId);
+            activeChannelIdRef.current = chatId;
+            try {
+              const chanInfo = await channelApi.getChannel(chatId);
+              const synthesizedDm: DirectMessageItem = {
+                id: chanInfo.id,
+                workspaceId: chanInfo.serverId || chanInfo.workspaceId,
+                user: {
+                  id: chanInfo.id,
+                  displayName: chanInfo.name || "Direct Message",
+                  username: chanInfo.name?.toLowerCase().replace(/\s+/g, "") || "user",
+                  email: "",
+                  status: "online",
+                },
+                lastMessage: "Cuộc trò chuyện",
+                unreadCount: 0,
+                isPending: false,
+              };
+              setDmConversations((prev) => [synthesizedDm, ...prev.filter((c) => c.id !== chatId)]);
+            } catch (e) {
+              console.warn("Could not fetch channel metadata for DM:", e);
+            }
+            await loadMessages(chatId);
+            await signalRService.joinChannel(chatId);
           }
-        } catch (err) {
-          console.error("Failed to fetch user DMs:", err);
+        } else {
           setActiveDmId(null);
           setActiveChannelId(null);
+          activeChannelIdRef.current = null;
         }
       } else if (wsList.length > 0) {
         const targetWs =
@@ -707,9 +707,11 @@ export const ChatPage: React.FC = () => {
         );
 
         if (chList.length > 0) {
+          const selectableChannels = chList.filter((c) => c.type !== ChannelType.Category);
           const defaultCh =
-            chList.find((c) => c.id === channelId) ||
-            chList.find((c) => c.name?.toLowerCase() === "general") ||
+            (channelId && selectableChannels.find((c) => c.id === channelId)) ||
+            selectableChannels.find((c) => c.name?.toLowerCase() === "general") ||
+            selectableChannels[0] ||
             chList[0];
           await handleSelectChannel(defaultCh.id, targetWs.id);
         }
@@ -751,6 +753,9 @@ export const ChatPage: React.FC = () => {
       if (activeSidebarView !== "dms") {
         setActiveSidebarView("dms");
       }
+      if (activeWorkspaceId !== null) {
+        setActiveWorkspaceId(null);
+      }
       if (chatId) {
         if (activeDmId !== chatId) {
           setActiveDmId(chatId);
@@ -766,19 +771,32 @@ export const ChatPage: React.FC = () => {
           activeChannelIdRef.current = null;
         }
       }
-    } else if (serverId && channelId) {
+    } else if (serverId) {
       if (activeSidebarView !== "channels") {
         setActiveSidebarView("channels");
       }
       if (activeWorkspaceId !== serverId) {
         setActiveWorkspaceId(serverId);
-        loadWorkspaceData(serverId, currentUser?.id);
-      }
-      if (activeChannelId !== channelId) {
+        loadWorkspaceData(serverId, currentUser?.id).then(({ channels: chs }) => {
+          const selectable = chs.filter((c) => c.type !== ChannelType.Category);
+          const target = (channelId && selectable.find((c) => c.id === channelId)) ||
+            selectable.find((c) => c.name?.toLowerCase() === "general") ||
+            selectable[0];
+          if (target && target.id !== activeChannelIdRef.current) {
+            handleSelectChannel(target.id, serverId);
+          }
+        });
+      } else if (channelId && activeChannelId !== channelId) {
         setActiveChannelId(channelId);
         activeChannelIdRef.current = channelId;
         loadMessages(channelId);
         signalRService.joinChannel(channelId);
+      } else if (!channelId && channels.length > 0) {
+        const selectable = channels.filter((c) => c.type !== ChannelType.Category);
+        const target = selectable.find((c) => c.name?.toLowerCase() === "general") || selectable[0];
+        if (target && target.id !== activeChannelIdRef.current) {
+          handleSelectChannel(target.id, serverId);
+        }
       }
     }
   }, [location.pathname, serverId, channelId, chatId, isInitializing]);
@@ -1269,9 +1287,7 @@ export const ChatPage: React.FC = () => {
               />
             ) : activeSidebarView === "dms" ? (
               <DirectMessagesSidebar
-                conversations={dmConversations.filter(
-                  (c) => !c.workspaceId || c.workspaceId === activeWorkspaceId,
-                )}
+                conversations={dmConversations}
                 activeConversationId={activeDmId}
                 isFriendsActive={!activeDmId}
                 onSelectFriends={() => {

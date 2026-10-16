@@ -329,48 +329,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     }
   };
 
-  // Syntax highlighter for @mentions inside chat input
-  const renderInputHighlights = (text: string) => {
-    if (!text) return null;
-    const parts: React.ReactNode[] = [];
-    const regex = /(@(?:all|everyone|channel|here)\b|@[a-zA-Z0-9_\.]+)/gi;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = regex.exec(text)) !== null) {
-      if (match.index > lastIndex) {
-        parts.push(text.substring(lastIndex, match.index));
-      }
-      const token = match[0];
-      const tag = token.slice(1).toLowerCase();
-      const isAllOrEveryone = tag === 'all' || tag === 'everyone';
-      const isChannel = tag === 'channel';
-      const isHere = tag === 'here';
-
-      let mentionClasses = 'bg-accent-soft text-accent-primary border border-accent-primary/25 font-semibold';
-      if (isAllOrEveryone) {
-        mentionClasses = 'bg-amber-500/25 text-amber-500 border border-amber-500/40 font-extrabold';
-      } else if (isChannel) {
-        mentionClasses = 'bg-amber-500/20 text-amber-500 border border-amber-500/30 font-bold';
-      } else if (isHere) {
-        mentionClasses = 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 font-bold';
-      }
-
-      parts.push(
-        <span
-          key={match.index}
-          className={`rounded-control px-1 py-0.2 mx-0.5 inline-block ${mentionClasses}`}
-        >
-          {token}
-        </span>
-      );
-      lastIndex = match.index + token.length;
-    }
-    if (lastIndex < text.length) {
-      parts.push(text.substring(lastIndex));
-    }
-    return parts;
-  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -783,10 +741,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         currentChannel={currentChannel}
         currentUser={currentUser}
         messages={messages}
-        onSendMessage={async (text) => {
-          await onSendMessage(text);
-        }}
+        onSendMessage={onSendMessage}
         onToggleReaction={handleReactionClick}
+        onOpenUserProfile={onOpenUserProfile}
       />
     );
   }
@@ -1024,7 +981,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 <div
                   id={`msg-${msg.id}`}
                   className={`group relative flex items-start gap-3 w-full px-4 sm:px-5 rounded-none transition-colors duration-100 ${isMentioningMe
-                      ? "bg-amber-500/[0.08] border-l-2 border-amber-500 hover:bg-amber-500/[0.12]"
+                      ? "bg-accent-soft/20 border-l-2 border-accent-primary hover:bg-accent-soft/30"
                       : "hover:bg-[var(--bg-surface)]"
                     } ${isConsecutive ? "py-0.5" : "py-1.5 mt-2"
                     }`}
@@ -1150,14 +1107,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                           onClose={() => setIsEditMentionOpen(false)}
                         />
 
-                        {/* Textarea with Mention Highlight Backdrop */}
+                        {/* Textarea for Editing Message */}
                         <div className="relative w-full">
-                          <div
-                            aria-hidden="true"
-                            className="absolute inset-0 pointer-events-none whitespace-pre-wrap break-words text-[0.92rem] font-sans text-transparent overflow-hidden leading-normal select-none"
-                          >
-                            {renderInputHighlights(editContent)}
-                          </div>
                           <textarea
                             ref={editTextareaRef}
                             value={editContent}
@@ -1181,7 +1132,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                             }}
                             rows={2}
                             autoFocus
-                            className="relative z-10 bg-transparent border-none outline-none text-[0.92rem] text-[var(--text-primary)] resize-none w-full leading-normal"
+                            className="bg-transparent border-none outline-none text-[0.92rem] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] resize-none w-full leading-normal"
                           />
                         </div>
 
@@ -1509,19 +1460,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             />
           )}
 
-          {/* Text input area with syntax backdrop for mentions */}
+          {/* Text input area */}
           <div className="relative w-full min-h-[46px]">
-            {/* Syntax backdrop overlay for mentions like @all, @everyone, etc. */}
-            <div
-              className="absolute inset-0 pointer-events-none text-[0.92rem] leading-normal font-sans break-words whitespace-pre-wrap select-none overflow-hidden text-transparent"
-              aria-hidden="true"
-            >
-              {renderInputHighlights(content)}
-            </div>
-
             <textarea
               ref={textareaRef}
-              className="relative z-10 bg-transparent border-none outline-none text-[var(--text-primary)] placeholder:text-[var(--text-muted)] text-[0.92rem] resize-none w-full leading-normal disabled:opacity-50"
+              className="bg-transparent border-none outline-none text-[var(--text-primary)] caret-[var(--accent-primary)] placeholder:text-[var(--text-muted)] text-[0.92rem] resize-none w-full leading-normal disabled:opacity-50"
               rows={2}
               value={content}
               onChange={handleInputChange}

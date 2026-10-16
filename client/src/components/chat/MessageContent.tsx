@@ -67,25 +67,22 @@ function parseInlineMarkdown(text: string, currentUsername?: string): React.Reac
     } else if (token.startsWith("@")) {
       const tag = token.slice(1).toLowerCase();
       const isMe = currentUsername && tag === currentUsername.toLowerCase();
-      const isAllOrEveryone = tag === "all" || tag === "everyone";
-      const isChannel = tag === "channel";
+      const isAllOrEveryone = tag === "all" || tag === "everyone" || tag === "channel";
       const isHere = tag === "here";
 
-      let badgeClasses = "bg-[var(--accent-soft)] text-[var(--accent-primary)] font-semibold";
-      if (isAllOrEveryone) {
-        badgeClasses = "bg-amber-500/25 text-amber-500 font-extrabold border border-amber-500/40 shadow-xs";
-      } else if (isChannel) {
-        badgeClasses = "bg-amber-500/20 text-amber-500 font-bold border border-amber-500/30";
+      let badgeClasses = "bg-accent-soft text-accent-primary font-medium hover:bg-accent-primary hover:text-on-accent transition-colors cursor-pointer";
+      if (isMe) {
+        badgeClasses = "bg-accent-soft text-accent-primary font-bold border border-accent-primary/40 hover:bg-accent-primary hover:text-on-accent transition-colors cursor-pointer";
+      } else if (isAllOrEveryone) {
+        badgeClasses = "bg-accent-soft text-accent-primary font-bold border border-accent-primary/20";
       } else if (isHere) {
         badgeClasses = "bg-emerald-500/20 text-emerald-500 font-bold border border-emerald-500/30";
-      } else if (isMe) {
-        badgeClasses = "bg-amber-500/25 text-amber-500 font-bold border border-amber-500/30";
       }
 
       parts.push(
         <span
           key={match.index}
-          className={`inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded-md text-[0.84rem] transition-colors ${badgeClasses}`}
+          className={`inline align-baseline px-1.5 py-0.5 mx-0.5 rounded-control text-[0.84rem] transition-colors ${badgeClasses}`}
         >
           {token}
         </span>

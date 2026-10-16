@@ -13,10 +13,9 @@ import {
   SignOut,
   Lock,
   DotsSixVertical,
-  Microphone,
+  PhoneDisconnect,
   MicrophoneSlash,
   Headphones,
-  PhoneDisconnect,
   Waveform,
 } from '@phosphor-icons/react';
 import { ChannelType, type Channel, type Workspace } from '../../types';
@@ -75,12 +74,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   const {
     connectedChannelId,
     connectedChannelName,
-    isMuted,
-    isDeafened,
     participants,
     leaveVoice,
-    toggleMute,
-    toggleDeafen,
   } = useVoiceStore();
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -768,14 +763,22 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
       {/* 3. Discord-like Voice Connection Panel (Docked at bottom of channel sidebar) */}
       {connectedChannelId && (
-        <div className="px-3 py-2 border-t border-border bg-surface shrink-0 flex items-center justify-between">
-          <div className="min-w-0 flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-success animate-ping shrink-0" />
+        <div className="px-3.5 py-2.5 border-t border-border bg-surface shrink-0 flex items-center justify-between shadow-xs">
+          <div className="min-w-0 flex items-center gap-2.5">
+            <div className="relative flex items-center justify-center w-7 h-7 rounded-full bg-success-soft shrink-0">
+              <span className="w-2 h-2 rounded-full bg-success" />
+              <span className="absolute inset-0 rounded-full border border-success/40 animate-ping" />
+            </div>
             <div className="min-w-0">
-              <div className="text-[12px] font-bold text-success truncate leading-tight">
-                Đã kết nối thoại
+              <div className="flex items-center gap-1.5">
+                <span className="text-[12px] font-bold text-success truncate leading-tight">
+                  Đã kết nối thoại
+                </span>
+                <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-success/15 text-success">
+                  RTC
+                </span>
               </div>
-              <div className="text-[10px] text-text-muted truncate leading-tight">
+              <div className="text-[11px] text-text-muted truncate leading-tight mt-0.5 font-medium">
                 {connectedChannelName || 'Kênh thoại'}
               </div>
             </div>
@@ -784,41 +787,11 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
-              onClick={toggleMute}
-              className={`p-1.5 rounded-control transition-colors cursor-pointer ${
-                isMuted
-                  ? 'text-danger hover:bg-danger-soft'
-                  : 'text-text-muted hover:text-text-primary hover:bg-surface-active'
-              }`}
-              title={isMuted ? 'Bật Mic' : 'Tắt Mic'}
-            >
-              {isMuted ? (
-                <MicrophoneSlash size={15} weight="bold" />
-              ) : (
-                <Microphone size={15} weight="bold" />
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleDeafen}
-              className={`p-1.5 rounded-control transition-colors cursor-pointer ${
-                isDeafened
-                  ? 'text-danger hover:bg-danger-soft'
-                  : 'text-text-muted hover:text-text-primary hover:bg-surface-active'
-              }`}
-              title={isDeafened ? 'Bật âm thanh' : 'Tắt toàn bộ âm thanh'}
-            >
-              <Headphones size={15} weight={isDeafened ? 'fill' : 'bold'} />
-            </button>
-
-            <button
-              type="button"
               onClick={leaveVoice}
-              className="p-1.5 rounded-control text-danger hover:bg-danger hover:text-on-accent transition-colors cursor-pointer"
-              title="Ngắt kết nối"
+              className="p-2 rounded-lg bg-danger/10 text-danger hover:bg-danger hover:text-white transition-all shadow-xs cursor-pointer active:scale-95"
+              title="Ngắt kết nối phòng thoại"
             >
-              <PhoneDisconnect size={15} weight="bold" />
+              <PhoneDisconnect size={16} weight="bold" />
             </button>
           </div>
         </div>

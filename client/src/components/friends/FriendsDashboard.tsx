@@ -612,9 +612,9 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
                           />
 
                           <div className="min-w-0 leading-tight">
-                            <div className="text-sm font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-primary)] transition-colors">
-                              {friend.displayName}
-                              <span className="text-xs text-[var(--text-muted)] font-normal ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-baseline gap-1.5 text-sm font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-primary)] transition-colors">
+                              <span className="truncate">{friend.displayName}</span>
+                              <span className="text-xs text-[var(--text-muted)] font-normal opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                                 @{friend.username}
                               </span>
                             </div>
