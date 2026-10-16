@@ -68,9 +68,20 @@ public class ChannelsController : ApiControllerBase
     public async Task<IActionResult> GetMessages(
         [FromRoute] Guid channelId,
         [FromQuery] DateTime? before,
-        [FromQuery] int limit = 50)
+        [FromQuery] DateTime? after,
+        [FromQuery] int limit = 25)
     {
-        var result = await Mediator.Send(new GetMessagesQuery(channelId, before, limit));
+        var result = await Mediator.Send(new GetMessagesQuery(channelId, before, after, limit));
+        return HandleResult(result);
+    }
+
+    [HttpGet("{channelId}/messages/around")]
+    public async Task<IActionResult> GetMessagesAround(
+        [FromRoute] Guid channelId,
+        [FromQuery] Guid messageId,
+        [FromQuery] int limit = 30)
+    {
+        var result = await Mediator.Send(new NomNa.Application.Features.Messages.Queries.GetMessagesAround.GetMessagesAroundQuery(channelId, messageId, limit));
         return HandleResult(result);
     }
 
@@ -79,7 +90,7 @@ public class ChannelsController : ApiControllerBase
         [FromRoute] Guid channelId,
         [FromBody] SendMessageRequest request)
     {
-        var result = await Mediator.Send(new SendMessageCommand(channelId, request.Content, request.ThreadId, request.Attachments));
+        var result = await Mediator.Send(new SendMessageCommand(channelId, request.Content, request.ReplyToMessageId, request.Attachments));
         return HandleResult(result);
     }
 
@@ -137,6 +148,6 @@ public class ChannelsController : ApiControllerBase
 }
 
 public record CreateDmChannelRequest(Guid TargetUserId, Guid? ServerId = null);
-public record SendMessageRequest(string? Content, Guid? ThreadId = null, List<NomNa.Application.Features.Messages.DTOs.AttachmentInputDto>? Attachments = null);
+public record SendMessageRequest(string? Content, Guid? ReplyToMessageId = null, List<NomNa.Application.Features.Messages.DTOs.AttachmentInputDto>? Attachments = null);
 public record UpdateChannelRequest(string? Name = null, string? Topic = null, Guid? CategoryId = null, int? Position = null, bool? IsPrivate = null);
 public record AddChannelMemberRequest(Guid UserId);

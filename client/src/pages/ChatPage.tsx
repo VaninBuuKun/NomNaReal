@@ -93,13 +93,16 @@ export const ChatPage: React.FC = () => {
     activeChannelId,
     messages,
     hasMoreMessages,
+    hasNewerMessages,
     isLoadingMessages,
     isLoadingMoreMessages,
+    isLoadingNewerMessages,
     typingUser,
     setChannels,
     setActiveChannelId,
     setMessages,
     appendOlderMessages,
+    appendNewerMessages,
     addMessage,
     updateMessage,
     deleteMessage,
@@ -107,8 +110,10 @@ export const ChatPage: React.FC = () => {
     markChannelRead,
     setChannelUnread,
     setHasMoreMessages,
+    setHasNewerMessages,
     setIsLoadingMessages,
     setIsLoadingMoreMessages,
+    setIsLoadingNewerMessages,
   } = useChatStore();
 
   const activeChannelIdRef = useRef<string | null>(null);
@@ -130,14 +135,10 @@ export const ChatPage: React.FC = () => {
   // 4. UI Store
   const {
     activeSidebarView,
-    isThreadOpen,
-    activeThreadMessage,
     isMemberListOpen,
     isPinnedSidebarOpen,
     channelWidth,
     setActiveSidebarView,
-    openThread,
-    closeThread,
     toggleMemberList,
     setMemberListOpen,
     togglePinnedSidebar,
@@ -149,18 +150,16 @@ export const ChatPage: React.FC = () => {
     setChannelToAddMember,
     setNewDmOpen,
     setSettingsOpen,
-    expandThread,
   } = useUiStore();
 
   // Auto-close all right sidebars when switching to DMs view
   useEffect(() => {
     if (activeSidebarView === "dms") {
-      closeThread();
       setMemberListOpen(false);
       closePinnedSidebar();
       closeSearch();
     }
-  }, [activeSidebarView, closeThread, setMemberListOpen, closePinnedSidebar, closeSearch]);
+  }, [activeSidebarView, setMemberListOpen, closePinnedSidebar, closeSearch]);
 
   const activeSidebarViewRef = useRef(activeSidebarView);
   activeSidebarViewRef.current = activeSidebarView;
@@ -168,12 +167,10 @@ export const ChatPage: React.FC = () => {
   // Panel Resizers Hook
   const {
     isResizingChannel,
-    isResizingThread,
     isResizingMember,
     isResizingSearch,
     isResizingPinned,
     handleChannelResizeStart,
-    handleThreadResizeStart,
     handleMemberResizeStart,
     handleSearchResizeStart,
     handlePinnedResizeStart,
@@ -260,13 +257,15 @@ export const ChatPage: React.FC = () => {
   const loadMessages = async (channelId: string) => {
     try {
       setIsLoadingMessages(true);
-      const res = await messageApi.getMessages(channelId);
+      const res = await messageApi.getMessages(channelId, undefined, undefined, 25);
       setMessages(res.messages);
-      setHasMoreMessages(res.hasMore);
+      setHasMoreMessages(res.hasOlder ?? res.hasMore ?? false);
+      setHasNewerMessages(false);
     } catch (err) {
       console.error("Failed to load messages:", err);
       setMessages([]);
       setHasMoreMessages(false);
+      setHasNewerMessages(false);
     } finally {
       setIsLoadingMessages(false);
     }
@@ -289,14 +288,50 @@ export const ChatPage: React.FC = () => {
       const res = await messageApi.getMessages(
         activeChannelId,
         oldestMessage.createdAt,
+        undefined,
+        25
       );
       appendOlderMessages(res.messages);
-      setHasMoreMessages(res.hasMore);
+      setHasMoreMessages(res.hasOlder ?? res.hasMore ?? false);
     } catch (err) {
       console.error("Failed to load older messages:", err);
     } finally {
       setIsLoadingMoreMessages(false);
     }
+  };
+
+  // Load newer messages (infinite scroll down when viewing history)
+  const handleLoadNewerMessages = async () => {
+    if (
+      !activeChannelId ||
+      isLoadingNewerMessages ||
+      !hasNewerMessages ||
+      messages.length === 0
+    ) {
+      return;
+    }
+
+    try {
+      setIsLoadingNewerMessages(true);
+      const newestMessage = messages[messages.length - 1];
+      const res = await messageApi.getMessages(
+        activeChannelId,
+        undefined,
+        newestMessage.createdAt,
+        25
+      );
+      appendNewerMessages(res.messages);
+      setHasNewerMessages(res.hasNewer ?? false);
+    } catch (err) {
+      console.error("Failed to load newer messages:", err);
+    } finally {
+      setIsLoadingNewerMessages(false);
+    }
+  };
+
+  const handleJumpToPresent = async () => {
+    if (!activeChannelId) return;
+    await loadMessages(activeChannelId);
   };
 
   // Switch Active Channel
@@ -340,9 +375,48 @@ export const ChatPage: React.FC = () => {
     }
   }, [activeChannelId]);
 
+  const handleJumpToMessage = useCallback(
+    async (messageId: string, targetChannelId?: string) => {
+      const channelToUse = targetChannelId || activeChannelId || activeDmId;
+      if (targetChannelId && targetChannelId !== (activeChannelId || activeDmId)) {
+        handleSelectChannel(targetChannelId);
+        await new Promise((r) => setTimeout(r, 200));
+      }
+
+      let el = document.getElementById(`msg-${messageId}`);
+      if (!el && channelToUse) {
+        try {
+          setIsLoadingMessages(true);
+          const res = await messageApi.getMessagesAround(channelToUse, messageId, 30);
+          if (res && res.messages && res.messages.length > 0) {
+            setMessages(res.messages);
+            setHasMoreMessages(res.hasOlder ?? res.hasMore ?? false);
+            setHasNewerMessages(res.hasNewer ?? false);
+            await new Promise((r) => setTimeout(r, 100));
+            el = document.getElementById(`msg-${messageId}`);
+          }
+        } catch (err) {
+          console.error("Failed to load messages around target:", err);
+        } finally {
+          setIsLoadingMessages(false);
+        }
+      }
+
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.remove("animate-message-highlight");
+        void el.offsetWidth;
+        el.classList.add("animate-message-highlight");
+        setTimeout(() => {
+          el.classList.remove("animate-message-highlight");
+        }, 2200);
+      }
+    },
+    [activeChannelId, activeDmId, handleSelectChannel, setMessages, setHasMoreMessages, setIsLoadingMessages]
+  );
+
   const handleNavigateFromNotification = useCallback(
     (notif: AppNotification) => {
-
       setActiveSidebarView("channels");
       if (
         notif.workspaceId &&
@@ -356,20 +430,11 @@ export const ChatPage: React.FC = () => {
 
       if (notif.messageId) {
         setTimeout(() => {
-          const el = document.getElementById(`msg-${notif.messageId}`);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-            el.classList.remove("animate-message-highlight");
-            void el.offsetWidth;
-            el.classList.add("animate-message-highlight");
-            setTimeout(() => {
-              el.classList.remove("animate-message-highlight");
-            }, 2200);
-          }
-        }, 350);
+          handleJumpToMessage(notif.messageId!, notif.channelId);
+        }, 300);
       }
     },
-    [handleSelectChannel, setActiveWorkspaceId, setActiveSidebarView],
+    [handleSelectChannel, setActiveWorkspaceId, setActiveSidebarView, handleJumpToMessage],
   );
 
   const handleNotificationSelect = useCallback((notif: AppNotification) => {
@@ -806,6 +871,7 @@ export const ChatPage: React.FC = () => {
       contentType: string;
       type: "image" | "video" | "file";
     }>,
+    replyToMessageId?: string,
   ) => {
     if (!activeChannelId && !activeDmId) return;
     const targetChannelId = activeChannelId || activeDmId!;
@@ -827,7 +893,7 @@ export const ChatPage: React.FC = () => {
         const realSent = await signalRService.sendMessage(
           realDm.id,
           msgContent,
-          undefined,
+          replyToMessageId || null,
           attachments,
         );
         if (realSent) {
@@ -841,6 +907,10 @@ export const ChatPage: React.FC = () => {
     }
 
     const tempId = `temp-${Date.now()}`;
+    const repliedMsg = replyToMessageId
+      ? messages.find((m) => m.id === replyToMessageId)
+      : undefined;
+
     const optimisticMessage: Message = {
       id: tempId,
       channelId: targetChannelId,
@@ -851,6 +921,16 @@ export const ChatPage: React.FC = () => {
       content: msgContent,
       createdAt: new Date().toISOString(),
       isEdited: false,
+      replyTo: repliedMsg
+        ? {
+            id: repliedMsg.id,
+            senderId: repliedMsg.senderId,
+            senderDisplayName: repliedMsg.senderDisplayName,
+            senderAvatarUrl: repliedMsg.senderAvatarUrl,
+            content: repliedMsg.content,
+            isDeleted: false,
+          }
+        : undefined,
       attachments: attachments?.map((a) => ({
         id: `att-${Date.now()}`,
         url: a.url,
@@ -867,7 +947,7 @@ export const ChatPage: React.FC = () => {
       const realMessage = await signalRService.sendMessage(
         targetChannelId,
         msgContent,
-        undefined,
+        replyToMessageId || null,
         attachments,
       );
       if (realMessage) {
@@ -1193,11 +1273,6 @@ export const ChatPage: React.FC = () => {
     currentUserMember,
   ]);
 
-  const handleOpenThread = (msg: Message) => {
-    openThread(msg);
-    expandThread();
-  };
-
   if (isInitializing && !currentUser) {
     return <></>;
   }
@@ -1216,11 +1291,11 @@ export const ChatPage: React.FC = () => {
         className="flex flex-col overflow-hidden h-[100dvh] w-screen relative"
         style={{
           userSelect:
-            isResizingChannel || isResizingThread || isResizingMember
+            isResizingChannel || isResizingMember
               ? "none"
               : "auto",
           cursor:
-            isResizingChannel || isResizingThread || isResizingMember
+            isResizingChannel || isResizingMember
               ? "col-resize"
               : "auto",
         }}
@@ -1370,22 +1445,15 @@ export const ChatPage: React.FC = () => {
               activeChannelId && signalRService.stopTyping(activeChannelId)
             }
             typingUser={typingUser}
-            onToggleThread={() => {
-              if (!isThreadOpen) {
-                if (!activeThreadMessage && messages.length > 0) {
-                  openThread(messages[0]);
-                }
-                expandThread();
-              } else {
-                closeThread();
-              }
-            }}
-            onOpenThread={handleOpenThread}
             onStartDmWithUser={handleStartDmWithUser}
             hasMoreMessages={hasMoreMessages}
             isLoadingMore={isLoadingMoreMessages}
+            hasNewerMessages={hasNewerMessages}
+            isLoadingNewer={isLoadingNewerMessages}
             isLoadingMessages={isLoadingMessages}
             onLoadMoreMessages={handleLoadMoreMessages}
+            onLoadNewerMessages={handleLoadNewerMessages}
+            onJumpToPresent={handleJumpToPresent}
             workspaceMembers={workspaceMembers}
             isMemberListOpen={isMemberListOpen}
             onToggleMemberList={toggleMemberList}
@@ -1395,10 +1463,11 @@ export const ChatPage: React.FC = () => {
             onUnpinMessage={handleUnpinMessage}
             isPinnedSidebarOpen={isPinnedSidebarOpen}
             onTogglePinnedSidebar={togglePinnedSidebar}
+            onJumpToMessage={handleJumpToMessage}
           />
         )}
 
-        {/* 4. Right Sidebars Container (Thread, Members, Search, Pinned, Tasks) */}
+        {/* 4. Right Sidebars Container (Members, Search, Pinned, Tasks) */}
         <ChatRightPanels
           currentUser={currentUser}
           currentUserRole={currentUserRole}
@@ -1413,14 +1482,13 @@ export const ChatPage: React.FC = () => {
           handleEditMessage={handleEditMessage}
           handleDeleteMessage={handleDeleteMessage}
           handleUnpinMessage={handleUnpinMessage}
-          isResizingThread={isResizingThread}
           isResizingMember={isResizingMember}
           isResizingSearch={isResizingSearch}
           isResizingPinned={isResizingPinned}
-          handleThreadResizeStart={handleThreadResizeStart}
           handleMemberResizeStart={handleMemberResizeStart}
           handleSearchResizeStart={handleSearchResizeStart}
           handlePinnedResizeStart={handlePinnedResizeStart}
+          onJumpToMessage={handleJumpToMessage}
         />
         </div>
       </main>

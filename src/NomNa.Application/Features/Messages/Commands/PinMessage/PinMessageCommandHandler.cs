@@ -39,10 +39,16 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
                 m.Id,
                 m.ChannelId,
                 m.Content,
-                m.ThreadId,
+                ReplyTo = m.ReplyToMessage != null ? new MessageReplyDto(
+                    m.ReplyToMessage.Id,
+                    m.ReplyToMessage.SenderId,
+                    m.ReplyToMessage.Sender.DisplayName ?? "Unknown",
+                    m.ReplyToMessage.Sender.AvatarUrl,
+                    m.ReplyToMessage.DeletedAt != null ? "Tin nhắn đã bị xóa" : m.ReplyToMessage.Content,
+                    m.ReplyToMessage.DeletedAt != null
+                ) : null,
                 m.IsEdited,
                 m.CreatedAt,
-                m.ReplyCount,
                 SenderId = m.SenderId,
                 SenderDisplayName = m.Sender.DisplayName,
                 SenderUserName = m.Sender.UserName,
@@ -94,10 +100,9 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
             messageInfo.SenderUserName ?? "unknown",
             messageInfo.SenderAvatarUrl,
             messageInfo.Content,
-            messageInfo.ThreadId,
+            messageInfo.ReplyTo,
             messageInfo.IsEdited,
             messageInfo.CreatedAt,
-            messageInfo.ReplyCount,
             null,
             messageInfo.Attachments
         );

@@ -86,10 +86,16 @@ public class GetPinnedMessagesQueryHandler : IRequestHandler<GetPinnedMessagesQu
                     p.Message.Sender.UserName ?? "unknown",
                     p.Message.Sender.AvatarUrl,
                     p.Message.Content,
-                    p.Message.ThreadId,
+                    p.Message.ReplyToMessage != null ? new MessageReplyDto(
+                        p.Message.ReplyToMessage.Id,
+                        p.Message.ReplyToMessage.SenderId,
+                        p.Message.ReplyToMessage.Sender.DisplayName ?? "Unknown",
+                        p.Message.ReplyToMessage.Sender.AvatarUrl,
+                        p.Message.ReplyToMessage.DeletedAt != null ? "Tin nhắn đã bị xóa" : p.Message.ReplyToMessage.Content,
+                        p.Message.ReplyToMessage.DeletedAt != null
+                    ) : null,
                     p.Message.IsEdited,
                     p.Message.CreatedAt,
-                    p.Message.ReplyCount,
                     null,
                     p.Message.Attachments.Select(a => new MessageAttachmentDto(
                         a.Url,

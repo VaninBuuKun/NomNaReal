@@ -49,19 +49,42 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
         }
 
         // 2. Cursor pagination query
+        var limit = Math.Clamp(request.Limit, 1, 100);
+        bool hasOlder = false;
+        bool hasNewer = false;
+        bool shouldReverse = true;
+
         var query = _context.Messages
             .AsNoTracking()
-            .Where(m => m.ChannelId == request.ChannelId && m.DeletedAt == null && m.ThreadId == null);
+            .Where(m => m.ChannelId == request.ChannelId && m.DeletedAt == null);
 
-        if (request.Before.HasValue)
+        if (request.After.HasValue)
         {
-            query = query.Where(m => m.CreatedAt < request.Before.Value);
+            // Scrolling down / forward: fetch messages AFTER cursor in chronological order
+            query = query
+                .Where(m => m.CreatedAt > request.After.Value)
+                .OrderBy(m => m.CreatedAt);
+            shouldReverse = false;
+            hasOlder = true;
+        }
+        else
+        {
+            // Scrolling up / backward or initial load: fetch messages BEFORE cursor (or latest) in reverse chronological order
+            if (request.Before.HasValue)
+            {
+                query = query.Where(m => m.CreatedAt < request.Before.Value);
+                hasNewer = true;
+            }
+            else
+            {
+                hasNewer = false;
+            }
+
+            query = query.OrderByDescending(m => m.CreatedAt);
+            shouldReverse = true;
         }
 
-        var limit = Math.Clamp(request.Limit, 1, 100);
-
         var rawMessages = await query
-            .OrderByDescending(m => m.CreatedAt)
             .Take(limit + 1)
             .Select(m => new
             {
@@ -72,21 +95,36 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
                 SenderUsername = m.Sender.UserName ?? string.Empty,
                 SenderAvatarUrl = m.Sender.AvatarUrl,
                 m.Content,
-                m.ThreadId,
+                ReplyTo = m.ReplyToMessage != null ? new MessageReplyDto(
+                    m.ReplyToMessage.Id,
+                    m.ReplyToMessage.SenderId,
+                    m.ReplyToMessage.Sender.DisplayName ?? "Unknown",
+                    m.ReplyToMessage.Sender.AvatarUrl,
+                    m.ReplyToMessage.DeletedAt != null ? "Tin nhắn đã bị xóa" : m.ReplyToMessage.Content,
+                    m.ReplyToMessage.DeletedAt != null
+                ) : null,
                 m.IsEdited,
                 m.CreatedAt,
-                m.ReplyCount,
                 m.Attachments
             })
             .ToListAsync(cancellationToken);
 
-        var hasMore = rawMessages.Count > limit;
-        if (hasMore)
+        var hasMoreInBatch = rawMessages.Count > limit;
+        if (hasMoreInBatch)
         {
             rawMessages.RemoveAt(rawMessages.Count - 1);
         }
 
-        var nextCursor = hasMore && rawMessages.Count > 0 ? rawMessages[^1].CreatedAt : (DateTime?)null;
+        if (request.After.HasValue)
+        {
+            hasNewer = hasMoreInBatch;
+        }
+        else
+        {
+            hasOlder = hasMoreInBatch;
+        }
+
+        var nextCursor = hasMoreInBatch && rawMessages.Count > 0 ? rawMessages[^1].CreatedAt : (DateTime?)null;
 
         // Batch fetch reactions for the retrieved messages in a single query
         var messageIds = rawMessages.Select(m => m.Id).ToList();
@@ -122,10 +160,9 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
             m.SenderUsername,
             m.SenderAvatarUrl,
             m.Content,
-            m.ThreadId,
+            m.ReplyTo,
             m.IsEdited,
             m.CreatedAt,
-            m.ReplyCount,
             reactionsByMessage.GetValueOrDefault(m.Id) ?? new List<ReactionGroupDto>(),
             m.Attachments != null
                 ? m.Attachments.Select(a => new MessageAttachmentDto(
@@ -138,9 +175,12 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
                 : new List<MessageAttachmentDto>()
         )).ToList();
 
-        // Reverse so client receives chronological order (oldest to newest)
-        messages.Reverse();
+        // Reverse if fetched in descending order so client always receives chronological order (oldest to newest)
+        if (shouldReverse)
+        {
+            messages.Reverse();
+        }
 
-        return new MessagesResponseDto(messages, hasMore, nextCursor);
+        return new MessagesResponseDto(messages, hasMoreInBatch, nextCursor, hasOlder, hasNewer);
     }
 }

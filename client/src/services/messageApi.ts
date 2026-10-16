@@ -1,23 +1,36 @@
 import { httpClient } from './httpClient';
-import type { Message, MessageEdited, ThreadDetails, MessagesResponse, PinnedMessage, LinkPreviewData } from '../types';
+import type { Message, MessageEdited, MessagesResponse, PinnedMessage, LinkPreviewData } from '../types';
 
 export const messageApi = {
-  getMessages: async (channelId: string, before?: string, limit: number = 50): Promise<MessagesResponse> => {
+  getMessages: async (
+    channelId: string,
+    before?: string,
+    after?: string,
+    limit: number = 25
+  ): Promise<MessagesResponse> => {
     const params: Record<string, any> = { limit };
     if (before) params.before = before;
+    if (after) params.after = after;
     const res = await httpClient.get<MessagesResponse>(`/channels/${channelId}/messages`, { params });
+    return res.data;
+  },
+
+  getMessagesAround: async (channelId: string, messageId: string, limit: number = 30): Promise<MessagesResponse> => {
+    const res = await httpClient.get<MessagesResponse>(`/channels/${channelId}/messages/around`, {
+      params: { messageId, limit },
+    });
     return res.data;
   },
 
   sendMessage: async (
     channelId: string,
     content?: string,
-    threadId?: string | null,
+    replyToMessageId?: string | null,
     attachments?: Array<{ url: string; fileName: string; fileSize: number; contentType: string; type: string }>
   ): Promise<Message> => {
     const res = await httpClient.post<Message>(`/channels/${channelId}/messages`, {
       content: content || '',
-      threadId,
+      replyToMessageId,
       attachments,
     });
     return res.data;
@@ -47,16 +60,6 @@ export const messageApi = {
 
   toggleReaction: async (messageId: string, emoji: string): Promise<void> => {
     await httpClient.post(`/messages/${messageId}/reactions`, { emoji });
-  },
-
-  getThreadReplies: async (messageId: string): Promise<ThreadDetails> => {
-    const res = await httpClient.get<ThreadDetails>(`/messages/${messageId}/thread`);
-    return res.data;
-  },
-
-  replyToThread: async (messageId: string, content: string): Promise<Message> => {
-    const res = await httpClient.post<Message>(`/messages/${messageId}/thread`, { content });
-    return res.data;
   },
 
   pinMessage: async (messageId: string): Promise<PinnedMessage> => {

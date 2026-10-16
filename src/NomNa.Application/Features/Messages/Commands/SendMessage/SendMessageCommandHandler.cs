@@ -65,12 +65,20 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
 
         var content = (request.Content ?? string.Empty).Trim();
 
+        Message? replyToMessage = null;
+        if (request.ReplyToMessageId.HasValue)
+        {
+            replyToMessage = await _context.Messages
+                .Include(m => m.Sender)
+                .FirstOrDefaultAsync(m => m.Id == request.ReplyToMessageId.Value && m.ChannelId == request.ChannelId, cancellationToken);
+        }
+
         var message = new Message
         {
             ChannelId = request.ChannelId,
             SenderId = userId.Value,
             Content = content,
-            ThreadId = request.ThreadId,
+            ReplyToMessageId = replyToMessage?.Id,
             Attachments = request.Attachments != null && request.Attachments.Count > 0
                 ? request.Attachments.Select(a => new MessageAttachmentItem
                 {
@@ -83,30 +91,17 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                 : new List<MessageAttachmentItem>()
         };
 
-        Message? parentMessage = null;
-        if (request.ThreadId == null)
+        channel.LastMessageAt = DateTime.UtcNow;
+        channel.LastMessageSenderId = userId.Value;
+        if (!string.IsNullOrWhiteSpace(content))
         {
-            channel.LastMessageAt = DateTime.UtcNow;
-            channel.LastMessageSenderId = userId.Value;
-            if (!string.IsNullOrWhiteSpace(content))
-            {
-                channel.LastMessageContent = content.Length > 200 ? content.Substring(0, 197) + "..." : content;
-            }
-            else if (message.Attachments.Count > 0)
-            {
-                channel.LastMessageContent = message.Attachments.Any(a => a.Type == "image" || a.ContentType.StartsWith("image/"))
-                    ? "[Hình ảnh]"
-                    : "[Tệp đính kèm]";
-            }
+            channel.LastMessageContent = content.Length > 200 ? content.Substring(0, 197) + "..." : content;
         }
-        else
+        else if (message.Attachments.Count > 0)
         {
-            parentMessage = await _context.Messages
-                .FirstOrDefaultAsync(m => m.Id == request.ThreadId.Value, cancellationToken);
-            if (parentMessage != null)
-            {
-                parentMessage.ReplyCount++;
-            }
+            channel.LastMessageContent = message.Attachments.Any(a => a.Type == "image" || a.ContentType.StartsWith("image/"))
+                ? "[Hình ảnh]"
+                : "[Tệp đính kèm]";
         }
 
         _context.Messages.Add(message);
@@ -212,12 +207,12 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                     _context.Notifications.Add(notif);
                 }
 
-                // Also check thread reply
-                if (parentMessage != null && parentMessage.SenderId != userId.Value && !targetUserIds.Contains(parentMessage.SenderId))
+                // Also check reply notification
+                if (replyToMessage != null && replyToMessage.SenderId != userId.Value && !targetUserIds.Contains(replyToMessage.SenderId))
                 {
-                    var threadNotif = new Notification
+                    var replyNotif = new Notification
                     {
-                        UserId = parentMessage.SenderId,
+                        UserId = replyToMessage.SenderId,
                         ActorId = userId.Value,
                         ServerId = channel.ServerId,
                         ChannelId = channel.Id,
@@ -227,8 +222,8 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                         Content = snippet,
                         IsRead = false
                     };
-                    createdNotifications.Add(threadNotif);
-                    _context.Notifications.Add(threadNotif);
+                    createdNotifications.Add(replyNotif);
+                    _context.Notifications.Add(replyNotif);
                 }
             }
 
@@ -270,6 +265,19 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
             a.Type
         )).ToList();
 
+        MessageReplyDto? replyToDto = null;
+        if (replyToMessage != null)
+        {
+            replyToDto = new MessageReplyDto(
+                replyToMessage.Id,
+                replyToMessage.SenderId,
+                replyToMessage.Sender?.DisplayName ?? "Unknown",
+                replyToMessage.Sender?.AvatarUrl,
+                replyToMessage.DeletedAt != null ? "Tin nhắn đã bị xóa" : replyToMessage.Content,
+                replyToMessage.DeletedAt != null
+            );
+        }
+
         return new MessageDto(
             message.Id,
             message.ChannelId,
@@ -278,10 +286,9 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
             user.UserName ?? string.Empty,
             user.AvatarUrl,
             message.Content,
-            message.ThreadId,
+            replyToDto,
             message.IsEdited,
             message.CreatedAt,
-            message.ReplyCount,
             null,
             attachmentDtos
         );

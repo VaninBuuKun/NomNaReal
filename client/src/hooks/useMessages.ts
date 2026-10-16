@@ -5,21 +5,25 @@ import type { Message, MessageEdited, ReactionUpdate, DeletedMessage } from '../
 export function useMessages(channelId?: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [hasMore, setHasMore] = useState<boolean>(false);
-  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const [hasOlder, setHasOlder] = useState<boolean>(false);
+  const [hasNewer, setHasNewer] = useState<boolean>(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState<boolean>(false);
+  const [isLoadingNewer, setIsLoadingNewer] = useState<boolean>(false);
 
   const fetchMessages = useCallback(async () => {
     if (!channelId) {
       setMessages([]);
-      setHasMore(false);
+      setHasOlder(false);
+      setHasNewer(false);
       return;
     }
 
     try {
       setIsLoading(true);
-      const data = await messageApi.getMessages(channelId);
+      const data = await messageApi.getMessages(channelId, undefined, undefined, 25);
       setMessages(data.messages);
-      setHasMore(data.hasMore);
+      setHasOlder(data.hasOlder ?? data.hasMore ?? false);
+      setHasNewer(false);
     } catch (err) {
       console.error('Failed to fetch messages:', err);
     } finally {
@@ -27,34 +31,62 @@ export function useMessages(channelId?: string) {
     }
   }, [channelId]);
 
-  const loadMoreMessages = useCallback(async () => {
-    if (!channelId || isLoadingMore || !hasMore || messages.length === 0) {
+  const loadOlderMessages = useCallback(async () => {
+    if (!channelId || isLoadingOlder || !hasOlder || messages.length === 0) {
       return;
     }
 
     try {
-      setIsLoadingMore(true);
+      setIsLoadingOlder(true);
       const oldestMessage = messages[0];
-      const data = await messageApi.getMessages(channelId, oldestMessage.createdAt);
-      setMessages((prev) => [...data.messages, ...prev]);
-      setHasMore(data.hasMore);
+      const data = await messageApi.getMessages(channelId, oldestMessage.createdAt, undefined, 25);
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const uniqueOlder = data.messages.filter((m) => !existingIds.has(m.id));
+        return [...uniqueOlder, ...prev];
+      });
+      setHasOlder(data.hasOlder ?? data.hasMore ?? false);
     } catch (err) {
-      console.error('Failed to load more messages:', err);
+      console.error('Failed to load older messages:', err);
     } finally {
-      setIsLoadingMore(false);
+      setIsLoadingOlder(false);
     }
-  }, [channelId, isLoadingMore, hasMore, messages]);
+  }, [channelId, isLoadingOlder, hasOlder, messages]);
+
+  const loadNewerMessages = useCallback(async () => {
+    if (!channelId || isLoadingNewer || !hasNewer || messages.length === 0) {
+      return;
+    }
+
+    try {
+      setIsLoadingNewer(true);
+      const newestMessage = messages[messages.length - 1];
+      const data = await messageApi.getMessages(channelId, undefined, newestMessage.createdAt, 25);
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id));
+        const uniqueNewer = data.messages.filter((m) => !existingIds.has(m.id));
+        return [...prev, ...uniqueNewer];
+      });
+      setHasNewer(data.hasNewer ?? false);
+    } catch (err) {
+      console.error('Failed to load newer messages:', err);
+    } finally {
+      setIsLoadingNewer(false);
+    }
+  }, [channelId, isLoadingNewer, hasNewer, messages]);
+
+  const jumpToPresent = useCallback(async () => {
+    await fetchMessages();
+  }, [fetchMessages]);
 
   useEffect(() => {
     fetchMessages();
   }, [fetchMessages]);
 
-  const sendMessage = async (content: string, threadId?: string): Promise<Message> => {
+  const sendMessage = async (content: string, replyToMessageId?: string): Promise<Message> => {
     if (!channelId) throw new Error('No active channel');
-    const msg = await messageApi.sendMessage(channelId, content, threadId);
-    if (!threadId) {
-      setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
-    }
+    const msg = await messageApi.sendMessage(channelId, content, replyToMessageId);
+    setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
     return msg;
   };
 
@@ -77,10 +109,11 @@ export function useMessages(channelId?: string) {
 
   // Realtime helpers for SignalR events
   const addIncomingMessage = useCallback((msg: Message) => {
-    if (!msg.threadId) {
-      setMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
-    }
-  }, []);
+    setMessages((prev) => {
+      if (hasNewer) return prev;
+      return prev.some((m) => m.id === msg.id) ? prev : [...prev, msg];
+    });
+  }, [hasNewer]);
 
   const handleMessageEdited = useCallback((msg: Message) => {
     setMessages((prev) =>
@@ -98,30 +131,39 @@ export function useMessages(channelId?: string) {
     );
   }, []);
 
-  const handleThreadReplyCountUpdated = useCallback(
-    (data: { parentMessageId: string; channelId: string; replyId?: string; replyCount?: number }) => {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === data.parentMessageId
-            ? {
-                ...m,
-                replyCount: data.replyCount !== undefined ? data.replyCount : (m.replyCount || 0) + 1,
-              }
-            : m
-        )
-      );
-    },
-    []
-  );
+  const jumpToMessageAround = useCallback(async (targetMessageId: string): Promise<boolean> => {
+    if (!channelId) return false;
+    try {
+      setIsLoading(true);
+      const data = await messageApi.getMessagesAround(channelId, targetMessageId, 30);
+      setMessages(data.messages);
+      setHasOlder(data.hasOlder ?? data.hasMore ?? false);
+      setHasNewer(data.hasNewer ?? false);
+      return true;
+    } catch (err) {
+      console.error('Failed to load messages around target message:', err);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [channelId]);
 
   return {
     messages,
     setMessages,
     isLoading,
-    hasMore,
-    isLoadingMore,
+    hasMore: hasOlder,
+    hasOlder,
+    hasNewer,
+    isLoadingMore: isLoadingOlder,
+    isLoadingOlder,
+    isLoadingNewer,
     fetchMessages,
-    loadMoreMessages,
+    loadMoreMessages: loadOlderMessages,
+    loadOlderMessages,
+    loadNewerMessages,
+    jumpToPresent,
+    jumpToMessageAround,
     sendMessage,
     editMessage,
     deleteMessage,
@@ -130,6 +172,5 @@ export function useMessages(channelId?: string) {
     handleMessageEdited,
     handleMessageDeleted,
     handleReactionUpdated,
-    handleThreadReplyCountUpdated,
   };
 }

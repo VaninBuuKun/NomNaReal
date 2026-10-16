@@ -408,15 +408,10 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsEdited")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("ReplyCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0);
-
-                    b.Property<Guid>("SenderId")
+                    b.Property<Guid?>("ReplyToMessageId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ThreadId")
+                    b.Property<Guid>("SenderId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -424,13 +419,13 @@ namespace NomNa.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ReplyToMessageId");
+
                     b.HasIndex("SenderId");
 
                     b.HasIndex("ChannelId", "CreatedAt")
                         .HasDatabaseName("idx_messages_channel_root_created")
-                        .HasFilter("\"DeletedAt\" IS NULL AND \"ThreadId\" IS NULL");
-
-                    b.HasIndex("ThreadId", "CreatedAt");
+                        .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.ToTable("messages", (string)null);
                 });
@@ -949,16 +944,16 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("NomNa.Domain.Entities.Message", "ReplyToMessage")
+                        .WithMany()
+                        .HasForeignKey("ReplyToMessageId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("NomNa.Domain.Entities.User", "Sender")
                         .WithMany("Messages")
                         .HasForeignKey("SenderId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("NomNa.Domain.Entities.Message", "ParentMessage")
-                        .WithMany("Replies")
-                        .HasForeignKey("ThreadId")
-                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.OwnsMany("NomNa.Domain.Entities.MessageAttachmentItem", "Attachments", b1 =>
                         {
@@ -1004,7 +999,7 @@ namespace NomNa.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Channel");
 
-                    b.Navigation("ParentMessage");
+                    b.Navigation("ReplyToMessage");
 
                     b.Navigation("Sender");
                 });
@@ -1133,8 +1128,6 @@ namespace NomNa.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("NomNa.Domain.Entities.Message", b =>
                 {
                     b.Navigation("Reactions");
-
-                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("NomNa.Domain.Entities.Role", b =>

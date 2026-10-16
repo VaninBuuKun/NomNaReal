@@ -1,12 +1,9 @@
 import { create } from 'zustand';
-import { ChannelType, type Channel, type Message } from '../types';
+import { ChannelType, type Channel } from '../types';
 import type { DirectMessageUser } from '../components/dm';
 
 export const MIN_CHANNEL_WIDTH = 200;
 export const MAX_CHANNEL_WIDTH = 450;
-export const MIN_THREAD_WIDTH = 360;
-export const MAX_THREAD_WIDTH = 720;
-export const DEFAULT_THREAD_WIDTH = 480;
 export const MIN_MEMBER_WIDTH = 260;
 export const MAX_MEMBER_WIDTH = 480;
 export const DEFAULT_MEMBER_WIDTH = 270;
@@ -22,8 +19,6 @@ export const DEFAULT_TASK_WIDTH = 380;
 
 interface UiState {
   activeSidebarView: 'channels' | 'dms' | 'notifications';
-  isThreadOpen: boolean;
-  activeThreadMessage: Message | null;
   isMemberListOpen: boolean;
   isSearchOpen: boolean;
   isPinnedSidebarOpen: boolean;
@@ -41,15 +36,12 @@ interface UiState {
 
   // Sidebar Widths
   channelWidth: number;
-  threadWidth: number;
   memberWidth: number;
   searchWidth: number;
   pinnedSidebarWidth: number;
 
   // Actions
   setActiveSidebarView: (view: 'channels' | 'dms' | 'notifications') => void;
-  openThread: (message: Message) => void;
-  closeThread: () => void;
   toggleMemberList: () => void;
   setMemberListOpen: (open: boolean) => void;
   openSearch: () => void;
@@ -71,15 +63,11 @@ interface UiState {
   setMemberToKick: (member: DirectMessageUser | null) => void;
 
   setChannelWidth: (width: number) => void;
-  setThreadWidth: (width: number) => void;
   setMemberWidth: (width: number) => void;
-  expandThread: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
   activeSidebarView: 'channels',
-  isThreadOpen: false,
-  activeThreadMessage: null,
   isMemberListOpen: localStorage.getItem('nomna_member_list_open') !== 'false',
   isSearchOpen: false,
 
@@ -98,13 +86,6 @@ export const useUiStore = create<UiState>((set) => ({
     return saved
       ? Math.max(MIN_CHANNEL_WIDTH, Math.min(MAX_CHANNEL_WIDTH, parseInt(saved, 10)))
       : 240;
-  })(),
-
-  threadWidth: (() => {
-    const saved = localStorage.getItem('nomna_thread_width');
-    return saved
-      ? Math.max(MIN_THREAD_WIDTH, Math.min(MAX_THREAD_WIDTH, parseInt(saved, 10)))
-      : DEFAULT_THREAD_WIDTH;
   })(),
 
   memberWidth: (() => {
@@ -128,7 +109,6 @@ export const useUiStore = create<UiState>((set) => ({
       : DEFAULT_PINNED_WIDTH;
   })(),
 
-
   isPinnedSidebarOpen: false,
 
   setActiveSidebarView: (view) =>
@@ -137,29 +117,13 @@ export const useUiStore = create<UiState>((set) => ({
       isMemberListOpen: view === 'notifications' ? false : state.isMemberListOpen,
     })),
 
-  openThread: (message) =>
-    set({
-      isThreadOpen: true,
-      activeThreadMessage: message,
-      // Mutual exclusivity: opening thread closes other sidebars
-      isMemberListOpen: false,
-      isSearchOpen: false,
-      isPinnedSidebarOpen: false,
-        }),
-
-  closeThread: () =>
-    set({
-      isThreadOpen: false,
-      activeThreadMessage: null,
-    }),
-
   toggleMemberList: () =>
     set((state) => {
       const next = !state.isMemberListOpen;
       localStorage.setItem('nomna_member_list_open', String(next));
       return {
         isMemberListOpen: next,
-        ...(next ? { isThreadOpen: false, activeThreadMessage: null, isSearchOpen: false, isPinnedSidebarOpen: false } : {}),
+        ...(next ? { isSearchOpen: false, isPinnedSidebarOpen: false } : {}),
       };
     }),
 
@@ -171,11 +135,9 @@ export const useUiStore = create<UiState>((set) => ({
   openSearch: () =>
     set({
       isSearchOpen: true,
-      isThreadOpen: false,
-      activeThreadMessage: null,
       isMemberListOpen: false,
       isPinnedSidebarOpen: false,
-        }),
+    }),
 
   closeSearch: () => set({ isSearchOpen: false }),
 
@@ -186,11 +148,9 @@ export const useUiStore = create<UiState>((set) => ({
         isSearchOpen: next,
         ...(next
           ? {
-              isThreadOpen: false,
-              activeThreadMessage: null,
               isMemberListOpen: false,
               isPinnedSidebarOpen: false,
-                        }
+            }
           : {}),
       };
     }),
@@ -203,11 +163,9 @@ export const useUiStore = create<UiState>((set) => ({
   openPinnedSidebar: () =>
     set({
       isPinnedSidebarOpen: true,
-      isThreadOpen: false,
-      activeThreadMessage: null,
       isMemberListOpen: false,
       isSearchOpen: false,
-        }),
+    }),
 
   closePinnedSidebar: () => set({ isPinnedSidebarOpen: false }),
 
@@ -218,11 +176,9 @@ export const useUiStore = create<UiState>((set) => ({
         isPinnedSidebarOpen: next,
         ...(next
           ? {
-              isThreadOpen: false,
-              activeThreadMessage: null,
               isMemberListOpen: false,
               isSearchOpen: false,
-                        }
+            }
           : {}),
       };
     }),
@@ -231,7 +187,6 @@ export const useUiStore = create<UiState>((set) => ({
     localStorage.setItem('nomna_pinned_width', width.toString());
     set({ pinnedSidebarWidth: width });
   },
-
 
   setSettingsOpen: (open) => set({ isSettingsOpen: open }),
   setCreateWorkspaceOpen: (open) => set({ isCreateWorkspaceOpen: open }),
@@ -248,22 +203,8 @@ export const useUiStore = create<UiState>((set) => ({
     set({ channelWidth: width });
   },
 
-  setThreadWidth: (width) => {
-    localStorage.setItem('nomna_thread_width', width.toString());
-    set({ threadWidth: width });
-  },
-
   setMemberWidth: (width) => {
     localStorage.setItem('nomna_member_width', width.toString());
     set({ memberWidth: width });
   },
-
-  expandThread: () =>
-    set((state) => {
-      if (state.threadWidth < DEFAULT_THREAD_WIDTH) {
-        localStorage.setItem('nomna_thread_width', DEFAULT_THREAD_WIDTH.toString());
-        return { threadWidth: DEFAULT_THREAD_WIDTH };
-      }
-      return state;
-    }),
 }));

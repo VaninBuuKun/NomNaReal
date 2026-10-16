@@ -6,8 +6,10 @@ interface ChatState {
   activeChannelId: string | null;
   messages: Message[];
   hasMoreMessages: boolean;
+  hasNewerMessages: boolean;
   isLoadingMessages: boolean;
   isLoadingMoreMessages: boolean;
+  isLoadingNewerMessages: boolean;
   typingUser: string | null;
   drafts: Record<string, string>;
 
@@ -16,6 +18,7 @@ interface ChatState {
   setActiveChannelId: (id: string | null) => void;
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
   appendOlderMessages: (olderMessages: Message[]) => void;
+  appendNewerMessages: (newerMessages: Message[]) => void;
   addMessage: (msg: Message) => void;
   updateMessage: (edited: Partial<Message> & { id: string }) => void;
   deleteMessage: (messageId: string) => void;
@@ -23,12 +26,13 @@ interface ChatState {
   applyReactionDelta: (delta: ReactionToggled, currentUserId?: string) => void;
   setDraft: (channelId: string, text: string) => void;
   clearDraft: (channelId: string) => void;
-  updateReplyCount: (parentMessageId: string, count?: number) => void;
   markChannelRead: (channelId: string) => void;
   setChannelUnread: (channelId: string, lastMessageAt: string, hasUnread: boolean) => void;
   setHasMoreMessages: (hasMore: boolean) => void;
+  setHasNewerMessages: (hasNewer: boolean) => void;
   setIsLoadingMessages: (loading: boolean) => void;
   setIsLoadingMoreMessages: (loading: boolean) => void;
+  setIsLoadingNewerMessages: (loading: boolean) => void;
   setTypingUser: (user: string | null) => void;
   addChannel: (channel: Channel) => void;
   updateChannel: (channel: Channel) => void;
@@ -40,8 +44,10 @@ export const useChatStore = create<ChatState>((set) => ({
   activeChannelId: null,
   messages: [],
   hasMoreMessages: false,
+  hasNewerMessages: false,
   isLoadingMessages: false,
   isLoadingMoreMessages: false,
+  isLoadingNewerMessages: false,
   typingUser: null,
   drafts: (() => {
     try {
@@ -65,14 +71,31 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
 
   appendOlderMessages: (olderMessages) =>
-    set((state) => ({
-      messages: [...olderMessages, ...state.messages],
-    })),
+    set((state) => {
+      const existingIds = new Set(state.messages.map((m) => m.id));
+      const uniqueOlder = olderMessages.filter((m) => !existingIds.has(m.id));
+      return {
+        messages: [...uniqueOlder, ...state.messages],
+      };
+    }),
+
+  appendNewerMessages: (newerMessages) =>
+    set((state) => {
+      const existingIds = new Set(state.messages.map((m) => m.id));
+      const uniqueNewer = newerMessages.filter((m) => !existingIds.has(m.id));
+      return {
+        messages: [...state.messages, ...uniqueNewer],
+      };
+    }),
 
   addMessage: (msg) =>
     set((state) => {
       // Deduplicate by ID
       if (state.messages.some((m) => m.id === msg.id)) {
+        return state;
+      }
+      // If user is currently looking at historical messages, do not append directly to avoid list gaps
+      if (state.hasNewerMessages) {
         return state;
       }
       return { messages: [...state.messages, msg] };
@@ -167,18 +190,6 @@ export const useChatStore = create<ChatState>((set) => ({
       return { drafts: nextDrafts };
     }),
 
-  updateReplyCount: (parentMessageId, count) =>
-    set((state) => ({
-      messages: state.messages.map((m) =>
-        m.id === parentMessageId
-          ? {
-              ...m,
-              replyCount: typeof count === 'number' ? count : (m.replyCount || 0) + 1,
-            }
-          : m
-      ),
-    })),
-
   markChannelRead: (channelId) =>
     set((state) => ({
       channels: state.channels.map((c) =>
@@ -194,8 +205,10 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
 
   setHasMoreMessages: (hasMore) => set({ hasMoreMessages: hasMore }),
+  setHasNewerMessages: (hasNewer) => set({ hasNewerMessages: hasNewer }),
   setIsLoadingMessages: (loading) => set({ isLoadingMessages: loading }),
   setIsLoadingMoreMessages: (loading) => set({ isLoadingMoreMessages: loading }),
+  setIsLoadingNewerMessages: (loading) => set({ isLoadingNewerMessages: loading }),
   setTypingUser: (user) => set({ typingUser: user }),
 
   addChannel: (channel) =>

@@ -47,7 +47,6 @@ public class EditMessageCommandHandler : IRequestHandler<EditMessageCommand, Res
         return new MessageEditedDto(
             message.Id,
             message.ChannelId,
-            message.ThreadId,
             message.Content,
             message.IsEdited,
             message.EditedAt.Value

@@ -111,7 +111,7 @@ export const EmptyChatState: React.FC<EmptyChatStateProps> = ({
         <span>·</span>
         <span className="inline-flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.5)]" />
-          <span>Thread thảo luận</span>
+          <span>Trả lời tin nhắn</span>
         </span>
       </div>
     </div>

@@ -79,7 +79,6 @@ public class ToggleReactionCommandHandler : IRequestHandler<ToggleReactionComman
         return new ReactionToggledDto(
             message.Id,
             message.ChannelId,
-            message.ThreadId,
             userId.Value,
             emoji,
             isAdded

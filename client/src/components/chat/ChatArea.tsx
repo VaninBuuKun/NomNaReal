@@ -5,10 +5,10 @@ import {
   At,
   Hash,
   PushPin,
-  ChatCenteredDots,
   Smiley,
   PaperPlaneRight,
-  ChatTeardropDots,
+  ArrowUUpLeft,
+  ArrowDown,
   PencilSimple,
   Trash,
   CircleNotch,
@@ -69,7 +69,8 @@ interface ChatAreaProps {
   currentUser: User | null;
   onSendMessage: (
     content: string,
-    attachments?: Array<{ url: string; fileName: string; fileSize: number; contentType: string; type: "image" | "video" | "file" }>
+    attachments?: Array<{ url: string; fileName: string; fileSize: number; contentType: string; type: "image" | "video" | "file" }>,
+    replyToMessageId?: string
   ) => Promise<void>;
   onEditMessage?: (messageId: string, content: string) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void>;
@@ -77,14 +78,16 @@ interface ChatAreaProps {
   onStartTyping: () => void;
   onStopTyping: () => void;
   typingUser: string | null;
-  onToggleThread: () => void;
-  onOpenThread?: (message: Message) => void;
   onStartDmWithUser?: (user: { id: string; displayName: string; username: string; avatarUrl?: string }) => void;
   onOpenUserProfile?: (user: UserProfileData, anchorRect?: DOMRect) => void;
   hasMoreMessages?: boolean;
   isLoadingMore?: boolean;
+  hasNewerMessages?: boolean;
+  isLoadingNewer?: boolean;
   isLoadingMessages?: boolean;
   onLoadMoreMessages?: () => Promise<void>;
+  onLoadNewerMessages?: () => Promise<void>;
+  onJumpToPresent?: () => Promise<void>;
   workspaceMembers?: DirectMessageUser[];
   isMemberListOpen?: boolean;
   onToggleMemberList?: () => void;
@@ -93,6 +96,7 @@ interface ChatAreaProps {
   onUnpinMessage?: (messageId: string) => Promise<void>;
   isPinnedSidebarOpen?: boolean;
   onTogglePinnedSidebar?: () => void;
+  onJumpToMessage?: (messageId: string) => Promise<void> | void;
 }
 
 const QUICK_EMOJIS = ["❤️", "👍", "🔥", "🚀", "😂", "🎉"];
@@ -109,14 +113,16 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onStartTyping,
   onStopTyping,
   typingUser,
-  onToggleThread,
-  onOpenThread,
   onStartDmWithUser: _onStartDmWithUser,
   onOpenUserProfile,
   hasMoreMessages = false,
   isLoadingMore = false,
+  hasNewerMessages = false,
+  isLoadingNewer = false,
   isLoadingMessages = false,
   onLoadMoreMessages,
+  onLoadNewerMessages,
+  onJumpToPresent,
   workspaceMembers = [],
   isMemberListOpen = false,
   onToggleMemberList,
@@ -125,6 +131,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   onUnpinMessage,
   isPinnedSidebarOpen = false,
   onTogglePinnedSidebar,
+  onJumpToMessage,
 }) => {
   const drafts = useChatStore((state) => state.drafts);
   const setDraft = useChatStore((state) => state.setDraft);
@@ -138,17 +145,27 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   );
 
   const [isStickyDismissed, setIsStickyDismissed] = useState(false);
+  const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [unreadBelowCount, setUnreadBelowCount] = useState(0);
 
-  // Reset dismissed state when channel changes
+  // Reset dismissed state, active reply & scroll-to-bottom indicator when channel changes
   useEffect(() => {
     setIsStickyDismissed(false);
+    setReplyingToMessage(null);
+    setShowScrollToBottom(false);
+    setUnreadBelowCount(0);
   }, [currentChannel?.id]);
 
   const pinnedMessageIds = useMemo(() => {
     return new Set(pinnedMessages.map((p) => p.messageId));
   }, [pinnedMessages]);
 
-  const handleJumpToMessage = (messageId: string) => {
+  const handleJumpToMessage = async (messageId: string) => {
+    if (onJumpToMessage) {
+      await onJumpToMessage(messageId);
+      return;
+    }
     const el = document.getElementById(`msg-${messageId}`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -360,18 +377,45 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           top: el.scrollHeight,
           behavior: 'smooth',
         });
+        setUnreadBelowCount(0);
+      } else {
+        const added = messages.length - prevMessagesLengthRef.current;
+        setUnreadBelowCount((prev) => prev + added);
       }
     }
 
     prevMessagesLengthRef.current = messages.length;
   }, [messages, isLoadingMessages, currentChannel?.id]);
 
+  const handleJumpToPresentClick = async () => {
+    if (onJumpToPresent) {
+      await onJumpToPresent();
+    }
+    if (messageStreamRef.current) {
+      messageStreamRef.current.scrollTop = messageStreamRef.current.scrollHeight;
+    }
+    setShowScrollToBottom(false);
+    setUnreadBelowCount(0);
+  };
+
   const handleStreamScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
-    if (container.scrollTop < 50 && hasMoreMessages && !isLoadingMore && onLoadMoreMessages) {
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    setShowScrollToBottom(distanceToBottom > 250);
+    if (distanceToBottom < 80) {
+      setUnreadBelowCount(0);
+    }
+
+    // Scroll up -> load older messages
+    if (container.scrollTop < 80 && hasMoreMessages && !isLoadingMore && onLoadMoreMessages) {
       previousScrollHeightRef.current = container.scrollHeight;
       isPrependingRef.current = true;
       onLoadMoreMessages();
+    }
+
+    // Scroll down -> load newer messages (when viewing historical messages)
+    if (distanceToBottom < 80 && hasNewerMessages && !isLoadingNewer && onLoadNewerMessages) {
+      onLoadNewerMessages();
     }
   };
 
@@ -474,8 +518,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
     setSending(true);
     try {
-      await onSendMessage(text, readyAttachments);
+      await onSendMessage(text, readyAttachments, replyingToMessage?.id);
       setContent("");
+      setReplyingToMessage(null);
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
@@ -488,6 +533,18 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       });
       setPendingAttachments([]);
       onStopTyping();
+
+      // UX Rule: Tự động cuộn xuống cuối cùng khi gửi tin nhắn thành công
+      requestAnimationFrame(() => {
+        if (messageStreamRef.current) {
+          messageStreamRef.current.scrollTo({
+            top: messageStreamRef.current.scrollHeight,
+            behavior: "smooth",
+          });
+          setShowScrollToBottom(false);
+          setUnreadBelowCount(0);
+        }
+      });
     } finally {
       setSending(false);
     }
@@ -502,6 +559,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         e.stopPropagation();
         return;
       }
+    }
+
+    if (e.key === "Escape" && replyingToMessage) {
+      e.preventDefault();
+      setReplyingToMessage(null);
+      return;
     }
 
     if (e.key === "Enter" && !e.shiftKey) {
@@ -976,7 +1039,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             const timeDiffMin = prevMsg
               ? (new Date(msg.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) / 60000
               : 999;
-            const isConsecutive = !showDateDivider && isSameSender && timeDiffMin <= 5;
+            const isConsecutive = !showDateDivider && isSameSender && timeDiffMin <= 5 && !msg.replyTo;
             const isMe = currentUser && (msg.senderId === currentUser.id || msg.senderUsername === currentUser.username);
             const isEditingThis = editingMessageId === msg.id;
             const timeStr = formatMessageTime(msg.createdAt);
@@ -1008,15 +1071,41 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
                 <div
                   id={`msg-${msg.id}`}
-                  className={`group relative flex items-start gap-3 w-full px-4 sm:px-5 rounded-none transition-colors duration-100 ${isMentioningMe
+                  className={`group relative flex flex-col w-full px-4 sm:px-5 rounded-none transition-colors duration-100 ${isMentioningMe
                       ? "bg-accent-soft/20 border-l-2 border-accent-primary hover:bg-accent-soft/30"
                       : "hover:bg-[var(--bg-surface)]"
                     } ${isConsecutive ? "py-0.5" : "py-1.5 mt-2"
                     }`}
                 >
-                  {/* Left Gutter: Avatar (if new block) OR hover timestamp (if consecutive, centered) */}
-                  {isConsecutive ? (
-                    <div className="w-10 shrink-0 flex items-center justify-center select-none pt-0.5">
+                  {/* In-line Quote Reply Preview */}
+                  {msg.replyTo && (
+                    <div
+                      onClick={() => handleJumpToMessage(msg.replyTo!.id)}
+                      className="flex items-center gap-1.5 ml-8 pl-1 mb-1 text-[0.78rem] text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer select-none group/reply truncate max-w-2xl"
+                      title="Chuyển đến tin nhắn gốc"
+                    >
+                      <div className="w-5 h-2.5 border-l-2 border-t-2 border-[var(--border-color)] group-hover/reply:border-[var(--accent-primary)] rounded-tl -mr-0.5 mt-1 shrink-0 transition-colors" />
+                      <img
+                        src={getMediaUrl(msg.replyTo.senderAvatarUrl) || "/default-avatar.png"}
+                        alt={msg.replyTo.senderDisplayName}
+                        className="w-4 h-4 rounded-full object-cover shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.src = "/default-avatar.png";
+                        }}
+                      />
+                      <span className="font-semibold text-[var(--text-secondary)] group-hover/reply:text-[var(--accent-primary)] group-hover/reply:underline shrink-0">
+                        @{msg.replyTo.senderDisplayName}
+                      </span>
+                      <span className="truncate italic text-[var(--text-muted)] group-hover/reply:text-[var(--text-primary)]">
+                        {msg.replyTo.isDeleted ? "Tin nhắn đã bị xóa" : (msg.replyTo.content || "Tệp đính kèm")}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-3 w-full">
+                    {/* Left Gutter: Avatar (if new block) OR hover timestamp (if consecutive, centered) */}
+                    {isConsecutive ? (
+                      <div className="w-10 shrink-0 flex items-center justify-center select-none pt-0.5">
                       <span className="opacity-0 group-hover:opacity-100 text-[11px] text-[var(--text-muted)] font-mono tabular-nums text-center transition-opacity">
                         {timeStr}
                       </span>
@@ -1270,16 +1359,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                       </div>
                     )}
 
-                    {/* Thread Replies Button */}
-                    {msg.replyCount && msg.replyCount > 0 ? (
-                      <div
-                        className="inline-flex items-center gap-1.5 mt-1.5 text-[0.8rem] text-[var(--accent-primary)] font-semibold cursor-pointer hover:underline"
-                        onClick={() => (onOpenThread ? onOpenThread(msg) : onToggleThread())}
-                      >
-                        <ChatTeardropDots size={14} weight="fill" />
-                        <span>{msg.replyCount} câu trả lời</span>
-                      </div>
-                    ) : null}
+                  </div>
                   </div>
 
                   {/* Toolbar on Hover */}
@@ -1299,14 +1379,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
                     <div className="w-px h-4 bg-[var(--border-color)] mx-0.5" />
 
-                    {/* Reply to Thread */}
+                    {/* Quote Reply */}
                     <button
                       type="button"
                       className="p-1.5 text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] rounded-lg text-xs transition-colors cursor-pointer"
-                      title="Mở Thread trả lời"
-                      onClick={() => (onOpenThread ? onOpenThread(msg) : onToggleThread())}
+                      title="Trả lời"
+                      onClick={() => {
+                        setReplyingToMessage(msg);
+                        textareaRef.current?.focus();
+                      }}
                     >
-                      <ChatCenteredDots size={15} />
+                      <ArrowUUpLeft size={15} />
                     </button>
 
                     {/* Pin / Unpin Message */}
@@ -1354,7 +1437,61 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
               </React.Fragment>
             );
           })}
+          {/* Loading newer spinner */}
+          {isLoadingNewer && (
+            <div className="py-2.5 flex items-center justify-center gap-2 text-xs text-text-muted select-none">
+              <CircleNotch size={16} className="animate-spin text-accent-primary" />
+              <span>Đang tải tin nhắn mới hơn...</span>
+            </div>
+          )}
           <div ref={messagesEndRef} />
+        </div>
+      )}
+
+      {/* Floating Historical Notice / Jump to Present */}
+      {hasNewerMessages && (
+        <div className={`absolute ${isSidebar ? 'bottom-16 left-3 right-3' : 'bottom-20 left-6 right-6'} z-30 animate-in fade-in slide-in-from-bottom-2 duration-150`}>
+          <div className="flex items-center justify-between px-3.5 py-2 rounded-control bg-surface border border-accent-primary/40 shadow-floating">
+            <div className="flex items-center gap-2 text-xs text-text-secondary">
+              <CircleNotch size={14} className={isLoadingNewer ? "animate-spin text-accent-primary" : "hidden"} />
+              <span>Bạn đang xem lịch sử tin nhắn</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleJumpToPresentClick}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-control bg-accent-primary hover:bg-accent-hover text-on-accent text-xs font-semibold shadow-raised transition-all cursor-pointer"
+            >
+              <span>Nhảy về hiện tại</span>
+              <ArrowDown size={14} weight="bold" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Jump to Bottom Button */}
+      {!hasNewerMessages && showScrollToBottom && (
+        <div className={`absolute ${isSidebar ? 'bottom-16 right-4' : 'bottom-20 right-6'} z-30 animate-in fade-in slide-in-from-bottom-2 duration-150`}>
+          <button
+            type="button"
+            onClick={() => {
+              messageStreamRef.current?.scrollTo({
+                top: messageStreamRef.current.scrollHeight,
+                behavior: "smooth",
+              });
+              setShowScrollToBottom(false);
+              setUnreadBelowCount(0);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface border border-border text-xs font-semibold text-text-secondary shadow-floating hover:text-accent-primary hover:border-accent-primary hover:bg-surface-active transition-all cursor-pointer select-none group"
+            title="Cuộn xuống tin nhắn mới nhất"
+          >
+            <ArrowDown size={14} weight="bold" className="group-hover:translate-y-0.5 transition-transform" />
+            <span>Tin nhắn mới nhất</span>
+            {unreadBelowCount > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-accent-primary text-on-accent text-[10px] font-bold">
+                {unreadBelowCount > 99 ? "99+" : unreadBelowCount}
+              </span>
+            )}
+          </button>
         </div>
       )}
 
@@ -1402,6 +1539,30 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         />
 
         <div className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg py-1.5 px-3 flex flex-col gap-1.5 min-h-[52px] justify-center transition-all duration-200 focus-within:border-[var(--accent-primary)] focus-within:bg-[var(--bg-chat)] focus-within:ring-1 focus-within:ring-[var(--accent-primary)] focus-within:shadow-[0_2px_12px_var(--accent-glow)]">
+          {/* Quote Reply Banner */}
+          {replyingToMessage && (
+            <div className="flex items-center justify-between px-2.5 py-1.5 bg-[var(--bg-chat)] border-b border-[var(--border-color)] -mx-3 -mt-1.5 mb-0.5 rounded-t-lg text-xs text-[var(--text-secondary)] select-none animate-in fade-in slide-in-from-bottom-1 duration-100">
+              <div className="flex items-center gap-2 min-w-0">
+                <ArrowUUpLeft size={14} className="text-[var(--accent-primary)] shrink-0" />
+                <span className="shrink-0 font-medium text-[var(--text-primary)]">
+                  Đang trả lời <span className="text-[var(--accent-primary)] font-semibold">@{replyingToMessage.senderDisplayName}</span>
+                </span>
+                <span className="text-[var(--text-muted)] shrink-0">·</span>
+                <span className="truncate italic text-[var(--text-muted)] max-w-xs sm:max-w-md">
+                  {replyingToMessage.content || "Tệp đính kèm"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyingToMessage(null)}
+                className="p-1 rounded-full text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer shrink-0 ml-2"
+                title="Hủy trả lời (Escape)"
+              >
+                <X size={13} weight="bold" />
+              </button>
+            </div>
+          )}
+
           {/* Pending Attachments Preview Tray */}
           {pendingAttachments.length > 0 && (
             <div className="flex items-center gap-2.5 overflow-x-auto py-1 px-0.5 border-b border-[var(--border-color)]/70 pb-2.5 mb-1 scrollbar-thin">

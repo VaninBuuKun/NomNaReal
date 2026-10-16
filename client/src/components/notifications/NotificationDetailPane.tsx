@@ -43,7 +43,7 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
   const getActionLabel = () => {
     if (isAssignment) return 'Đi đến bài tập';
     if (isTask) return 'Mở bảng công việc';
-    if (isThread) return 'Mở Thread trò chuyện';
+    if (isThread) return 'Đi tới tin nhắn';
     return 'Đi tới tin nhắn';
   };
 
@@ -68,7 +68,7 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
       return (
         <div className="flex items-center gap-2">
           <ChatTeardropDots size={18} weight="bold" className="text-[var(--accent-primary)]" />
-          <span className="font-bold text-[0.95rem] text-[var(--text-primary)]">Phản hồi Thread</span>
+          <span className="font-bold text-[0.95rem] text-[var(--text-primary)]">Trả lời tin nhắn</span>
         </div>
       );
     }
@@ -101,8 +101,8 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
     }
     if (isThread) {
       return notification.channelName
-        ? `Đã trả lời câu hỏi của bạn trong #${notification.channelName}`
-        : 'Đã trả lời trong thread';
+        ? `Đã trả lời tin nhắn của bạn trong #${notification.channelName}`
+        : 'Đã trả lời tin nhắn của bạn';
     }
     if (isMention) {
       return notification.channelName

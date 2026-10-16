@@ -16,6 +16,15 @@ public record AttachmentInputDto(
     string Type
 );
 
+public record MessageReplyDto(
+    Guid Id,
+    Guid SenderId,
+    string SenderDisplayName,
+    string? SenderAvatarUrl,
+    string Content,
+    bool IsDeleted
+);
+
 public record MessageDto(
     Guid Id,
     Guid ChannelId,
@@ -24,10 +33,9 @@ public record MessageDto(
     string SenderUsername,
     string? SenderAvatarUrl,
     string Content,
-    Guid? ThreadId,
+    MessageReplyDto? ReplyTo,
     bool IsEdited,
     DateTime CreatedAt,
-    int ReplyCount = 0,
     List<ReactionGroupDto>? Reactions = null,
     List<MessageAttachmentDto>? Attachments = null
 );
@@ -35,7 +43,6 @@ public record MessageDto(
 public record ReactionToggledDto(
     Guid MessageId,
     Guid ChannelId,
-    Guid? ThreadId,
     Guid UserId,
     string Emoji,
     bool IsAdded
@@ -51,25 +58,12 @@ public record ReactionGroupDto(
 public record ReactionUpdateDto(
     Guid MessageId,
     Guid ChannelId,
-    Guid? ThreadId,
     List<ReactionGroupDto> Reactions
-);
-
-public record ThreadDetailsDto(
-    MessageDto ParentMessage,
-    List<MessageDto> Replies
-);
-
-public record ThreadReplyCountUpdateDto(
-    Guid ParentMessageId,
-    Guid ChannelId,
-    int ReplyCount
 );
 
 public record MessageEditedDto(
     Guid Id,
     Guid ChannelId,
-    Guid? ThreadId,
     string Content,
     bool IsEdited,
     DateTime EditedAt
@@ -77,14 +71,15 @@ public record MessageEditedDto(
 
 public record DeletedMessageDto(
     Guid MessageId,
-    Guid ChannelId,
-    Guid? ThreadId
+    Guid ChannelId
 );
 
 public record MessagesResponseDto(
     List<MessageDto> Messages,
     bool HasMore,
-    DateTime? NextCursor
+    DateTime? NextCursor,
+    bool HasOlder = false,
+    bool HasNewer = false
 );
 
 public record PinnedMessageDto(

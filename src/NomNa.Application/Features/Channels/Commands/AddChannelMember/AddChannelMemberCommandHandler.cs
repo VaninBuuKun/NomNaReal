@@ -105,7 +105,6 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
             null,
             false,
             joinMessage.CreatedAt,
-            0,
             null,
             null
         );

@@ -1,6 +1,5 @@
 import React from 'react';
 import { MemberListPanel } from '../../components/channel';
-import { ThreadPanel } from '../../components/thread';
 import { SearchSidebar, PinnedMessagesSidebar } from '../../components/chat';
 import { useUiStore, useChatStore } from '../../stores';
 import { ChannelType, type User, type Channel, type PinnedMessage } from '../../types';
@@ -21,14 +20,13 @@ interface ChatRightPanelsProps {
   handleEditMessage: (msgId: string, content: string) => Promise<void>;
   handleDeleteMessage: (msgId: string) => Promise<void>;
   handleUnpinMessage: (msgId: string) => Promise<void>;
-  isResizingThread: boolean;
   isResizingMember: boolean;
   isResizingSearch: boolean;
   isResizingPinned: boolean;
-  handleThreadResizeStart: (e: React.MouseEvent) => void;
   handleMemberResizeStart: (e: React.MouseEvent) => void;
   handleSearchResizeStart: (e: React.MouseEvent) => void;
   handlePinnedResizeStart: (e: React.MouseEvent) => void;
+  onJumpToMessage?: (messageId: string, targetChannelId?: string) => Promise<void> | void;
 }
 
 export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
@@ -41,32 +39,23 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
   pinnedMessages,
   handleOpenUserProfile,
   handleStartDmWithUser,
-  handleToggleReaction,
-  handleEditMessage,
-  handleDeleteMessage,
   handleUnpinMessage,
-  isResizingThread,
   isResizingMember,
   isResizingSearch,
   isResizingPinned,
-  handleThreadResizeStart,
   handleMemberResizeStart,
   handleSearchResizeStart,
   handlePinnedResizeStart,
+  onJumpToMessage,
 }) => {
   const {
     activeSidebarView,
-    isThreadOpen,
-    activeThreadMessage,
     isMemberListOpen,
     isSearchOpen,
     isPinnedSidebarOpen,
-    threadWidth,
     memberWidth,
     searchWidth,
     pinnedSidebarWidth,
-    closeThread,
-    expandThread,
     setMemberListOpen,
     closeSearch,
     closePinnedSidebar,
@@ -80,7 +69,11 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
   const isDm = activeSidebarView === 'dms' || currentChannel?.type === ChannelType.DirectMessage;
   const isMemberPanelVisible = !isDm && isMemberListOpen;
 
-  const handleJumpToMessage = (messageId: string) => {
+  const handleJumpToMessage = (messageId: string, targetChannelId?: string) => {
+    if (onJumpToMessage) {
+      onJumpToMessage(messageId, targetChannelId);
+      return;
+    }
     const el = document.getElementById(`msg-${messageId}`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -95,34 +88,8 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
 
   return (
     <>
-      {/* 3.5 Resizer Divider & Thread Panel */}
-      {isThreadOpen && (
-        <>
-          <div
-            className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-              isResizingThread
-                ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]'
-                : 'bg-[var(--border-color)]'
-            }`}
-            onMouseDown={handleThreadResizeStart}
-            title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thread"
-          />
-          <ThreadPanel
-            isOpen={isThreadOpen}
-            onClose={closeThread}
-            currentUser={currentUser}
-            parentMessage={activeThreadMessage}
-            width={threadWidth}
-            onExpandWidth={expandThread}
-            onToggleReaction={handleToggleReaction}
-            onEditMessage={handleEditMessage}
-            onDeleteMessage={handleDeleteMessage}
-          />
-        </>
-      )}
-
-      {/* 4. Resizer Divider & Member List Panel (Mutually Exclusive) */}
-      {!isThreadOpen && isMemberPanelVisible && (
+      {/* 1. Resizer Divider & Member List Panel (Mutually Exclusive) */}
+      {isMemberPanelVisible && (
         <>
           <div
             className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
@@ -166,8 +133,8 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
         </>
       )}
 
-      {/* 5. Resizer Divider & Search Sidebar (Mutually Exclusive) */}
-      {!isThreadOpen && !isMemberPanelVisible && isSearchOpen && (
+      {/* 2. Resizer Divider & Search Sidebar (Mutually Exclusive) */}
+      {!isMemberPanelVisible && isSearchOpen && (
         <>
           <div
             className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
@@ -197,9 +164,8 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
         </>
       )}
 
-      {/* 6. Resizer Divider & Pinned Messages Sidebar (Mutually Exclusive) */}
-      {!isThreadOpen &&
-        !isMemberPanelVisible &&
+      {/* 3. Resizer Divider & Pinned Messages Sidebar (Mutually Exclusive) */}
+      {!isMemberPanelVisible &&
         !isSearchOpen &&
         isPinnedSidebarOpen && (
           <>
@@ -207,7 +173,7 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
               className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
                 isResizingPinned
                   ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]'
-                  : 'bg-[var(--border-color)]'
+                : 'bg-[var(--border-color)]'
               }`}
               onMouseDown={handlePinnedResizeStart}
               title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tin nhắn đã ghim"
@@ -222,7 +188,6 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
             />
           </>
         )}
-
     </>
   );
 };

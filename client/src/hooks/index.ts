@@ -3,7 +3,6 @@ export * from './useTheme';
 export * from './useServers';
 export * from './useChannels';
 export * from './useMessages';
-export * from './useThread';
 export * from './useFileUpload';
 export * from './usePanelResizers';
 export * from './useChatSignalR';

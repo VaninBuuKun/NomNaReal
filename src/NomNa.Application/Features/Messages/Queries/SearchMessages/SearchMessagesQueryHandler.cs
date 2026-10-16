@@ -133,10 +133,16 @@ public class SearchMessagesQueryHandler : IRequestHandler<SearchMessagesQuery, R
                 m.Sender.UserName ?? "unknown",
                 m.Sender.AvatarUrl,
                 m.Content,
-                m.ThreadId,
+                m.ReplyToMessage != null ? new MessageReplyDto(
+                    m.ReplyToMessage.Id,
+                    m.ReplyToMessage.SenderId,
+                    m.ReplyToMessage.Sender.DisplayName ?? "Unknown",
+                    m.ReplyToMessage.Sender.AvatarUrl,
+                    m.ReplyToMessage.DeletedAt != null ? "Tin nhắn đã bị xóa" : m.ReplyToMessage.Content,
+                    m.ReplyToMessage.DeletedAt != null
+                ) : null,
                 m.IsEdited,
                 m.CreatedAt,
-                m.ReplyCount,
                 null,
                 m.Attachments.Select(a => new MessageAttachmentDto(
                     a.Url,

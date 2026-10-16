@@ -5,10 +5,18 @@ export interface ReactionGroup {
   hasReacted: boolean;
 }
 
+export interface MessageReply {
+  id: string;
+  senderId: string;
+  senderDisplayName: string;
+  senderAvatarUrl?: string | null;
+  content: string;
+  isDeleted: boolean;
+}
+
 export interface ReactionToggled {
   messageId: string;
   channelId: string;
-  threadId?: string | null;
   userId: string;
   emoji: string;
   isAdded: boolean;
@@ -17,7 +25,6 @@ export interface ReactionToggled {
 export interface ReactionUpdate {
   messageId: string;
   channelId: string;
-  threadId?: string | null;
   reactions?: ReactionGroup[];
   userId?: string;
   emoji?: string;
@@ -35,13 +42,11 @@ export interface MessageAttachment {
 export interface DeletedMessage {
   messageId: string;
   channelId: string;
-  threadId?: string | null;
 }
 
 export interface MessageEdited {
   id: string;
   channelId: string;
-  threadId?: string | null;
   content: string;
   isEdited: boolean;
   editedAt: string;
@@ -55,23 +60,19 @@ export interface Message {
   senderUsername: string;
   senderAvatarUrl?: string | null;
   content: string;
-  threadId?: string | null;
+  replyTo?: MessageReply | null;
   isEdited: boolean;
   createdAt: string;
-  replyCount?: number;
   reactions?: ReactionGroup[];
   attachments?: MessageAttachment[];
-}
-
-export interface ThreadDetails {
-  parentMessage: Message;
-  replies: Message[];
 }
 
 export interface MessagesResponse {
   messages: Message[];
   hasMore: boolean;
   nextCursor?: string | null;
+  hasOlder?: boolean;
+  hasNewer?: boolean;
 }
 
 export interface PinnedMessage {

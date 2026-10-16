@@ -106,7 +106,6 @@ public class JoinServerCommandHandler : IRequestHandler<JoinServerCommand, Resul
                 null,
                 false,
                 welcomeMessage.CreatedAt,
-                0,
                 null,
                 null
             );

@@ -50,7 +50,6 @@ export function useChatSignalR({
     deleteMessage,
     setReactions,
     applyReactionDelta,
-    updateReplyCount,
     setTypingUser,
   } = useChatStore();
 
@@ -65,15 +64,7 @@ export function useChatSignalR({
       () => setTypingUser(null)
     );
 
-    // 2. Thread replies count
-    signalRService.onThreadReplyCountUpdated((data) => {
-      updateReplyCount(
-        data.parentMessageId,
-        typeof data.replyCount === 'number' ? data.replyCount : undefined
-      );
-    });
-
-    // 3. Reactions
+    // 2. Reactions
     signalRService.onReactionUpdated((update) => {
       if ('isAdded' in update && update.emoji) {
         applyReactionDelta(update as any, currentUser?.id);
@@ -255,7 +246,6 @@ export function useChatSignalR({
     deleteMessage,
     setReactions,
     applyReactionDelta,
-    updateReplyCount,
     setTypingUser,
     updateWorkspace,
     setWorkspaceMembers,

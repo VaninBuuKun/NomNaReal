@@ -143,6 +143,98 @@ public class PermissionService : IPermissionService
         return permissions;
     }
 
+    public async Task<Dictionary<Guid, Permissions>> GetChannelsPermissionsAsync(Guid userId, Guid serverId, IEnumerable<Guid> channelIds, CancellationToken cancellationToken = default)
+    {
+        var channelIdList = channelIds.ToList();
+        var result = new Dictionary<Guid, Permissions>();
+        if (channelIdList.Count == 0)
+            return result;
+
+        var server = await _context.Servers
+            .AsNoTracking()
+            .Where(s => s.Id == serverId)
+            .Select(s => new
+            {
+                s.OwnerId,
+                EveryoneRole = s.Roles.FirstOrDefault(r => r.IsDefault)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (server == null)
+        {
+            foreach (var id in channelIdList)
+                result[id] = Permissions.None;
+            return result;
+        }
+
+        // Owner bypass
+        if (userId == server.OwnerId)
+        {
+            foreach (var id in channelIdList)
+            {
+                result[id] = Permissions.All;
+                _cache.Set($"perm_chn_{id}_{userId}", Permissions.All, DefaultCacheExpiration);
+            }
+            return result;
+        }
+
+        // Fetch user's member roles in this server
+        var memberRoles = await _context.MemberRoles
+            .AsNoTracking()
+            .Where(mr => mr.ServerMember.ServerId == serverId && mr.ServerMember.UserId == userId)
+            .Select(mr => mr.Role)
+            .ToListAsync(cancellationToken);
+
+        var everyone = server.EveryoneRole ?? new Role
+        {
+            Name = "@everyone",
+            IsDefault = true,
+            Permissions = Permissions.Default
+        };
+
+        // Administrator bypass
+        var basePerms = everyone.Permissions;
+        foreach (var r in memberRoles)
+        {
+            basePerms |= r.Permissions;
+        }
+        if (PermissionCalculator.HasPermission(basePerms, Permissions.Administrator))
+        {
+            foreach (var id in channelIdList)
+            {
+                result[id] = Permissions.All;
+                _cache.Set($"perm_chn_{id}_{userId}", Permissions.All, DefaultCacheExpiration);
+            }
+            return result;
+        }
+
+        // Fetch all overwrites for these channels in 1 query
+        var allOverwrites = await _context.ChannelPermissionOverwrites
+            .AsNoTracking()
+            .Where(o => channelIdList.Contains(o.ChannelId))
+            .ToListAsync(cancellationToken);
+
+        var overwritesByChannel = allOverwrites
+            .GroupBy(o => o.ChannelId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var id in channelIdList)
+        {
+            var overwrites = overwritesByChannel.GetValueOrDefault(id) ?? new List<ChannelPermissionOverwrite>();
+            var perms = PermissionCalculator.CalculateChannelPermissions(
+                userId,
+                server.OwnerId,
+                everyone,
+                memberRoles,
+                overwrites
+            );
+            result[id] = perms;
+            _cache.Set($"perm_chn_{id}_{userId}", perms, DefaultCacheExpiration);
+        }
+
+        return result;
+    }
+
     public async Task<bool> HasServerPermissionAsync(Guid userId, Guid serverId, Permissions requiredPermission, CancellationToken cancellationToken = default)
     {
         var permissions = await GetServerPermissionsAsync(userId, serverId, cancellationToken);

@@ -55,11 +55,19 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
             })
             .ToListAsync(cancellationToken);
 
+        var channelIds = channels.Select(c => c.Id).ToList();
+        var permsByChannel = await _permissionService.GetChannelsPermissionsAsync(
+            userId.Value,
+            request.ServerId,
+            channelIds,
+            cancellationToken
+        );
+
         var result = new List<ChannelDto>();
 
         foreach (var c in channels)
         {
-            var perms = await _permissionService.GetChannelPermissionsAsync(userId.Value, c.Id, cancellationToken);
+            var perms = permsByChannel.GetValueOrDefault(c.Id, Permissions.None);
             // Chỉ trả về các kênh mà user có quyền ViewChannel
             if (NomNa.Domain.Services.PermissionCalculator.HasPermission(perms, Permissions.ViewChannel))
             {

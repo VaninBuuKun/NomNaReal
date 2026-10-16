@@ -174,7 +174,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
       return (
         <p className="text-xs leading-snug text-text-secondary truncate">
           <span className="font-semibold text-text-primary">{actorName}</span>{' '}
-          <span>đã trả lời chủ đề trong</span>{' '}
+          <span>đã trả lời tin nhắn của bạn trong</span>{' '}
           <span className="font-medium text-accent-primary">#{channelName || 'kênh'}</span>
         </p>
       );

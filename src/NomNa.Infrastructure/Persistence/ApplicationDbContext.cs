@@ -160,16 +160,15 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             entity.HasKey(e => e.Id);
             // Critical index for chat app performance: messages by channel and creation time
             entity.HasIndex(e => new { e.ChannelId, e.CreatedAt });
-            entity.HasIndex(e => new { e.ThreadId, e.CreatedAt });
             entity.HasIndex(e => e.SenderId);
+            entity.HasIndex(e => e.ReplyToMessageId);
             entity.Property(e => e.Content).HasMaxLength(4000).IsRequired();
-            entity.Property(e => e.ReplyCount).HasDefaultValue(0);
 
             entity.OwnsMany(e => e.Attachments, a => a.ToJson());
 
             entity.HasIndex(e => new { e.ChannelId, e.CreatedAt })
                 .HasDatabaseName("idx_messages_channel_root_created")
-                .HasFilter("\"DeletedAt\" IS NULL AND \"ThreadId\" IS NULL");
+                .HasFilter("\"DeletedAt\" IS NULL");
 
             entity.HasOne(e => e.Channel)
                 .WithMany(c => c.Messages)
@@ -181,10 +180,10 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .HasForeignKey(e => e.SenderId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(e => e.ParentMessage)
-                .WithMany(m => m.Replies)
-                .HasForeignKey(e => e.ThreadId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ReplyToMessage)
+                .WithMany()
+                .HasForeignKey(e => e.ReplyToMessageId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // RefreshToken Configuration

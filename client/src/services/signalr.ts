@@ -70,54 +70,6 @@ export class SignalRService {
     await this.connection.invoke('JoinChannel', channelId);
   }
 
-  public async joinThread(parentMessageId: string): Promise<void> {
-    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
-      await this.connection.invoke('JoinThread', parentMessageId);
-    }
-  }
-
-  public async leaveThread(parentMessageId: string): Promise<void> {
-    if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
-      await this.connection.invoke('LeaveThread', parentMessageId);
-    }
-  }
-
-  public async sendThreadReply(parentMessageId: string, content: string): Promise<Message | null> {
-    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
-      return null;
-    }
-    return await this.connection.invoke('SendThreadReply', parentMessageId, content);
-  }
-
-  public onThreadReply(callback: (reply: Message) => void): void {
-    if (this.connection) {
-      this.connection.on('ReceiveThreadReply', callback);
-    }
-  }
-
-  public offThreadReply(callback: (reply: Message) => void): void {
-    if (this.connection) {
-      this.connection.off('ReceiveThreadReply', callback);
-    }
-  }
-
-  public onThreadReplyCountUpdated(callback: (data: { parentMessageId: string; channelId: string; replyId: string; replyCount?: number; createdAt: string }) => void): void {
-    if (this.connection) {
-      this.connection.off('ThreadReplyCountUpdated');
-      this.connection.on('ThreadReplyCountUpdated', callback);
-    }
-  }
-
-  public offThreadReplyCountUpdated(callback?: (data: any) => void): void {
-    if (this.connection) {
-      if (callback) {
-        this.connection.off('ThreadReplyCountUpdated', callback);
-      } else {
-        this.connection.off('ThreadReplyCountUpdated');
-      }
-    }
-  }
-
   public onReactionUpdated(callback: (update: ReactionUpdate) => void): void {
     if (this.connection) {
       this.connection.on('ReceiveReactionUpdated', callback);
@@ -316,13 +268,13 @@ export class SignalRService {
   public async sendMessage(
     channelId: string,
     content: string,
-    threadId?: string,
+    replyToMessageId?: string | null,
     attachments?: Array<{ url: string; fileName: string; fileSize: number; contentType: string; type: string }>
   ): Promise<Message | null> {
     if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
       return null;
     }
-    return await this.connection.invoke('SendMessage', channelId, content, threadId || null, attachments || null);
+    return await this.connection.invoke('SendMessage', channelId, content, replyToMessageId || null, attachments || null);
   }
 
   public async editMessage(messageId: string, content: string): Promise<MessageEdited | null> {

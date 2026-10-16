@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NomNa.Application.Common.Exceptions;
 using NomNa.Application.Common.Interfaces;
-using NomNa.Application.Features.Messages.Commands.ReplyToMessage;
 using NomNa.Application.Features.Messages.Commands.SendMessage;
 using NomNa.Application.Features.Messages.DTOs;
 using NomNa.Domain.Enums;
@@ -102,26 +101,6 @@ public class ChatHub : Hub
         _logger.LogInformation("User {UserId} left SignalR group {ChannelId}", Context.UserIdentifier, channelId);
     }
 
-    /// <summary>
-    /// Subcribe vào Group riêng của một Thread (Sub-conversation) để nhận phản hồi con.
-    /// </summary>
-    public async Task JoinThread(Guid parentMessageId)
-    {
-        var groupName = $"thread_{parentMessageId}";
-        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-        _logger.LogInformation("User {UserId} joined SignalR thread {ParentMessageId}", Context.UserIdentifier, parentMessageId);
-    }
-
-    /// <summary>
-    /// Unsubscribe khỏi Thread Group.
-    /// </summary>
-    public async Task LeaveThread(Guid parentMessageId)
-    {
-        var groupName = $"thread_{parentMessageId}";
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-        _logger.LogInformation("User {UserId} left SignalR thread {ParentMessageId}", Context.UserIdentifier, parentMessageId);
-    }
-
     #endregion
 
     #region Messaging RPC Endpoints (Server-Side Invocations)
@@ -130,12 +109,12 @@ public class ChatHub : Hub
     /// Endpoint Client gọi qua WebSocket RPC để gửi tin nhắn chính.
     /// Xử lý theo mô hình Command Pattern qua MediatR, sau đó Broadcast tới Group Channel.
     /// </summary>
-    public async Task<MessageDto> SendMessage(Guid channelId, string? content, Guid? threadId = null, List<AttachmentInputDto>? attachments = null)
+    public async Task<MessageDto> SendMessage(Guid channelId, string? content, Guid? replyToMessageId = null, List<AttachmentInputDto>? attachments = null)
     {
         try
         {
             // Execute Business Logic qua Application Layer (CQRS Command)
-            var command = new SendMessageCommand(channelId, content, threadId, attachments);
+            var command = new SendMessageCommand(channelId, content, replyToMessageId, attachments);
             var result = await _mediator.Send(command);
 
             if (!result.IsSuccess)
@@ -190,47 +169,7 @@ public class ChatHub : Hub
     }
 
     /// <summary>
-    /// Gửi reply trong Thread và thông báo Realtime cho cả Thread Group lẫn Main Channel Badge Count.
-    /// </summary>
-    public async Task<MessageDto> SendThreadReply(Guid parentMessageId, string content)
-    {
-        try
-        {
-            var command = new ReplyToMessageCommand(parentMessageId, content);
-            var result = await _mediator.Send(command);
-
-            if (!result.IsSuccess)
-            {
-                throw new HubException(result.Error.Message);
-            }
-
-            var reply = result.Value!;
-
-            // 1. Broadcast tin nhắn reply mới tới những ai đang mở xem Thread đó (Thread Panel)
-            var threadGroup = $"thread_{parentMessageId}";
-            await Clients.Group(threadGroup).SendAsync(SignalRConstants.Events.ReceiveThreadReply, reply);
-
-            // 2. Broadcast sự kiện cập nhật số lượng Reply (ReplyCount) tới Main Channel để hiển thị Badge ở UI ngoài
-            var channelGroup = reply.ChannelId.ToString();
-            await Clients.Group(channelGroup).SendAsync(SignalRConstants.Events.ThreadReplyCountUpdated, new
-            {
-                parentMessageId,
-                channelId = reply.ChannelId,
-                replyId = reply.Id,
-                replyCount = reply.ReplyCount
-            });
-
-            return reply;
-        }
-        catch (ValidationException ex)
-        {
-            var msg = ex.Errors.Values.SelectMany(x => x).FirstOrDefault() ?? ex.Message;
-            throw new HubException(msg);
-        }
-    }
-
-    /// <summary>
-    /// Chỉnh sửa nội dung tin nhắn và bắn Event MessageEdited đồng thời cho cả Channel lẫn Thread (nếu có).
+    /// Chỉnh sửa nội dung tin nhắn và bắn Event MessageEdited tới Channel Group.
     /// </summary>
     public async Task<MessageEditedDto> EditMessage(Guid messageId, string content)
     {
@@ -245,14 +184,6 @@ public class ChatHub : Hub
         var message = result.Value!;
         var channelGroup = message.ChannelId.ToString();
         await Clients.Group(channelGroup).SendAsync(SignalRConstants.Events.MessageEdited, message);
-
-        // Bắn sự kiện tới Thread Group nếu đây là tin nhắn thuộc thread hoặc chính là Root Message của thread
-        if (message.ThreadId.HasValue)
-        {
-            await Clients.Group($"thread_{message.ThreadId.Value}").SendAsync(SignalRConstants.Events.MessageEdited, message);
-        }
-        else
-            await Clients.Group($"thread_{message.Id}").SendAsync(SignalRConstants.Events.MessageEdited, message);
 
         return message;
     }
@@ -274,12 +205,6 @@ public class ChatHub : Hub
         var channelGroup = deleted.ChannelId.ToString();
         await Clients.Group(channelGroup).SendAsync(SignalRConstants.Events.MessageDeleted, deleted);
 
-        if (deleted.ThreadId.HasValue)
-        {
-            await Clients.Group($"thread_{deleted.ThreadId.Value}").SendAsync(SignalRConstants.Events.MessageDeleted, deleted);
-        }
-        await Clients.Group($"thread_{deleted.MessageId}").SendAsync(SignalRConstants.Events.MessageDeleted, deleted);
-
         return deleted;
     }
 
@@ -299,12 +224,6 @@ public class ChatHub : Hub
         var update = result.Value!;
         var channelGroup = update.ChannelId.ToString();
         await Clients.Group(channelGroup).SendAsync(SignalRConstants.Events.ReceiveReactionUpdated, update);
-
-        if (update.ThreadId.HasValue)
-        {
-            await Clients.Group($"thread_{update.ThreadId.Value}").SendAsync(SignalRConstants.Events.ReceiveReactionUpdated, update);
-        }
-        await Clients.Group($"thread_{update.MessageId}").SendAsync(SignalRConstants.Events.ReceiveReactionUpdated, update);
 
         return update;
     }
