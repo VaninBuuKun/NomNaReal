@@ -77,10 +77,8 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
 
   const { activeChannelId, setActiveChannelId } = useChatStore();
   const activeWorkspaceId = currentChannel ? currentChannel.workspaceId : undefined;
-
-  if (activeSidebarView === 'dms') {
-    return null;
-  }
+  const isDm = activeSidebarView === 'dms' || currentChannel?.type === ChannelType.DirectMessage;
+  const isMemberPanelVisible = !isDm && isMemberListOpen;
 
   const handleJumpToMessage = (messageId: string) => {
     const el = document.getElementById(`msg-${messageId}`);
@@ -124,7 +122,7 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
       )}
 
       {/* 4. Resizer Divider & Member List Panel (Mutually Exclusive) */}
-      {!isThreadOpen && isMemberListOpen && (
+      {!isThreadOpen && isMemberPanelVisible && (
         <>
           <div
             className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
@@ -136,7 +134,7 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
             title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thành viên"
           />
           <MemberListPanel
-            isOpen={isMemberListOpen}
+            isOpen={isMemberPanelVisible}
             onClose={() => setMemberListOpen(false)}
             members={displayedMembers}
             currentUser={currentUser}
@@ -169,7 +167,7 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
       )}
 
       {/* 5. Resizer Divider & Search Sidebar (Mutually Exclusive) */}
-      {!isThreadOpen && !isMemberListOpen && isSearchOpen && (
+      {!isThreadOpen && !isMemberPanelVisible && isSearchOpen && (
         <>
           <div
             className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
@@ -201,7 +199,7 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
 
       {/* 6. Resizer Divider & Pinned Messages Sidebar (Mutually Exclusive) */}
       {!isThreadOpen &&
-        !isMemberListOpen &&
+        !isMemberPanelVisible &&
         !isSearchOpen &&
         isPinnedSidebarOpen && (
           <>

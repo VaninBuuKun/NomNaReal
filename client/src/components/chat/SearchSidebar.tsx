@@ -46,7 +46,7 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!workspaceId) return;
+    if (!workspaceId && !currentChannel?.id) return;
 
     const trimmed = keyword.trim();
     if (!trimmed && !senderId && !fromDate && !toDate) return;
@@ -56,9 +56,9 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
 
     try {
       const msgs = await messageApi.searchMessages({
-        workspaceId,
+        workspaceId: workspaceId || undefined,
         keyword: trimmed || undefined,
-        channelId: !isWorkspaceWide && currentChannel ? currentChannel.id : undefined,
+        channelId: (!isWorkspaceWide || !workspaceId) && currentChannel ? currentChannel.id : undefined,
         senderId: senderId || undefined,
         fromDate: fromDate ? new Date(fromDate).toISOString() : undefined,
         toDate: toDate ? new Date(toDate).toISOString() : undefined,
@@ -160,30 +160,36 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
         </form>
 
         {/* Scope Segment: Current Channel vs Entire Workspace */}
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-color)]">
-          <button
-            type="button"
-            onClick={() => setIsWorkspaceWide(false)}
-            className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all cursor-pointer truncate ${
-              !isWorkspaceWide
-                ? "bg-[var(--bg-chat)] text-[var(--accent-primary)] shadow-2xs"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            #{currentChannel?.name || "Kênh hiện tại"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsWorkspaceWide(true)}
-            className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
-              isWorkspaceWide
-                ? "bg-[var(--bg-chat)] text-[var(--accent-primary)] shadow-2xs"
-                : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            }`}
-          >
-            Toàn bộ Server
-          </button>
-        </div>
+        {workspaceId ? (
+          <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-color)]">
+            <button
+              type="button"
+              onClick={() => setIsWorkspaceWide(false)}
+              className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all cursor-pointer truncate ${
+                !isWorkspaceWide
+                  ? "bg-[var(--bg-chat)] text-[var(--accent-primary)] shadow-2xs"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              #{currentChannel?.name || "Kênh hiện tại"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsWorkspaceWide(true)}
+              className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-md transition-all cursor-pointer ${
+                isWorkspaceWide
+                  ? "bg-[var(--bg-chat)] text-[var(--accent-primary)] shadow-2xs"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              }`}
+            >
+              Toàn bộ Server
+            </button>
+          </div>
+        ) : (
+          <div className="px-2.5 py-1.5 text-[11px] font-semibold text-text-muted bg-surface rounded-control border border-border/50 truncate text-center">
+            Tìm kiếm trong cuộc trò chuyện này
+          </div>
+        )}
 
         {/* Filter Toggle Header */}
         <div className="flex items-center justify-between pt-1">

@@ -24,7 +24,7 @@ export const messageApi = {
   },
 
   searchMessages: async (params: {
-    workspaceId: string;
+    workspaceId?: string;
     keyword?: string;
     channelId?: string;
     senderId?: string;
