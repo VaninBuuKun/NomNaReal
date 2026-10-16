@@ -35,14 +35,21 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
   const [filterQuery] = useState('');
   const drafts = useChatStore((state) => state.drafts);
 
-  const filteredConversations = conversations.filter((item) => {
-    if (!filterQuery.trim()) return true;
-    const q = filterQuery.toLowerCase();
-    return (
-      item.user.displayName.toLowerCase().includes(q) ||
-      item.user.username.toLowerCase().includes(q)
-    );
-  });
+  const filteredConversations = React.useMemo(() => {
+    const seenUserIds = new Set<string>();
+    return conversations.filter((item) => {
+      const uid = (item.user?.id || item.id).toLowerCase();
+      if (seenUserIds.has(uid)) return false;
+      seenUserIds.add(uid);
+
+      if (!filterQuery.trim()) return true;
+      const q = filterQuery.toLowerCase();
+      return (
+        item.user.displayName.toLowerCase().includes(q) ||
+        item.user.username.toLowerCase().includes(q)
+      );
+    });
+  }, [conversations, filterQuery]);
 
   const getStatusColor = (status?: string) => {
     switch (status?.toLowerCase()) {

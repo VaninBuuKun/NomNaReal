@@ -57,6 +57,7 @@ public class GetDirectMessagesQueryHandler : IRequestHandler<GetDirectMessagesQu
             .ToListAsync(cancellationToken);
 
         var result = new List<DirectMessageChannelDto>();
+        var seenUserIds = new HashSet<Guid>();
 
         foreach (var ch in dmChannels)
         {
@@ -64,6 +65,7 @@ public class GetDirectMessagesQueryHandler : IRequestHandler<GetDirectMessagesQu
                               ?? ch.Members.FirstOrDefault()?.User;
 
             if (otherMember == null) continue;
+            if (!seenUserIds.Add(otherMember.Id)) continue; // Deduplicate: keep only the most recent channel per user
 
             var status = onlineUsers.Contains(otherMember.Id) ? "online" : otherMember.Status.ToString().ToLower();
 

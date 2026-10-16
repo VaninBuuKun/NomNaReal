@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { WorkspaceRail } from "../components/server";
-import { ChannelSidebar, UserFooterBar } from "../components/channel";
+import { ChannelSidebar, UserFooterBar, VoiceConnectionBar } from "../components/channel";
 import {
   DirectMessagesSidebar,
   type DirectMessageItem,
@@ -456,8 +456,19 @@ export const ChatPage: React.FC = () => {
         unreadCount: d.unreadCount || 0,
         isPending: false,
       }));
-      setDmConversations(formattedDms);
-      return formattedDms;
+      // Deduplicate by target user id (keeping the most recent conversation)
+      const seenUserIds = new Set<string>();
+      const deduplicatedDms: DirectMessageItem[] = [];
+      for (const dm of formattedDms) {
+        const uid = (dm.user?.id || '').toLowerCase();
+        if (uid && !seenUserIds.has(uid)) {
+          seenUserIds.add(uid);
+          deduplicatedDms.push(dm);
+        }
+      }
+
+      setDmConversations(deduplicatedDms);
+      return deduplicatedDms;
     } catch (dmErr) {
       console.error("Failed to fetch user DMs:", dmErr);
       return [];
@@ -960,7 +971,7 @@ export const ChatPage: React.FC = () => {
     role?: string;
   }) => {
     let existing = dmConversations.find(
-      (c) => c.user.id === targetUser.id
+      (c) => (c.user?.id || '').toLowerCase() === (targetUser?.id || '').toLowerCase()
     );
 
     if (!existing) {
@@ -1220,91 +1231,98 @@ export const ChatPage: React.FC = () => {
           onSelectNotification={handleNavigateFromNotification}
         />
         <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* 1. Discord Server Rail (Full Height, Leftmost 72px) */}
-        <WorkspaceRail
-          workspaces={workspaces}
-          activeWorkspaceId={activeWorkspaceId}
-          activeSidebarView={activeSidebarView}
-          onSelectView={(view: any) => {
-            setActiveSidebarView(view);
-            if (view === "dms") {
-              setActiveWorkspaceId(null);
-              refreshUserDms();
-              if (activeDmId) {
-                navigate(`/channels/@me/${activeDmId}`);
-              } else {
-                navigate("/channels/@me");
-              }
-            }
-          }}
-          onSelectWorkspace={handleSelectWorkspace}
-          onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
-          onGoHome={() => {
-            setActiveSidebarView("dms");
-            setActiveWorkspaceId(null);
-            refreshUserDms();
-            navigate("/channels/@me");
-          }}
-        />
-
-        {/* 2. Sub-Sidebar Column (Channel / DM / Notification Sidebar + User Footer Bar) */}
+        {/* 1 & 2. Left Sidebar Section (WorkspaceRail + Sub-Sidebar, with User Footer Bar spanning across the bottom) */}
         <div
           className="h-full flex flex-col shrink-0 overflow-hidden bg-[var(--bg-sidebar)]"
           style={{
-            width: `${activeSidebarView === "notifications" ? Math.max(channelWidth, 310) : channelWidth}px`,
+            width: `${72 + (activeSidebarView === "notifications" ? Math.max(channelWidth, 310) : channelWidth)}px`,
           }}
         >
-          {/* Main Sub-Sidebar Content */}
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-            {activeSidebarView === "channels" ? (
-              <ChannelSidebar
-                currentWorkspace={currentWorkspace}
-                    channels={channels}
-                activeChannelId={activeChannelId}
-                onSelectChannel={handleSelectChannel}
-                onCreateChannel={handleCreateChannel}
-                onOpenSettings={() => setSettingsOpen(true)}
-                isOwner={isOwner}
-                onOpenEditWorkspace={() => useUiStore.getState().setEditWorkspaceOpen(true)}
-                onLeaveWorkspace={handleLeaveWorkspace}
-                onOpenEditChannel={(ch) => setChannelToEdit(ch)}
-                onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
-                onChannelsReorder={(newChannels) => setChannels(newChannels)}
-              />
-            ) : activeSidebarView === "dms" ? (
-              <DirectMessagesSidebar
-                conversations={dmConversations}
-                activeConversationId={activeDmId}
-                isFriendsActive={!activeDmId}
-                onSelectFriends={() => {
-                  setActiveDmId(null);
-                  setActiveChannelId(null);
-                  navigate("/channels/@me");
-                }}
-                onSelectConversation={handleSelectDmConversation}
-                onOpenNewDm={() => setNewDmOpen(true)}
-                onRemoveConversation={(id, e) => {
-                  e.stopPropagation();
-                  setDmConversations((prev) => prev.filter((c) => c.id !== id));
-                  if (activeDmId === id) {
-                    setActiveDmId(null);
-                    setActiveChannelId(null);
+          {/* Top Row: Workspace Rail (72px) + Sub-Sidebar Column */}
+          <div className="flex-1 min-h-0 flex overflow-hidden">
+            <WorkspaceRail
+              workspaces={workspaces}
+              activeWorkspaceId={activeWorkspaceId}
+              activeSidebarView={activeSidebarView}
+              onSelectView={(view: any) => {
+                setActiveSidebarView(view);
+                if (view === "dms") {
+                  setActiveWorkspaceId(null);
+                  refreshUserDms();
+                  if (activeDmId) {
+                    navigate(`/channels/@me/${activeDmId}`);
+                  } else {
+                    navigate("/channels/@me");
                   }
-                }}
-                onlineFriendsCount={onlineFriendsCount}
-                onStartDmWithFriend={(friend) => handleStartDmWithUser(friend)}
-              />
-            ) : activeSidebarView === "notifications" ? (
-              <NotificationsSidebar
-                notifications={notifications}
-                activeNotificationId={selectedNotification?.id}
-                onSelectNotification={handleNotificationSelect}
-                onMarkAllRead={handleMarkAllNotificationsRead}
-              />
-            ) : null}
+                }
+              }}
+              onSelectWorkspace={handleSelectWorkspace}
+              onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
+              onGoHome={() => {
+                setActiveSidebarView("dms");
+                setActiveWorkspaceId(null);
+                refreshUserDms();
+                navigate("/channels/@me");
+              }}
+            />
+
+            {/* Sub-Sidebar Column (Channel / DM / Notification Sidebar) */}
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col border-l border-[var(--border-color)]/30">
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                {activeSidebarView === "channels" ? (
+                  <ChannelSidebar
+                    currentWorkspace={currentWorkspace}
+                    channels={channels}
+                    activeChannelId={activeChannelId}
+                    onSelectChannel={handleSelectChannel}
+                    onCreateChannel={handleCreateChannel}
+                    onOpenSettings={() => setSettingsOpen(true)}
+                    isOwner={isOwner}
+                    onOpenEditWorkspace={() => useUiStore.getState().setEditWorkspaceOpen(true)}
+                    onLeaveWorkspace={handleLeaveWorkspace}
+                    onOpenEditChannel={(ch) => setChannelToEdit(ch)}
+                    onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
+                    onChannelsReorder={(newChannels) => setChannels(newChannels)}
+                  />
+                ) : activeSidebarView === "dms" ? (
+                  <DirectMessagesSidebar
+                    conversations={dmConversations}
+                    activeConversationId={activeDmId}
+                    isFriendsActive={!activeDmId}
+                    onSelectFriends={() => {
+                      setActiveDmId(null);
+                      setActiveChannelId(null);
+                      navigate("/channels/@me");
+                    }}
+                    onSelectConversation={handleSelectDmConversation}
+                    onOpenNewDm={() => setNewDmOpen(true)}
+                    onRemoveConversation={(id, e) => {
+                      e.stopPropagation();
+                      setDmConversations((prev) => prev.filter((c) => c.id !== id));
+                      if (activeDmId === id) {
+                        setActiveDmId(null);
+                        setActiveChannelId(null);
+                      }
+                    }}
+                    onlineFriendsCount={onlineFriendsCount}
+                    onStartDmWithFriend={(friend) => handleStartDmWithUser(friend)}
+                  />
+                ) : activeSidebarView === "notifications" ? (
+                  <NotificationsSidebar
+                    notifications={notifications}
+                    activeNotificationId={selectedNotification?.id}
+                    onSelectNotification={handleNotificationSelect}
+                    onMarkAllRead={handleMarkAllNotificationsRead}
+                  />
+                ) : null}
+              </div>
+
+              {/* Voice Connection Status Card: directly above UserFooterBar in Channel Column */}
+              <VoiceConnectionBar currentWorkspaceName={currentWorkspace?.name} />
+            </div>
           </div>
 
-          {/* User Account Footer Bar (pinned directly at bottom of sub-sidebar) */}
+          {/* User Account Footer Bar (pinned directly at bottom, spanning across both columns) */}
           <UserFooterBar
             currentUser={currentUser}
             onOpenSettings={() => setSettingsOpen(true)}

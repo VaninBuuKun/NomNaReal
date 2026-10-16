@@ -129,7 +129,7 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
   return (
     <div
       ref={listRef}
-      className="absolute bottom-full left-4 mb-2 w-[420px] max-h-80 bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-2xl rounded-xl overflow-hidden z-50 select-none animate-in fade-in slide-in-from-bottom-2 duration-150 flex flex-col"
+      className="absolute bottom-full left-2 sm:left-4 mb-2 w-[calc(100%-16px)] sm:w-[380px] max-h-72 bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-2xl rounded-xl overflow-hidden z-50 select-none animate-in fade-in slide-in-from-bottom-2 duration-150 flex flex-col"
     >
       <div className="px-3.5 py-2 bg-[var(--bg-chat)]/90 border-b border-[var(--border-color)] text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider flex items-center justify-between shrink-0">
         <span>Gợi ý nhắc tên (@mentions)</span>

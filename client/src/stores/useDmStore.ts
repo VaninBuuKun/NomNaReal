@@ -83,14 +83,19 @@ export const useDmStore = create<DmState>((set) => ({
 
   upsertDmMessage: (channelId, msg, isCurrentActive) =>
     set((state) => {
-      const existingIndex = state.dmConversations.findIndex((c) => c.id === channelId);
+      const lowerSenderId = (msg.senderId || '').toLowerCase();
+      const existingIndex = state.dmConversations.findIndex(
+        (c) => c.id === channelId || (c.user?.id && c.user.id.toLowerCase() === lowerSenderId)
+      );
       if (existingIndex !== -1) {
         const existing = state.dmConversations[existingIndex];
         const updated: DirectMessageItem = {
           ...existing,
+          id: channelId, // Update channel id in case it was a pending DM
           lastMessage: msg.content,
           lastMessageTime: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           unreadCount: isCurrentActive ? 0 : (existing.unreadCount || 0) + 1,
+          isPending: false,
         };
         const rest = state.dmConversations.filter((_, idx) => idx !== existingIndex);
         return {

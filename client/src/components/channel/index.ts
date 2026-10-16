@@ -1,5 +1,6 @@
 export * from './ChannelSidebar';
 export * from './UserFooterBar';
+export * from './VoiceConnectionBar';
 export * from './CreateChannelModal';
 export * from './MemberListPanel';
 export * from './EditChannelModal';

@@ -20,11 +20,21 @@
   --color-status-online: var(--status-online);
   --color-status-away: var(--status-away);
   --color-status-dnd: var(--status-dnd);
+  --color-danger: var(--status-dnd);
+  --color-danger-hover: #da373c;
+  --color-danger-soft: rgba(242, 63, 67, 0.16);
+  --color-success: var(--status-online);
+  --color-success-soft: rgba(35, 165, 90, 0.16);
+  --color-warning: var(--status-away);
+  --color-warning-soft: rgba(240, 178, 50, 0.16);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
   --color-code-bg: var(--code-bg);
   --color-code-text: var(--code-text);
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-modal: 16px;
 }
 
 :root,
