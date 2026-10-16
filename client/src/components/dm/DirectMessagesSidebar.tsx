@@ -4,7 +4,7 @@ import {
   Plus,
   X,
   MagnifyingGlass,
-  ChatCircleDots,
+  Chats,
 } from '@phosphor-icons/react';
 import { useChatStore } from '../../stores';
 import { getMediaUrl } from '../../utils/constants';
@@ -115,27 +115,18 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
       {/* 4. DM Conversation List */}
       <div className="flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-0.5 no-scrollbar">
         {filteredConversations.length === 0 ? (
-          <div className="py-4 px-2 flex flex-col items-center text-center gap-2 rounded-card bg-surface/40 border border-border/40 mt-1">
+          <div className="py-6 px-3 flex flex-col items-center text-center gap-2 rounded-card bg-surface/40 border border-border/40 mt-1">
             <div className="w-10 h-10 rounded-control bg-surface flex items-center justify-center text-accent-primary">
-              <ChatCircleDots size={20} weight="fill" />
+              <Chats size={22} weight="duotone" />
             </div>
             <div className="text-xs font-semibold text-text-primary">
-              {filterQuery ? `Không tìm thấy "${filterQuery}"` : "Chưa có tin nhắn trực tiếp"}
+              {filterQuery ? `Không tìm thấy "${filterQuery}"` : "Chưa có cuộc trò chuyện"}
             </div>
-            <p className="text-[11px] text-text-muted leading-relaxed max-w-[180px]">
+            <p className="text-[11px] text-text-muted leading-relaxed max-w-[190px]">
               {filterQuery
                 ? "Hãy thử tìm bằng tên hiển thị hoặc username khác."
-                : "Bắt đầu cuộc trò chuyện mới hoặc chọn Bạn bè để trò chuyện."}
+                : "Nhấn vào dấu cộng (+) ở trên để bắt đầu trò chuyện với bạn bè."}
             </p>
-            {onSelectFriends && !filterQuery && (
-              <button
-                type="button"
-                onClick={onSelectFriends}
-                className="mt-1 px-3 py-1.5 rounded-control text-xs font-medium bg-accent-primary text-on-accent hover:bg-accent-hover transition-colors cursor-pointer"
-              >
-                Mở danh sách bạn bè
-              </button>
-            )}
           </div>
         ) : (
           filteredConversations.map((item) => {
