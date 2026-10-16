@@ -1046,9 +1046,10 @@ export const ChatPage: React.FC = () => {
       handleSelectWorkspace(remaining[0].id);
     } else {
       setActiveWorkspaceId(null);
+      setActiveSidebarView("dms");
       setChannels([]);
       setMessages([]);
-      navigate("/", { replace: true });
+      navigate("/channels/@me", { replace: true });
     }
   };
 
@@ -1056,23 +1057,22 @@ export const ChatPage: React.FC = () => {
     if (!activeWorkspaceId) return;
     if (isOwner) {
       alert(
-        "Bạn là chủ sở hữu của không gian này. Bạn không thể rời nhóm trừ khi chuyển quyền hoặc xóa không gian.",
+        "Bạn là chủ sở hữu của máy chủ này. Bạn không thể rời nhóm trừ khi chuyển quyền hoặc xóa máy chủ.",
       );
-      return;
-    }
-    if (
-      !confirm(
-        `Bạn có chắc chắn muốn rời khỏi "${currentWorkspace?.name || "Workspace"}"?`,
-      )
-    ) {
       return;
     }
     try {
       await workspaceApi.leaveWorkspace(activeWorkspaceId);
       handleWorkspaceDeleted(activeWorkspaceId);
+      setToast({
+        id: `leave-ws-${Date.now()}`,
+        title: "Đã rời máy chủ",
+        description: `Bạn đã rời khỏi "${currentWorkspace?.name || "máy chủ"}".`,
+      });
     } catch (err) {
       console.error("Failed to leave workspace:", err);
-      alert("Không thể rời không gian làm việc. Vui lòng thử lại sau.");
+      alert("Không thể rời máy chủ. Vui lòng thử lại sau.");
+      throw err;
     }
   };
 

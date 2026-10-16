@@ -20,7 +20,7 @@ import {
   Waveform,
 } from '@phosphor-icons/react';
 import { ChannelType, type Channel, type Workspace } from '../../types';
-import { InviteMemberModal, ServerSettingsModal } from '../server';
+import { InviteMemberModal, ServerSettingsModal, LeaveServerModal } from '../server';
 import { Avatar } from '../ui';
 import { channelApi } from '../../services/channelApi';
 import { useVoiceStore } from '../../stores/useVoiceStore';
@@ -54,6 +54,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [isServerSettingsOpen, setIsServerSettingsOpen] = useState(false);
   const [isTextCollapsed, setIsTextCollapsed] = useState(false);
   const [isVoiceCollapsed, setIsVoiceCollapsed] = useState(false);
@@ -468,20 +469,23 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                   />
                 </button>
 
-                <div className="w-full h-px bg-border my-1" />
-
-                {/* 5. Rời máy chủ */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onLeaveWorkspace?.();
-                  }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-danger hover:bg-danger hover:text-on-accent transition-colors cursor-pointer group"
-                >
-                  <span>Rời máy chủ</span>
-                  <SignOut size={16} weight="bold" />
-                </button>
+                {/* 5. Rời máy chủ (Chỉ hiển thị cho thành viên, chủ sở hữu không thể rời) */}
+                {!isOwner && (
+                  <>
+                    <div className="w-full h-px bg-border my-1" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        setIsLeaveModalOpen(true);
+                      }}
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-danger hover:bg-danger hover:text-on-accent transition-colors cursor-pointer group"
+                    >
+                      <span>Rời máy chủ</span>
+                      <SignOut size={16} weight="bold" />
+                    </button>
+                  </>
+                )}
               </div>
             </>,
             document.body
@@ -708,6 +712,16 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         workspace={currentWorkspace}
+      />
+
+      {/* Leave Server Modal */}
+      <LeaveServerModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        workspace={currentWorkspace}
+        onConfirmLeave={async () => {
+          await onLeaveWorkspace?.();
+        }}
       />
 
       {/* Unified Server Settings Modal */}
