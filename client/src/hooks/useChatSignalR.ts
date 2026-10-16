@@ -1,6 +1,6 @@
 import { useFriendStore } from "../stores";
 import { useCallback } from 'react';
-import { signalRService } from '../services';
+import { signalRService, messageApi } from '../services';
 import {
   useWorkspaceStore,
   useChatStore,
@@ -225,6 +225,28 @@ export function useChatSignalR({
             setToast(null);
           },
         });
+      }
+    });
+
+    // 7. Network Reconnection Catch-Up (Task 3)
+    signalRService.onReconnected(async () => {
+      const channelId = activeChannelIdRef.current;
+      if (!channelId) return;
+
+      const currentMessages = useChatStore.getState().messages;
+      const hasNewer = useChatStore.getState().hasNewerMessages;
+
+      // If user is at live bottom, pull any messages sent during disconnection
+      if (!hasNewer && currentMessages.length > 0) {
+        const latestMessage = currentMessages[currentMessages.length - 1];
+        try {
+          const gapRes = await messageApi.getMessages(channelId, undefined, latestMessage.createdAt, 50);
+          if (gapRes.messages && gapRes.messages.length > 0) {
+            useChatStore.getState().appendNewerMessages(gapRes.messages);
+          }
+        } catch (err) {
+          console.error('Failed to sync messages after reconnect:', err);
+        }
       }
     });
 

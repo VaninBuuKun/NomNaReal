@@ -4,6 +4,7 @@ import type { Message, MessageEdited, ReactionUpdate, DeletedMessage, Channel, A
 export class SignalRService {
   private connection: signalR.HubConnection | null = null;
   private currentChannelId: string | null = null;
+  private reconnectedCallbacks: Array<(connectionId?: string) => void> = [];
 
   public async startConnection(
     onMessageReceived: (message: Message) => void,
@@ -32,6 +33,27 @@ export class SignalRService {
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
+    this.connection.onreconnected(async (connectionId) => {
+      console.log('SignalR Reconnected. ConnectionId:', connectionId);
+      // Automatically rejoin active channel on server
+      if (this.currentChannelId) {
+        try {
+          await this.connection?.invoke('JoinChannel', this.currentChannelId);
+          console.log(`Rejoined channel ${this.currentChannelId} after reconnect.`);
+        } catch (err) {
+          console.error('Failed to rejoin channel after reconnect:', err);
+        }
+      }
+      // Notify listeners to perform gap-fill / sync
+      for (const cb of this.reconnectedCallbacks) {
+        try {
+          cb(connectionId);
+        } catch (err) {
+          console.error('Error in onReconnected callback:', err);
+        }
+      }
+    });
+
     this.connection.on('ReceiveMessage', (message: Message) => {
       onMessageReceived(message);
     });
@@ -55,6 +77,14 @@ export class SignalRService {
       }
       console.error('SignalR Connection Error: ', err);
     }
+  }
+
+  public onReconnected(callback: (connectionId?: string) => void): void {
+    this.reconnectedCallbacks.push(callback);
+  }
+
+  public offReconnected(callback: (connectionId?: string) => void): void {
+    this.reconnectedCallbacks = this.reconnectedCallbacks.filter((cb) => cb !== callback);
   }
 
   public async joinChannel(channelId: string): Promise<void> {

@@ -11,11 +11,16 @@ public class DeleteMessageCommandHandler : IRequestHandler<DeleteMessageCommand,
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPinnedMessageCache _pinnedMessageCache;
 
-    public DeleteMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public DeleteMessageCommandHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IPinnedMessageCache pinnedMessageCache)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _pinnedMessageCache = pinnedMessageCache;
     }
 
     public async Task<Result<DeletedMessageDto>> Handle(DeleteMessageCommand request, CancellationToken cancellationToken)
@@ -53,6 +58,8 @@ public class DeleteMessageCommandHandler : IRequestHandler<DeleteMessageCommand,
         message.DeletedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        _pinnedMessageCache.Invalidate(message.ChannelId);
 
         return new DeletedMessageDto(
             message.Id,

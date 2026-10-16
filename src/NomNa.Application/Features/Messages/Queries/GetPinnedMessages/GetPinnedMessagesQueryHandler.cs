@@ -12,11 +12,16 @@ public class GetPinnedMessagesQueryHandler : IRequestHandler<GetPinnedMessagesQu
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPinnedMessageCache _pinnedMessageCache;
 
-    public GetPinnedMessagesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public GetPinnedMessagesQueryHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IPinnedMessageCache pinnedMessageCache)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _pinnedMessageCache = pinnedMessageCache;
     }
 
     public async Task<Result<List<PinnedMessageDto>>> Handle(GetPinnedMessagesQuery request, CancellationToken cancellationToken)
@@ -25,6 +30,13 @@ public class GetPinnedMessagesQueryHandler : IRequestHandler<GetPinnedMessagesQu
         if (!userId.HasValue)
         {
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
+        }
+
+        // Check in-memory cache first
+        var cached = _pinnedMessageCache.Get(request.ChannelId);
+        if (cached != null)
+        {
+            return cached;
         }
 
         var channel = await _context.Channels
@@ -108,6 +120,7 @@ public class GetPinnedMessagesQueryHandler : IRequestHandler<GetPinnedMessagesQu
             ))
             .ToListAsync(cancellationToken);
 
+        _pinnedMessageCache.Set(request.ChannelId, pinnedList);
         return pinnedList;
     }
 }

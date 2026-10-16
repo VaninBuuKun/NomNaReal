@@ -10,11 +10,16 @@ public class UnpinMessageCommandHandler : IRequestHandler<UnpinMessageCommand, R
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPinnedMessageCache _pinnedMessageCache;
 
-    public UnpinMessageCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public UnpinMessageCommandHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IPinnedMessageCache pinnedMessageCache)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _pinnedMessageCache = pinnedMessageCache;
     }
 
     public async Task<Result<UnpinnedMessageResultDto>> Handle(UnpinMessageCommand request, CancellationToken cancellationToken)
@@ -67,6 +72,8 @@ public class UnpinMessageCommandHandler : IRequestHandler<UnpinMessageCommand, R
         await _context.ChannelPinnedMessages
             .Where(p => p.Id == pinInfo.Id)
             .ExecuteDeleteAsync(cancellationToken);
+
+        _pinnedMessageCache.Invalidate(pinInfo.ChannelId);
 
         return new UnpinnedMessageResultDto(pinInfo.ChannelId, pinInfo.MessageId);
     }

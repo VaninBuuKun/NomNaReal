@@ -13,15 +13,18 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserProfileCache _userProfileCache;
+    private readonly IPinnedMessageCache _pinnedMessageCache;
 
     public PinMessageCommandHandler(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
-        IUserProfileCache userProfileCache)
+        IUserProfileCache userProfileCache,
+        IPinnedMessageCache pinnedMessageCache)
     {
         _context = context;
         _currentUserService = currentUserService;
         _userProfileCache = userProfileCache;
+        _pinnedMessageCache = pinnedMessageCache;
     }
 
     public async Task<Result<PinnedMessageDto>> Handle(PinMessageCommand request, CancellationToken cancellationToken)
@@ -154,6 +157,8 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
 
         _context.ChannelPinnedMessages.Add(pinnedMessage);
         await _context.SaveChangesAsync(cancellationToken);
+
+        _pinnedMessageCache.Invalidate(messageInfo.ChannelId);
 
         return new PinnedMessageDto(
             pinnedMessage.Id,
