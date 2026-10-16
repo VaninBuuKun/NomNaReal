@@ -18,7 +18,7 @@ interface MessageContentProps {
  * - @username / @all / @here -> mention pill
  */
 function parseInlineMarkdown(text: string, currentUsername?: string): React.ReactNode[] {
-  const tokenRegex = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\n]+\*|https?:\/\/[^\s<]+|@[a-zA-Z0-9_\.]+)/g;
+  const tokenRegex = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\n]+\*|https?:\/\/[^\s<]+|(?<!\w)@[a-zA-Z0-9_\.]+)/g;
   const parts: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;

@@ -744,6 +744,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         onSendMessage={onSendMessage}
         onToggleReaction={handleReactionClick}
         onOpenUserProfile={onOpenUserProfile}
+        workspaceMembers={workspaceMembers}
       />
     );
   }

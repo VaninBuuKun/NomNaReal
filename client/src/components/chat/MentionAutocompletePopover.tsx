@@ -36,24 +36,24 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
       username: 'all',
       displayName: 'all',
       description: 'Thông báo cho tất cả thành viên trong kênh này',
-      badgeColor: 'bg-amber-500/20 text-amber-500 border border-amber-500/30',
-      icon: <Users size={16} weight="bold" className="text-amber-500" />,
+      badgeColor: 'bg-accent-soft text-accent-primary border border-accent-primary/25',
+      icon: <Users size={16} weight="bold" className="text-accent-primary" />,
     },
     {
       id: 'special-channel',
       username: 'channel',
       displayName: 'channel',
       description: 'Nhắc toàn bộ mọi người có mặt trong kênh',
-      badgeColor: 'bg-amber-500/20 text-amber-500 border border-amber-500/30',
-      icon: <Hash size={16} weight="bold" className="text-amber-500" />,
+      badgeColor: 'bg-accent-soft text-accent-primary border border-accent-primary/25',
+      icon: <Hash size={16} weight="bold" className="text-accent-primary" />,
     },
     {
       id: 'special-everyone',
       username: 'everyone',
       displayName: 'everyone',
       description: 'Nhắc toàn bộ thành viên trong Server',
-      badgeColor: 'bg-amber-500/20 text-amber-500 border border-amber-500/30',
-      icon: <Megaphone size={16} weight="bold" className="text-amber-500" />,
+      badgeColor: 'bg-accent-soft text-accent-primary border border-accent-primary/25',
+      icon: <Megaphone size={16} weight="bold" className="text-accent-primary" />,
     },
     {
       id: 'special-here',
@@ -159,7 +159,7 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
                     <div className="flex items-center gap-2">
                       <span
                         className={`font-bold text-[13px] ${
-                          s.username === 'here' ? 'text-emerald-500' : 'text-amber-500'
+                          s.username === 'here' ? 'text-emerald-500' : 'text-accent-primary'
                         }`}
                       >
                         @{s.displayName}
@@ -168,7 +168,7 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
                         className={`px-1.5 py-0.2 rounded-control text-[10px] font-semibold ${
                           s.username === 'here'
                             ? 'bg-emerald-500/15 text-emerald-500'
-                            : 'bg-amber-500/15 text-amber-500'
+                            : 'bg-accent-soft text-accent-primary'
                         }`}
                       >
                         {s.username === 'here' ? 'Trực tuyến' : 'Thông báo toàn kênh'}

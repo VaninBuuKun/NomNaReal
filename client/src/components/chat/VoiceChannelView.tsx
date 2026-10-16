@@ -14,11 +14,11 @@ import {
   PaperPlaneRight,
   Smiley,
   CircleNotch,
-  Paperclip,
+  Plus,
   FileText,
   Play,
-  Plus,
   DownloadSimple,
+  Image as ImageIcon,
 } from '@phosphor-icons/react';
 import { Avatar } from '../ui';
 import type { Channel, Message, User, MessageAttachment } from '../../types';
@@ -26,6 +26,8 @@ import { useVoiceStore } from '../../stores/useVoiceStore';
 import { getMediaUrl } from '../../utils/constants';
 import { MessageContent } from './MessageContent';
 import { EmojiPickerPopover } from './EmojiPickerPopover';
+import { GifPicker } from './GifPicker';
+import { MentionAutocompletePopover, type MentionUser } from './MentionAutocompletePopover';
 import { fileApi } from '../../services/fileApi';
 import type { UserProfileData } from '../profile';
 
@@ -45,6 +47,7 @@ interface VoiceChannelViewProps {
   ) => Promise<void>;
   onToggleReaction?: (messageId: string, emoji: string) => void;
   onOpenUserProfile?: (user: UserProfileData) => void;
+  workspaceMembers?: MentionUser[];
   workspaceName?: string;
   onLeaveVoice?: () => void;
 }
@@ -73,6 +76,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
   onSendMessage,
   onToggleReaction,
   onOpenUserProfile,
+  workspaceMembers = [],
   onLeaveVoice,
 }) => {
   const {
@@ -86,7 +90,6 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
     leaveVoice,
     toggleMute,
     toggleDeafen,
-    toggleSpeaking,
     toggleScreenSharing,
     toggleTextChat,
   } = useVoiceStore();
@@ -95,12 +98,19 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
-  const [isInputEmojiOpen, setIsInputEmojiOpen] = useState(false);
+  const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [isGifPickerOpen, setIsGifPickerOpen] = useState(false);
   const [reactingMessageId, setReactingMessageId] = useState<string | null>(null);
+
+  // Mention autocomplete state in voice chat
+  const [isMentionOpen, setIsMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const plusMenuRef = useRef<HTMLDivElement>(null);
 
   // Auto-connect to voice channel when viewing this channel if not connected yet
   useEffect(() => {
@@ -125,6 +135,21 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
     }
   }, [messages.length, isTextChatOpen]);
 
+  // Close plus menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) {
+        setIsPlusMenuOpen(false);
+      }
+    };
+    if (isPlusMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isPlusMenuOpen]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -146,6 +171,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
 
     setPendingAttachments((prev) => [...prev, ...newAttachments]);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    setIsPlusMenuOpen(false);
   };
 
   const removeAttachment = (id: string) => {
@@ -154,6 +180,40 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
       if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
       return prev.filter((a) => a.id !== id);
     });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInputMessage(val);
+
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const lastAtMatch = textBeforeCursor.match(/@([a-zA-Z0-9_\.]*)$/);
+    if (lastAtMatch) {
+      setMentionQuery(lastAtMatch[1]);
+      setIsMentionOpen(true);
+    } else {
+      setIsMentionOpen(false);
+    }
+  };
+
+  const handleSelectMention = (username: string) => {
+    if (!textareaRef.current) return;
+    const textarea = textareaRef.current;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = inputMessage.slice(0, cursorPos);
+    const textAfterCursor = inputMessage.slice(cursorPos);
+
+    const updatedBefore = textBeforeCursor.replace(/@([a-zA-Z0-9_\.]*)$/, `@${username} `);
+    const newContent = updatedBefore + textAfterCursor;
+    setInputMessage(newContent);
+    setIsMentionOpen(false);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newCursor = updatedBefore.length;
+      textarea.setSelectionRange(newCursor, newCursor);
+    }, 10);
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -183,6 +243,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
       await onSendMessage(text, finalAttachments.length > 0 ? finalAttachments : undefined);
       setInputMessage('');
       setPendingAttachments([]);
+      setIsMentionOpen(false);
     } finally {
       setIsSending(false);
     }
@@ -195,11 +256,11 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
 
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 bg-chat overflow-hidden select-none">
-      {/* 1. Voice Channel Header (Clean Discord style: No "Đã kết nối" text, No "Rời phòng" text button) */}
-      <div className="h-[54px] px-5 border-b border-border flex items-center justify-between shrink-0 bg-chat">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <SpeakerHigh size={22} weight="bold" className="text-text-muted shrink-0" />
-          <h2 className="text-base font-bold text-text-primary truncate">
+      {/* 1. Voice Channel Header (Compact 48px, exactly matching text channel header) */}
+      <div className="h-12 px-4 border-b border-border flex items-center justify-between shrink-0 bg-chat">
+        <div className="flex items-center gap-2 min-w-0">
+          <SpeakerHigh size={18} weight="bold" className="text-text-muted shrink-0" />
+          <h2 className="text-sm font-semibold text-text-primary truncate">
             {currentChannel.name}
           </h2>
           {currentChannel.topic && (
@@ -214,27 +275,27 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
           <button
             type="button"
             onClick={toggleScreenSharing}
-            className={`p-2 rounded-control text-sm font-semibold cursor-pointer transition-colors ${
+            className={`p-1.5 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
               isScreenSharing
                 ? 'bg-accent-soft text-accent-primary'
                 : 'text-text-muted hover:text-text-primary hover:bg-surface-active'
             }`}
             title="Chia sẻ màn hình"
           >
-            <Screencast size={18} weight={isScreenSharing ? 'fill' : 'bold'} />
+            <Screencast size={16} weight={isScreenSharing ? 'fill' : 'bold'} />
           </button>
 
           <button
             type="button"
             onClick={toggleTextChat}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-control text-xs font-semibold cursor-pointer transition-colors ${
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer transition-colors ${
               isTextChatOpen
                 ? 'bg-accent-soft text-accent-primary'
                 : 'text-text-muted hover:text-text-primary hover:bg-surface-active'
             }`}
             title={isTextChatOpen ? 'Ẩn trò chuyện' : 'Mở trò chuyện trong phòng thoại'}
           >
-            <ChatTeardropText size={17} weight={isTextChatOpen ? 'fill' : 'bold'} />
+            <ChatTeardropText size={16} weight={isTextChatOpen ? 'fill' : 'bold'} />
             <span className="hidden sm:inline">Trò chuyện</span>
           </button>
         </div>
@@ -242,54 +303,29 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
 
       {/* 2. Main Stage & In-Voice Chat Split View */}
       <div className="flex-1 flex min-h-0 overflow-hidden relative">
-        {/* LEFT / CENTER: Voice Stage Room */}
+        {/* LEFT / CENTER: Authentic Discord-style Voice Room Stage */}
         <div className="flex-1 flex flex-col min-h-0 p-4 sm:p-6 relative justify-between overflow-y-auto no-scrollbar">
           {/* Participant Cards Grid */}
-          <div className="max-w-4xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-5 flex-1 items-center justify-center my-auto">
+          <div className="max-w-4xl w-full mx-auto grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 items-center justify-center my-auto">
             {participants.map((p) => {
               const isMe = p.userId === currentUser?.id;
-              const isCompanion = p.userId === 'simulated-nomna-bot';
 
               return (
                 <div
                   key={p.userId}
-                  className={`relative flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-200 min-h-[230px] ${
-                    isMe
-                      ? p.isSpeaking
-                        ? 'bg-linear-to-b from-accent-primary/[0.12] via-surface to-surface border-2 border-success shadow-[0_0_30px_rgba(35,165,90,0.3)]'
-                        : 'bg-linear-to-b from-accent-primary/[0.08] via-surface to-surface border-2 border-accent-primary/60 shadow-[0_0_24px_rgba(99,102,241,0.14)]'
-                      : p.isSpeaking
-                      ? 'bg-surface border-2 border-success shadow-[0_0_24px_rgba(35,165,90,0.25)]'
-                      : 'bg-surface/90 border border-border/70 hover:border-border shadow-raised'
+                  className={`relative flex flex-col items-center justify-center p-6 rounded-xl bg-surface/90 border transition-all duration-150 min-h-[220px] shadow-raised overflow-hidden ${
+                    p.isSpeaking
+                      ? 'border-success/80 shadow-[0_0_20px_rgba(35,165,90,0.25)]'
+                      : 'border-border/60 hover:border-border'
                   }`}
                 >
-                  {/* Top Right: Speaking equalizer waves */}
-                  {p.isSpeaking && (
-                    <div className="absolute top-3.5 right-3.5 flex items-center gap-0.5 text-success">
-                      <span className="w-1 h-3.5 bg-success rounded-full animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1 h-5 bg-success rounded-full animate-bounce [animation-delay:150ms]" />
-                      <span className="w-1 h-2.5 bg-success rounded-full animate-bounce [animation-delay:300ms]" />
-                    </div>
-                  )}
-
-                  {/* Top Left: Distinguished "BẠN" tag for current user */}
-                  {isMe && (
-                    <div className="absolute top-3.5 left-3.5">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-accent-primary text-white tracking-wider shadow-xs">
-                        BẠN
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Avatar with dynamic speaking ring */}
-                  <div className="relative mb-3.5">
+                  {/* Avatar: Clean without thick awkward rings; pure green ring ONLY when speaking */}
+                  <div className="relative mb-2">
                     <div
-                      className={`rounded-full transition-all duration-200 p-1 ${
+                      className={`rounded-full transition-all duration-150 ${
                         p.isSpeaking
-                          ? 'ring-4 ring-success ring-offset-4 ring-offset-surface animate-pulse'
-                          : isMe
-                          ? 'ring-2 ring-accent-primary/50'
-                          : 'ring-2 ring-transparent'
+                          ? 'ring-2 ring-success shadow-[0_0_12px_rgba(35,165,90,0.4)]'
+                          : 'ring-0'
                       }`}
                     >
                       <Avatar
@@ -298,188 +334,166 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                         size="lg"
                       />
                     </div>
-
-                    {/* Mute badge overlay */}
-                    {p.isMuted && (
-                      <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-danger text-white flex items-center justify-center border-2 border-surface shadow-xs">
-                        <MicrophoneSlash size={12} weight="bold" />
-                      </span>
-                    )}
                   </div>
 
-                  {/* Name Tag */}
-                  <div className="flex items-center gap-2 text-sm font-bold text-text-primary">
-                    <span className="truncate max-w-[170px]">{p.displayName}</span>
-                    {isCompanion && (
-                      <span className="px-1.5 py-0.5 rounded-control text-[10px] font-bold bg-accent-soft text-accent-primary">
-                        BOT
+                  {/* Translucent bottom pill tag (Authentic Discord layout) */}
+                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm border border-white/5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-semibold text-white truncate max-w-[150px]">
+                        {p.displayName}
                       </span>
-                    )}
-                  </div>
-
-                  {/* Refined Speaking Status / Mic Test Button */}
-                  {isMe ? (
-                    <button
-                      type="button"
-                      onClick={toggleSpeaking}
-                      disabled={isMuted}
-                      className={`mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer shadow-xs active:scale-95 ${
-                        isMuted
-                          ? 'opacity-40 cursor-not-allowed bg-surface-active text-text-muted border border-border/40'
-                          : p.isSpeaking
-                          ? 'bg-success text-white shadow-md'
-                          : 'bg-surface-active hover:bg-accent-soft hover:text-accent-primary text-text-secondary border border-border/60'
-                      }`}
-                    >
-                      <Waveform size={14} weight="bold" className={p.isSpeaking ? 'animate-pulse' : ''} />
-                      <span>{p.isSpeaking ? 'Đang nói (Click để dừng)' : 'Thử micro'}</span>
-                    </button>
-                  ) : (
-                    <div className="mt-3 flex items-center gap-1.5 text-xs text-text-muted">
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          p.isSpeaking ? 'bg-success animate-ping' : 'bg-text-muted/40'
-                        }`}
-                      />
-                      <span>{p.isSpeaking ? 'Đang nói' : 'Đang lắng nghe'}</span>
+                      {isMe && (
+                        <span className="text-[10px] text-accent-primary font-bold shrink-0">
+                          (Bạn)
+                        </span>
+                      )}
                     </div>
-                  )}
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {p.isMuted && (
+                        <MicrophoneSlash size={14} weight="bold" className="text-danger" />
+                      )}
+                      {p.isSpeaking && (
+                        <Waveform size={14} weight="bold" className="text-success animate-pulse" />
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Floating Dock: Discord-style Voice Controls */}
-          <div className="shrink-0 flex justify-center pt-4 pb-2">
-            <div className="inline-flex items-center gap-2 p-2 rounded-full bg-sidebar/95 backdrop-blur-md border border-border shadow-floating">
+          {/* Floating Dock: Discord Voice Stage Controls */}
+          <div className="shrink-0 flex justify-center pt-3 pb-2">
+            <div className="inline-flex items-center gap-1.5 p-1.5 rounded-full bg-sidebar/95 backdrop-blur-md border border-border shadow-floating">
               {/* Mic toggle */}
               <button
                 type="button"
                 onClick={toggleMute}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                   isMuted
                     ? 'bg-danger text-white hover:bg-danger-hover shadow-xs'
                     : 'text-text-primary hover:bg-surface-active'
                 }`}
                 title={isMuted ? 'Bật Mic' : 'Tắt Mic'}
               >
-                {isMuted ? <MicrophoneSlash size={19} weight="bold" /> : <Microphone size={19} weight="bold" />}
+                {isMuted ? <MicrophoneSlash size={18} weight="bold" /> : <Microphone size={18} weight="bold" />}
               </button>
 
               {/* Deafen toggle */}
               <button
                 type="button"
                 onClick={toggleDeafen}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                   isDeafened
                     ? 'bg-danger text-white hover:bg-danger-hover shadow-xs'
                     : 'text-text-primary hover:bg-surface-active'
                 }`}
                 title={isDeafened ? 'Bật âm thanh' : 'Tắt toàn bộ âm thanh'}
               >
-                <Headphones size={19} weight={isDeafened ? 'fill' : 'bold'} />
+                <Headphones size={18} weight={isDeafened ? 'fill' : 'bold'} />
               </button>
 
               {/* Video Camera Toggle */}
               <button
                 type="button"
                 onClick={() => setIsCameraActive((prev) => !prev)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                   isCameraActive
                     ? 'bg-accent-primary text-white shadow-xs'
                     : 'text-text-primary hover:bg-surface-active'
                 }`}
                 title={isCameraActive ? 'Tắt Camera' : 'Bật Camera'}
               >
-                {isCameraActive ? <VideoCamera size={19} weight="bold" /> : <VideoCameraSlash size={19} weight="bold" />}
+                {isCameraActive ? <VideoCamera size={18} weight="bold" /> : <VideoCameraSlash size={18} weight="bold" />}
               </button>
 
-              {/* Screen Share simulation */}
+              {/* Screen Share */}
               <button
                 type="button"
                 onClick={toggleScreenSharing}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                   isScreenSharing
                     ? 'bg-accent-primary text-white shadow-xs'
                     : 'text-text-primary hover:bg-surface-active'
                 }`}
                 title="Chia sẻ màn hình"
               >
-                <Screencast size={19} weight="bold" />
+                <Screencast size={18} weight="bold" />
               </button>
 
               {/* Text Chat toggle */}
               <button
                 type="button"
                 onClick={toggleTextChat}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
                   isTextChatOpen
                     ? 'bg-accent-soft text-accent-primary'
                     : 'text-text-primary hover:bg-surface-active'
                 }`}
                 title="Trò chuyện bằng văn bản"
               >
-                <ChatTeardropText size={19} weight={isTextChatOpen ? 'fill' : 'bold'} />
+                <ChatTeardropText size={18} weight={isTextChatOpen ? 'fill' : 'bold'} />
               </button>
 
               {/* Divider */}
-              <div className="w-px h-6 bg-border mx-1" />
+              <div className="w-px h-5 bg-border mx-1" />
 
-              {/* Disconnect Button (User requirement: Prominently RED) */}
+              {/* Red Disconnect Button */}
               <button
                 type="button"
                 onClick={handleDisconnect}
-                className="h-10 px-5 rounded-full bg-danger text-white hover:bg-danger-hover transition-all font-bold text-xs flex items-center gap-2 cursor-pointer shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
+                className="h-9 px-4 rounded-full bg-danger text-white hover:bg-danger-hover transition-all font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm hover:shadow active:scale-95"
                 title="Ngắt kết nối phòng thoại"
               >
-                <PhoneDisconnect size={18} weight="bold" />
+                <PhoneDisconnect size={16} weight="bold" />
                 <span>Ngắt kết nối</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* RIGHT: Full-Featured In-Voice Text Chat Panel */}
+        {/* RIGHT: In-Voice Chat Panel (Discord-style with + Action Menu) */}
         {isTextChatOpen && (
           <div className="w-80 md:w-96 border-l border-border bg-sidebar/50 flex flex-col h-full shrink-0 animate-in slide-in-from-right-4 duration-150">
-            {/* Header */}
-            <div className="h-[54px] px-4 border-b border-border flex items-center justify-between shrink-0 bg-sidebar/80">
+            {/* Header (compact 48px) */}
+            <div className="h-12 px-3.5 border-b border-border flex items-center justify-between shrink-0 bg-sidebar/80">
               <div className="flex items-center gap-2">
-                <ChatTeardropText size={18} weight="fill" className="text-accent-primary" />
-                <h3 className="font-bold text-xs text-text-primary">Chat trong phòng thoại</h3>
+                <ChatTeardropText size={17} weight="fill" className="text-accent-primary" />
+                <h3 className="font-semibold text-xs text-text-primary">Chat trong phòng thoại</h3>
               </div>
               <button
                 type="button"
                 onClick={toggleTextChat}
-                className="p-1.5 rounded-control text-text-muted hover:text-text-primary hover:bg-surface transition-colors cursor-pointer"
+                className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-surface transition-colors cursor-pointer"
                 title="Đóng khung chat"
               >
                 <X size={15} weight="bold" />
               </button>
             </div>
 
-            {/* Messages Feed with Full Features: Reactions, Attachments, Markdown */}
+            {/* Messages Feed */}
             <div
               ref={chatScrollRef}
-              className="flex-1 min-h-0 overflow-y-auto p-3.5 space-y-3.5 no-scrollbar"
+              className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3 no-scrollbar"
             >
               {messages.length === 0 ? (
-                <div className="py-12 text-center flex flex-col items-center gap-2.5 text-text-muted">
-                  <div className="w-11 h-11 rounded-xl bg-surface flex items-center justify-center text-accent-primary shadow-xs">
-                    <ChatTeardropText size={22} weight="fill" />
+                <div className="py-10 text-center flex flex-col items-center gap-2 text-text-muted">
+                  <div className="w-10 h-10 rounded-xl bg-surface flex items-center justify-center text-accent-primary shadow-xs">
+                    <ChatTeardropText size={20} weight="fill" />
                   </div>
-                  <p className="text-xs font-bold text-text-primary">
+                  <p className="text-xs font-semibold text-text-primary">
                     Chưa có tin nhắn nào trong phòng
                   </p>
                   <p className="text-[11px] leading-relaxed max-w-[210px]">
-                    Hãy gửi bình luận, reaction hoặc gửi tệp đầu tiên trong khi đàm thoại!
+                    Hãy gửi bình luận, reaction hoặc gửi tệp trong khi đàm thoại!
                   </p>
                 </div>
               ) : (
                 messages.map((msg) => (
                   <div
                     key={msg.id}
-                    className="group relative flex items-start gap-2.5 text-xs p-1.5 rounded-lg hover:bg-surface/60 transition-colors"
+                    className="group relative flex items-start gap-2.5 text-xs p-1.5 rounded-lg hover:bg-surface/50 transition-colors"
                   >
                     <div
                       className="cursor-pointer shrink-0"
@@ -500,9 +514,9 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 mb-1">
+                      <div className="flex items-center gap-1.5 mb-0.5">
                         <span
-                          className="font-bold text-text-primary truncate cursor-pointer hover:underline"
+                          className="font-semibold text-text-primary truncate cursor-pointer hover:underline"
                           onClick={() =>
                             onOpenUserProfile?.({
                               id: msg.senderId,
@@ -522,7 +536,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                         </span>
                       </div>
 
-                      {/* Rich Content rendering via MessageContent */}
+                      {/* Message Content with Markdown & Mentions */}
                       {msg.content && (
                         <div className="text-text-secondary leading-relaxed break-words">
                           <MessageContent
@@ -532,9 +546,9 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                         </div>
                       )}
 
-                      {/* Attachments rendering */}
+                      {/* Attachments */}
                       {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="mt-2 flex flex-col gap-1.5">
+                        <div className="mt-1.5 flex flex-col gap-1.5">
                           {msg.attachments.map((att, idx) => {
                             const fullUrl = getMediaUrl(att.url);
                             if (att.type === 'image') {
@@ -544,7 +558,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                                   href={fullUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="block max-w-[240px] max-h-[180px] rounded-lg overflow-hidden border border-border hover:border-accent-primary transition-all"
+                                  className="block max-w-[220px] max-h-[160px] rounded-lg overflow-hidden border border-border hover:border-accent-primary transition-all"
                                 >
                                   <img
                                     src={fullUrl}
@@ -560,7 +574,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                                   key={idx}
                                   src={fullUrl}
                                   controls
-                                  className="max-w-[240px] max-h-[180px] rounded-lg border border-border"
+                                  className="max-w-[220px] max-h-[160px] rounded-lg border border-border"
                                 />
                               );
                             }
@@ -571,14 +585,14 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                                 target="_blank"
                                 rel="noreferrer"
                                 download={att.fileName}
-                                className="inline-flex items-center gap-2 p-2 rounded-lg bg-surface border border-border hover:bg-surface-active text-text-primary text-[11px] max-w-xs transition-colors"
+                                className="inline-flex items-center gap-2 p-1.5 rounded-lg bg-surface border border-border hover:bg-surface-active text-text-primary text-[11px] max-w-xs transition-colors"
                               >
-                                <FileText size={18} className="text-accent-primary shrink-0" />
+                                <FileText size={16} className="text-accent-primary shrink-0" />
                                 <span className="truncate flex-1 font-medium">
                                   {att.fileName}
                                   {att.fileSize ? ` (${formatFileSize(att.fileSize)})` : ''}
                                 </span>
-                                <DownloadSimple size={14} className="text-text-muted shrink-0" />
+                                <DownloadSimple size={13} className="text-text-muted shrink-0" />
                               </a>
                             );
                           })}
@@ -587,7 +601,7 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
 
                       {/* Reactions badges strip */}
                       {msg.reactions && msg.reactions.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                        <div className="flex flex-wrap items-center gap-1 mt-1">
                           {msg.reactions.map((r, rIdx) => (
                             <button
                               key={rIdx}
@@ -639,14 +653,14 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                 {pendingAttachments.map((att) => (
                   <div
                     key={att.id}
-                    className="relative group shrink-0 w-16 h-16 rounded-lg border border-border bg-chat overflow-hidden flex flex-col items-center justify-center"
+                    className="relative group shrink-0 w-14 h-14 rounded-lg border border-border bg-chat overflow-hidden flex flex-col items-center justify-center"
                   >
                     {att.type === 'image' ? (
                       <img src={att.previewUrl} alt={att.name} className="w-full h-full object-cover" />
                     ) : att.type === 'video' ? (
-                      <Play size={20} className="text-accent-primary" />
+                      <Play size={18} className="text-accent-primary" />
                     ) : (
-                      <FileText size={20} className="text-accent-primary" />
+                      <FileText size={18} className="text-accent-primary" />
                     )}
                     <button
                       type="button"
@@ -661,10 +675,10 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
               </div>
             )}
 
-            {/* Full-Featured In-Voice Input Bar */}
+            {/* In-Voice Chat Input Bar (Discord-style: [+] Action Button on Left) */}
             <form
               onSubmit={handleSendMessage}
-              className="p-3 border-t border-border bg-sidebar/80 flex flex-col gap-2 shrink-0 relative"
+              className="p-2.5 border-t border-border bg-sidebar/80 flex flex-col gap-1.5 shrink-0 relative"
             >
               {/* Hidden file input */}
               <input
@@ -676,71 +690,156 @@ export const VoiceChannelView: React.FC<VoiceChannelViewProps> = ({
                 onChange={handleFileUpload}
               />
 
-              <div className="flex items-center gap-2">
-                {/* Paperclip file attach button */}
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-surface transition-colors cursor-pointer"
-                  title="Đính kèm ảnh / video / tệp"
-                >
-                  <Paperclip size={17} weight="bold" />
-                </button>
+              {/* Mention Autocomplete Popover for In-Voice Chat */}
+              <MentionAutocompletePopover
+                isOpen={isMentionOpen}
+                query={mentionQuery}
+                members={workspaceMembers}
+                onSelect={handleSelectMention}
+                onClose={() => setIsMentionOpen(false)}
+              />
 
-                {/* Input text / textarea */}
+              <div className="flex items-center gap-1.5">
+                {/* Discord-style [+] Actions Button */}
+                <div className="relative" ref={plusMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsPlusMenuOpen((prev) => !prev)}
+                    className="w-7 h-7 rounded-full bg-surface-active hover:bg-surface text-text-muted hover:text-text-primary flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+                    title="Mở menu tính năng"
+                  >
+                    <Plus size={15} weight="bold" />
+                  </button>
+
+                  {/* [+] Popover Menu */}
+                  {isPlusMenuOpen && (
+                    <div className="absolute bottom-full left-0 mb-2 w-48 rounded-xl bg-surface border border-border shadow-xl p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-2 duration-100">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-text-primary hover:bg-surface-active transition-colors cursor-pointer text-left"
+                      >
+                        <ImageIcon size={16} weight="bold" className="text-accent-primary" />
+                        <span>Tải tệp tin lên</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPlusMenuOpen(false);
+                          setIsGifPickerOpen(true);
+                          setIsEmojiPickerOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-text-primary hover:bg-surface-active transition-colors cursor-pointer text-left"
+                      >
+                        <span className="font-bold text-[10px] border border-current px-1 rounded leading-tight text-accent-primary">
+                          GIF
+                        </span>
+                        <span>Thư viện ảnh GIF</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsPlusMenuOpen(false);
+                          setIsEmojiPickerOpen(true);
+                          setIsGifPickerOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-text-primary hover:bg-surface-active transition-colors cursor-pointer text-left"
+                      >
+                        <Smiley size={16} weight="bold" className="text-accent-primary" />
+                        <span>Biểu cảm Emoji</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Textarea Input */}
                 <div className="flex-1 relative flex items-center">
                   <textarea
                     ref={textareaRef}
                     rows={1}
                     value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
+                    onChange={handleInputChange}
                     onKeyDown={(e) => {
+                      if (isMentionOpen) {
+                        if (e.key === 'Enter' || e.key === 'Tab' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Escape') {
+                          return;
+                        }
+                      }
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         handleSendMessage();
                       }
                     }}
                     placeholder={`Nhắn trong #${currentChannel.name}...`}
-                    className="w-full min-h-[34px] max-h-24 py-1.5 pl-3 pr-8 rounded-lg bg-chat border border-border focus:border-accent-primary text-xs text-text-primary placeholder:text-text-muted focus:outline-hidden resize-none leading-normal"
+                    className="w-full min-h-[32px] max-h-20 py-1.5 pl-2.5 pr-14 rounded-lg bg-chat border border-border focus:border-accent-primary text-xs text-text-primary placeholder:text-text-muted focus:outline-hidden resize-none leading-normal"
                   />
-                  {/* Smiley emoji trigger */}
-                  <button
-                    type="button"
-                    onClick={() => setIsInputEmojiOpen((prev) => !prev)}
-                    className="absolute right-2 text-text-muted hover:text-text-primary cursor-pointer p-0.5"
-                    title="Thêm biểu cảm"
-                  >
-                    <Smiley size={16} weight="bold" />
-                  </button>
+
+                  {/* Right quick triggers: GIF & Emoji inside input */}
+                  <div className="absolute right-1.5 flex items-center gap-0.5 text-text-muted">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsGifPickerOpen((prev) => !prev);
+                        setIsEmojiPickerOpen(false);
+                      }}
+                      className="p-1 hover:text-text-primary transition-colors cursor-pointer text-[10px] font-bold"
+                      title="GIF"
+                    >
+                      GIF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEmojiPickerOpen((prev) => !prev);
+                        setIsGifPickerOpen(false);
+                      }}
+                      className="p-1 hover:text-text-primary transition-colors cursor-pointer"
+                      title="Emoji"
+                    >
+                      <Smiley size={15} weight="bold" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Send Button */}
                 <button
                   type="submit"
                   disabled={(!inputMessage.trim() && pendingAttachments.length === 0) || isSending}
-                  className="w-8 h-8 rounded-lg bg-accent-primary text-white hover:bg-accent-hover disabled:opacity-40 transition-colors flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
+                  className="w-7 h-7 rounded-lg bg-accent-primary text-white hover:bg-accent-hover disabled:opacity-40 transition-colors flex items-center justify-center shrink-0 cursor-pointer shadow-2xs"
                   title="Gửi tin nhắn"
                 >
                   {isSending ? (
-                    <CircleNotch size={14} className="animate-spin" />
+                    <CircleNotch size={13} className="animate-spin" />
                   ) : (
-                    <PaperPlaneRight size={14} weight="bold" />
+                    <PaperPlaneRight size={13} weight="bold" />
                   )}
                 </button>
               </div>
 
-              {/* Emoji Picker Popover for main voice chat input */}
+              {/* Emoji Picker Popover */}
               <EmojiPickerPopover
-                isOpen={isInputEmojiOpen}
-                onClose={() => setIsInputEmojiOpen(false)}
+                isOpen={isEmojiPickerOpen}
+                onClose={() => setIsEmojiPickerOpen(false)}
                 onSelectEmoji={(emoji) => {
                   setInputMessage((prev) => prev + emoji);
-                  setIsInputEmojiOpen(false);
+                  setIsEmojiPickerOpen(false);
                   textareaRef.current?.focus();
                 }}
               />
 
-              {/* Emoji Picker Popover for reacting to a message */}
+              {/* GIF Picker Popover */}
+              <GifPicker
+                isOpen={isGifPickerOpen}
+                onClose={() => setIsGifPickerOpen(false)}
+                onSelectGif={async (gifUrl) => {
+                  setIsGifPickerOpen(false);
+                  await onSendMessage(gifUrl);
+                }}
+              />
+
+              {/* Emoji Picker Popover for reactions */}
               {reactingMessageId && (
                 <EmojiPickerPopover
                   isOpen={Boolean(reactingMessageId)}

@@ -75,7 +75,7 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
     if (isMention) {
       return (
         <div className="flex items-center gap-2">
-          <At size={18} weight="bold" className="text-amber-500" />
+          <At size={18} weight="bold" className="text-[var(--accent-primary)]" />
           <span className="font-bold text-[0.95rem] text-[var(--text-primary)]">
             {notification.channelName ? `Nhắc đến • #${notification.channelName}` : 'Nhắc đến'}
           </span>
@@ -147,7 +147,7 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
           className={`inline-flex items-center px-1.5 py-0.2 rounded text-[13px] font-semibold mx-0.5 ${
             isMention
               ? isBroadcast
-                ? 'bg-amber-500/20 text-amber-500 border border-amber-500/40'
+                ? 'bg-[var(--accent-soft)] text-[var(--accent-primary)] border border-[var(--accent-primary)]/30'
                 : 'bg-[var(--accent-soft)] text-[var(--accent-primary)] border border-[var(--accent-primary)]/20'
               : 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-medium'
           }`}

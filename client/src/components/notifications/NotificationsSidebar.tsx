@@ -138,7 +138,7 @@ export const NotificationsSidebar: React.FC<NotificationsSidebarProps> = ({
                 : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
             }`}
           >
-            <At size={13} weight="bold" className="text-amber-500" />
+            <At size={13} weight="bold" className="text-[var(--accent-primary)]" />
             <span>Nhắc đến</span>
           </button>
         </div>
