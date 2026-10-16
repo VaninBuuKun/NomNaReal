@@ -6,7 +6,6 @@ import {
   Hash,
   PushPin,
   ChatCenteredDots,
-  Paperclip,
   Smiley,
   Code,
   PaperPlaneRight,
@@ -21,6 +20,8 @@ import {
   FileText,
   Phone,
   VideoCamera,
+  ChatTeardropText,
+  Image as ImageIcon,
 } from "@phosphor-icons/react";
 import { Avatar } from "../ui";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
@@ -38,8 +39,9 @@ import { getMediaUrl } from "../../utils/constants";
 import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
 import { InputLinkPreviewStrip } from "./InputLinkPreviewStrip";
 import { useChatStore, useUiStore } from "../../stores";
+import { useVoiceStore } from "../../stores/useVoiceStore";
 import { usePermissions } from "../../hooks/usePermissions";
-import { VoiceChannelView } from "./VoiceChannelView";
+import { VoiceStage } from "./VoiceStage";
 import type { UserProfileData } from "../profile";
 
 interface PendingAttachment {
@@ -167,6 +169,81 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [isMentionOpen, setIsMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
+
+  // Voice Chat Split Layout & In-Voice Chat Sidebar States
+  const { isTextChatOpen, toggleTextChat, leaveVoice } = useVoiceStore();
+  const [voiceChatWidth, setVoiceChatWidth] = useState<number>(380);
+  const [isResizingVoiceChat, setIsResizingVoiceChat] = useState<boolean>(false);
+  const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
+  const plusMenuRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+
+  // Close plus action menu on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (plusMenuRef.current && !plusMenuRef.current.contains(e.target as Node)) {
+        setIsPlusMenuOpen(false);
+      }
+    };
+    if (isPlusMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isPlusMenuOpen]);
+
+  // Handle resizing of the in-voice chat panel
+  const handleVoiceChatResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingVoiceChat(true);
+    const startX = e.clientX;
+    const startWidth = voiceChatWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const delta = startX - moveEvent.clientX;
+      const newWidth = Math.max(280, Math.min(650, startWidth + delta));
+      setVoiceChatWidth(newWidth);
+    };
+
+    const onMouseUp = () => {
+      setIsResizingVoiceChat(false);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
+  // Syntax / Mention highlighting renderer for chat input textarea
+  const renderHighlightedContent = (text: string) => {
+    if (!text) return null;
+    const mentionRegex = /((?<!\w)@[a-zA-Z0-9_\.]+)/g;
+    const parts = text.split(mentionRegex);
+    return (
+      <>
+        {parts.map((part, idx) => {
+          if (part.startsWith("@") && part.length > 1) {
+            return (
+              <span
+                key={idx}
+                className="text-[var(--accent-primary)] font-semibold bg-[var(--accent-soft)]/60 rounded-xs"
+              >
+                {part}
+              </span>
+            );
+          }
+          return (
+            <span key={idx} className="text-[var(--text-primary)]">
+              {part}
+            </span>
+          );
+        })}
+        {text.endsWith("\n") && <span aria-hidden="true">&nbsp;</span>}
+      </>
+    );
+  };
 
   // Sync draft when active channel changes
   useEffect(() => {
@@ -735,24 +812,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   );
   const dmUser = activeDm?.user;
 
-  if (currentChannel && currentChannel.type === ChannelType.Voice) {
-    return (
-      <VoiceChannelView
-        currentChannel={currentChannel}
-        currentUser={currentUser}
-        messages={messages}
-        onSendMessage={onSendMessage}
-        onToggleReaction={handleReactionClick}
-        onOpenUserProfile={onOpenUserProfile}
-        workspaceMembers={workspaceMembers}
-      />
-    );
-  }
+  const isVoice = Boolean(currentChannel && currentChannel.type === ChannelType.Voice);
 
-  return (
-    <section className="flex-1 h-full min-h-0 bg-[var(--bg-chat)] flex flex-col overflow-hidden relative">
-      {/* Header Chat */}
-      <div className="h-[54px] border-b border-[var(--border-color)] px-5 flex items-center justify-between bg-[var(--bg-chat)] shrink-0 select-none">
+  const renderHeaderContent = () => (
+    <div className="h-[54px] border-b border-[var(--border-color)] px-5 flex items-center justify-between bg-[var(--bg-chat)] shrink-0 select-none">
         <div className="flex items-center gap-2.5 min-w-0">
           {isDm && dmUser ? (
             <div className="flex items-center gap-2.5 min-w-0">
@@ -870,7 +933,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </button>
         </div>
       </div>
+    );
 
+  const renderChatStreamAndInput = () => (
+    <>
       {/* Sticky Pin Bar (Zalo Style) */}
       {!isStickyDismissed && pinnedMessages && pinnedMessages.length > 0 && (
         <StickyPinBar
@@ -1461,15 +1527,39 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             />
           )}
 
-          {/* Text input area */}
+          {/* Text input area with Mention Highlighting Backdrop */}
           <div className="relative w-full min-h-[46px]">
+            {/* Backdrop for mention highlighting */}
+            <div
+              ref={backdropRef}
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-0 select-none whitespace-pre-wrap break-words text-[0.92rem] leading-normal font-sans py-0 px-0 overflow-hidden ${
+                content ? "opacity-100" : "opacity-0"
+              }`}
+              style={{
+                fontFamily: "inherit",
+                fontSize: "inherit",
+                lineHeight: "inherit",
+                letterSpacing: "inherit",
+              }}
+            >
+              {renderHighlightedContent(content)}
+            </div>
+
             <textarea
               ref={textareaRef}
-              className="bg-transparent border-none outline-none text-[var(--text-primary)] caret-[var(--accent-primary)] placeholder:text-[var(--text-muted)] text-[0.92rem] resize-none w-full leading-normal disabled:opacity-50"
+              className={`bg-transparent border-none outline-none caret-[var(--accent-primary)] placeholder:text-[var(--text-muted)] text-[0.92rem] resize-none w-full leading-normal disabled:opacity-50 relative z-10 ${
+                content ? "text-transparent" : "text-[var(--text-primary)]"
+              }`}
               rows={2}
               value={content}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onScroll={(e) => {
+                if (backdropRef.current) {
+                  backdropRef.current.scrollTop = e.currentTarget.scrollTop;
+                }
+              }}
               disabled={!currentChannel || !canSendMessages}
               placeholder={
                 !currentChannel
@@ -1482,7 +1572,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               {/* Hidden file picker supporting multiple images, videos up to 100MB, and docs */}
               <input
                 ref={fileInputRef}
@@ -1493,33 +1583,67 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
                 onChange={handleFileUpload}
               />
 
-              {canAttachFiles && (
+              {/* Discord-style [+] Actions Button with Dropdown (Upload File + GIF Library; NO Emoji) */}
+              <div className="relative" ref={plusMenuRef}>
                 <button
                   type="button"
-                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-                  title="Đính kèm tệp tin / Video (Tối đa 100MB)"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => setIsPlusMenuOpen((prev) => !prev)}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
+                    isPlusMenuOpen
+                      ? "bg-[var(--accent-soft)] text-[var(--accent-primary)]"
+                      : "bg-[var(--bg-surface-active)] hover:bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  }`}
+                  title="Mở menu tính năng"
+                  disabled={!canSendMessages}
                 >
-                  <Paperclip size={17} />
+                  <Plus size={15} weight="bold" />
                 </button>
-              )}
 
+                {/* Dropdown Menu (Upload File + GIF; NO Emoji in dropdown) */}
+                {isPlusMenuOpen && (
+                  <div className="absolute bottom-full left-0 mb-2 w-48 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-xl p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-2 duration-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPlusMenuOpen(false);
+                        fileInputRef.current?.click();
+                      }}
+                      disabled={!canAttachFiles}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ImageIcon size={16} weight="bold" className="text-[var(--accent-primary)]" />
+                      <span>Tải tệp tin lên</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPlusMenuOpen(false);
+                        setShowGifPicker(true);
+                        setShowEmojiPicker(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer text-left"
+                    >
+                      <span className="font-bold text-[10px] border border-current px-1 rounded leading-tight text-[var(--accent-primary)]">
+                        GIF
+                      </span>
+                      <span>Thư viện ảnh GIF</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right side controls: Code + Emoji + Send (NO GIF outside) */}
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer inline-flex items-center justify-center ${showGifPicker
-                    ? "bg-[var(--accent-soft)] text-[var(--accent-primary)]"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
-                  }`}
-                title="Thư viện ảnh GIF"
+                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
+                title="Chèn khối mã code"
                 disabled={!canSendMessages}
-                onClick={() => {
-                  setShowGifPicker((prev) => !prev);
-                  setShowEmojiPicker(false);
-                }}
+                onClick={() => setContent((prev) => prev ? `${prev}\n\`\`\`csharp\n// Nhập mã code tại đây\n\`\`\`\n` : `\`\`\`csharp\n// Nhập mã code tại đây\n\`\`\`\n`)}
               >
-                <span className="font-bold text-[10px] border border-current px-1 py-0.2 rounded leading-tight tracking-wider">
-                  GIF
-                </span>
+                <Code size={17} />
               </button>
 
               <button
@@ -1540,19 +1664,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
               <button
                 type="button"
-                className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer inline-flex items-center justify-center"
-                title="Chèn khối mã code"
-                disabled={!canSendMessages}
-                onClick={() => setContent((prev) => prev ? `${prev}\n\`\`\`csharp\n// Nhập mã code tại đây\n\`\`\`\n` : `\`\`\`csharp\n// Nhập mã code tại đây\n\`\`\`\n`)}
-              >
-                <Code size={17} />
-              </button>
-            </div>
-
-            <div className="flex items-center">
-              <button
-                type="button"
-                className="bg-[var(--accent-primary)] text-white border-none px-3.5 py-1.5 rounded-lg text-[0.82rem] font-semibold cursor-pointer transition-all duration-150 flex items-center gap-1.5 shadow-[0_2px_8px_var(--accent-glow)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_14px_var(--accent-glow)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                className="bg-[var(--accent-primary)] text-white border-none px-3.5 py-1.5 rounded-lg text-[0.82rem] font-semibold cursor-pointer transition-all duration-150 flex items-center gap-1.5 shadow-[0_2px_8px_var(--accent-glow)] hover:bg-[var(--accent-hover)] hover:shadow-[0_4px_14px_var(--accent-glow)] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none ml-1"
                 onClick={handleSend}
                 disabled={!canSendMessages || (!content.trim() && pendingAttachments.length === 0) || sending || pendingAttachments.some((a) => a.status === 'uploading')}
               >
@@ -1563,6 +1675,79 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           </div>
         </div>
       </div>
+    </>
+  );
+
+  if (isVoice && currentChannel) {
+    return (
+      <section className="flex-1 h-full min-h-0 bg-[var(--bg-chat)] flex overflow-hidden relative">
+        {/* Left Voice Stage Canvas */}
+        <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
+          <VoiceStage
+            currentChannel={currentChannel}
+            currentUser={currentUser}
+            isChatOpen={isTextChatOpen}
+            onToggleChat={toggleTextChat}
+            onLeaveVoice={leaveVoice}
+          />
+        </div>
+
+        {/* Resizer Divider + In-Voice Chat Sidebar on Right */}
+        {isTextChatOpen && (
+          <>
+            <div
+              className={`w-1 cursor-col-resize relative z-25 shrink-0 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
+                isResizingVoiceChat
+                  ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
+                  : "bg-[var(--border-color)]"
+              }`}
+              onMouseDown={handleVoiceChatResizeStart}
+              title="Kéo sang trái/phải để chỉnh độ rộng chat"
+            />
+
+            <div
+              style={{ width: `${voiceChatWidth}px` }}
+              className="h-full flex flex-col shrink-0 overflow-hidden bg-[var(--bg-chat)] border-l border-[var(--border-color)] relative"
+            >
+              {/* In-Voice Chat Header with Close Button */}
+              <div className="h-[54px] border-b border-[var(--border-color)] px-4 flex items-center justify-between bg-[var(--bg-chat)] shrink-0 select-none">
+                <div className="flex items-center gap-2 min-w-0">
+                  <ChatTeardropText size={18} weight="bold" className="text-[var(--text-muted)] shrink-0" />
+                  <h2 className="text-sm font-bold text-[var(--text-primary)] truncate">
+                    #{currentChannel.name}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleTextChat}
+                  className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer"
+                  title="Đóng trò chuyện văn bản"
+                >
+                  <X size={16} weight="bold" />
+                </button>
+              </div>
+
+              {renderChatStreamAndInput()}
+            </div>
+          </>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        <DeleteMessageModal
+          isOpen={deleteModalState.isOpen}
+          onClose={() => setDeleteModalState({ isOpen: false, messageId: null, preview: "" })}
+          onConfirm={handleConfirmDelete}
+          messagePreview={deleteModalState.preview}
+          isDeleting={isDeletingMessage}
+        />
+      </section>
+    );
+  }
+
+  return (
+    <section className="flex-1 h-full min-h-0 bg-[var(--bg-chat)] flex flex-col overflow-hidden relative">
+      {renderHeaderContent()}
+      {renderChatStreamAndInput()}
 
       {/* Delete Confirmation Modal */}
       <DeleteMessageModal

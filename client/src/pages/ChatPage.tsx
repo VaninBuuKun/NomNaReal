@@ -434,20 +434,13 @@ export const ChatPage: React.FC = () => {
     }
   };
 
-  // Fetch Workspace Channels, DMs, and Members in parallel
-  const loadWorkspaceData = async (wsId: string, _currentUid?: string) => {
+  // Fetch Global User Direct Messages (Independent of any workspace)
+  const refreshUserDms = useCallback(async (): Promise<DirectMessageItem[]> => {
     try {
-      const [chs, dms, members] = await Promise.all([
-        channelApi.getChannels(wsId),
-        workspaceApi.getDirectMessages(wsId).catch(() => []),
-        workspaceApi.getMembers(wsId).catch(() => []),
-      ]);
-
-      setChannels(chs);
-
-      const formattedDms: DirectMessageItem[] = (dms || []).map((d) => ({
+      const rawDms = await channelApi.getUserDms();
+      const formattedDms: DirectMessageItem[] = (rawDms || []).map((d: any) => ({
         id: d.id,
-        workspaceId: d.workspaceId,
+        workspaceId: d.serverId || d.workspaceId,
         user: {
           id: d.targetUserId,
           displayName: d.targetDisplayName,
@@ -464,6 +457,22 @@ export const ChatPage: React.FC = () => {
         isPending: false,
       }));
       setDmConversations(formattedDms);
+      return formattedDms;
+    } catch (dmErr) {
+      console.error("Failed to fetch user DMs:", dmErr);
+      return [];
+    }
+  }, []);
+
+  // Fetch Workspace Channels and Members in parallel (Never overwrite global DMs)
+  const loadWorkspaceData = async (wsId: string, _currentUid?: string) => {
+    try {
+      const [chs, members] = await Promise.all([
+        channelApi.getChannels(wsId),
+        workspaceApi.getMembers(wsId).catch(() => []),
+      ]);
+
+      setChannels(chs);
 
       const formattedMembers: DirectMessageUser[] = (members || []).map(
         (m) => ({
@@ -478,10 +487,10 @@ export const ChatPage: React.FC = () => {
       );
       setWorkspaceMembers(formattedMembers);
 
-      return { channels: chs, dms: formattedDms };
+      return { channels: chs };
     } catch (err) {
       console.error("Failed to load workspace data:", err);
-      return { channels: [], dms: [] };
+      return { channels: [] };
     }
   };
 
@@ -624,31 +633,7 @@ export const ChatPage: React.FC = () => {
       setWorkspaces(wsList);
 
       // Always pre-load User DMs in background so switching between Servers and DMs is seamless
-      let loadedDms: DirectMessageItem[] = [];
-      try {
-        const rawDms = await channelApi.getUserDms();
-        loadedDms = (rawDms || []).map((d: any) => ({
-          id: d.id,
-          workspaceId: d.serverId,
-          user: {
-            id: d.targetUserId,
-            displayName: d.targetDisplayName,
-            username: d.targetUsername,
-            avatarUrl: d.targetAvatarUrl,
-            email: d.targetEmail || "",
-            status: (d.targetStatus as any) || "offline",
-          },
-          lastMessage: d.lastMessage || "Cuộc trò chuyện mới",
-          lastMessageTime: d.lastMessageAt
-            ? formatMessageTime(d.lastMessageAt)
-            : undefined,
-          unreadCount: d.unreadCount || 0,
-          isPending: false,
-        }));
-        setDmConversations(loadedDms);
-      } catch (dmErr) {
-        console.error("Failed to fetch user DMs:", dmErr);
-      }
+      const loadedDms: DirectMessageItem[] = await refreshUserDms();
 
       const targetWsId = serverId || workspaceId;
       const isDmRoute =
@@ -975,16 +960,13 @@ export const ChatPage: React.FC = () => {
     role?: string;
   }) => {
     let existing = dmConversations.find(
-      (c) =>
-        c.user.id === targetUser.id &&
-        (!c.workspaceId || c.workspaceId === activeWorkspaceId),
+      (c) => c.user.id === targetUser.id
     );
 
     if (!existing) {
       const pendingDmId = `pending-dm-${targetUser.id}`;
       const newDm: DirectMessageItem = {
         id: pendingDmId,
-        workspaceId: activeWorkspaceId || undefined,
         user: {
           id: targetUser.id,
           displayName: targetUser.displayName,
@@ -1246,6 +1228,8 @@ export const ChatPage: React.FC = () => {
           onSelectView={(view: any) => {
             setActiveSidebarView(view);
             if (view === "dms") {
+              setActiveWorkspaceId(null);
+              refreshUserDms();
               if (activeDmId) {
                 navigate(`/channels/@me/${activeDmId}`);
               } else {
@@ -1257,6 +1241,8 @@ export const ChatPage: React.FC = () => {
           onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
           onGoHome={() => {
             setActiveSidebarView("dms");
+            setActiveWorkspaceId(null);
+            refreshUserDms();
             navigate("/channels/@me");
           }}
         />

@@ -13,7 +13,6 @@ import {
   SignOut,
   Lock,
   DotsSixVertical,
-  PhoneDisconnect,
   MicrophoneSlash,
   Headphones,
   Waveform,
@@ -73,9 +72,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   // Voice store state
   const {
     connectedChannelId,
-    connectedChannelName,
     participants,
-    leaveVoice,
   } = useVoiceStore();
 
   const menuRef = useRef<HTMLDivElement>(null);
@@ -760,39 +757,6 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           </>
         )}
       </div>
-
-      {/* 3. Discord-like Voice Connection Panel (Docked at bottom of channel sidebar) */}
-      {connectedChannelId && (
-        <div className="px-3.5 py-2.5 border-t border-border bg-surface shrink-0 flex items-center justify-between shadow-xs">
-          <div className="min-w-0 flex items-center gap-2.5">
-            <Waveform size={18} weight="bold" className="text-success shrink-0" />
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[12px] font-bold text-success truncate leading-tight">
-                  Đã kết nối thoại
-                </span>
-                <span className="text-[9px] font-semibold px-1 py-0.2 rounded bg-success/15 text-success">
-                  RTC
-                </span>
-              </div>
-              <div className="text-[11px] text-text-muted truncate leading-tight mt-0.5 font-medium">
-                {connectedChannelName || 'Kênh thoại'}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={leaveVoice}
-              className="p-2 rounded-lg bg-danger/10 text-danger hover:bg-danger hover:text-white transition-all shadow-xs cursor-pointer active:scale-95"
-              title="Ngắt kết nối phòng thoại"
-            >
-              <PhoneDisconnect size={16} weight="bold" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Invite Member Modal */}
       <InviteMemberModal
