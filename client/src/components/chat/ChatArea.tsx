@@ -342,15 +342,24 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         parts.push(text.substring(lastIndex, match.index));
       }
       const token = match[0];
-      const isBroadcast = /^@(all|everyone|channel|here)$/i.test(token);
+      const tag = token.slice(1).toLowerCase();
+      const isAllOrEveryone = tag === 'all' || tag === 'everyone';
+      const isChannel = tag === 'channel';
+      const isHere = tag === 'here';
+
+      let mentionClasses = 'bg-accent-soft text-accent-primary border border-accent-primary/25 font-semibold';
+      if (isAllOrEveryone) {
+        mentionClasses = 'bg-amber-500/25 text-amber-500 border border-amber-500/40 font-extrabold';
+      } else if (isChannel) {
+        mentionClasses = 'bg-amber-500/20 text-amber-500 border border-amber-500/30 font-bold';
+      } else if (isHere) {
+        mentionClasses = 'bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 font-bold';
+      }
+
       parts.push(
         <span
           key={match.index}
-          className={
-            isBroadcast
-              ? "bg-amber-500/20 rounded-[3px] pl-0.5 pr-0 border border-amber-500/40"
-              : "bg-[var(--accent-soft)] rounded-[3px] pl-0.5 pr-0 border border-[var(--accent-primary)]/20"
-          }
+          className={`rounded-control px-1 py-0.2 mx-0.5 inline-block ${mentionClasses}`}
         >
           {token}
         </span>

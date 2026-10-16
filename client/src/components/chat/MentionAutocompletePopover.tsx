@@ -146,79 +146,92 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
               <div
                 key={s.id}
                 onClick={() => onSelect(s.username)}
-                className={`px-3 py-2 rounded-lg flex items-center gap-3 cursor-pointer transition-colors text-xs ${isSelected
-                    ? 'bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold'
-                    : 'hover:bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                  }`}
+                className={`px-3 py-2 rounded-control flex items-center gap-3 cursor-pointer transition-colors text-xs ${
+                  isSelected
+                    ? 'bg-accent-soft text-text-primary font-semibold'
+                    : 'hover:bg-surface-active text-text-primary'
+                }`}
               >
-                <div className="w-8 h-8 rounded-lg bg-[var(--bg-chat)] border border-[var(--border-color)] flex items-center justify-center shrink-0 shadow-2xs">
-                  {s.icon}
+                  <div className="w-8 h-8 rounded-control bg-chat border border-border flex items-center justify-center shrink-0 shadow-2xs">
+                    {s.icon}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`font-bold text-[13px] ${
+                          s.username === 'here' ? 'text-emerald-500' : 'text-amber-500'
+                        }`}
+                      >
+                        @{s.displayName}
+                      </span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded-control text-[10px] font-semibold ${
+                          s.username === 'here'
+                            ? 'bg-emerald-500/15 text-emerald-500'
+                            : 'bg-amber-500/15 text-amber-500'
+                        }`}
+                      >
+                        {s.username === 'here' ? 'Trực tuyến' : 'Thông báo toàn kênh'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-text-muted truncate mt-0.5">
+                      {s.description}
+                    </div>
+                  </div>
                 </div>
+              );
+            }
+
+            const m = item.data;
+            return (
+              <div
+                key={m.id}
+                onClick={() => onSelect(m.username || m.displayName || '')}
+                className={`px-3 py-2 rounded-control flex items-center gap-3 cursor-pointer transition-colors text-xs ${
+                  isSelected
+                    ? 'bg-accent-soft text-text-primary font-semibold'
+                    : 'hover:bg-surface-active text-text-primary'
+                }`}
+              >
+                <div className="relative shrink-0">
+                  <img
+                    src={m.avatarUrl || '/default-avatar.png'}
+                    alt=""
+                    className="w-8 h-8 rounded-full object-cover border border-border/70 shadow-2xs"
+                    onError={(e) => {
+                      e.currentTarget.src = '/default-avatar.png';
+                    }}
+                  />
+                  {m.status && (
+                    <span
+                      className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-surface ${
+                        m.status === 'online'
+                          ? 'bg-emerald-500'
+                          : m.status === 'away'
+                          ? 'bg-amber-500'
+                          : m.status === 'dnd'
+                          ? 'bg-rose-500'
+                          : 'bg-neutral-400'
+                      }`}
+                    />
+                  )}
+                </div>
+
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-[13px] text-amber-500">
-                      @{s.displayName}
+                    <span className="font-bold text-[13px] text-accent-primary truncate">
+                      @{m.username || m.displayName}
                     </span>
-                    <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-amber-500/15 text-amber-500">
-                      Thông báo toàn kênh
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5">
-                    {s.description}
+                    {m.displayName && m.displayName !== m.username && (
+                      <span className="text-[11px] text-text-muted font-normal truncate">
+                        ({m.displayName})
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             );
-          }
-
-          const m = item.data;
-          return (
-            <div
-              key={m.id}
-              onClick={() => onSelect(m.username || m.displayName || '')}
-              className={`px-3 py-2 rounded-lg flex items-center gap-3 cursor-pointer transition-colors text-xs ${isSelected
-                  ? 'bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold'
-                  : 'hover:bg-[var(--bg-surface-active)] text-[var(--text-primary)]'
-                }`}
-            >
-              <div className="relative shrink-0">
-                <img
-                  src={m.avatarUrl || '/default-avatar.png'}
-                  alt=""
-                  className="w-8 h-8 rounded-full object-cover border border-[var(--border-color)]/70 shadow-2xs"
-                  onError={(e) => {
-                    e.currentTarget.src = '/default-avatar.png';
-                  }}
-                />
-                {m.status && (
-                  <span
-                    className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-[var(--bg-surface)] ${m.status === 'online'
-                        ? 'bg-emerald-500'
-                        : m.status === 'away'
-                          ? 'bg-amber-500'
-                          : m.status === 'dnd'
-                            ? 'bg-rose-500'
-                            : 'bg-neutral-400'
-                      }`}
-                  />
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-[13px] text-[var(--text-primary)] truncate">
-                    {m.displayName || m.username}
-                  </span>
-                  {m.username && (
-                    <span className="text-[11px] text-[var(--text-muted)] font-normal truncate">
-                      @{m.username}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+          })}
       </div>
     </div>
   );
