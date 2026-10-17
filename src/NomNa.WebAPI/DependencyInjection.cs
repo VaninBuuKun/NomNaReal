@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<INotificationDispatcher, SignalRNotificationDispatcher>();
+        services.AddScoped<IRealtimeAccessRevoker, RealtimeAccessRevoker>();
 
         // 2. Framework Services
         services.AddControllers();

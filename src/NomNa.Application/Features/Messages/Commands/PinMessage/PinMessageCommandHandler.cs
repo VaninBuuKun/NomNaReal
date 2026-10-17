@@ -14,17 +14,20 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserProfileCache _userProfileCache;
     private readonly IPinnedMessageCache _pinnedMessageCache;
+    private readonly IPermissionService _permissionService;
 
     public PinMessageCommandHandler(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
         IUserProfileCache userProfileCache,
-        IPinnedMessageCache pinnedMessageCache)
+        IPinnedMessageCache pinnedMessageCache,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _userProfileCache = userProfileCache;
         _pinnedMessageCache = pinnedMessageCache;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<PinnedMessageDto>> Handle(PinMessageCommand request, CancellationToken cancellationToken)
@@ -75,23 +78,27 @@ public class PinMessageCommandHandler : IRequestHandler<PinMessageCommand, Resul
             return Error.NotFound("Message.NotFound", "Message not found or has been deleted.");
         }
 
-        // Authorization check according to channel privacy
-        if (messageInfo.ChannelIsPrivate || messageInfo.ChannelType == ChannelType.DirectMessage)
+        // Authorization check: DM requires participant, Server channel requires ManageMessages permission
+        if (messageInfo.ChannelType == ChannelType.DirectMessage)
         {
             var isMember = await _context.ChannelMembers
                 .AnyAsync(cm => cm.ChannelId == messageInfo.ChannelId && cm.UserId == userId.Value, cancellationToken);
             if (!isMember && messageInfo.ChannelCreatedById != userId.Value)
             {
-                return Error.Forbidden("Channel.Forbidden", "You do not have access to this private channel.");
+                return Error.Forbidden("Channel.Forbidden", "You do not have access to this direct message.");
             }
         }
         else
         {
-            var isMember = await _context.ServerMembers
-                .AnyAsync(wm => wm.ServerId == messageInfo.ServerId && wm.UserId == userId.Value, cancellationToken);
-            if (!isMember)
+            var hasManageMessages = await _permissionService.HasChannelPermissionAsync(
+                userId.Value,
+                messageInfo.ChannelId,
+                Permissions.ManageMessages,
+                cancellationToken);
+
+            if (!hasManageMessages)
             {
-                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
+                return Error.Forbidden("Permission.Forbidden", "You do not have permission to pin messages in this channel.");
             }
         }
 

@@ -11,15 +11,18 @@ public class UnpinMessageCommandHandler : IRequestHandler<UnpinMessageCommand, R
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IPinnedMessageCache _pinnedMessageCache;
+    private readonly IPermissionService _permissionService;
 
     public UnpinMessageCommandHandler(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
-        IPinnedMessageCache pinnedMessageCache)
+        IPinnedMessageCache pinnedMessageCache,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _pinnedMessageCache = pinnedMessageCache;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<UnpinnedMessageResultDto>> Handle(UnpinMessageCommand request, CancellationToken cancellationToken)
@@ -49,23 +52,27 @@ public class UnpinMessageCommandHandler : IRequestHandler<UnpinMessageCommand, R
             return Error.NotFound("PinnedMessage.NotFound", "This message is not pinned.");
         }
 
-        // Check channel authorization
-        if (pinInfo.ChannelIsPrivate || pinInfo.ChannelType == ChannelType.DirectMessage)
+        // Check channel authorization: DM requires participant, Server channel requires ManageMessages permission
+        if (pinInfo.ChannelType == ChannelType.DirectMessage)
         {
             var isMember = await _context.ChannelMembers
                 .AnyAsync(cm => cm.ChannelId == pinInfo.ChannelId && cm.UserId == userId.Value, cancellationToken);
             if (!isMember && pinInfo.ChannelCreatedById != userId.Value)
             {
-                return Error.Forbidden("Channel.Forbidden", "You do not have permission to unpin messages in this private channel.");
+                return Error.Forbidden("Channel.Forbidden", "You do not have permission to unpin messages in this direct message.");
             }
         }
         else
         {
-            var isMember = await _context.ServerMembers
-                .AnyAsync(wm => wm.ServerId == pinInfo.ServerId && wm.UserId == userId.Value, cancellationToken);
-            if (!isMember)
+            var hasManageMessages = await _permissionService.HasChannelPermissionAsync(
+                userId.Value,
+                pinInfo.ChannelId,
+                Permissions.ManageMessages,
+                cancellationToken);
+
+            if (!hasManageMessages)
             {
-                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
+                return Error.Forbidden("Permission.Forbidden", "You do not have permission to unpin messages in this channel.");
             }
         }
 

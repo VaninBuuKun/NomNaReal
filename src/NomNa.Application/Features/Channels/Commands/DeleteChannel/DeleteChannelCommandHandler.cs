@@ -10,13 +10,16 @@ public class DeleteChannelCommandHandler : IRequestHandler<DeleteChannelCommand,
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPermissionService _permissionService;
 
     public DeleteChannelCommandHandler(
         IApplicationDbContext context,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<Unit>> Handle(DeleteChannelCommand request, CancellationToken cancellationToken)
@@ -48,6 +51,8 @@ public class DeleteChannelCommandHandler : IRequestHandler<DeleteChannelCommand,
 
         _context.Channels.Remove(channel);
         await _context.SaveChangesAsync(cancellationToken);
+
+        _permissionService.InvalidateChannel(request.ChannelId);
 
         return Result<Unit>.Success(Unit.Value);
     }

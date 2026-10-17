@@ -9,10 +9,12 @@ namespace NomNa.Application.Features.Roles.Commands.AssignRole;
 public class AssignRoleCommandHandler : IRequestHandler<AssignRoleCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IPermissionService _permissionService;
 
-    public AssignRoleCommandHandler(IApplicationDbContext context)
+    public AssignRoleCommandHandler(IApplicationDbContext context, IPermissionService permissionService)
     {
         _context = context;
+        _permissionService = permissionService;
     }
 
     public async Task<Result> Handle(AssignRoleCommand request, CancellationToken cancellationToken)
@@ -47,6 +49,7 @@ public class AssignRoleCommandHandler : IRequestHandler<AssignRoleCommand, Resul
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+        _permissionService.InvalidateUser(request.ServerId, member.UserId);
         return Result.Success();
     }
 }

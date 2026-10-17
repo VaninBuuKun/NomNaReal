@@ -8,10 +8,12 @@ namespace NomNa.Application.Features.ChannelOverwrites.Commands.DeleteChannelOve
 public class DeleteChannelOverwriteCommandHandler : IRequestHandler<DeleteChannelOverwriteCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IPermissionService _permissionService;
 
-    public DeleteChannelOverwriteCommandHandler(IApplicationDbContext context)
+    public DeleteChannelOverwriteCommandHandler(IApplicationDbContext context, IPermissionService permissionService)
     {
         _context = context;
+        _permissionService = permissionService;
     }
 
     public async Task<Result> Handle(DeleteChannelOverwriteCommand request, CancellationToken cancellationToken)
@@ -26,6 +28,8 @@ public class DeleteChannelOverwriteCommandHandler : IRequestHandler<DeleteChanne
 
         _context.ChannelPermissionOverwrites.Remove(overwrite);
         await _context.SaveChangesAsync(cancellationToken);
+
+        _permissionService.InvalidateChannel(request.ChannelId);
 
         return Result.Success();
     }

@@ -172,4 +172,66 @@ public class AuthorizationBehaviorTests
         result.IsFailure.Should().BeTrue();
         result.Error.Type.Should().Be(ErrorType.Forbidden);
     }
+
+    [Fact]
+    public async Task Handle_WhenGetMessagesQueryUserLacksReadHistory_ShouldReturnForbidden()
+    {
+        // Arrange
+        _currentUserServiceMock.Setup(s => s.UserId).Returns(_userId);
+        _permissionServiceMock.Setup(s => s.HasChannelPermissionAsync(
+                _userId, _channelId, Permissions.ViewChannel | Permissions.ReadMessageHistory, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var behavior = new AuthorizationBehavior<Features.Messages.Queries.GetMessages.GetMessagesQuery, Result<Features.Messages.DTOs.MessagesResponseDto>>(
+            _currentUserServiceMock.Object,
+            _permissionServiceMock.Object
+        );
+
+        var query = new Features.Messages.Queries.GetMessages.GetMessagesQuery(_channelId);
+        var nextCalled = false;
+        RequestHandlerDelegate<Result<Features.Messages.DTOs.MessagesResponseDto>> next = (ct) =>
+        {
+            nextCalled = true;
+            return Task.FromResult(Result<Features.Messages.DTOs.MessagesResponseDto>.Success(
+                new Features.Messages.DTOs.MessagesResponseDto(new List<Features.Messages.DTOs.MessageDto>(), false, null, false, false)));
+        };
+
+        // Act
+        var result = await behavior.Handle(query, next, CancellationToken.None);
+
+        // Assert
+        nextCalled.Should().BeFalse();
+        result.IsFailure.Should().BeTrue();
+        result.Error.Type.Should().Be(ErrorType.Forbidden);
+    }
+
+    [Fact]
+    public async Task Handle_WhenGetPinnedMessagesQueryUserHasViewChannel_ShouldCallNext()
+    {
+        // Arrange
+        _currentUserServiceMock.Setup(s => s.UserId).Returns(_userId);
+        _permissionServiceMock.Setup(s => s.HasChannelPermissionAsync(
+                _userId, _channelId, Permissions.ViewChannel, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var behavior = new AuthorizationBehavior<Features.Messages.Queries.GetPinnedMessages.GetPinnedMessagesQuery, Result<List<Features.Messages.DTOs.PinnedMessageDto>>>(
+            _currentUserServiceMock.Object,
+            _permissionServiceMock.Object
+        );
+
+        var query = new Features.Messages.Queries.GetPinnedMessages.GetPinnedMessagesQuery(_channelId);
+        var nextCalled = false;
+        RequestHandlerDelegate<Result<List<Features.Messages.DTOs.PinnedMessageDto>>> next = (ct) =>
+        {
+            nextCalled = true;
+            return Task.FromResult(Result<List<Features.Messages.DTOs.PinnedMessageDto>>.Success(new List<Features.Messages.DTOs.PinnedMessageDto>()));
+        };
+
+        // Act
+        var result = await behavior.Handle(query, next, CancellationToken.None);
+
+        // Assert
+        nextCalled.Should().BeTrue();
+        result.IsSuccess.Should().BeTrue();
+    }
 }

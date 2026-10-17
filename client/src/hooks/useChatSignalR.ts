@@ -202,6 +202,18 @@ export function useChatSignalR({
       useFriendStore.getState().fetchFriends();
     });
 
+    signalRService.onRemovedFromServer((data) => {
+      useWorkspaceStore.getState().removeWorkspace(data.serverId);
+      if (data.serverId === activeWorkspaceIdRef.current) {
+        setActiveWorkspaceId('');
+        setToast({
+          id: Date.now().toString(),
+          title: 'Thông báo máy chủ',
+          description: 'Bạn đã rời hoặc bị xóa khỏi máy chủ.',
+        });
+      }
+    });
+
     signalRService.onReceiveNotification((notif) => {
       setNotifications((prev) => [
         notif,

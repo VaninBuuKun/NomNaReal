@@ -88,6 +88,17 @@ public class ChatHub : Hub
         // 3. Đăng ký ConnectionId hiện tại vào SignalR Group đại diện cho Channel (Mapping Connection <-> Group)
         var groupName = channelId.ToString();
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+
+        if (!Context.Items.TryGetValue("JoinedChannels", out var joinedObj) || joinedObj is not HashSet<Guid> joined)
+        {
+            joined = new HashSet<Guid>();
+            Context.Items["JoinedChannels"] = joined;
+        }
+        lock (joined)
+        {
+            joined.Add(channelId);
+        }
+
         _logger.LogInformation("User {UserId} joined SignalR group {ChannelId}", Context.UserIdentifier, channelId);
     }
 
@@ -98,6 +109,15 @@ public class ChatHub : Hub
     {
         var groupName = channelId.ToString();
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+
+        if (Context.Items.TryGetValue("JoinedChannels", out var joinedObj) && joinedObj is HashSet<Guid> joined)
+        {
+            lock (joined)
+            {
+                joined.Remove(channelId);
+            }
+        }
+
         _logger.LogInformation("User {UserId} left SignalR group {ChannelId}", Context.UserIdentifier, channelId);
     }
 
@@ -241,6 +261,29 @@ public class ChatHub : Hub
         if (string.IsNullOrWhiteSpace(channelId) || channelId.StartsWith("pending-dm-", StringComparison.OrdinalIgnoreCase))
             return;
 
+        if (!Guid.TryParse(channelId, out var chGuid))
+            return;
+
+        // Verify caller's connection has joined this channel
+        if (!Context.Items.TryGetValue("JoinedChannels", out var joinedObj) || joinedObj is not HashSet<Guid> joined)
+            return;
+
+        lock (joined)
+        {
+            if (!joined.Contains(chGuid))
+                return;
+        }
+
+        // Throttle typing events: max 1 broadcast per 1.5 seconds per connection per channel
+        var throttleKey = $"typing_throttle_{channelId}";
+        var now = DateTime.UtcNow;
+        if (Context.Items.TryGetValue(throttleKey, out var lastTypingObj) && lastTypingObj is DateTime lastTyping)
+        {
+            if ((now - lastTyping).TotalSeconds < 1.5)
+                return;
+        }
+        Context.Items[throttleKey] = now;
+
         var groupName = channelId;
         var username = Context.User?.FindFirstValue(ClaimTypes.Name) ?? "Someone";
         var userId = Context.UserIdentifier;
@@ -260,6 +303,18 @@ public class ChatHub : Hub
     {
         if (string.IsNullOrWhiteSpace(channelId) || channelId.StartsWith("pending-dm-", StringComparison.OrdinalIgnoreCase))
             return;
+
+        if (!Guid.TryParse(channelId, out var chGuid))
+            return;
+
+        if (!Context.Items.TryGetValue("JoinedChannels", out var joinedObj) || joinedObj is not HashSet<Guid> joined)
+            return;
+
+        lock (joined)
+        {
+            if (!joined.Contains(chGuid))
+                return;
+        }
 
         var groupName = channelId;
         var userId = Context.UserIdentifier;

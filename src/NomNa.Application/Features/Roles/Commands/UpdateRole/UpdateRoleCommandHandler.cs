@@ -10,10 +10,12 @@ namespace NomNa.Application.Features.Roles.Commands.UpdateRole;
 public class UpdateRoleCommandHandler : IRequestHandler<UpdateRoleCommand, Result<RoleDto>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IPermissionService _permissionService;
 
-    public UpdateRoleCommandHandler(IApplicationDbContext context)
+    public UpdateRoleCommandHandler(IApplicationDbContext context, IPermissionService permissionService)
     {
         _context = context;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<RoleDto>> Handle(UpdateRoleCommand request, CancellationToken cancellationToken)
@@ -69,6 +71,7 @@ public class UpdateRoleCommandHandler : IRequestHandler<UpdateRoleCommand, Resul
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        _permissionService.InvalidateServer(request.ServerId);
 
         return new RoleDto(
             role.Id,

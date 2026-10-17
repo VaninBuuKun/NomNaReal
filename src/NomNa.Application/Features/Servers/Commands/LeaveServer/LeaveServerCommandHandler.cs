@@ -9,13 +9,19 @@ public class LeaveServerCommandHandler : IRequestHandler<LeaveServerCommand, Res
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPermissionService _permissionService;
+    private readonly IRealtimeAccessRevoker _realtimeAccessRevoker;
 
     public LeaveServerCommandHandler(
         IApplicationDbContext context,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IPermissionService permissionService,
+        IRealtimeAccessRevoker realtimeAccessRevoker)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _permissionService = permissionService;
+        _realtimeAccessRevoker = realtimeAccessRevoker;
     }
 
     public async Task<Result<Unit>> Handle(LeaveServerCommand request, CancellationToken cancellationToken)
@@ -49,7 +55,21 @@ public class LeaveServerCommandHandler : IRequestHandler<LeaveServerCommand, Res
 
         _context.ChannelMembers.RemoveRange(channelMemberships);
 
+        var channelIds = await _context.Channels
+            .AsNoTracking()
+            .Where(c => c.ServerId == request.ServerId)
+            .Select(c => c.Id)
+            .ToListAsync(cancellationToken);
+
         await _context.SaveChangesAsync(cancellationToken);
+
+        _permissionService.InvalidateUser(request.ServerId, userId.Value);
+
+        await _realtimeAccessRevoker.RevokeServerAccessAsync(
+            userId.Value,
+            request.ServerId,
+            channelIds,
+            cancellationToken);
 
         return Result<Unit>.Success(Unit.Value);
     }

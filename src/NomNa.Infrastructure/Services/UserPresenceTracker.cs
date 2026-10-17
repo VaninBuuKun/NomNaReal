@@ -69,4 +69,19 @@ public class UserPresenceTracker : IUserPresenceTracker
         IReadOnlyCollection<Guid> onlineUserIds = OnlineUsers.Keys.ToList().AsReadOnly();
         return Task.FromResult(onlineUserIds);
     }
+
+    public Task<IReadOnlyCollection<string>> GetConnectionsForUserAsync(Guid userId)
+    {
+        if (OnlineUsers.TryGetValue(userId, out var connections))
+        {
+            lock (connections)
+            {
+                IReadOnlyCollection<string> list = connections.ToList().AsReadOnly();
+                return Task.FromResult(list);
+            }
+        }
+
+        IReadOnlyCollection<string> empty = Array.Empty<string>();
+        return Task.FromResult(empty);
+    }
 }

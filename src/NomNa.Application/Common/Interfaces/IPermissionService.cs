@@ -9,4 +9,7 @@ public interface IPermissionService
     Task<Permissions> GetServerPermissionsAsync(Guid userId, Guid serverId, CancellationToken cancellationToken = default);
     Task<bool> HasChannelPermissionAsync(Guid userId, Guid channelId, Permissions requiredPermission, CancellationToken cancellationToken = default);
     Task<bool> HasServerPermissionAsync(Guid userId, Guid serverId, Permissions requiredPermission, CancellationToken cancellationToken = default);
+    void InvalidateServer(Guid serverId);
+    void InvalidateChannel(Guid channelId);
+    void InvalidateUser(Guid serverId, Guid userId);
 }

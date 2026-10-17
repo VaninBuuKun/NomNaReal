@@ -12,11 +12,16 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPermissionService _permissionService;
 
-    public AddChannelMemberCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public AddChannelMemberCommandHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<AddChannelMemberResultDto>> Handle(AddChannelMemberCommand request, CancellationToken cancellationToken)
@@ -93,6 +98,8 @@ public class AddChannelMemberCommandHandler : IRequestHandler<AddChannelMemberCo
         channel.LastMessageSenderId = currentUserId.Value;
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        _permissionService.InvalidateChannel(channel.Id);
 
         var messageDto = new NomNa.Application.Features.Messages.DTOs.MessageDto(
             joinMessage.Id,

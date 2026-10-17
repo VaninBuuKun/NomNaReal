@@ -12,15 +12,18 @@ public class DeleteMessageCommandHandler : IRequestHandler<DeleteMessageCommand,
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
     private readonly IPinnedMessageCache _pinnedMessageCache;
+    private readonly IPermissionService _permissionService;
 
     public DeleteMessageCommandHandler(
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
-        IPinnedMessageCache pinnedMessageCache)
+        IPinnedMessageCache pinnedMessageCache,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _pinnedMessageCache = pinnedMessageCache;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<DeletedMessageDto>> Handle(DeleteMessageCommand request, CancellationToken cancellationToken)
@@ -40,16 +43,17 @@ public class DeleteMessageCommandHandler : IRequestHandler<DeleteMessageCommand,
             return Error.NotFound("Message.NotFound", "Message not found or already deleted.");
         }
 
-        // Allow deletion if user is the sender OR is a server owner/admin
+        // Allow deletion if user is the sender OR has ManageMessages permission (which includes Owner and Admin)
         var isAuthor = message.SenderId == userId.Value;
         if (!isAuthor)
         {
-            var isPrivileged = await _context.ServerMembers
-                .AnyAsync(wm => wm.ServerId == message.Channel.ServerId 
-                             && wm.UserId == userId.Value 
-                             && (wm.Role == ServerRole.Owner || wm.Role == ServerRole.Admin), cancellationToken);
+            var canManage = await _permissionService.HasChannelPermissionAsync(
+                userId.Value,
+                message.ChannelId,
+                Permissions.ManageMessages,
+                cancellationToken);
 
-            if (!isPrivileged)
+            if (!canManage)
             {
                 return Error.Forbidden("Message.Forbidden", "You do not have permission to delete this message.");
             }

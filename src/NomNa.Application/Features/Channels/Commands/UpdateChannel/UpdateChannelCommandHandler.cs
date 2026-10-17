@@ -11,13 +11,16 @@ public class UpdateChannelCommandHandler : IRequestHandler<UpdateChannelCommand,
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPermissionService _permissionService;
 
     public UpdateChannelCommandHandler(
         IApplicationDbContext context,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<ChannelDto>> Handle(UpdateChannelCommand request, CancellationToken cancellationToken)
@@ -86,6 +89,8 @@ public class UpdateChannelCommandHandler : IRequestHandler<UpdateChannelCommand,
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        _permissionService.InvalidateChannel(channel.Id);
 
         return new ChannelDto(
             channel.Id,

@@ -8,10 +8,12 @@ namespace NomNa.Application.Features.Roles.Commands.DeleteRole;
 public class DeleteRoleCommandHandler : IRequestHandler<DeleteRoleCommand, Result>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IPermissionService _permissionService;
 
-    public DeleteRoleCommandHandler(IApplicationDbContext context)
+    public DeleteRoleCommandHandler(IApplicationDbContext context, IPermissionService permissionService)
     {
         _context = context;
+        _permissionService = permissionService;
     }
 
     public async Task<Result> Handle(DeleteRoleCommand request, CancellationToken cancellationToken)
@@ -31,6 +33,8 @@ public class DeleteRoleCommandHandler : IRequestHandler<DeleteRoleCommand, Resul
 
         _context.Roles.Remove(role);
         await _context.SaveChangesAsync(cancellationToken);
+
+        _permissionService.InvalidateServer(request.ServerId);
 
         return Result.Success();
     }

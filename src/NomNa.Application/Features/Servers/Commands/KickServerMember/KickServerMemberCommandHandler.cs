@@ -10,13 +10,19 @@ public class KickServerMemberCommandHandler : IRequestHandler<KickServerMemberCo
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPermissionService _permissionService;
+    private readonly IRealtimeAccessRevoker _realtimeAccessRevoker;
 
     public KickServerMemberCommandHandler(
         IApplicationDbContext context,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IPermissionService permissionService,
+        IRealtimeAccessRevoker realtimeAccessRevoker)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _permissionService = permissionService;
+        _realtimeAccessRevoker = realtimeAccessRevoker;
     }
 
     public async Task<Result<Unit>> Handle(KickServerMemberCommand request, CancellationToken cancellationToken)
@@ -57,7 +63,21 @@ public class KickServerMemberCommandHandler : IRequestHandler<KickServerMemberCo
 
         _context.ChannelMembers.RemoveRange(channelMemberships);
 
+        var channelIds = await _context.Channels
+            .AsNoTracking()
+            .Where(c => c.ServerId == request.ServerId)
+            .Select(c => c.Id)
+            .ToListAsync(cancellationToken);
+
         await _context.SaveChangesAsync(cancellationToken);
+
+        _permissionService.InvalidateUser(request.ServerId, request.MemberUserId);
+
+        await _realtimeAccessRevoker.RevokeServerAccessAsync(
+            request.MemberUserId,
+            request.ServerId,
+            channelIds,
+            cancellationToken);
 
         return Result<Unit>.Success(Unit.Value);
     }

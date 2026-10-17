@@ -11,11 +11,16 @@ public class SearchMessagesQueryHandler : IRequestHandler<SearchMessagesQuery, R
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPermissionService _permissionService;
 
-    public SearchMessagesQueryHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public SearchMessagesQueryHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<List<MessageDto>>> Handle(SearchMessagesQuery request, CancellationToken cancellationToken)
@@ -35,14 +40,24 @@ public class SearchMessagesQueryHandler : IRequestHandler<SearchMessagesQuery, R
             if (!isMember)
                 return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
-            // Query accessible channel IDs for this user in the server
-            var accessibleChannelIds = await _context.Channels
+            // Query candidate channel IDs in the server
+            var candidateChannelIds = await _context.Channels
                 .AsNoTracking()
-                .Where(c => c.ServerId == request.ServerId.Value &&
-                            ((!c.IsPrivate && c.Type != ChannelType.DirectMessage) ||
-                             c.Members.Any(cm => cm.UserId == userId.Value)))
+                .Where(c => c.ServerId == request.ServerId.Value && c.Type != ChannelType.DirectMessage)
                 .Select(c => c.Id)
                 .ToListAsync(cancellationToken);
+
+            // Filter using PermissionService to verify ViewChannel & ReadMessageHistory
+            var channelPerms = await _permissionService.GetChannelsPermissionsAsync(
+                userId.Value,
+                request.ServerId.Value,
+                candidateChannelIds,
+                cancellationToken);
+
+            var accessibleChannelIds = candidateChannelIds
+                .Where(id => channelPerms.TryGetValue(id, out var perms) &&
+                             (perms & (Permissions.ViewChannel | Permissions.ReadMessageHistory)) == (Permissions.ViewChannel | Permissions.ReadMessageHistory))
+                .ToList();
 
             if (request.ChannelId.HasValue)
             {
@@ -77,17 +92,21 @@ public class SearchMessagesQueryHandler : IRequestHandler<SearchMessagesQuery, R
             if (channel == null)
                 return Error.NotFound("Channel.NotFound", "Kênh không tồn tại.");
 
-            if (channel.Type == ChannelType.DirectMessage || channel.IsPrivate)
+            if (channel.Type == ChannelType.DirectMessage)
             {
                 if (!channel.IsMember)
                     return Error.Forbidden("Channel.Forbidden", "Bạn không có quyền tìm kiếm trong cuộc trò chuyện này.");
             }
             else if (channel.ServerId.HasValue)
             {
-                var isServerMember = await _context.ServerMembers
-                    .AnyAsync(sm => sm.ServerId == channel.ServerId.Value && sm.UserId == userId.Value, cancellationToken);
-                if (!isServerMember)
-                    return Error.Forbidden("Server.Forbidden", "Bạn không phải thành viên máy chủ.");
+                var canView = await _permissionService.HasChannelPermissionAsync(
+                    userId.Value,
+                    channel.Id,
+                    Permissions.ViewChannel | Permissions.ReadMessageHistory,
+                    cancellationToken);
+
+                if (!canView)
+                    return Error.Forbidden("Channel.Forbidden", "Bạn không có quyền tìm kiếm trong kênh này.");
             }
 
             targetChannelIds = new List<Guid> { channel.Id };

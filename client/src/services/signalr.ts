@@ -234,6 +234,18 @@ export class SignalRService {
     }
   }
 
+  public onRemovedFromServer(callback: (data: { serverId: string }) => void): void {
+    if (this.connection) {
+      this.connection.on('RemovedFromServer', callback);
+    }
+  }
+
+  public offRemovedFromServer(callback: (data: { serverId: string }) => void): void {
+    if (this.connection) {
+      this.connection.off('RemovedFromServer', callback);
+    }
+  }
+
   
   public onFriendRequestReceived(callback: (data: any) => void): void {
     if (this.connection) {

@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Primitives;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Domain.Entities;
 using NomNa.Domain.Enums;
@@ -9,7 +11,7 @@ namespace NomNa.Infrastructure.Services;
 
 /// <summary>
 /// Service giải quyết và cache quyền hạn của User trên Server và Channel.
-/// Sử dụng Cache-Aside (IMemoryCache) với TTL ngắn hạn để đạt hiệu năng < 0.1ms dưới tải cao.
+/// Sử dụng Cache-Aside (IMemoryCache) với CancellationChangeToken để hỗ trợ Invalidation tức thì.
 /// </summary>
 public class PermissionService : IPermissionService
 {
@@ -17,10 +19,48 @@ public class PermissionService : IPermissionService
     private readonly IMemoryCache _cache;
     private static readonly TimeSpan DefaultCacheExpiration = TimeSpan.FromMinutes(2);
 
+    private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _serverTokens = new();
+    private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _channelTokens = new();
+    private readonly ConcurrentDictionary<(Guid ServerId, Guid UserId), CancellationTokenSource> _userTokens = new();
+
     public PermissionService(IApplicationDbContext context, IMemoryCache cache)
     {
         _context = context;
         _cache = cache;
+    }
+
+    private MemoryCacheEntryOptions CreateServerCacheOptions(Guid serverId, Guid userId)
+    {
+        var srvCts = _serverTokens.GetOrAdd(serverId, _ => new CancellationTokenSource());
+        var userCts = _userTokens.GetOrAdd((serverId, userId), _ => new CancellationTokenSource());
+
+        return new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = DefaultCacheExpiration
+        }
+        .AddExpirationToken(new CancellationChangeToken(srvCts.Token))
+        .AddExpirationToken(new CancellationChangeToken(userCts.Token));
+    }
+
+    private MemoryCacheEntryOptions CreateChannelCacheOptions(Guid? serverId, Guid channelId, Guid userId)
+    {
+        var options = new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = DefaultCacheExpiration
+        };
+
+        if (serverId.HasValue)
+        {
+            var srvCts = _serverTokens.GetOrAdd(serverId.Value, _ => new CancellationTokenSource());
+            var userCts = _userTokens.GetOrAdd((serverId.Value, userId), _ => new CancellationTokenSource());
+            options.AddExpirationToken(new CancellationChangeToken(srvCts.Token));
+            options.AddExpirationToken(new CancellationChangeToken(userCts.Token));
+        }
+
+        var chnCts = _channelTokens.GetOrAdd(channelId, _ => new CancellationTokenSource());
+        options.AddExpirationToken(new CancellationChangeToken(chnCts.Token));
+
+        return options;
     }
 
     public async Task<Permissions> GetServerPermissionsAsync(Guid userId, Guid serverId, CancellationToken cancellationToken = default)
@@ -46,7 +86,7 @@ public class PermissionService : IPermissionService
 
         if (userId == server.OwnerId)
         {
-            _cache.Set(cacheKey, Permissions.All, DefaultCacheExpiration);
+            _cache.Set(cacheKey, Permissions.All, CreateServerCacheOptions(serverId, userId));
             return Permissions.All;
         }
 
@@ -70,7 +110,7 @@ public class PermissionService : IPermissionService
             memberRoles
         );
 
-        _cache.Set(cacheKey, permissions, DefaultCacheExpiration);
+        _cache.Set(cacheKey, permissions, CreateServerCacheOptions(serverId, userId));
         return permissions;
     }
 
@@ -103,9 +143,9 @@ public class PermissionService : IPermissionService
         if (channelInfo.Type == ChannelType.DirectMessage)
         {
             var dmPerms = channelInfo.IsMember
-                ? (Permissions.ViewChannel | Permissions.SendMessages | Permissions.AttachFiles | Permissions.AddReactions | Permissions.ReadMessageHistory)
+                ? (Permissions.ViewChannel | Permissions.SendMessages | Permissions.AttachFiles | Permissions.AddReactions | Permissions.ReadMessageHistory | Permissions.ManageMessages)
                 : Permissions.None;
-            _cache.Set(cacheKey, dmPerms, DefaultCacheExpiration);
+            _cache.Set(cacheKey, dmPerms, CreateChannelCacheOptions(null, channelId, userId));
             return dmPerms;
         }
 
@@ -114,7 +154,7 @@ public class PermissionService : IPermissionService
 
         if (userId == channelInfo.OwnerId)
         {
-            _cache.Set(cacheKey, Permissions.All, DefaultCacheExpiration);
+            _cache.Set(cacheKey, Permissions.All, CreateChannelCacheOptions(channelInfo.ServerId, channelId, userId));
             return Permissions.All;
         }
 
@@ -139,7 +179,7 @@ public class PermissionService : IPermissionService
             channelInfo.Overwrites
         );
 
-        _cache.Set(cacheKey, permissions, DefaultCacheExpiration);
+        _cache.Set(cacheKey, permissions, CreateChannelCacheOptions(channelInfo.ServerId, channelId, userId));
         return permissions;
     }
 
@@ -173,7 +213,7 @@ public class PermissionService : IPermissionService
             foreach (var id in channelIdList)
             {
                 result[id] = Permissions.All;
-                _cache.Set($"perm_chn_{id}_{userId}", Permissions.All, DefaultCacheExpiration);
+                _cache.Set($"perm_chn_{id}_{userId}", Permissions.All, CreateChannelCacheOptions(serverId, id, userId));
             }
             return result;
         }
@@ -203,7 +243,7 @@ public class PermissionService : IPermissionService
             foreach (var id in channelIdList)
             {
                 result[id] = Permissions.All;
-                _cache.Set($"perm_chn_{id}_{userId}", Permissions.All, DefaultCacheExpiration);
+                _cache.Set($"perm_chn_{id}_{userId}", Permissions.All, CreateChannelCacheOptions(serverId, id, userId));
             }
             return result;
         }
@@ -229,7 +269,7 @@ public class PermissionService : IPermissionService
                 overwrites
             );
             result[id] = perms;
-            _cache.Set($"perm_chn_{id}_{userId}", perms, DefaultCacheExpiration);
+            _cache.Set($"perm_chn_{id}_{userId}", perms, CreateChannelCacheOptions(serverId, id, userId));
         }
 
         return result;
@@ -245,5 +285,53 @@ public class PermissionService : IPermissionService
     {
         var permissions = await GetChannelPermissionsAsync(userId, channelId, cancellationToken);
         return PermissionCalculator.HasPermission(permissions, requiredPermission);
+    }
+
+    public void InvalidateServer(Guid serverId)
+    {
+        if (_serverTokens.TryRemove(serverId, out var cts))
+        {
+            try
+            {
+                cts.Cancel();
+                cts.Dispose();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
+        }
+    }
+
+    public void InvalidateChannel(Guid channelId)
+    {
+        if (_channelTokens.TryRemove(channelId, out var cts))
+        {
+            try
+            {
+                cts.Cancel();
+                cts.Dispose();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
+        }
+    }
+
+    public void InvalidateUser(Guid serverId, Guid userId)
+    {
+        if (_userTokens.TryRemove((serverId, userId), out var cts))
+        {
+            try
+            {
+                cts.Cancel();
+                cts.Dispose();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
+        }
     }
 }

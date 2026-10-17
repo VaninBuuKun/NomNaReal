@@ -23,6 +23,7 @@ public static class SignalRConstants
         public const string FriendRequestReceived = "FriendRequestReceived";
         public const string FriendRequestAccepted = "FriendRequestAccepted";
         public const string FriendshipRemoved = "FriendshipRemoved";
+        public const string RemovedFromServer = "RemovedFromServer";
     }
 
     public static class Methods

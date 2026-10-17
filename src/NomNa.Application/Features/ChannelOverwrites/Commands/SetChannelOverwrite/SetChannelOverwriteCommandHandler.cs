@@ -11,10 +11,12 @@ namespace NomNa.Application.Features.ChannelOverwrites.Commands.SetChannelOverwr
 public class SetChannelOverwriteCommandHandler : IRequestHandler<SetChannelOverwriteCommand, Result<ChannelOverwriteDto>>
 {
     private readonly IApplicationDbContext _context;
+    private readonly IPermissionService _permissionService;
 
-    public SetChannelOverwriteCommandHandler(IApplicationDbContext context)
+    public SetChannelOverwriteCommandHandler(IApplicationDbContext context, IPermissionService permissionService)
     {
         _context = context;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<ChannelOverwriteDto>> Handle(SetChannelOverwriteCommand request, CancellationToken cancellationToken)
@@ -82,6 +84,8 @@ public class SetChannelOverwriteCommandHandler : IRequestHandler<SetChannelOverw
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+
+        _permissionService.InvalidateChannel(request.ChannelId);
 
         return new ChannelOverwriteDto(
             overwrite.Id,

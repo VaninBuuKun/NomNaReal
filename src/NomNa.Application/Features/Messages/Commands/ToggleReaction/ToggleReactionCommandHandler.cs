@@ -11,11 +11,16 @@ public class ToggleReactionCommandHandler : IRequestHandler<ToggleReactionComman
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IPermissionService _permissionService;
 
-    public ToggleReactionCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public ToggleReactionCommandHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<ReactionToggledDto>> Handle(ToggleReactionCommand request, CancellationToken cancellationToken)
@@ -35,20 +40,24 @@ public class ToggleReactionCommandHandler : IRequestHandler<ToggleReactionComman
             return Error.NotFound("Message.NotFound", "Message not found or has been deleted.");
         }
 
-        // Verify membership according to channel privacy
-        if (message.Channel.IsPrivate || message.Channel.Type == Domain.Enums.ChannelType.DirectMessage)
+        // Verify permission: DM requires participant, Server channel requires AddReactions permission
+        if (message.Channel.Type == Domain.Enums.ChannelType.DirectMessage)
         {
             var isMember = await _context.ChannelMembers
                 .AnyAsync(cm => cm.ChannelId == message.ChannelId && cm.UserId == userId.Value, cancellationToken);
-            if (!isMember)
-                return Error.Forbidden("Channel.Forbidden", "You do not have permission to react in this private channel.");
+            if (!isMember && message.Channel.CreatedById != userId.Value)
+                return Error.Forbidden("Channel.Forbidden", "You do not have permission to react in this direct message.");
         }
         else
         {
-            var isMember = await _context.ServerMembers
-                .AnyAsync(wm => wm.ServerId == message.Channel.ServerId && wm.UserId == userId.Value, cancellationToken);
-            if (!isMember)
-                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
+            var hasAddReactions = await _permissionService.HasChannelPermissionAsync(
+                userId.Value,
+                message.ChannelId,
+                Domain.Enums.Permissions.AddReactions,
+                cancellationToken);
+
+            if (!hasAddReactions)
+                return Error.Forbidden("Permission.Forbidden", "You do not have permission to add reactions in this channel.");
         }
 
         var emoji = request.Emoji.Trim();
