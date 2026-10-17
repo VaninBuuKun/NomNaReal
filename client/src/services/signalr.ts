@@ -1,10 +1,31 @@
 import * as signalR from '@microsoft/signalr';
 import type { Message, MessageEdited, ReactionUpdate, DeletedMessage, Channel, AppNotification } from '../types';
 
+export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
+
 export class SignalRService {
   private connection: signalR.HubConnection | null = null;
   private currentChannelId: string | null = null;
   private reconnectedCallbacks: Array<(connectionId?: string) => void> = [];
+  private statusListeners: Array<(status: ConnectionStatus) => void> = [];
+  private status: ConnectionStatus = 'connected';
+
+  private setStatus(next: ConnectionStatus): void {
+    if (this.status === next) return;
+    this.status = next;
+    for (const listener of this.statusListeners) listener(next);
+  }
+
+  public getStatus(): ConnectionStatus {
+    return this.status;
+  }
+
+  public subscribeStatus(listener: (status: ConnectionStatus) => void): () => void {
+    this.statusListeners.push(listener);
+    return () => {
+      this.statusListeners = this.statusListeners.filter((l) => l !== listener);
+    };
+  }
 
   public async startConnection(
     onMessageReceived: (message: Message) => void,
@@ -33,7 +54,11 @@ export class SignalRService {
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
+    this.connection.onreconnecting(() => this.setStatus('reconnecting'));
+    this.connection.onclose(() => this.setStatus('disconnected'));
+
     this.connection.onreconnected(async (connectionId) => {
+      this.setStatus('connected');
       console.log('SignalR Reconnected. ConnectionId:', connectionId);
       // Automatically rejoin active channel on server
       if (this.currentChannelId) {
@@ -70,6 +95,7 @@ export class SignalRService {
       if (this.connection.state === signalR.HubConnectionState.Disconnected) {
         await this.connection.start();
         console.log('SignalR Connected successfully.');
+        this.setStatus('connected');
       }
     } catch (err: any) {
       if (err?.name === 'AbortError' || err?.message?.includes('stopped')) {

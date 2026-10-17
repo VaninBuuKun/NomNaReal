@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import {
   Smiley,
   PaperPlaneRight,
@@ -63,7 +70,12 @@ export interface MessageComposerProps {
   onSendSuccess?: () => void;
 }
 
-export const MessageComposer: React.FC<MessageComposerProps> = ({
+export interface MessageComposerHandle {
+  addFiles: (files: File[]) => void;
+  focus: () => void;
+}
+
+export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposerProps>(({
   channelId,
   channelName,
   isDm = false,
@@ -77,7 +89,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   workspaceMembers = [],
   isSidebar = false,
   onSendSuccess,
-}) => {
+}, ref) => {
   const drafts = useChatStore((state) => state.drafts);
   const setDraft = useChatStore((state) => state.setDraft);
   const clearDraft = useChatStore((state) => state.clearDraft);
@@ -234,11 +246,8 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     });
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const fileList = Array.from(files);
+  const processFiles = (fileList: File[]) => {
+    if (!canSendMessages || !canAttachFiles || fileList.length === 0) return;
     const MAX_SIZE = 100 * 1024 * 1024; // 100MB limit
 
     const newAttachments: PendingAttachment[] = [];
@@ -292,9 +301,63 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       }
     });
 
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) processFiles(Array.from(files));
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  useImperativeHandle(ref, () => ({
+    addFiles: processFiles,
+    focus: () => textareaRef.current?.focus(),
+  }));
+
+  // Ctrl+V: paste screenshots / files straight from the clipboard
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(e.clipboardData?.files ?? []);
+    if (files.length === 0) return;
+    e.preventDefault();
+    processFiles(
+      files.map((f, i) =>
+        f.name && f.name !== "image.png"
+          ? f
+          : new File([f], `pasted-${Date.now()}-${i}.${(f.type.split("/")[1] || "png")}`, {
+              type: f.type,
+            })
+      )
+    );
+  };
+
+  // Ctrl+B / Ctrl+I / Ctrl+K: wrap the selection with Markdown markers
+  const applyMarkdownShortcut = (marker: string, linkMode = false) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = content.slice(start, end);
+    let next: string;
+    let selStart: number;
+    let selEnd: number;
+    if (linkMode) {
+      const label = selected || "văn bản";
+      next = `${content.slice(0, start)}[${label}](https://)${content.slice(end)}`;
+      selStart = start + label.length + 3;
+      selEnd = selStart + 8;
+    } else {
+      next = `${content.slice(0, start)}${marker}${selected}${marker}${content.slice(end)}`;
+      selStart = start + marker.length;
+      selEnd = selStart + selected.length;
+    }
+    setContent(next);
+    if (channelId) setDraft(channelId, next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      ta.setSelectionRange(selStart, selEnd);
+    });
   };
 
   const handleSend = async () => {
@@ -345,6 +408,25 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.defaultPrevented) return;
+
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+      const k = e.key.toLowerCase();
+      if (k === "b") {
+        e.preventDefault();
+        applyMarkdownShortcut("**");
+        return;
+      }
+      if (k === "i") {
+        e.preventDefault();
+        applyMarkdownShortcut("*");
+        return;
+      }
+      if (k === "k") {
+        e.preventDefault();
+        applyMarkdownShortcut("", true);
+        return;
+      }
+    }
 
     if (isMentionOpen) {
       if (
@@ -581,6 +663,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             value={content}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             disabled={!channelId || !canSendMessages}
             placeholder={
               !channelId
@@ -656,4 +739,6 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
       </div>
     </div>
   );
-};
+});
+
+MessageComposer.displayName = "MessageComposer";

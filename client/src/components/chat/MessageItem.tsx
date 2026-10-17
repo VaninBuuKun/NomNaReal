@@ -497,13 +497,13 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
                     type="button"
                     key={r.emoji}
                     onClick={() => onToggleReaction(msg.id, r.emoji)}
-                    className={`border rounded-md px-2 py-0.5 text-[0.78rem] font-medium inline-flex items-center gap-1.5 cursor-pointer select-none transition-colors duration-100 active:scale-95 ${
+                    className={`border rounded-md px-2 py-0.5 text-[0.78rem] font-medium inline-flex items-center gap-1.5 cursor-pointer select-none transition-all duration-150 active:scale-90 hover:scale-105 ${
                       r.hasReacted
-                        ? "bg-accent-soft border-accent-primary text-accent-primary"
+                        ? "bg-accent-soft border-accent-primary text-accent-primary shadow-xs"
                         : "bg-surface border-border text-text-secondary hover:border-border-hover hover:bg-surface-active"
                     }`}
                   >
-                    <span>{r.emoji}</span>
+                    <span className="inline-block transition-transform duration-150 active:scale-125">{r.emoji}</span>
                     <span>{r.count}</span>
                   </button>
                 ))}

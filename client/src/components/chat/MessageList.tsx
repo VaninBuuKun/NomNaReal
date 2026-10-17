@@ -8,7 +8,8 @@ import {
   useImperativeHandle,
 } from "react";
 import { Virtuoso, type VirtuosoHandle, type StateSnapshot } from "react-virtuoso";
-import { CircleNotch, HandWaving } from "@phosphor-icons/react";
+import { CircleNotch, HandWaving, ArrowUp } from "@phosphor-icons/react";
+import { getReadMarker, setReadMarker } from "../../utils/readMarkers";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
 import { MessageItem } from "./MessageItem";
 import { ChatAreaSkeleton } from "./ChatAreaSkeleton";
@@ -123,6 +124,60 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const pinnedMessageIds = useMemo(() => {
       return new Set(pinnedMessages.map((p) => p.messageId));
     }, [pinnedMessages]);
+
+    // ---- Unread tracking (Discord/Slack style) ----
+    // Captured once per channel entry, BEFORE the marker advances, so the divider
+    // stays put while the user reads. Live messages (created after entry) never
+    // get a divider.
+    const channelId = currentChannel?.id;
+    const unreadEntry = useMemo(() => {
+      if (!channelId) return null;
+      const marker = getReadMarker(channelId);
+      return marker ? { channelId, marker: Date.parse(marker), entryTime: Date.now() } : null;
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [channelId]);
+
+    const { firstUnreadId, unreadCount } = useMemo(() => {
+      if (!unreadEntry || unreadEntry.channelId !== channelId) {
+        return { firstUnreadId: null as string | null, unreadCount: 0 };
+      }
+      const isUnread = (m: Message) => {
+        const t = Date.parse(m.createdAt);
+        return (
+          t > unreadEntry.marker &&
+          t <= unreadEntry.entryTime &&
+          m.senderId !== currentUser?.id &&
+          !m.id.startsWith("temp-")
+        );
+      };
+      const idx = messages.findIndex(isUnread);
+      if (idx === -1) return { firstUnreadId: null as string | null, unreadCount: 0 };
+      return {
+        firstUnreadId: messages[idx].id,
+        unreadCount: messages.slice(idx).filter(isUnread).length,
+      };
+    }, [unreadEntry, channelId, messages, currentUser?.id]);
+
+    const [isUnreadAbove, setIsUnreadAbove] = useState(false);
+    const [unreadPillDismissed, setUnreadPillDismissed] = useState(false);
+    useEffect(() => {
+      setUnreadPillDismissed(false);
+      setIsUnreadAbove(false);
+    }, [channelId]);
+
+    // Advance the read marker while the user is looking at the newest messages
+    const advanceReadMarker = useCallback(() => {
+      const last = messages[messages.length - 1];
+      if (!channelId || !last || last.id.startsWith("temp-")) return;
+      if (last.channelId && last.channelId !== channelId) return;
+      if (isAtBottomRef.current && !hasNewerMessages) {
+        setReadMarker(channelId, last.createdAt);
+      }
+    }, [messages, channelId, hasNewerMessages]);
+
+    useEffect(() => {
+      advanceReadMarker();
+    }, [advanceReadMarker]);
 
     // Handle channel switching: restore previous scroll position or default to bottom
     useEffect(() => {
@@ -261,6 +316,31 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           </div>
         )}
 
+        {/* Jump to first unread (shown only while the divider is scrolled above the viewport) */}
+        {firstUnreadId && isUnreadAbove && !unreadPillDismissed && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-2 duration-150">
+            <button
+              type="button"
+              onClick={() => {
+                const idx = messages.findIndex((m) => m.id === firstUnreadId);
+                if (idx !== -1) {
+                  virtuosoRef.current?.scrollToIndex({
+                    index: firstItemIndex + idx,
+                    align: "start",
+                    behavior: "smooth",
+                  });
+                }
+                setUnreadPillDismissed(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-danger text-on-accent text-xs font-semibold shadow-floating hover:bg-danger-hover transition-colors cursor-pointer select-none"
+              title="Nhảy tới tin nhắn chưa đọc đầu tiên"
+            >
+              <ArrowUp size={13} weight="bold" />
+              <span>{unreadCount} tin nhắn mới</span>
+            </button>
+          </div>
+        )}
+
         <Virtuoso
           key={currentChannel?.id || "empty-channel"}
           ref={virtuosoRef}
@@ -283,6 +363,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
             onAtBottomChange?.(atBottom);
             if (atBottom) {
               onUnreadCountChange?.(0);
+              advanceReadMarker();
             }
             saveCurrentScrollState();
           }}
@@ -295,6 +376,10 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
             const realIndex = range.startIndex - firstItemIndex;
             if (realIndex >= 0 && realIndex < messages.length) {
               currentTopMessageIdRef.current = messages[realIndex].id;
+            }
+            if (firstUnreadId) {
+              const unreadIdx = messages.findIndex((m) => m.id === firstUnreadId);
+              setIsUnreadAbove(unreadIdx !== -1 && realIndex > unreadIdx);
             }
           }}
           startReached={() => {
@@ -372,25 +457,35 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
             const realIndex = index - firstItemIndex;
             const prevMsg = realIndex > 0 ? messages[realIndex - 1] : undefined;
             return (
-              <MessageItem
-                key={msg.id}
-                msg={msg}
-                prevMsg={prevMsg}
-                currentUser={currentUser}
-                currentChannel={currentChannel}
-                workspaceMembers={workspaceMembers}
-                isPinned={pinnedMessageIds.has(msg.id)}
-                canManageMessages={canManageMessages}
-                isAdmin={isAdmin}
-                onJumpToMessage={handleJumpToMessage}
-                onOpenUserProfile={onOpenUserProfile}
-                onReplyMessage={onReplyMessage}
-                onEditMessage={onEditMessage}
-                onDeleteMessage={onDeleteMessage}
-                onToggleReaction={onToggleReaction}
-                onPinMessage={onPinMessage}
-                onUnpinMessage={onUnpinMessage}
-              />
+              <div key={msg.id}>
+                {msg.id === firstUnreadId && (
+                  <div className="flex items-center gap-2 mx-4 mt-3 mb-1 select-none" role="separator">
+                    <div className="flex-1 h-px bg-danger/60" />
+                    <span className="text-[0.68rem] font-semibold uppercase tracking-wide text-danger">
+                      Tin nhắn mới
+                    </span>
+                    <div className="flex-1 h-px bg-danger/60" />
+                  </div>
+                )}
+                <MessageItem
+                  msg={msg}
+                  prevMsg={prevMsg}
+                  currentUser={currentUser}
+                  currentChannel={currentChannel}
+                  workspaceMembers={workspaceMembers}
+                  isPinned={pinnedMessageIds.has(msg.id)}
+                  canManageMessages={canManageMessages}
+                  isAdmin={isAdmin}
+                  onJumpToMessage={handleJumpToMessage}
+                  onOpenUserProfile={onOpenUserProfile}
+                  onReplyMessage={onReplyMessage}
+                  onEditMessage={onEditMessage}
+                  onDeleteMessage={onDeleteMessage}
+                  onToggleReaction={onToggleReaction}
+                  onPinMessage={onPinMessage}
+                  onUnpinMessage={onUnpinMessage}
+                />
+              </div>
             );
           }}
         />

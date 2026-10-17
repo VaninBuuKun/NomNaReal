@@ -280,7 +280,16 @@ export const ChatPage: React.FC = () => {
         hasMore: res.hasOlder ?? res.hasMore ?? false,
       });
       if (activeChannelIdRef.current === channelId) {
-        setMessages(res.messages);
+        setMessages((prev) => {
+          const pending = prev.filter(
+            (m) => m.id.startsWith("temp-") && m.channelId === channelId
+          );
+          if (pending.length === 0) return res.messages;
+          const stillPending = pending.filter(
+            (om) => !res.messages.some((sm) => sm.content === om.content && sm.senderId === om.senderId)
+          );
+          return [...res.messages, ...stillPending];
+        });
         setHasMoreMessages(res.hasOlder ?? res.hasMore ?? false);
         setHasNewerMessages(false);
       }
@@ -363,12 +372,14 @@ export const ChatPage: React.FC = () => {
 
   // Switch Active Channel
   const handleSelectChannel = async (targetChannelId: string, wsId?: string) => {
+    useChatStore.getState().setTypingUser(null);
     setActiveChannelId(targetChannelId);
     activeChannelIdRef.current = targetChannelId;
     setActiveDmId(null);
 
-    const targetWsId = wsId || activeWorkspaceIdRef.current || activeWorkspaceId;
+    const targetWsId = wsId || activeWorkspaceIdRef.current || activeWorkspaceId || currentWorkspace?.id;
     if (targetWsId) {
+      setActiveWorkspaceId(targetWsId);
       navigate(`/channels/${targetWsId}/${targetChannelId}`);
     }
 
@@ -765,6 +776,14 @@ export const ChatPage: React.FC = () => {
           const foundDm = loadedDms.find((d) => d.id === chatId);
           if (foundDm) {
             await handleSelectDmConversation(foundDm);
+          } else if (chatId.startsWith("pending-dm-")) {
+            setActiveDmId(chatId);
+            setActiveChannelId(chatId);
+            activeChannelIdRef.current = chatId;
+            setMessages([]);
+            setHasMoreMessages(false);
+            setHasNewerMessages(false);
+            setIsLoadingMessages(false);
           } else {
             setActiveDmId(chatId);
             setActiveChannelId(chatId);
@@ -859,7 +878,7 @@ export const ChatPage: React.FC = () => {
         setActiveWorkspaceId(null);
       }
       if (chatId) {
-        if (activeDmId !== chatId) {
+        if (activeChannelIdRef.current !== chatId && !chatId.startsWith("pending-dm-")) {
           setActiveDmId(chatId);
           setActiveChannelId(chatId);
           activeChannelIdRef.current = chatId;
@@ -917,44 +936,14 @@ export const ChatPage: React.FC = () => {
     if (!activeChannelId && !activeDmId) return;
     const targetChannelId = activeChannelId || activeDmId!;
 
-    if (activeDmId && activeDmId.startsWith("pending-dm-")) {
-      const targetUserId = activeDmId.replace("pending-dm-", "");
-      try {
-        const realDm = await channelApi.createOrGetDm(
-          targetUserId,
-          activeWorkspaceId || undefined,
-        );
-        useDmStore.getState().upgradePendingDm(activeDmId, realDm.id);
-        setActiveDmId(realDm.id);
-        setActiveChannelId(realDm.id);
-        activeChannelIdRef.current = realDm.id;
-        navigate(`/channels/@me/${realDm.id}`, { replace: true });
-        await signalRService.joinChannel(realDm.id);
-
-        const realSent = await signalRService.sendMessage(
-          realDm.id,
-          msgContent,
-          replyToMessageId || null,
-          attachments,
-        );
-        if (realSent) {
-          addMessage(realSent);
-        }
-        return;
-      } catch (err) {
-        console.error("Failed to materialize DM conversation:", err);
-        return;
-      }
-    }
-
     const tempId = `temp-${Date.now()}`;
     const repliedMsg = replyToMessageId
       ? messages.find((m) => m.id === replyToMessageId)
       : undefined;
 
-    const optimisticMessage: Message = {
+    const buildOptimistic = (channelId: string): Message => ({
       id: tempId,
-      channelId: targetChannelId,
+      channelId,
       senderId: currentUser?.id || "temp-me",
       senderDisplayName: currentUser?.displayName || "Me",
       senderUsername: currentUser?.username || "me",
@@ -980,9 +969,58 @@ export const ChatPage: React.FC = () => {
         contentType: a.contentType,
         type: a.type,
       })),
-    };
+    });
 
-    addMessage(optimisticMessage);
+    if (activeDmId && activeDmId.startsWith("pending-dm-")) {
+      const targetUserId = activeDmId.replace("pending-dm-", "");
+      try {
+        const realDm = await channelApi.createOrGetDm(
+          targetUserId,
+          null, // Direct messages with members are always global user-to-user DMs
+        );
+        const optMsg = buildOptimistic(realDm.id);
+        useDmStore.getState().upgradePendingDm(activeDmId, realDm.id);
+        activeChannelIdRef.current = realDm.id;
+        setActiveWorkspaceId(null);
+        setMessages([optMsg]);
+        channelMessagesCacheRef.current.set(realDm.id, {
+          messages: [optMsg],
+          hasMore: false,
+        });
+        setHasMoreMessages(false);
+        setHasNewerMessages(false);
+        setIsLoadingMessages(false);
+        setActiveDmId(realDm.id);
+        setActiveChannelId(realDm.id);
+        navigate(`/channels/@me/${realDm.id}`, { replace: true });
+        await signalRService.joinChannel(realDm.id);
+
+        const realSent = await signalRService.sendMessage(
+          realDm.id,
+          msgContent,
+          replyToMessageId || null,
+          attachments,
+        );
+        if (realSent) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === realSent.id)) {
+              return prev.filter((m) => m.id !== tempId);
+            }
+            const foundTemp = prev.some((m) => m.id === tempId);
+            if (foundTemp) {
+              return prev.map((m) => (m.id === tempId ? realSent : m));
+            }
+            return [...prev, realSent];
+          });
+        }
+        return;
+      } catch (err) {
+        console.error("Failed to materialize DM conversation:", err);
+        return;
+      }
+    }
+
+    addMessage(buildOptimistic(targetChannelId));
 
     try {
       const realMessage = await signalRService.sendMessage(
@@ -992,9 +1030,16 @@ export const ChatPage: React.FC = () => {
         attachments,
       );
       if (realMessage) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? realMessage : m)),
-        );
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === realMessage.id)) {
+            return prev.filter((m) => m.id !== tempId);
+          }
+          const foundTemp = prev.some((m) => m.id === tempId);
+          if (foundTemp) {
+            return prev.map((m) => (m.id === tempId ? realMessage : m));
+          }
+          return [...prev, realMessage];
+        });
       }
     } catch (err) {
       console.error("Failed to send message via SignalR:", err);
@@ -1065,14 +1110,20 @@ export const ChatPage: React.FC = () => {
   };
 
   const handleSelectDmConversation = async (dm: DirectMessageItem) => {
+    setActiveWorkspaceId(null);
     setActiveDmId(dm.id);
     setActiveChannelId(dm.id);
     activeChannelIdRef.current = dm.id;
     navigate(`/channels/@me/${dm.id}`);
 
+    useChatStore.getState().setTypingUser(null);
+
     if (dm.isPending) {
       setMessages([]);
+      setHasMoreMessages(false);
+      setHasNewerMessages(false);
       setIsLoadingMessages(false);
+      setPinnedMessages([]);
     } else {
       const cached = channelMessagesCacheRef.current.get(dm.id);
       if (cached) {
@@ -1104,6 +1155,7 @@ export const ChatPage: React.FC = () => {
     status?: string;
     role?: string;
   }) => {
+    setActiveWorkspaceId(null);
     let existing = dmConversations.find(
       (c) => (c.user?.id || '').toLowerCase() === (targetUser?.id || '').toLowerCase()
     );

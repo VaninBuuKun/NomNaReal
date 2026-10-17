@@ -9,6 +9,7 @@ import {
   VideoCamera,
   ChatTeardropText,
   X,
+  CircleNotch,
 } from "@phosphor-icons/react";
 import { Avatar } from "../ui";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
@@ -16,11 +17,12 @@ import { messageApi } from "../../services/messageApi";
 import { StickyPinBar } from "./StickyPinBar";
 import { DeleteMessageModal } from "./DeleteMessageModal";
 import { MessageList, type MessageListHandle } from "./MessageList";
-import { MessageComposer } from "./MessageComposer";
+import { MessageComposer, type MessageComposerHandle } from "./MessageComposer";
 import { JumpToPresentBar } from "./JumpToPresentBar";
 import { useChatStore, useUiStore } from "../../stores";
 import { useVoiceStore } from "../../stores/useVoiceStore";
 import { usePermissions } from "../../hooks/usePermissions";
+import { useConnectionStatus } from "../../hooks/useConnectionStatus";
 import { VoiceStage } from "./VoiceStage";
 import type { DirectMessageItem, DirectMessageUser } from "../dm";
 import type { UserProfileData } from "../profile";
@@ -110,6 +112,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const { canSendMessages, canAttachFiles, canManageMessages, isAdmin } = usePermissions(
     currentChannel?.permissions
   );
+  const connectionStatus = useConnectionStatus();
 
   const [isStickyDismissed, setIsStickyDismissed] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
@@ -118,6 +121,45 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const messageListRef = useRef<MessageListHandle>(null);
   const sidebarMessageListRef = useRef<MessageListHandle>(null);
+  const composerRef = useRef<MessageComposerHandle>(null);
+  const sidebarComposerRef = useRef<MessageComposerHandle>(null);
+
+  // Drag & drop files onto the chat area
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const dragDepthRef = useRef(0);
+  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+  const buildDragProps = (target: React.RefObject<MessageComposerHandle | null>) => ({
+    onDragEnter: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDraggingFile(true);
+    },
+    onDragOver: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+    },
+    onDragLeave: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) setIsDraggingFile(false);
+    },
+    onDrop: (e: React.DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDraggingFile(false);
+      target.current?.addFiles(Array.from(e.dataTransfer.files));
+    },
+  });
+  const dropOverlay = isDraggingFile ? (
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-overlay pointer-events-none animate-in fade-in duration-150">
+      <div className="px-8 py-6 rounded-card border-2 border-dashed border-accent-primary bg-surface shadow-floating text-center">
+        <p className="text-sm font-semibold text-text-primary">Thả tệp vào đây để tải lên</p>
+        <p className="text-xs text-text-muted mt-1">Ảnh, video hoặc tài liệu (tối đa 100MB)</p>
+      </div>
+    </div>
+  ) : null;
 
   // Voice Chat Split Layout States
   const { isTextChatOpen, toggleTextChat, leaveVoice } = useVoiceStore();
@@ -467,6 +509,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
       {/* Message Composer Input Box */}
       <MessageComposer
+        ref={isSidebar ? sidebarComposerRef : composerRef}
         channelId={currentChannel?.id}
         channelName={currentChannel?.name}
         channelType={currentChannel?.type}
@@ -492,7 +535,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   if (isVoice && currentChannel) {
     return (
-      <section className="flex-1 h-full min-h-0 bg-chat flex overflow-hidden relative">
+      <section
+        className="flex-1 h-full min-h-0 bg-chat flex overflow-hidden relative"
+        {...buildDragProps(sidebarComposerRef)}
+      >
+        {dropOverlay}
         {/* Left Voice Stage Canvas */}
         <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
           <VoiceStage
@@ -555,8 +602,31 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   }
 
   return (
-    <section className="flex-1 h-full min-h-0 bg-chat flex flex-col overflow-hidden relative">
+    <section
+      className="flex-1 h-full min-h-0 bg-chat flex flex-col overflow-hidden relative"
+      {...buildDragProps(composerRef)}
+    >
+      {dropOverlay}
       {renderHeaderContent()}
+
+      {connectionStatus !== "connected" && (
+        <div
+          role="status"
+          className={`w-full py-1.5 px-4 text-xs font-medium flex items-center justify-center gap-2 select-none z-20 shrink-0 transition-colors animate-in fade-in duration-150 ${
+            connectionStatus === "reconnecting"
+              ? "bg-warning/15 text-warning border-b border-warning/20"
+              : "bg-danger/15 text-danger border-b border-danger/20"
+          }`}
+        >
+          <CircleNotch size={13} className="animate-spin shrink-0" />
+          <span>
+            {connectionStatus === "reconnecting"
+              ? "Mất kết nối tạm thời. NomNa đang tự động kết nối lại..."
+              : "Đã ngắt kết nối với máy chủ. Vui lòng kiểm tra đường truyền mạng."}
+          </span>
+        </div>
+      )}
+
       {renderChatStreamAndInput(false)}
 
       <DeleteMessageModal
