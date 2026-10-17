@@ -253,21 +253,48 @@ export const ChatPage: React.FC = () => {
     [channelMemberIdsMap, setWorkspaceMembers],
   );
 
-  // Fetch Channel Messages
+  const channelMessagesCacheRef = useRef<
+    Map<string, { messages: Message[]; hasMore: boolean }>
+  >(new Map());
+
+  // Keep channel messages cache up-to-date with active messages
+  useEffect(() => {
+    if (activeChannelId && messages.length > 0) {
+      channelMessagesCacheRef.current.set(activeChannelId, {
+        messages,
+        hasMore: hasMoreMessages,
+      });
+    }
+  }, [activeChannelId, messages, hasMoreMessages]);
+
+  // Fetch Channel Messages with instant SWR cache
   const loadMessages = async (channelId: string) => {
+    const isCached = channelMessagesCacheRef.current.has(channelId);
     try {
-      setIsLoadingMessages(true);
+      if (!isCached) {
+        setIsLoadingMessages(true);
+      }
       const res = await messageApi.getMessages(channelId, undefined, undefined, 25);
-      setMessages(res.messages);
-      setHasMoreMessages(res.hasOlder ?? res.hasMore ?? false);
-      setHasNewerMessages(false);
+      channelMessagesCacheRef.current.set(channelId, {
+        messages: res.messages,
+        hasMore: res.hasOlder ?? res.hasMore ?? false,
+      });
+      if (activeChannelIdRef.current === channelId) {
+        setMessages(res.messages);
+        setHasMoreMessages(res.hasOlder ?? res.hasMore ?? false);
+        setHasNewerMessages(false);
+      }
     } catch (err) {
       console.error("Failed to load messages:", err);
-      setMessages([]);
-      setHasMoreMessages(false);
-      setHasNewerMessages(false);
+      if (!isCached && activeChannelIdRef.current === channelId) {
+        setMessages([]);
+        setHasMoreMessages(false);
+        setHasNewerMessages(false);
+      }
     } finally {
-      setIsLoadingMessages(false);
+      if (activeChannelIdRef.current === channelId) {
+        setIsLoadingMessages(false);
+      }
     }
   };
 
@@ -351,6 +378,20 @@ export const ChatPage: React.FC = () => {
     const targetCh = channels.find((c) => c.id === targetChannelId);
     if (targetCh?.isPrivate) {
       fetchChannelMembers(targetChannelId);
+    }
+
+    // Instant cache restore to prevent flicker and old channel messages
+    const cached = channelMessagesCacheRef.current.get(targetChannelId);
+    if (cached) {
+      setMessages(cached.messages);
+      setHasMoreMessages(cached.hasMore);
+      setHasNewerMessages(false);
+      setIsLoadingMessages(false);
+    } else {
+      setMessages([]);
+      setHasMoreMessages(false);
+      setHasNewerMessages(false);
+      setIsLoadingMessages(true);
     }
 
     await loadMessages(targetChannelId);
@@ -1031,7 +1072,20 @@ export const ChatPage: React.FC = () => {
 
     if (dm.isPending) {
       setMessages([]);
+      setIsLoadingMessages(false);
     } else {
+      const cached = channelMessagesCacheRef.current.get(dm.id);
+      if (cached) {
+        setMessages(cached.messages);
+        setHasMoreMessages(cached.hasMore);
+        setHasNewerMessages(false);
+        setIsLoadingMessages(false);
+      } else {
+        setMessages([]);
+        setHasMoreMessages(false);
+        setHasNewerMessages(false);
+        setIsLoadingMessages(true);
+      }
       await loadMessages(dm.id);
       await signalRService.joinChannel(dm.id);
     }

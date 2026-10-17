@@ -12,4 +12,8 @@ export * from './SearchSidebar';
 export * from './StickyPinBar';
 export * from './PinnedMessagesSidebar';
 export * from './MentionAutocompletePopover';
+export * from './MessageList';
+export * from './MessageItem';
+export * from './MessageComposer';
+export * from './JumpToPresentBar';
 export * from './LinkPreviewCard';
