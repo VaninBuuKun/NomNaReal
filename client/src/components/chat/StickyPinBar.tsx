@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { PushPin, CaretDown, X, ArrowRight } from "@phosphor-icons/react";
 import type { PinnedMessage } from "../../types";
 import { formatMessageTime } from "../../utils/formatDate";
+import { UserAvatar } from "../ui/UserAvatar";
 
 interface StickyPinBarProps {
   pinnedMessages: PinnedMessage[];
@@ -136,13 +137,11 @@ export const StickyPinBar: React.FC<StickyPinBarProps> = ({
                 className="px-3.5 py-2 flex items-center justify-between gap-3 hover:bg-[var(--bg-surface-active)] cursor-pointer transition-colors group text-xs"
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <img
-                    src={pin.message.senderAvatarUrl || "/default-avatar.png"}
-                    alt=""
-                    className="w-5 h-5 rounded-full object-cover flex-shrink-0 border border-[var(--border-color)]"
-                    onError={(e) => {
-                      e.currentTarget.src = "/default-avatar.png";
-                    }}
+                  <UserAvatar
+                    size="xs"
+                    name={pin.message.senderDisplayName || pin.message.senderUsername}
+                    avatarUrl={pin.message.senderAvatarUrl}
+                    className="w-5 h-5 flex-shrink-0"
                   />
                   <div className="min-w-0 flex-1 flex items-baseline gap-1.5">
                     <span className="font-semibold text-[var(--text-primary)] flex-shrink-0 group-hover:text-[var(--accent-primary)] transition-colors">

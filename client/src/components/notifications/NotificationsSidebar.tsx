@@ -8,6 +8,7 @@ import {
   CalendarCheck,
 } from '@phosphor-icons/react';
 import type { AppNotification } from '../../types';
+import { UserAvatar } from '../ui/UserAvatar';
 
 export interface NotificationsSidebarProps {
   notifications: AppNotification[];
@@ -172,13 +173,11 @@ export const NotificationsSidebar: React.FC<NotificationsSidebarProps> = ({
 
                 {/* Avatar with type badge */}
                 <div className="relative shrink-0">
-                  <img
-                    src={notif.actorAvatarUrl || '/default-avatar.png'}
-                    alt=""
-                    className="w-10 h-10 rounded-full object-cover border border-[var(--border-color)]/70 shadow-xs"
-                    onError={(e) => {
-                      e.currentTarget.src = '/default-avatar.png';
-                    }}
+                  <UserAvatar
+                    size="md"
+                    name={notif.actorDisplayName || notif.actorUsername}
+                    avatarUrl={notif.actorAvatarUrl}
+                    className="w-10 h-10 shadow-xs"
                   />
                   <div className="absolute -bottom-0.5 -right-0.5">
                     {getTypeIcon(notif.type)}

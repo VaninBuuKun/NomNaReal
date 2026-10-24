@@ -1,12 +1,12 @@
-# 💬 NomNa — Real-Time Chat Platform
+# ✉️ NomNa — Real-Time Chat Platform
 
 <p align="center">
-  <img src="previews/icon.png" alt="NomNa Logo" width="96" height="96" style="border-radius: 20%;" />
+  <img src="./client/public/mascot.png" width="96" height="96" />
 </p>
 
 <p align="center">
-  <strong>Nền tảng giao tiếp & nhắn tin thời gian thực hiệu năng cao, xây dựng theo phong cách Discord.</strong><br />
-  Được thiết kế trên nền tảng .NET 9 (Clean Architecture & CQRS) và React 18 (TypeScript & Vite), tập trung vào thiết kế hệ thống chuyên sâu, khả năng mở rộng chịu tải và chuẩn mực DevOps hiện đại.
+  <strong>Nền tảng giao tiếp & nhắn tin thời gian thực hiệu năng cao.</strong><br />
+  Được thiết kế trên nền tảng .NET 9 và React, tập trung vào thiết kế hệ thống chuyên sâu, hiệu năng cao, có khả năng mở rộng và bảo trì.
 </p>
 
 <p align="center">
@@ -14,16 +14,14 @@
   <img src="https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React 18" />
   <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis&logoColor=white" alt="Redis" />
-  <img src="https://img.shields.io/badge/Docker-Multi--stage-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
   <img src="https://img.shields.io/badge/Architecture-Clean%20%2B%20CQRS-brightgreen?style=flat-square" alt="Clean Architecture" />
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="License" />
 </p>
 
 ---
 
 ## 🎯 Tổng Quan Hệ Thống
 
-NomNa là hệ thống chat thời gian thực quy mô máy chủ (Discord-style) với mô hình phân quyền đa cấp, luồng dữ liệu hai chiều độ trễ thấp và cấu trúc backend phân tầng chặt chẽ. Dự án đóng vai trò như một môi trường thực nghiệm chuyên sâu về **Backend Engineering**, **System Design** và **DevOps Automation**.
+NomNa là hệ thống chat thời gian thực quy mô máy chủ (dựa trên discord) với khả năng phân quyền nhị phân, độ trễ thấp. Dự án là môi trường học tập và thử nghiệp tối ưu hiệu năng hệ thống và các quy trình devOps.
 
 ```mermaid
 graph TD
@@ -46,11 +44,10 @@ graph TD
 ## ⚡ Điểm Nhấn Kỹ Thuật
 
 - **Kiến trúc Clean Architecture & CQRS**: Phân tầng rành mạch (`Domain` → `Application` → `Infrastructure` → `WebAPI`). Nghiệp vụ tách biệt tuyệt đối theo nguyên tắc 3-file (Command, CommandHandler, CommandValidator) qua MediatR và FluentValidation.
-- **Real-Time Engine (SignalR)**: Nhắn tin tức thì, trích dẫn phản hồi (Quote Reply), gõ phím (Typing Indicator), và theo dõi hiện diện (Presence tracking Online/Offline) với cơ chế Reconnection Catch-up.
+- **Real-Time Engine (SignalR)**: Nhắn tin tức thì, , gõ phím (Typing Indicator), và theo dõi hiện diện (Presence tracking Online/Offline) với cơ chế Reconnection Catch-up.
 - **Tối ưu Danh sách Tin nhắn**: Phân trang con trỏ hai chiều (Bi-directional Keyset Pagination) kết hợp ảo hóa giao diện (Message Virtualization), đảm bảo độ mượt khi xử lý hàng nghìn tin nhắn.
 - **Hệ Thống Phân Quyền Bitmask (64-bit)**: Quản lý quyền theo vai trò (Roles) và ghi đè cấp kênh (Channel Overwrites), tích hợp cơ chế thu hồi quyền tức thì (Realtime Access Revocation) và hủy cache tự động.
-- **Nhắn Tin Trực Tiếp Trì Hoãn (Deferred DM)**: Hội thoại cá nhân giữa hai người dùng chỉ được khởi tạo trong CSDL khi có tin nhắn đầu tiên, giảm thiểu rác dữ liệu.
-- **Hạ Tầng Không Trạng Thái (Stateless Storage)**: Avatar và file đính kèm được lưu trữ trực tiếp trên AWS S3 / Cloudflare R2 qua Presigned URL.
+- **Lưu trữ**: Avatar và file đính kèm được lưu trữ trực tiếp trên AWS S3 / Cloudflare R2 qua Presigned URL.
 
 ---
 
@@ -75,33 +72,40 @@ NomNaReal/
 ## 🚀 Khởi Chạy Nhanh (Local Development)
 
 ### Yêu Cầu Môi Trường
+
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [Node.js 20+](https://nodejs.org/)
 - [Docker & Docker Compose](https://www.docker.com/)
 
 ### 1. Khởi động PostgreSQL & Redis
+
 ```bash
 docker compose up -d
 ```
 
 ### 2. Cấu hình Biến Môi Trường
+
 ```bash
 cp .env.example .env
 ```
 
 ### 3. Chạy Backend (.NET 9)
+
 ```bash
 dotnet restore NomNa.sln
 dotnet run --project src/NomNa.WebAPI/NomNa.WebAPI.csproj
 ```
+
 > API sẵn sàng tại: `http://localhost:5000` (Swagger UI: `http://localhost:5000/swagger`)
 
 ### 4. Chạy Frontend (React 18)
+
 ```bash
 cd client
 npm install
 npm run dev
 ```
+
 > Giao diện sẵn sàng tại: `http://localhost:5173`
 
 ---
@@ -127,12 +131,12 @@ Tự động hóa qua GitHub Actions ([.github/workflows/ci.yml](.github/workflo
 
 ## 🗺️ Lộ Trình Nâng Cấp Hệ Thống (Engineering Roadmap)
 
-| Giai Đoạn | Trọng Tâm | Tình Trạng |
-|---|---|:---:|
-| **Foundation** | Clean Architecture, CQRS, SignalR Hub, Bitmask RBAC, Virtualization | ✅ Hoàn thành |
-| **Quality & Reliability** | Testcontainers (Postgres+Redis), Architecture Tests, Rate Limiting, Idempotency | 🚧 Đang triển khai |
-| **Deep Backend & Scale** | Redis Backplane đa node, Transactional Outbox, Keyset & Partitioning, Full-Text Search | 📋 Lên kế hoạch |
-| **DevOps & Observability** | OpenTelemetry, Prometheus + Grafana, Trivy security scan, Container packaging | 📋 Lên kế hoạch |
-| **Performance Benchmarks** | Kịch bản k6 WebSocket C10K, đo lường P99 fanout latency, tài liệu ADR | 📋 Lên kế hoạch |
+| Giai Đoạn                  | Trọng Tâm                                                                              |     Tình Trạng     |
+| -------------------------- | -------------------------------------------------------------------------------------- | :----------------: |
+| **Foundation**             | Clean Architecture, CQRS, SignalR Hub, Bitmask RBAC, Virtualization                    |   ✅ Hoàn thành    |
+| **Quality & Reliability**  | Testcontainers (Postgres+Redis), Architecture Tests, Rate Limiting, Idempotency        | 🚧 Đang triển khai |
+| **Deep Backend & Scale**   | Redis Backplane đa node, Transactional Outbox, Keyset & Partitioning, Full-Text Search |  📋 Lên kế hoạch   |
+| **DevOps & Observability** | OpenTelemetry, Prometheus + Grafana, Trivy security scan, Container packaging          |  📋 Lên kế hoạch   |
+| **Performance Benchmarks** | Kịch bản k6 WebSocket C10K, đo lường P99 fanout latency, tài liệu ADR                  |  📋 Lên kế hoạch   |
 
-*Chi tiết kế hoạch kiến trúc và kịch bản chịu tải được lưu trữ tại [docs/deep-dive-infrastructure-and-performance-testing.md](docs/deep-dive-infrastructure-and-performance-testing.md).*
+_Chi tiết kế hoạch kiến trúc và kịch bản chịu tải được lưu trữ tại [docs/deep-dive-infrastructure-and-performance-testing.md](docs/deep-dive-infrastructure-and-performance-testing.md)._

@@ -84,7 +84,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
 
   const handleClose = () => {
     setName('');
-    setIconUrl('/default-avatar.png');
+    setIconUrl('');
     setError(null);
     onClose();
   };
@@ -104,25 +104,29 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
           </div>
         )}
 
-        {/* Avatar Selection (Mandatory) */}
+        {/* Avatar Selection */}
         <div>
           <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">
-            Ảnh đại diện Server <span className="text-[var(--accent-primary)]">*</span>
+            Ảnh đại diện Server
           </label>
 
           <div className="flex items-center gap-4">
             {/* Current Selected Avatar Preview */}
-            <div className="relative group shrink-0">
-              <img
-                src={getMediaUrl(iconUrl)}
-                alt="Workspace Icon Preview"
-                className="w-16 h-16 rounded-[4px] object-cover border-2 border-[var(--border-color)] group-hover:border-[var(--accent-primary)] transition-all shadow-sm"
-                onError={(e) => {
-                  e.currentTarget.src = '/default-avatar.png';
-                }}
-              />
+            <div className="relative group shrink-0 w-16 h-16 rounded-[14px] overflow-hidden border-2 border-[var(--border-color)] group-hover:border-[var(--accent-primary)] transition-all shadow-sm flex items-center justify-center bg-[var(--bg-surface)]">
+              {iconUrl ? (
+                <img
+                  src={getMediaUrl(iconUrl)}
+                  alt="Workspace Icon Preview"
+                  className="w-full h-full object-cover"
+                  onError={() => setIconUrl('')}
+                />
+              ) : (
+                <span className="text-xl font-bold text-[var(--accent-primary)]">
+                  {(name || 'S').trim().charAt(0).toUpperCase()}
+                </span>
+              )}
               {isUploading && (
-                <div className="absolute inset-0 bg-black/50 rounded-[4px] flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                   <Loader2 size={20} className="animate-spin text-white" />
                 </div>
               )}

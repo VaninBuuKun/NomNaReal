@@ -7,8 +7,8 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { Virtuoso, type VirtuosoHandle, type StateSnapshot } from "react-virtuoso";
-import { CircleNotch, ArrowUp } from "@phosphor-icons/react";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
+import { CircleNotch, ArrowUp, HandWaving } from "@phosphor-icons/react";
 import { getReadMarker, setReadMarker } from "../../utils/readMarkers";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
 import { MessageItem } from "./MessageItem";
@@ -46,13 +46,6 @@ export interface MessageListProps {
   onUnpinMessage?: (messageId: string) => void;
   onAtBottomChange?: (isAtBottom: boolean) => void;
   onUnreadCountChange?: (count: number | ((prev: number) => number)) => void;
-}
-
-interface ChannelScrollState {
-  snapshot?: StateSnapshot;
-  firstItemIndex: number;
-  isAtBottom: boolean;
-  topMessageId?: string;
 }
 
 const START_INDEX = 100000;
@@ -95,10 +88,6 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const isAtBottomRef = useRef(true);
     const currentTopMessageIdRef = useRef<string | undefined>(undefined);
 
-    // Per-channel scroll coordinate & layout state cache
-    const channelScrollCache = useRef<Map<string, ChannelScrollState>>(new Map());
-    const [restoreSnapshot, setRestoreSnapshot] = useState<StateSnapshot | undefined>(undefined);
-
     // Keep firstItemIndexRef in sync with state
     useEffect(() => {
       firstItemIndexRef.current = firstItemIndex;
@@ -122,7 +111,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
 
     // Track pinned message IDs for fast O(1) lookup
     const pinnedMessageIds = useMemo(() => {
-      return new Set(pinnedMessages.map((p) => p.messageId));
+      return new Set((pinnedMessages || []).map((p) => p.messageId));
     }, [pinnedMessages]);
 
     // ---- Unread tracking (Discord/Slack style) ----
@@ -179,31 +168,28 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       advanceReadMarker();
     }, [advanceReadMarker]);
 
-    // Handle channel switching: restore previous scroll position or default to bottom
+    // Handle channel switching: reset to bottom of newest messages
     useEffect(() => {
       if (currentChannel?.id && currentChannel.id !== activeChannelIdRef.current) {
-        const newId = currentChannel.id;
-        activeChannelIdRef.current = newId;
-
-        const cached = channelScrollCache.current.get(newId);
-        if (cached && !cached.isAtBottom && cached.snapshot) {
-          // User was scrolled up reading history in this channel!
-          setFirstItemIndex(cached.firstItemIndex);
-          firstItemIndexRef.current = cached.firstItemIndex;
-          isAtBottomRef.current = false;
-          onAtBottomChange?.(false);
-          setRestoreSnapshot(cached.snapshot);
-        } else {
-          // User was at the bottom or visiting for the first time
-          setFirstItemIndex(START_INDEX);
-          firstItemIndexRef.current = START_INDEX;
-          isAtBottomRef.current = true;
-          onAtBottomChange?.(true);
-          onUnreadCountChange?.(0);
-          setRestoreSnapshot(undefined);
-        }
+        activeChannelIdRef.current = currentChannel.id;
+        setFirstItemIndex(START_INDEX);
+        firstItemIndexRef.current = START_INDEX;
+        isAtBottomRef.current = true;
+        onAtBottomChange?.(true);
+        onUnreadCountChange?.(0);
       }
     }, [currentChannel?.id, onAtBottomChange, onUnreadCountChange]);
+
+    // Ensure view is scrolled to bottom when channel switches and messages load
+    useEffect(() => {
+      if (messages.length > 0) {
+        virtuosoRef.current?.scrollToIndex({
+          index: firstItemIndex + messages.length - 1,
+          align: "end",
+          behavior: "auto",
+        });
+      }
+    }, [currentChannel?.id]);
 
     // Handle prepending older messages: offset firstItemIndex so viewport doesn't jump
     useEffect(() => {
@@ -259,20 +245,6 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       [messages, firstItemIndex, onJumpToMessage, highlightMessage]
     );
 
-    // Save scroll snapshot on state changes
-    const saveCurrentScrollState = useCallback(() => {
-      if (currentChannel?.id) {
-        virtuosoRef.current?.getState((snapshot) => {
-          channelScrollCache.current.set(currentChannel.id, {
-            snapshot,
-            firstItemIndex: firstItemIndexRef.current,
-            isAtBottom: isAtBottomRef.current,
-            topMessageId: currentTopMessageIdRef.current,
-          });
-        });
-      }
-    }, [currentChannel?.id]);
-
     // Expose imperative handle to parent using exact virtual indices
     useImperativeHandle(ref, () => ({
       scrollToBottom: (behavior: "auto" | "smooth" = "smooth") => {
@@ -290,7 +262,6 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           virtuosoRef.current?.scrollToIndex({
             index: firstItemIndex + targetIndex,
             align: "center",
-            behavior: "smooth",
           });
           highlightMessage(messageId);
           return true;
@@ -303,6 +274,37 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       return (
         <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col relative bg-chat animate-in fade-in duration-300">
           <ChatAreaSkeleton />
+        </div>
+      );
+    }
+
+    // Default welcome state anchored to bottom when channel is empty (Image 5 fix: no empty middle void)
+    if (messages.length === 0 && !isLoadingMessages && !hasMoreMessages) {
+      return (
+        <div className="flex-1 min-h-0 w-full overflow-y-auto no-scrollbar flex flex-col justify-end bg-chat animate-in fade-in duration-200">
+          {currentChannel ? (
+            <div className="pt-6 pb-6 px-5 mx-4 select-none flex flex-col gap-2">
+              <div className="w-12 h-12 rounded-2xl bg-accent-primary flex items-center justify-center text-white shadow-md shadow-accent-glow">
+                <HandWaving size={26} weight="fill" className="text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-text-primary tracking-tight">
+                {currentChannel.type === 2 ||
+                currentChannel.type === ChannelType.DirectMessage
+                  ? `Đoạn chat riêng với ${currentChannel.name}`
+                  : `Chào mừng bạn đến với kênh #${currentChannel.name}!`}
+              </h3>
+              <p className="text-xs text-text-muted leading-relaxed max-w-xl">
+                {currentChannel.type === 2 ||
+                currentChannel.type === ChannelType.DirectMessage
+                  ? `Đây là sự bắt đầu của lịch sử trò chuyện trực tiếp giữa bạn và ${currentChannel.name}. Tin nhắn được bảo mật riêng tư.`
+                  : `Điểm bắt đầu cho kênh #${currentChannel.name}. Hãy gửi tin nhắn đầu tiên để khuấy động phòng chat nhé~ (≧◡≦)`}
+              </p>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-xs text-text-muted">
+              Chọn một kênh để bắt đầu trò chuyện.
+            </div>
+          )}
         </div>
       );
     }
@@ -346,14 +348,11 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           ref={virtuosoRef}
           firstItemIndex={firstItemIndex}
           initialTopMostItemIndex={
-            restoreSnapshot
-              ? undefined
-              : messages.length > 0
+            messages.length > 0
               ? firstItemIndex + messages.length - 1
               : firstItemIndex
           }
-          alignToBottom={!restoreSnapshot}
-          restoreStateFrom={restoreSnapshot}
+          alignToBottom={true}
           data={messages}
           computeItemKey={(_index, msg) => msg.id}
           className="flex-1 w-full no-scrollbar"
@@ -364,12 +363,6 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
             if (atBottom) {
               onUnreadCountChange?.(0);
               advanceReadMarker();
-            }
-            saveCurrentScrollState();
-          }}
-          isScrolling={(isScrolling) => {
-            if (!isScrolling) {
-              saveCurrentScrollState();
             }
           }}
           rangeChanged={(range) => {
@@ -415,42 +408,6 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                     </button>
                   </div>
                 )}
-
-                {/* Channel Welcome Header when reached top of history */}
-                {!hasMoreMessages && currentChannel ? (
-                  <div className="pt-6 pb-4 px-5 mx-4 select-none flex flex-col gap-2 border-b border-border/50 mb-1">
-                    <div className="flex items-center gap-3.5 mb-1">
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-accent-primary to-accent-hover flex items-center justify-center p-1.5 shadow-md shadow-accent-glow">
-                        <img
-                          src="/mascot.png"
-                          alt="NomNa Chibi Mascot"
-                          className="w-full h-full object-contain drop-shadow"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-accent-primary">
-                          NomNa Room ✨
-                        </span>
-                        <h3 className="text-xl font-bold text-text-primary tracking-tight">
-                          {currentChannel.type === 2 ||
-                          currentChannel.type === ChannelType.DirectMessage
-                            ? `Đoạn chat riêng với ${currentChannel.name}`
-                            : `Chào mừng bạn đến với kênh #${currentChannel.name}!`}
-                        </h3>
-                      </div>
-                    </div>
-                    <p className="text-xs text-text-muted leading-relaxed">
-                      {currentChannel.type === 2 ||
-                      currentChannel.type === ChannelType.DirectMessage
-                        ? `Đây là sự bắt đầu của lịch sử trò chuyện trực tiếp giữa bạn và ${currentChannel.name}. Tin nhắn được bảo mật riêng tư.`
-                        : `Điểm bắt đầu cho kênh #${currentChannel.name}. Hãy gửi tin nhắn đầu tiên để khuấy động phòng chat nhé~ (≧◡≦)`}
-                    </p>
-                  </div>
-                ) : !hasMoreMessages && !currentChannel ? (
-                  <div className="p-8 text-center text-xs text-text-muted">
-                    Chọn một kênh để bắt đầu trò chuyện.
-                  </div>
-                ) : null}
               </div>
             ),
             Footer: () => (
@@ -467,8 +424,30 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           itemContent={(index, msg) => {
             const realIndex = index - firstItemIndex;
             const prevMsg = realIndex > 0 ? messages[realIndex - 1] : undefined;
+            const isFirst = realIndex === 0;
+
             return (
               <div key={msg.id}>
+                {/* Channel Welcome Header when at top of history - no horizontal divider line, directly preceding date separator */}
+                {isFirst && !hasMoreMessages && currentChannel && (
+                  <div className="pt-6 pb-2 px-5 mx-4 select-none flex flex-col gap-2">
+                    <div className="w-12 h-12 rounded-2xl bg-accent-primary flex items-center justify-center text-white shadow-md shadow-accent-glow">
+                      <HandWaving size={26} weight="fill" className="text-white" />
+                    </div>
+                    <h3 className="text-xl font-bold text-text-primary tracking-tight">
+                      {currentChannel.type === 2 ||
+                      currentChannel.type === ChannelType.DirectMessage
+                        ? `Đoạn chat riêng với ${currentChannel.name}`
+                        : `Chào mừng bạn đến với kênh #${currentChannel.name}!`}
+                    </h3>
+                    <p className="text-xs text-text-muted leading-relaxed max-w-xl">
+                      {currentChannel.type === 2 ||
+                      currentChannel.type === ChannelType.DirectMessage
+                        ? `Đây là sự bắt đầu của lịch sử trò chuyện trực tiếp giữa bạn và ${currentChannel.name}. Tin nhắn được bảo mật riêng tư.`
+                        : `Điểm bắt đầu cho kênh #${currentChannel.name}. Hãy gửi tin nhắn đầu tiên để khuấy động phòng chat nhé~ (≧◡≦)`}
+                    </p>
+                  </div>
+                )}
                 {msg.id === firstUnreadId && (
                   <div className="flex items-center gap-2 mx-4 mt-3 mb-1 select-none" role="separator">
                     <div className="flex-1 h-px bg-danger/60" />

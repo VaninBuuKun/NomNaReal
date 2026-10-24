@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import type { Channel, Message } from "../../types";
 import { messageApi } from "../../services/messageApi";
+import { UserAvatar } from "../ui/UserAvatar";
 
 interface SearchSidebarProps {
   isOpen: boolean;
@@ -318,7 +319,6 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
             </div>
 
             {results.map((msg) => {
-              const avatarSrc = msg.senderAvatarUrl || "/default-avatar.png";
               const timeFormatted = new Date(msg.createdAt).toLocaleDateString([], {
                 day: "2-digit",
                 month: "2-digit",
@@ -336,16 +336,12 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
                   {/* Top: Avatar, Name, Time */}
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-6 h-6 rounded-md overflow-hidden bg-[var(--bg-surface)] border border-[var(--border-color)] shrink-0">
-                        <img
-                          src={avatarSrc}
-                          alt={msg.senderDisplayName}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = "/default-avatar.png";
-                          }}
-                        />
-                      </div>
+                      <UserAvatar
+                        name={msg.senderDisplayName}
+                        avatarUrl={msg.senderAvatarUrl}
+                        size="xs"
+                        className="w-6 h-6 shrink-0"
+                      />
                       <span className="text-xs font-bold text-[var(--text-primary)] truncate">
                         {msg.senderDisplayName}
                       </span>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Users, Lightning, Hash, Megaphone } from '@phosphor-icons/react';
+import { UserAvatar } from '../ui/UserAvatar';
 
 export interface MentionUser {
   id: string;
@@ -194,27 +195,13 @@ export const MentionAutocompletePopover: React.FC<MentionAutocompletePopoverProp
                 }`}
               >
                 <div className="relative shrink-0">
-                  <img
-                    src={m.avatarUrl || '/default-avatar.png'}
-                    alt=""
-                    className="w-8 h-8 rounded-full object-cover border border-border/70 shadow-2xs"
-                    onError={(e) => {
-                      e.currentTarget.src = '/default-avatar.png';
-                    }}
+                  <UserAvatar
+                    size="sm"
+                    name={m.displayName || m.username}
+                    avatarUrl={m.avatarUrl}
+                    status={m.status}
+                    className="w-8 h-8 shadow-2xs"
                   />
-                  {m.status && (
-                    <span
-                      className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-surface ${
-                        m.status === 'online'
-                          ? 'bg-emerald-500'
-                          : m.status === 'away'
-                          ? 'bg-amber-500'
-                          : m.status === 'dnd'
-                          ? 'bg-rose-500'
-                          : 'bg-neutral-400'
-                      }`}
-                    />
-                  )}
                 </div>
 
                 <div className="min-w-0 flex-1">

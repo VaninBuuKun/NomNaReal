@@ -70,6 +70,72 @@
   --card-glass-border: rgba(255, 255, 255, 0.06);
 }
 
+/* 2. CELESTIAL VIOLET (Tím sương huyền ảo Dribbble) */
+[data-theme="celestial-violet"] {
+  --spacing: 0.25rem;
+  --bg-rail: #19132b;
+  --bg-sidebar: #1e1735;
+  --bg-chat: #231b3e;
+  --bg-surface: #2c234d;
+  --bg-surface-active: #3c3065;
+  --border-color: rgba(167, 139, 250, 0.14);
+  --border-hover: rgba(167, 139, 250, 0.28);
+
+  --accent-primary: #9061f9;
+  --accent-hover: #7e46e8;
+  --accent-soft: rgba(144, 97, 249, 0.18);
+  --accent-glow: rgba(144, 97, 249, 0.35);
+
+  --status-online: #34d399;
+  --status-away: #fbbf24;
+  --status-dnd: #f87171;
+
+  --text-primary: #f5f3ff;
+  --text-secondary: #c4b5fd;
+  --text-muted: #9487b8;
+
+  --code-bg: #19132b;
+  --code-text: #f5f3ff;
+  --scrollbar-thumb: #19132b;
+
+  --dot-color: rgba(167, 139, 250, 0.08);
+  --card-glass-bg: rgba(44, 35, 77, 0.95);
+  --card-glass-border: rgba(167, 139, 250, 0.15);
+}
+
+/* 3. GRAPHITE ONYX (Đen than chì tối giản chuẩn Linear) */
+[data-theme="graphite-obsidian"] {
+  --spacing: 0.25rem;
+  --bg-rail: #131418;
+  --bg-sidebar: #18191f;
+  --bg-chat: #1d1e25;
+  --bg-surface: #262730;
+  --bg-surface-active: #32333f;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.18);
+
+  --accent-primary: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-soft: rgba(99, 102, 241, 0.16);
+  --accent-glow: rgba(99, 102, 241, 0.35);
+
+  --status-online: #10b981;
+  --status-away: #f59e0b;
+  --status-dnd: #ef4444;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  --code-bg: #131418;
+  --code-text: #f8fafc;
+  --scrollbar-thumb: #131418;
+
+  --dot-color: rgba(255, 255, 255, 0.04);
+  --card-glass-bg: rgba(38, 39, 48, 0.95);
+  --card-glass-border: rgba(255, 255, 255, 0.08);
+}
+
 /* ------------------ Dot Matrix Background ------------------ */
 .dot-matrix-bg {
   background-color: var(--bg-rail);

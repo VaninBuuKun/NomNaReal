@@ -6,6 +6,7 @@ import {
   ShieldCheck,
 } from "@phosphor-icons/react";
 import { Modal, Button } from "../ui";
+import { UserAvatar } from "../ui/UserAvatar";
 
 export interface DirectMessageUser {
   id: string;
@@ -54,20 +55,6 @@ export const NewDirectMessageModal: React.FC<NewDirectMessageModalProps> = ({
   const handleClose = () => {
     setSearchTerm("");
     onClose();
-  };
-
-  const getStatusColor = (status: DirectMessageUser["status"]) => {
-    switch (status) {
-      case "online":
-        return "bg-[var(--status-online)] shadow-[0_0_6px_rgba(22,163,74,0.4)]";
-      case "away":
-        return "bg-[var(--status-away)]";
-      case "dnd":
-        return "bg-[var(--status-dnd)]";
-      case "offline":
-      default:
-        return "bg-neutral-400";
-    }
   };
 
   return (
@@ -119,8 +106,6 @@ export const NewDirectMessageModal: React.FC<NewDirectMessageModalProps> = ({
             ) : (
               filteredMembers.map((member) => {
                 const isExisting = existingDmUserIds.includes(member.id);
-                const avatarSrc = member.avatarUrl || '/default-avatar.png';
-
                 return (
                   <div
                     key={member.id}
@@ -129,21 +114,12 @@ export const NewDirectMessageModal: React.FC<NewDirectMessageModalProps> = ({
                     {/* User Info Left */}
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative shrink-0">
-                        <div className="w-9 h-9 rounded-full bg-[var(--bg-surface)] flex items-center justify-center border border-[var(--border-color)] overflow-hidden shadow-2xs">
-                          <img
-                            src={avatarSrc}
-                            alt={member.displayName}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = '/default-avatar.png';
-                            }}
-                          />
-                        </div>
-                        {/* Status dot */}
-                        <span
-                          className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-surface)] ${getStatusColor(
-                            member.status,
-                          )}`}
+                        <UserAvatar
+                          size="md"
+                          name={member.displayName || member.username}
+                          avatarUrl={member.avatarUrl}
+                          status={member.status}
+                          className="w-9 h-9 shadow-2xs"
                         />
                       </div>
 

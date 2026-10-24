@@ -14,7 +14,7 @@ import {
 } from '@phosphor-icons/react';
 import type { Channel, User } from '../../types';
 import { useVoiceStore } from '../../stores/useVoiceStore';
-import { DEFAULT_AVATAR, getMediaUrl } from '../../utils/constants';
+import { UserAvatar } from '../ui/UserAvatar';
 
 interface VoiceStageProps {
   currentChannel: Channel;
@@ -137,7 +137,6 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
           {participants.map((p) => {
             const isMe = p.userId === currentUser?.id;
             const isBot = p.userId === 'simulated-nomna-bot';
-            const avatarSrc = getMediaUrl(p.avatarUrl) || DEFAULT_AVATAR;
 
             return (
               <div
@@ -171,13 +170,12 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                         : 'ring-2 ring-border/80'
                     }`}
                   >
-                    <img
-                      src={avatarSrc}
-                      alt={p.displayName}
-                      className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover shadow-lg"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = DEFAULT_AVATAR;
-                      }}
+                    <UserAvatar
+                      name={p.displayName}
+                      avatarUrl={p.avatarUrl}
+                      size="2xl"
+                      roundedClassName="rounded-full"
+                      className="w-20 h-20 sm:w-24 sm:h-24 shadow-lg"
                     />
                   </div>
                 </div>

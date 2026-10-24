@@ -149,7 +149,7 @@ export const GifPicker: React.FC<GifPickerProps> = ({ isOpen, onClose, onSelectG
   return (
     <div
       ref={popoverRef}
-      className="absolute bottom-14 left-16 z-50 w-88 h-[420px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3.5 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
+      className="absolute bottom-14 right-4 z-50 w-88 h-[420px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3.5 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
     >
       {/* Header */}
       <div className="flex items-center justify-between pb-1 border-b border-[var(--border-color)] shrink-0">

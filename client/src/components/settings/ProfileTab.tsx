@@ -3,10 +3,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Camera, Check, Trash } from "lucide-react";
-import { Button, Input, ImageWithSkeleton } from "../ui";
+import { Button, Input } from "../ui";
+import { UserAvatar } from "../ui/UserAvatar";
 import { authApi } from "../../services/authApi";
 import { fileApi } from "../../services/fileApi";
-import { getMediaUrl, DEFAULT_AVATAR } from "../../utils/constants";
 import type { User } from "../../types";
 
 const profileSchema = z.object({
@@ -125,8 +125,6 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
     }
   };
 
-  const currentDisplayAvatar = previewUrl || (avatarUrl ? getMediaUrl(avatarUrl) : DEFAULT_AVATAR);
-
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {errorMessage && (
@@ -150,13 +148,21 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
 
         <div className="flex items-center gap-5">
           <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-[var(--border-color)] bg-[var(--bg-chat)] shrink-0 shadow-sm flex items-center justify-center">
-            <ImageWithSkeleton
-              src={currentDisplayAvatar}
-              alt={currentUser?.displayName || "Avatar"}
-              fallbackSrc={DEFAULT_AVATAR}
-              containerClassName="w-full h-full"
-              className="w-full h-full object-cover"
-            />
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt="Preview"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <UserAvatar
+                size="2xl"
+                name={currentUser?.displayName}
+                avatarUrl={avatarUrl}
+                roundedClassName="rounded-full"
+                className="w-full h-full"
+              />
+            )}
             {isUploading && (
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-[10px] font-bold">
                 Đang tải...

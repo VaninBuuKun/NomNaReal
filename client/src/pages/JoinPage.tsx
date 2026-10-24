@@ -10,6 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import { serverApi } from '../services';
 import { Button } from '../components/ui';
+import { getMediaUrl } from '../utils/constants';
 import type { Server } from '../types';
 
 export const JoinPage: React.FC = () => {
@@ -123,15 +124,22 @@ export const JoinPage: React.FC = () => {
             </div>
 
             {/* Server Avatar */}
-            <div className="w-20 h-20 rounded-[8px] overflow-hidden border-2 border-[var(--border-color)] bg-[var(--bg-surface)] flex items-center justify-center shadow-md mb-3.5">
-              <img
-                src={server.iconUrl || '/default-avatar.png'}
-                alt={server.name}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = '/default-avatar.png';
-                }}
-              />
+            <div className="w-20 h-20 rounded-[16px] overflow-hidden border-2 border-[var(--border-color)] bg-[var(--bg-surface)] flex items-center justify-center shadow-md mb-3.5">
+              {server.iconUrl ? (
+                <img
+                  src={getMediaUrl(server.iconUrl)}
+                  alt={server.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const fallback = e.currentTarget.parentElement?.querySelector('.join-initial');
+                    if (fallback) fallback.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <span className={`join-initial ${server.iconUrl ? 'hidden' : ''} text-2xl font-bold text-[var(--accent-primary)]`}>
+                {(server.name || 'S').trim().charAt(0).toUpperCase()}
+              </span>
             </div>
 
             {/* Server Name & Info */}

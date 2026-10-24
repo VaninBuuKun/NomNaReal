@@ -682,6 +682,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             {!isSidebar && (
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   setShowGifPicker((prev) => !prev);
                   setShowEmojiPicker(false);
@@ -701,6 +702,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             {/* Emoji button */}
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setShowEmojiPicker((prev) => !prev);
                 if (!isSidebar) setShowGifPicker(false);

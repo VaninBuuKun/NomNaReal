@@ -11,6 +11,7 @@ import {
   UserPlus,
 } from "@phosphor-icons/react";
 import { Spinner } from "../ui";
+import { UserAvatar } from "../ui/UserAvatar";
 import type { DirectMessageUser } from "../dm";
 import type { User } from "../../types";
 import type { UserProfileData } from "../profile";
@@ -153,19 +154,6 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
     });
   };
 
-  const renderStatusDot = (status: DirectMessageUser["status"]) => {
-    switch (status) {
-      case "online":
-        return <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[var(--bg-sidebar)]" />;
-      case "away":
-        return <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-[var(--bg-sidebar)]" />;
-      case "dnd":
-        return <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-[var(--bg-sidebar)]" />;
-      default:
-        return <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-zinc-500 ring-2 ring-[var(--bg-sidebar)]" />;
-    }
-  };
-
   const renderRoleBadge = (role?: string) => {
     const r = (role || "").toLowerCase();
     if (r === "owner") {
@@ -264,17 +252,13 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
                     onClick={(e) => handleMemberClick(m, e)}
                     className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-[var(--bg-surface)] cursor-pointer transition-colors group"
                   >
-                    <div className="relative w-8 h-8 rounded-full shrink-0">
-                      <img
-                        src={m.avatarUrl || "/default-avatar.png"}
-                        alt={m.displayName}
-                        className="w-8 h-8 rounded-full object-cover border border-[var(--border-color)]"
-                        onError={(e) => {
-                          e.currentTarget.src = "/default-avatar.png";
-                        }}
-                      />
-                      {renderStatusDot(m.status)}
-                    </div>
+                    <UserAvatar
+                      name={m.displayName}
+                      avatarUrl={m.avatarUrl}
+                      size="sm"
+                      className="w-8 h-8"
+                      status={m.status}
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[0.84rem] font-semibold text-[var(--text-primary)] truncate group-hover:text-[var(--accent-primary)] transition-colors">
@@ -313,17 +297,13 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
                     onClick={(e) => handleMemberClick(m, e)}
                     className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-[var(--bg-surface)] cursor-pointer transition-colors opacity-75 hover:opacity-100 group"
                   >
-                    <div className="relative w-8 h-8 rounded-full shrink-0">
-                      <img
-                        src={m.avatarUrl || "/default-avatar.png"}
-                        alt={m.displayName}
-                        className="w-8 h-8 rounded-full object-cover border border-[var(--border-color)] grayscale-[30%]"
-                        onError={(e) => {
-                          e.currentTarget.src = "/default-avatar.png";
-                        }}
-                      />
-                      {renderStatusDot(m.status)}
-                    </div>
+                    <UserAvatar
+                      name={m.displayName}
+                      avatarUrl={m.avatarUrl}
+                      size="sm"
+                      className="w-8 h-8 grayscale-[30%]"
+                      status={m.status}
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-[0.84rem] font-medium text-[var(--text-secondary)] truncate group-hover:text-[var(--text-primary)] transition-colors">
@@ -378,17 +358,13 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
         >
           {/* Card Header & Avatar */}
           <div className="flex items-center gap-3">
-            <div className="relative w-12 h-12 rounded-full shrink-0">
-              <img
-                src={selectedUserPopover.user.avatarUrl || "/default-avatar.png"}
-                alt={selectedUserPopover.user.displayName}
-                className="w-12 h-12 rounded-full object-cover border-2 border-[var(--accent-primary)] shadow-sm"
-                onError={(e) => {
-                  e.currentTarget.src = "/default-avatar.png";
-                }}
-              />
-              {renderStatusDot(selectedUserPopover.user.status)}
-            </div>
+            <UserAvatar
+              name={selectedUserPopover.user.displayName}
+              avatarUrl={selectedUserPopover.user.avatarUrl}
+              size="lg"
+              className="w-12 h-12"
+              status={selectedUserPopover.user.status}
+            />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <h4 className="font-bold text-sm text-[var(--text-primary)] truncate">

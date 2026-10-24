@@ -9,6 +9,7 @@ import {
   ChatTeardropDots,
 } from '@phosphor-icons/react';
 import type { AppNotification } from '../../types';
+import { UserAvatar } from '../ui/UserAvatar';
 
 interface NotificationDetailPaneProps {
   notification: AppNotification | null;
@@ -177,13 +178,12 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
         {/* PHẦN 1: Tác giả & Tiêu đề thông báo */}
         <div>
           <div className="flex items-center gap-3.5">
-            <img
-              src={notification.actorAvatarUrl || '/default-avatar.png'}
-              alt=""
-              className="w-12 h-12 rounded-2xl object-cover border border-[var(--border-color)] shadow-xs shrink-0"
-              onError={(e) => {
-                e.currentTarget.src = '/default-avatar.png';
-              }}
+            <UserAvatar
+              size="lg"
+              roundedClassName="rounded-2xl"
+              name={notification.actorDisplayName || notification.actorUsername || 'Hệ thống'}
+              avatarUrl={notification.actorAvatarUrl}
+              className="w-12 h-12 shadow-xs shrink-0"
             />
             <div className="min-w-0 flex-1 flex flex-col justify-center">
               <span className="font-semibold text-[14px] text-[var(--accent-primary)] block leading-tight">

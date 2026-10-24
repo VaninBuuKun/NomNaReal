@@ -35,8 +35,8 @@ export const VoiceConnectionBar: React.FC<VoiceConnectionBarProps> = ({
   if (!connectedChannelId) return null;
 
   return (
-    <div className="shrink-0 p-2 pb-1 bg-[var(--bg-sidebar)] select-none">
-      <div className="rounded-lg bg-[var(--bg-surface)] border border-[var(--border-color)] p-2.5 flex flex-col gap-2 shadow-xs animate-in fade-in slide-in-from-bottom-2 duration-150">
+    <div className="shrink-0 z-30 select-none px-3 pt-2 pb-1 border-t border-[var(--border-color)] bg-[var(--bg-sidebar)]">
+      <div className="w-full rounded-lg bg-[var(--bg-surface)] border border-[var(--border-color)] p-2.5 flex flex-col gap-2 shadow-2xs animate-in fade-in slide-in-from-bottom-2 duration-150">
         {/* Top Row: Signal Icon + Title/Server + Ping/Waveform + Disconnect Button */}
         <div className="flex items-center justify-between gap-2 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">

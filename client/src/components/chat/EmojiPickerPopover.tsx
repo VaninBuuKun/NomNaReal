@@ -87,7 +87,7 @@ export const EmojiPickerPopover: React.FC<EmojiPickerPopoverProps> = ({
   return (
     <div
       ref={popoverRef}
-      className="absolute bottom-14 left-4 z-50 w-80 h-[360px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3 flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
+      className="absolute bottom-14 right-4 z-50 w-80 h-[360px] bg-[var(--bg-chat)] border border-[var(--border-color)] rounded-xl shadow-2xl p-3 flex flex-col gap-2.5 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
     >
       {/* Search Input */}
       <div className="relative flex items-center shrink-0">

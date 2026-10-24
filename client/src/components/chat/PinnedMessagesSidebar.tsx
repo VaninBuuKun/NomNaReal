@@ -9,6 +9,7 @@ import {
   FileText,
 } from "@phosphor-icons/react";
 import type { PinnedMessage } from "../../types";
+import { UserAvatar } from "../ui/UserAvatar";
 
 interface PinnedMessagesSidebarProps {
   isOpen: boolean;
@@ -111,13 +112,11 @@ export const PinnedMessagesSidebar: React.FC<PinnedMessagesSidebarProps> = ({
                 {/* Header: Author info, time & hover quick actions */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <img
-                      src={pin.message.senderAvatarUrl || "/default-avatar.png"}
-                      alt={pin.message.senderDisplayName}
-                      className="w-7 h-7 rounded-full object-cover shrink-0 border border-[var(--border-color)] shadow-xs"
-                      onError={(e) => {
-                        e.currentTarget.src = "/default-avatar.png";
-                      }}
+                    <UserAvatar
+                      name={pin.message.senderDisplayName || pin.message.senderUsername}
+                      avatarUrl={pin.message.senderAvatarUrl}
+                      size="sm"
+                      className="w-7 h-7"
                     />
                     <div className="min-w-0 flex items-center gap-1.5">
                       <span className="font-semibold text-xs text-[var(--text-primary)] truncate">

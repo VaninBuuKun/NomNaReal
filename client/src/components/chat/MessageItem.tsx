@@ -11,7 +11,7 @@ import { formatDateDivider, isDifferentDay, formatMessageTime } from "../../util
 import { MessageContent } from "./MessageContent";
 import { ImageGalleryGrid } from "./ImageGalleryGrid";
 import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
-import { getMediaUrl } from "../../utils/constants";
+import { UserAvatar } from "../ui/UserAvatar";
 import type { DirectMessageUser } from "../dm";
 import type { UserProfileData } from "../profile";
 
@@ -79,7 +79,6 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
       (msg.senderId === currentUser.id || msg.senderUsername === currentUser.username)
   );
   const timeStr = formatMessageTime(msg.createdAt);
-  const avatarSrc = getMediaUrl(msg.senderAvatarUrl);
 
   const isMentioningMe = Boolean(
     currentUser &&
@@ -192,11 +191,11 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
       {/* Message Row */}
       <div
         id={`msg-${msg.id}`}
-        className={`group relative flex flex-col w-full px-4 sm:px-5 rounded-none transition-colors duration-100 ${
+        className={`group relative flex flex-col w-full px-3.5 sm:px-4 transition-colors duration-150 ${
           isMentioningMe
-            ? "bg-accent-soft/20 border-l-2 border-accent-primary hover:bg-accent-soft/30"
-            : "hover:bg-surface"
-        } ${isConsecutive ? "py-0.5" : "py-1.5 mt-2"}`}
+            ? "bg-accent-soft/20 hover:bg-accent-soft/30 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-accent-primary rounded-r-xl rounded-l-none"
+            : "hover:bg-white/[0.03] rounded-xl"
+        } ${isConsecutive ? "py-0.5" : "py-1.5 mt-1"}`}
       >
         {/* In-line Quote Reply Preview */}
         {msg.replyTo && (
@@ -206,13 +205,12 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
             title="Chuyển đến tin nhắn gốc"
           >
             <div className="w-5 h-2.5 border-l-2 border-t-2 border-border group-hover/reply:border-accent-primary rounded-tl -mr-0.5 mt-1 shrink-0 transition-colors" />
-            <img
-              src={getMediaUrl(msg.replyTo.senderAvatarUrl) || "/default-avatar.png"}
-              alt={msg.replyTo.senderDisplayName}
-              className="w-4 h-4 rounded-full object-cover shrink-0"
-              onError={(e) => {
-                e.currentTarget.src = "/default-avatar.png";
-              }}
+            <UserAvatar
+              avatarUrl={msg.replyTo.senderAvatarUrl}
+              name={msg.replyTo.senderDisplayName}
+              size="xs"
+              roundedClassName="rounded-[6px]"
+              className="w-4 h-4 shrink-0"
             />
             <span className="font-semibold text-text-secondary group-hover/reply:text-accent-primary group-hover/reply:underline shrink-0">
               @{msg.replyTo.senderDisplayName}
@@ -225,8 +223,8 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
           </div>
         )}
 
-        <div className="flex items-start gap-3 w-full">
-          {/* Left Gutter: Avatar (if new block) OR hover timestamp (if consecutive, centered) */}
+        <div className="flex items-start gap-3.5 w-full">
+          {/* Left Gutter: Squircle Avatar (if new block) OR hover timestamp (if consecutive, centered) */}
           {isConsecutive ? (
             <div className="w-10 shrink-0 flex items-center justify-center select-none pt-0.5">
               <span className="opacity-0 group-hover:opacity-100 text-[11px] text-text-muted font-mono tabular-nums text-center transition-opacity">
@@ -256,15 +254,14 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
                 );
               }}
               title="Xem thông tin thành viên"
-              className="w-10 h-10 rounded-full shrink-0 overflow-hidden flex items-center justify-center font-bold text-[0.82rem] text-white shadow-xs border border-border cursor-pointer hover:opacity-95 hover:scale-105 active:scale-95 transition-all ring-1 ring-transparent hover:ring-accent-primary/40"
+              className="cursor-pointer hover:opacity-95 hover:scale-105 active:scale-95 transition-all shrink-0 mt-0.5"
             >
-              <img
-                src={avatarSrc}
-                alt={msg.senderDisplayName}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = "/default-avatar.png";
-                }}
+              <UserAvatar
+                name={msg.senderDisplayName}
+                avatarUrl={msg.senderAvatarUrl}
+                size="md"
+                roundedClassName="rounded-xl"
+                className="w-10 h-10 shadow-xs"
               />
             </div>
           )}
@@ -294,7 +291,7 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
                       rect
                     );
                   }}
-                  className="text-[0.9rem] font-semibold text-text-primary hover:underline cursor-pointer"
+                  className="text-[14px] font-bold text-text-primary hover:underline cursor-pointer tracking-tight"
                 >
                   {msg.senderDisplayName}
                 </span>

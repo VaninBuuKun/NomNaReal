@@ -11,6 +11,7 @@ import {
   Circle,
   UserMinus,
 } from '@phosphor-icons/react';
+import { UserAvatar } from '../ui/UserAvatar';
 
 export interface UserProfileData {
   id: string;
@@ -188,25 +189,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         <div className="px-5 pb-5 pt-0">
           {/* Avatar (overlapping the banner) */}
           <div className="relative -mt-10 mb-3 inline-block">
-            <img
-              src={user.avatarUrl || '/default-avatar.png'}
-              alt={user.displayName}
-              className="w-18 h-18 rounded-2xl object-cover border-3 border-[var(--bg-surface)] bg-[var(--bg-chat)] shadow-md"
-              onError={(e) => {
-                e.currentTarget.src = '/default-avatar.png';
-              }}
-            />
-            {/* Status ring */}
-            <span
-              className={`absolute bottom-0 right-0 w-4 h-4 rounded-full border-2 border-[var(--bg-surface)] shadow-xs ${
-                user.status === 'online'
-                  ? 'bg-emerald-500'
-                  : user.status === 'away'
-                    ? 'bg-amber-500'
-                    : user.status === 'dnd'
-                      ? 'bg-rose-500'
-                      : 'bg-zinc-500'
-              }`}
+            <UserAvatar
+              size="xl"
+              name={user.displayName || user.username}
+              avatarUrl={user.avatarUrl}
+              roundedClassName="rounded-2xl"
+              status={user.status}
+              className="w-18 h-18 border-3 border-[var(--bg-surface)] shadow-md"
             />
           </div>
 

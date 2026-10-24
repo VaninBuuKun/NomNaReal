@@ -191,6 +191,10 @@ export const ChatPage: React.FC = () => {
     () => notifications.filter((n) => !n.isRead).length,
     [notifications],
   );
+  const totalUnreadDmCount = useMemo(
+    () => dmConversations.reduce((sum, d) => sum + (d.unreadCount || 0), 0),
+    [dmConversations],
+  );
   const [selectedNotification, setSelectedNotification] =
     useState<AppNotification | null>(null);
   const [toast, setToast] = useState<{
@@ -455,7 +459,16 @@ export const ChatPage: React.FC = () => {
       }
 
       if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Confine scrolling strictly within the message scroller to prevent shifting parent layouts
+        const scroller = el.closest('[data-virtuoso-scroller="true"]');
+        if (scroller) {
+          const scrollerRect = scroller.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          const offset = elRect.top - scrollerRect.top - scrollerRect.height / 2 + elRect.height / 2;
+          scroller.scrollTop += offset;
+        } else {
+          el.scrollIntoView({ block: "center", behavior: "auto" });
+        }
         el.classList.remove("animate-message-highlight");
         void el.offsetWidth;
         el.classList.add("animate-message-highlight");
@@ -1425,6 +1438,7 @@ export const ChatPage: React.FC = () => {
               workspaces={workspaces}
               activeWorkspaceId={activeWorkspaceId}
               activeSidebarView={activeSidebarView}
+              unreadDmCount={totalUnreadDmCount}
               onSelectView={(view: any) => {
                 setActiveSidebarView(view);
                 if (view === "dms") {
@@ -1497,13 +1511,13 @@ export const ChatPage: React.FC = () => {
                   />
                 ) : null}
               </div>
-
-              {/* Voice Connection Status Card: directly above UserFooterBar in Channel Column */}
-              <VoiceConnectionBar currentWorkspaceName={currentWorkspace?.name} />
             </div>
           </div>
 
-          {/* User Account Footer Bar (pinned directly at bottom, spanning across both columns) */}
+          {/* Voice Connection Status Card: directly above UserFooterBar (Image 4 aligned width) */}
+          <VoiceConnectionBar currentWorkspaceName={currentWorkspace?.name} />
+
+          {/* User Account Footer Bar (pinned directly at bottom, matching width with VoiceConnectionBar) */}
           <UserFooterBar
             currentUser={currentUser}
             onOpenSettings={() => setSettingsOpen(true)}

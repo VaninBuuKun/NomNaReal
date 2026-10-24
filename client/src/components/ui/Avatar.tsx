@@ -1,6 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
-import { DEFAULT_AVATAR, getMediaUrl } from '../../utils/constants';
+import { getMediaUrl } from '../../utils/constants';
 
 export interface AvatarProps {
   src?: string | null;
@@ -9,6 +9,29 @@ export interface AvatarProps {
   status?: 'online' | 'away' | 'dnd' | 'offline';
   className?: string;
 }
+
+const AVATAR_COLORS = [
+  'bg-violet-600',
+  'bg-indigo-600',
+  'bg-blue-600',
+  'bg-emerald-600',
+  'bg-teal-600',
+  'bg-amber-600',
+  'bg-rose-600',
+  'bg-pink-600',
+];
+
+function getAvatarBg(name?: string) {
+  if (!name) return 'bg-violet-600';
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+// Global memory cache of loaded avatar URLs to avoid flickering on re-render
+const loadedAvatarCache = new Set<string>();
 
 export const Avatar: React.FC<AvatarProps> = ({
   src,
@@ -19,6 +42,8 @@ export const Avatar: React.FC<AvatarProps> = ({
 }) => {
   const [imageError, setImageError] = React.useState(false);
   const effectiveSrc = getMediaUrl(src);
+  const hasValidSrc = Boolean(src && effectiveSrc && !effectiveSrc.includes('default-avatar.png'));
+  const initial = (fallback || 'U').trim().charAt(0).toUpperCase();
 
   const sizeClasses = {
     sm: 'w-7 h-7 text-xs rounded-lg',
@@ -41,14 +66,33 @@ export const Avatar: React.FC<AvatarProps> = ({
     offline: 'bg-zinc-400',
   };
 
+  const shouldShowLetter = !hasValidSrc || imageError;
+
   return (
-    <div className="relative inline-flex shrink-0">
-      <img
-        src={effectiveSrc && !imageError ? effectiveSrc : DEFAULT_AVATAR}
-        alt={fallback}
-        onError={() => setImageError(true)}
-        className={cn('object-cover shadow-xs', sizeClasses[size], className)}
-      />
+    <div className="relative inline-flex shrink-0 select-none">
+      <div
+        className={cn(
+          'flex items-center justify-center font-bold text-white shadow-xs overflow-hidden',
+          shouldShowLetter ? getAvatarBg(fallback) : 'bg-[var(--bg-surface)]',
+          sizeClasses[size],
+          className
+        )}
+      >
+        {shouldShowLetter ? (
+          <span className="select-none leading-none">{initial}</span>
+        ) : (
+          <img
+            src={effectiveSrc}
+            alt=""
+            aria-label={fallback}
+            onLoad={() => {
+              if (effectiveSrc) loadedAvatarCache.add(effectiveSrc);
+            }}
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover text-transparent"
+          />
+        )}
+      </div>
 
       {status && (
         <span

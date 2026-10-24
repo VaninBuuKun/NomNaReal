@@ -14,15 +14,15 @@ export const ImageWithSkeleton: React.FC<ImageWithSkeletonProps> = ({
   className,
   skeletonClassName,
   containerClassName,
-  fallbackSrc = "/default-avatar.png",
+  fallbackSrc = "",
   ...props
 }) => {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(Boolean(src));
   const [hasError, setHasError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(src || fallbackSrc);
 
   useEffect(() => {
-    setIsLoading(true);
+    setIsLoading(Boolean(src));
     setHasError(false);
     setCurrentSrc(src || fallbackSrc);
   }, [src, fallbackSrc]);

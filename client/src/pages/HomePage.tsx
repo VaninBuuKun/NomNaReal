@@ -361,9 +361,9 @@ export const HomePage: React.FC = () => {
             <div className="md:col-span-2 flex flex-col gap-3">
               <div className="flex items-center gap-2.5">
                 <img
-                  src="/default-avatar.png"
+                  src="/mascot.png"
                   alt="NomNa Logo"
-                  className="w-7 h-7 rounded-lg object-cover border border-[var(--border-color)] shadow-xs"
+                  className="w-7 h-7 object-contain drop-shadow"
                 />
                 <span className="text-lg font-black tracking-tight text-[var(--text-primary)]">
                   NomNa

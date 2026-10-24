@@ -69,7 +69,7 @@ export const useVoiceStore = create<VoiceStoreState>((set) => ({
       const companion: VoiceParticipant = {
         userId: 'simulated-nomna-bot',
         displayName: 'NomNa AudioBot',
-        avatarUrl: '/default-avatar.png',
+        avatarUrl: '',
         isSpeaking: false,
         isMuted: false,
         isDeafened: false,

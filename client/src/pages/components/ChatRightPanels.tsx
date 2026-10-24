@@ -76,7 +76,15 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
     }
     const el = document.getElementById(`msg-${messageId}`);
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const scroller = el.closest('[data-virtuoso-scroller="true"]');
+      if (scroller) {
+        const scrollerRect = scroller.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const offset = elRect.top - scrollerRect.top - scrollerRect.height / 2 + elRect.height / 2;
+        scroller.scrollTop += offset;
+      } else {
+        el.scrollIntoView({ behavior: 'auto', block: 'center' });
+      }
       el.classList.remove('animate-message-highlight');
       void el.offsetWidth;
       el.classList.add('animate-message-highlight');
@@ -86,98 +94,119 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
     }
   };
 
+  const isAnyPanelOpen = isMemberPanelVisible || isSearchOpen || isPinnedSidebarOpen;
+  const currentWidth = isMemberPanelVisible
+    ? (memberWidth || 270)
+    : isSearchOpen
+    ? (searchWidth || 380)
+    : isPinnedSidebarOpen
+    ? (pinnedSidebarWidth || 380)
+    : 270;
+
+  const currentResizer = isMemberPanelVisible
+    ? {
+        isResizing: isResizingMember,
+        onMouseDown: handleMemberResizeStart,
+        title: 'Kéo sang trái/phải để chỉnh kích thước Sidebar Thành viên',
+      }
+    : isSearchOpen
+    ? {
+        isResizing: isResizingSearch,
+        onMouseDown: handleSearchResizeStart,
+        title: 'Kéo sang trái/phải để chỉnh kích thước Sidebar Tìm kiếm',
+      }
+    : isPinnedSidebarOpen
+    ? {
+        isResizing: isResizingPinned,
+        onMouseDown: handlePinnedResizeStart,
+        title: 'Kéo sang trái/phải để chỉnh kích thước Sidebar Tin nhắn đã ghim',
+      }
+    : null;
+
   return (
     <>
-      {/* 1. Resizer Divider & Member List Panel (Mutually Exclusive) */}
-      {isMemberPanelVisible && (
-        <>
-          <div
-            className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-              isResizingMember
-                ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]'
-                : 'bg-[var(--border-color)]'
-            }`}
-            onMouseDown={handleMemberResizeStart}
-            title="Kéo sang trái/phải để chỉnh kích thước Sidebar Thành viên"
-          />
-          <MemberListPanel
-            isOpen={isMemberPanelVisible}
-            onClose={() => setMemberListOpen(false)}
-            members={displayedMembers}
-            currentUser={currentUser}
-            currentUserRole={currentUserRole || undefined}
-            width={memberWidth}
-            channelName={currentChannel?.name || undefined}
-            isPrivateChannel={
-              Boolean(
-                currentChannel?.isPrivate &&
-                currentChannel.type !== ChannelType.DirectMessage
-              )
-            }
-            isLoading={
-              Boolean(
-                currentChannel?.isPrivate &&
-                currentChannel.type !== ChannelType.DirectMessage &&
-                currentChannel &&
-                loadingChannelMemberIds[currentChannel.id]
-              )
-            }
-            onOpenAddMember={() =>
-              currentChannel && setChannelToAddMember(currentChannel)
-            }
-            onOpenUserProfile={handleOpenUserProfile}
-            onStartDmWithUser={handleStartDmWithUser}
-            onOpenSettings={() => setSettingsOpen(true)}
-            onRequestKickMember={(m) => setMemberToKick(m)}
-          />
-        </>
+      {/* Resizer Divider */}
+      {isAnyPanelOpen && currentResizer && (
+        <div
+          className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
+            currentResizer.isResizing
+              ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]'
+              : 'bg-[var(--border-color)]'
+          }`}
+          onMouseDown={currentResizer.onMouseDown}
+          title={currentResizer.title}
+        />
       )}
 
-      {/* 2. Resizer Divider & Search Sidebar (Mutually Exclusive) */}
-      {!isMemberPanelVisible && isSearchOpen && (
-        <>
-          <div
-            className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-              isResizingSearch
-                ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]'
-                : 'bg-[var(--border-color)]'
-            }`}
-            onMouseDown={handleSearchResizeStart}
-            title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tìm kiếm"
-          />
-          <SearchSidebar
-            isOpen={isSearchOpen}
-            onClose={closeSearch}
-            width={searchWidth}
-            currentChannel={currentChannel}
-            workspaceId={activeWorkspaceId || null}
-            workspaceMembers={workspaceMembers}
-            onJumpToMessage={(channelId, messageId) => {
-              if (channelId !== activeChannelId) {
-                setActiveChannelId(channelId);
+      {/* Sliding Right Drawer Container with Smooth Transition */}
+      <div
+        className="h-full shrink-0 flex overflow-hidden transition-[width,opacity] duration-300 ease-in-out"
+        style={{
+          width: isAnyPanelOpen ? `${currentWidth}px` : '0px',
+          opacity: isAnyPanelOpen ? 1 : 0,
+          pointerEvents: isAnyPanelOpen ? 'auto' : 'none',
+        }}
+      >
+        <div
+          className="h-full shrink-0 flex"
+          style={{ width: `${currentWidth}px` }}
+        >
+          {/* 1. Member List Panel */}
+          {isMemberPanelVisible && (
+            <MemberListPanel
+              isOpen={isMemberPanelVisible}
+              onClose={() => setMemberListOpen(false)}
+              members={displayedMembers}
+              currentUser={currentUser}
+              currentUserRole={currentUserRole || undefined}
+              width={memberWidth}
+              channelName={currentChannel?.name || undefined}
+              isPrivateChannel={
+                Boolean(
+                  currentChannel?.isPrivate &&
+                  currentChannel.type !== ChannelType.DirectMessage
+                )
               }
-              setTimeout(() => {
-                handleJumpToMessage(messageId);
-              }, 300);
-            }}
-          />
-        </>
-      )}
-
-      {/* 3. Resizer Divider & Pinned Messages Sidebar (Mutually Exclusive) */}
-      {!isMemberPanelVisible &&
-        !isSearchOpen &&
-        isPinnedSidebarOpen && (
-          <>
-            <div
-              className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
-                isResizingPinned
-                  ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]'
-                : 'bg-[var(--border-color)]'
-              }`}
-              onMouseDown={handlePinnedResizeStart}
-              title="Kéo sang trái/phải để chỉnh kích thước Sidebar Tin nhắn đã ghim"
+              isLoading={
+                Boolean(
+                  currentChannel?.isPrivate &&
+                  currentChannel.type !== ChannelType.DirectMessage &&
+                  currentChannel &&
+                  loadingChannelMemberIds[currentChannel.id]
+                )
+              }
+              onOpenAddMember={() =>
+                currentChannel && setChannelToAddMember(currentChannel)
+              }
+              onOpenUserProfile={handleOpenUserProfile}
+              onStartDmWithUser={handleStartDmWithUser}
+              onOpenSettings={() => setSettingsOpen(true)}
+              onRequestKickMember={(m) => setMemberToKick(m)}
             />
+          )}
+
+          {/* 2. Search Sidebar */}
+          {!isMemberPanelVisible && isSearchOpen && (
+            <SearchSidebar
+              isOpen={isSearchOpen}
+              onClose={closeSearch}
+              width={searchWidth}
+              currentChannel={currentChannel}
+              workspaceId={activeWorkspaceId || null}
+              workspaceMembers={workspaceMembers}
+              onJumpToMessage={(channelId, messageId) => {
+                if (channelId !== activeChannelId) {
+                  setActiveChannelId(channelId);
+                }
+                setTimeout(() => {
+                  handleJumpToMessage(messageId);
+                }, 300);
+              }}
+            />
+          )}
+
+          {/* 3. Pinned Messages Sidebar */}
+          {!isMemberPanelVisible && !isSearchOpen && isPinnedSidebarOpen && (
             <PinnedMessagesSidebar
               isOpen={isPinnedSidebarOpen}
               onClose={closePinnedSidebar}
@@ -186,8 +215,9 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
               onJumpToMessage={handleJumpToMessage}
               onUnpinMessage={handleUnpinMessage}
             />
-          </>
-        )}
+          )}
+        </div>
+      </div>
     </>
   );
 };

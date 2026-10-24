@@ -11,7 +11,7 @@ import {
 } from '@phosphor-icons/react';
 import type { AppNotification } from '../../types';
 import { notificationApi } from '../../services';
-import { getMediaUrl } from '../../utils/constants';
+import { UserAvatar } from '../ui/UserAvatar';
 
 interface NotificationPopoverProps {
   isOpen: boolean;
@@ -335,13 +335,11 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
 
                 {/* Actor Avatar with Type Badge */}
                 <div className="relative shrink-0 mt-0.5">
-                  <img
-                    src={getMediaUrl(notif.actorAvatarUrl)}
-                    alt=""
-                    className="w-8 h-8 rounded-full object-cover border border-border"
-                    onError={(e) => {
-                      e.currentTarget.src = '/default-avatar.png';
-                    }}
+                  <UserAvatar
+                    size="sm"
+                    name={notif.actorDisplayName || notif.actorUsername}
+                    avatarUrl={notif.actorAvatarUrl}
+                    className="w-8 h-8"
                   />
                   <div className="absolute -bottom-1 -right-1">{getTypeBadge(notif.type)}</div>
                 </div>

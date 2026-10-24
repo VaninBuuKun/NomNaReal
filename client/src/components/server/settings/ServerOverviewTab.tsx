@@ -3,6 +3,7 @@ import { UploadSimple, Warning } from '@phosphor-icons/react';
 import { Input, UnsavedChangesBar } from '../../ui';
 import { serverApi } from '../../../services/serverApi';
 import { fileApi } from '../../../services/fileApi';
+import { getMediaUrl } from '../../../utils/constants';
 import type { Workspace } from '../../../types';
 
 interface ServerOverviewTabProps {
@@ -16,7 +17,7 @@ export const ServerOverviewTab: React.FC<ServerOverviewTabProps> = ({
 }) => {
   const [name, setName] = useState(workspace.name || '');
   const [description, setDescription] = useState(workspace.description || '');
-  const [iconUrl, setIconUrl] = useState(workspace.iconUrl || '/default-avatar.png');
+  const [iconUrl, setIconUrl] = useState(workspace.iconUrl || '');
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingOverview, setIsSavingOverview] = useState(false);
   const [overviewError, setOverviewError] = useState<string | null>(null);
@@ -25,21 +26,21 @@ export const ServerOverviewTab: React.FC<ServerOverviewTabProps> = ({
   useEffect(() => {
     setName(workspace.name || '');
     setDescription(workspace.description || '');
-    setIconUrl(workspace.iconUrl || '/default-avatar.png');
+    setIconUrl(workspace.iconUrl || '');
     setOverviewError(null);
   }, [workspace]);
 
   const isDirty = useMemo(() => {
     const origName = workspace.name || '';
     const origDesc = workspace.description || '';
-    const origIcon = workspace.iconUrl || '/default-avatar.png';
+    const origIcon = workspace.iconUrl || '';
     return name !== origName || description !== origDesc || iconUrl !== origIcon;
   }, [name, description, iconUrl, workspace]);
 
   const handleReset = () => {
     setName(workspace.name || '');
     setDescription(workspace.description || '');
-    setIconUrl(workspace.iconUrl || '/default-avatar.png');
+    setIconUrl(workspace.iconUrl || '');
     setOverviewError(null);
   };
 
@@ -112,12 +113,19 @@ export const ServerOverviewTab: React.FC<ServerOverviewTabProps> = ({
               Biểu tượng máy chủ
             </label>
             <div className="flex items-center gap-4">
-              <div className="relative group w-20 h-20 rounded-full overflow-hidden border-2 border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0">
-                <img
-                  src={iconUrl}
-                  alt="Server icon"
-                  className="w-full h-full object-cover"
-                />
+              <div className="relative group w-20 h-20 rounded-[16px] overflow-hidden border-2 border-[var(--border-color)] bg-[var(--bg-sidebar)] shrink-0 flex items-center justify-center">
+                {iconUrl ? (
+                  <img
+                    src={getMediaUrl(iconUrl)}
+                    alt="Server icon"
+                    className="w-full h-full object-cover"
+                    onError={() => setIconUrl('')}
+                  />
+                ) : (
+                  <span className="text-2xl font-bold text-[var(--accent-primary)]">
+                    {(name || 'S').trim().charAt(0).toUpperCase()}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}

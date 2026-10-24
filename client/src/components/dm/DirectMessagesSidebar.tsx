@@ -7,7 +7,7 @@ import {
   Chats,
 } from '@phosphor-icons/react';
 import { useChatStore } from '../../stores';
-import { getMediaUrl } from '../../utils/constants';
+import { UserAvatar } from '../ui/UserAvatar';
 import type { DirectMessageItem } from './types';
 
 interface DirectMessagesSidebarProps {
@@ -50,21 +50,6 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
       );
     });
   }, [conversations, filterQuery]);
-
-  const getStatusColor = (status?: string) => {
-    switch (status?.toLowerCase()) {
-      case 'online':
-        return 'bg-success';
-      case 'away':
-      case 'idle':
-        return 'bg-warning';
-      case 'dnd':
-        return 'bg-danger';
-      case 'offline':
-      default:
-        return 'bg-text-muted';
-    }
-  };
 
   return (
     <aside
@@ -138,7 +123,6 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
         ) : (
           filteredConversations.map((item) => {
             const isActive = activeConversationId === item.id;
-            const avatarSrc = getMediaUrl(item.user.avatarUrl);
 
             return (
               <div
@@ -151,24 +135,14 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  {/* Avatar + Status Indicator */}
-                  <div className="relative shrink-0">
-                    <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center overflow-hidden">
-                      <img
-                        src={avatarSrc}
-                        alt={item.user.displayName}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = '/default-avatar.png';
-                        }}
-                      />
-                    </div>
-                    <span
-                      className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-sidebar ${getStatusColor(
-                        item.user.status
-                      )}`}
-                    />
-                  </div>
+                  {/* Avatar + Status Indicator (uses in-memory cache to prevent flickering) */}
+                  <UserAvatar
+                    name={item.user.displayName}
+                    avatarUrl={item.user.avatarUrl}
+                    size="sm"
+                    className="w-8 h-8"
+                    status={item.user.status}
+                  />
 
                   {/* Name and last message / draft */}
                   <div className="min-w-0 flex-1 leading-tight">

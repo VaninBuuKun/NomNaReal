@@ -25,7 +25,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
 }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [iconUrl, setIconUrl] = useState("/default-avatar.png");
+  const [iconUrl, setIconUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -39,7 +39,7 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
     if (workspace && isOpen) {
       setName(workspace.name || "");
       setDescription(workspace.description || "");
-      setIconUrl(workspace.iconUrl || "/default-avatar.png");
+      setIconUrl(workspace.iconUrl || "");
       setError(null);
       setShowDeleteConfirm(false);
     }
@@ -172,24 +172,28 @@ export const EditWorkspaceModal: React.FC<EditWorkspaceModalProps> = ({
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
               title="Nhấp hoặc kéo thả ảnh để tải lên S3"
-              className={`relative group shrink-0 cursor-pointer transition-all ${
+              className={`relative group shrink-0 cursor-pointer transition-all w-16 h-16 rounded-[14px] overflow-hidden border-2 border-[var(--border-color)] group-hover:border-[var(--accent-primary)] shadow-sm flex items-center justify-center bg-[var(--bg-surface)] ${
                 isDragging ? "ring-2 ring-[var(--accent-primary)] scale-105" : ""
               }`}
             >
-              <img
-                src={getMediaUrl(iconUrl)}
-                alt="Workspace Icon Preview"
-                className="w-16 h-16 rounded-[4px] object-cover border-2 border-[var(--border-color)] group-hover:border-[var(--accent-primary)] transition-all shadow-sm"
-                onError={(e) => {
-                  e.currentTarget.src = "/default-avatar.png";
-                }}
-              />
+              {iconUrl ? (
+                <img
+                  src={getMediaUrl(iconUrl)}
+                  alt="Workspace Icon Preview"
+                  className="w-full h-full object-cover"
+                  onError={() => setIconUrl("")}
+                />
+              ) : (
+                <span className="text-xl font-bold text-[var(--accent-primary)]">
+                  {(name || "S").trim().charAt(0).toUpperCase()}
+                </span>
+              )}
               {isUploading ? (
-                <div className="absolute inset-0 bg-black/60 rounded-[4px] flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                   <Loader2 size={20} className="animate-spin text-white" />
                 </div>
               ) : (
-                <div className="absolute inset-0 bg-black/40 rounded-[4px] opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                   <UploadCloud size={16} className="text-white" />
                 </div>
               )}

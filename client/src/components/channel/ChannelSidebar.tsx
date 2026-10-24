@@ -214,7 +214,12 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
   const handleDropOnCategory = async (catId: string) => {
     if (!draggedChannelId) return;
-    const source = channels.find((c) => c.id === draggedChannelId);
+    const sourceId = draggedChannelId;
+    setDraggedChannelId(null);
+    setDragOverChannelId(null);
+    setDropPosition(null);
+
+    const source = channels.find((c) => c.id === sourceId);
     if (!source || source.type === ChannelType.Category) return;
 
     const otherChannels = channels.filter((c) => c.id !== source.id);
@@ -443,13 +448,13 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     setIsMenuOpen(false);
                     setIsInviteModalOpen(true);
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-semibold text-accent-primary hover:bg-accent-primary hover:text-on-accent transition-colors cursor-pointer group"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-semibold text-accent-primary hover:bg-accent-primary hover:text-white transition-colors cursor-pointer group"
                 >
-                  <span>Mời mọi người</span>
+                  <span className="group-hover:text-white">Mời mọi người</span>
                   <UserPlus
                     size={16}
                     weight="bold"
-                    className="text-current opacity-80 group-hover:opacity-100"
+                    className="text-current opacity-80 group-hover:opacity-100 group-hover:text-white"
                   />
                 </button>
 
@@ -460,13 +465,13 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     setIsMenuOpen(false);
                     setIsServerSettingsOpen(true);
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-text-secondary hover:bg-accent-primary hover:text-on-accent transition-colors cursor-pointer group"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-text-secondary hover:bg-accent-primary hover:text-white transition-colors cursor-pointer group"
                 >
-                  <span>Cài đặt máy chủ</span>
+                  <span className="group-hover:text-white">Cài đặt máy chủ</span>
                   <Gear
                     size={16}
                     weight="bold"
-                    className="text-current opacity-70 group-hover:opacity-100"
+                    className="text-current opacity-70 group-hover:opacity-100 group-hover:text-white"
                   />
                 </button>
 
@@ -477,13 +482,13 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     setIsMenuOpen(false);
                     onCreateChannel(ChannelType.Text);
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-text-secondary hover:bg-accent-primary hover:text-on-accent transition-colors cursor-pointer group"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-text-secondary hover:bg-accent-primary hover:text-white transition-colors cursor-pointer group"
                 >
-                  <span>Tạo kênh</span>
+                  <span className="group-hover:text-white">Tạo kênh</span>
                   <PlusCircle
                     size={16}
                     weight="bold"
-                    className="text-current opacity-70 group-hover:opacity-100"
+                    className="text-current opacity-70 group-hover:opacity-100 group-hover:text-white"
                   />
                 </button>
 
@@ -494,13 +499,13 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                     setIsMenuOpen(false);
                     onCreateChannel(ChannelType.Category);
                   }}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-text-secondary hover:bg-accent-primary hover:text-on-accent transition-colors cursor-pointer group"
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-text-secondary hover:bg-accent-primary hover:text-white transition-colors cursor-pointer group"
                 >
-                  <span>Tạo danh mục</span>
+                  <span className="group-hover:text-white">Tạo danh mục</span>
                   <FolderPlus
                     size={16}
                     weight="bold"
-                    className="text-current opacity-70 group-hover:opacity-100"
+                    className="text-current opacity-70 group-hover:opacity-100 group-hover:text-white"
                   />
                 </button>
 
@@ -514,10 +519,10 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                         setIsMenuOpen(false);
                         setIsLeaveModalOpen(true);
                       }}
-                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-danger hover:bg-danger hover:text-on-accent transition-colors cursor-pointer group"
+                      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-control font-medium text-danger hover:bg-danger hover:text-white transition-colors cursor-pointer group"
                     >
-                      <span>Rời máy chủ</span>
-                      <SignOut size={16} weight="bold" />
+                      <span className="group-hover:text-white">Rời máy chủ</span>
+                      <SignOut size={16} weight="bold" className="group-hover:text-white" />
                     </button>
                   </>
                 )}
