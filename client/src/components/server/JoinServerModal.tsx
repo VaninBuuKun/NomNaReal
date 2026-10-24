@@ -1,18 +1,22 @@
 import React, { useState } from 'react';
 import { SignIn, Link as LinkIcon } from '@phosphor-icons/react';
 import { Modal, Button } from '../ui';
-import { workspaceApi } from '../../services';
-import type { Workspace } from '../../types';
+import { serverApi } from '../../services';
+import type { Server, Workspace } from '../../types';
 
-interface JoinWorkspaceModalProps {
+export interface JoinServerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onWorkspaceJoined: (workspace: Workspace) => void;
+  onServerJoined?: (server: Server) => void;
+  onWorkspaceJoined?: (workspace: Workspace) => void;
 }
 
-export const JoinWorkspaceModal: React.FC<JoinWorkspaceModalProps> = ({
+export type JoinWorkspaceModalProps = JoinServerModalProps;
+
+export const JoinServerModal: React.FC<JoinServerModalProps> = ({
   isOpen,
   onClose,
+  onServerJoined,
   onWorkspaceJoined,
 }) => {
   const [inviteInput, setInviteInput] = useState('');
@@ -38,8 +42,9 @@ export const JoinWorkspaceModal: React.FC<JoinWorkspaceModalProps> = ({
         cleanCode = segments[segments.length - 1];
       }
 
-      const joinedWorkspace = await workspaceApi.joinWorkspace(cleanCode);
-      onWorkspaceJoined(joinedWorkspace);
+      const joinedServer = await serverApi.joinServer(cleanCode);
+      onServerJoined?.(joinedServer);
+      onWorkspaceJoined?.(joinedServer);
       handleClose();
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
@@ -118,4 +123,4 @@ export const JoinWorkspaceModal: React.FC<JoinWorkspaceModalProps> = ({
     </Modal>
   );
 };
-export const JoinServerModal = JoinWorkspaceModal;
+export const JoinWorkspaceModal = JoinServerModal;

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg-c4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181B"/>
+      <stop offset="100%" stop-color="#09090B"/>
+    </linearGradient>
+    <linearGradient id="fold1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#6366F1"/>
+    </linearGradient>
+    <linearGradient id="fold2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EC4899"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="fold3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F43F5E"/>
+      <stop offset="100%" stop-color="#FB923C"/>
+    </linearGradient>
+  </defs>
+  <!-- Dark Obsidian Badge with subtle border -->
+  <rect x="24" y="24" width="464" height="464" rx="130" fill="url(#bg-c4)" stroke="#27272A" stroke-width="8"/>
+  
+  <!-- Origami Letter N -->
+  <!-- Left Wing -->
+  <polygon points="120,380 120,132 200,180 200,380" fill="url(#fold1)"/>
+  <!-- Center Diagonal Flight -->
+  <polygon points="120,132 312,380 392,380 200,132" fill="url(#fold2)" opacity="0.95"/>
+  <!-- Right Wing / Plane Tip -->
+  <polygon points="312,380 392,132 392,380" fill="url(#fold3)"/>
+</svg>

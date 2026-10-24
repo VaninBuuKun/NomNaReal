@@ -15,7 +15,7 @@ npm run lint     # Chạy ESLint
 ---
 
 ## 📁 Cấu Trúc Mã Nguồn (Component-Group Pattern)
-- `src/components/<domain>/`: Chia nhóm theo nghiệp vụ (`auth`, `workspace`, `channel`, `chat`, `thread`, `dm`, `settings`) kèm `index.ts`.
+- `src/components/<domain>/`: Chia nhóm theo nghiệp vụ (`auth`, `server`, `channel`, `chat`, `thread`, `dm`, `settings`) kèm `index.ts`.
 - `src/components/ui/`: Atomic UI primitives dùng chung (`Button`, `Input`, `Modal`, `Avatar`, `Badge`, `Spinner`, `Toast`).
 - `src/services/`: API clients Axios (`withCredentials: true`) tương ứng từng Controller backend + `signalr.ts`.
 - `src/hooks/`: Custom hooks đóng gói logic nghiệp vụ (`useAuth`, `useMessages`, `useSignalR`, `useTheme`).

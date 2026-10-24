@@ -1,0 +1,2423 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="celestial-violet">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NomNa — Modern Chat Experience (Atmospheric & Multi-Palette)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* =============================================================
+       HỆ THỐNG PHỐI MÀU GIAO DIỆN CHAT NOMNA
+       2 Màu Bạn Đã Ưng:
+       1. Celestial Violet (Tím huyền ảo)
+       2. Graphite Onyx (Đen than chì)
+
+       Các Màu Mới Bổ Sung Siêu Dịu Mắt:
+       3. Midnight Slate (Xanh thép không gian · Chuẩn Linear/Vercel)
+       4. Crimson Noir (Rượu vang đêm · Rose Gold & Black Cherry)
+       5. Glacier Petrol (Ngọc lam Bắc Cực · Deep Gunmetal Teal)
+    ============================================================= */
+
+    /* 1. CELESTIAL VIOLET (★ ĐÃ ƯNG: Tím sương huyền ảo lấy cảm hứng từ ảnh mẫu) */
+    :root,
+    [data-theme="celestial-violet"] {
+      --bg-outer: #0f0b1a;
+      --bg-app: #151024;
+      --bg-rail: #19132b;
+      --bg-sidebar: #1e1735;
+      --bg-chat: #231b3e;
+      --bg-chat-header: rgba(30, 23, 53, 0.85);
+      --bg-surface: #2c234d;
+      --bg-surface-hover: #372c5f;
+      --bg-surface-active: #433672;
+      --bg-composer: #282046;
+      --bg-members: #1c1532;
+      --border-subtle: rgba(167, 139, 250, 0.12);
+      --border-strong: rgba(167, 139, 250, 0.28);
+      --border-focus: #a855f7;
+
+      --accent-primary: #9061f9;
+      --accent-glow: rgba(144, 97, 249, 0.35);
+      --accent-gradient: linear-gradient(135deg, #a855f7, #6366f1);
+      --on-accent: #ffffff;
+
+      --text-main: #f5f3ff;
+      --text-secondary: #c4b5fd;
+      --text-muted: #9487b8;
+      --text-dim: #6b5f8a;
+
+      /* Pastel Accents */
+      --cat-rose: #f472b6;
+      --cat-amber: #fbbf24;
+      --cat-cyan: #38bdf8;
+      --cat-mint: #34d399;
+      --cat-purple: #c084fc;
+      --cat-indigo: #818cf8;
+
+      --bubble-bot: #2b214c;
+      --reaction-bg: rgba(167, 139, 250, 0.12);
+      --reaction-active-bg: rgba(167, 139, 250, 0.28);
+      --status-online: #34d399;
+      --status-idle: #fbbf24;
+      --status-dnd: #f87171;
+    }
+
+    /* 2. GRAPHITE ONYX (★ ĐÃ ƯNG: Đen than chì tối giản chuẩn Linear / Discord Pro) */
+    [data-theme="graphite-obsidian"] {
+      --bg-outer: #0b0c0e;
+      --bg-app: #111215;
+      --bg-rail: #15161a;
+      --bg-sidebar: #191a20;
+      --bg-chat: #1e1f26;
+      --bg-chat-header: rgba(25, 26, 32, 0.85);
+      --bg-surface: #272832;
+      --bg-surface-hover: #32333f;
+      --bg-surface-active: #3e3f4e;
+      --bg-composer: #23242c;
+      --bg-members: #17181e;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.18);
+      --border-focus: #818cf8;
+
+      --accent-primary: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.35);
+      --accent-gradient: linear-gradient(135deg, #818cf8, #4f46e5);
+      --on-accent: #ffffff;
+
+      --text-main: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --cat-rose: #f43f5e;
+      --cat-amber: #f59e0b;
+      --cat-cyan: #06b6d4;
+      --cat-mint: #10b981;
+      --cat-purple: #a855f7;
+      --cat-indigo: #6366f1;
+
+      --bubble-bot: #252630;
+      --reaction-bg: rgba(255, 255, 255, 0.07);
+      --reaction-active-bg: rgba(99, 102, 241, 0.25);
+      --status-online: #10b981;
+      --status-idle: #f59e0b;
+      --status-dnd: #ef4444;
+    }
+
+    /* 3. MIDNIGHT SLATE (✨ MỚI: Xanh thép không gian · Chuẩn Linear & Vercel, cực kỳ dịu mắt) */
+    [data-theme="midnight-slate"] {
+      --bg-outer: #090d16;
+      --bg-app: #0e1422;
+      --bg-rail: #121a2c;
+      --bg-sidebar: #162035;
+      --bg-chat: #1a263e;
+      --bg-chat-header: rgba(22, 32, 53, 0.85);
+      --bg-surface: #223252;
+      --bg-surface-hover: #2b3e64;
+      --bg-surface-active: #344a77;
+      --bg-composer: #1d2a45;
+      --bg-members: #141c2f;
+      --border-subtle: rgba(148, 163, 184, 0.12);
+      --border-strong: rgba(148, 163, 184, 0.24);
+      --border-focus: #38bdf8;
+
+      --accent-primary: #0284c7;
+      --accent-glow: rgba(56, 189, 248, 0.35);
+      --accent-gradient: linear-gradient(135deg, #38bdf8, #6366f1);
+      --on-accent: #ffffff;
+
+      --text-main: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+
+      --cat-rose: #fb7185;
+      --cat-amber: #facc15;
+      --cat-cyan: #38bdf8;
+      --cat-mint: #34d399;
+      --cat-purple: #c084fc;
+      --cat-indigo: #818cf8;
+
+      --bubble-bot: #1c2841;
+      --reaction-bg: rgba(148, 163, 184, 0.12);
+      --reaction-active-bg: rgba(56, 189, 248, 0.22);
+      --status-online: #34d399;
+      --status-idle: #facc15;
+      --status-dnd: #f87171;
+    }
+
+    /* 4. CRIMSON NOIR (✨ MỚI: Rượu Vang Đêm · Rose Gold & Black Cherry, sang chảnh và thư giãn thị giác) */
+    [data-theme="crimson-noir"] {
+      --bg-outer: #0e070c;
+      --bg-app: #150b12;
+      --bg-rail: #1b0e17;
+      --bg-sidebar: #22121e;
+      --bg-chat: #291624;
+      --bg-chat-header: rgba(34, 18, 30, 0.85);
+      --bg-surface: #361d2f;
+      --bg-surface-hover: #45243b;
+      --bg-surface-active: #542b48;
+      --bg-composer: #2d1827;
+      --bg-members: #1e101a;
+      --border-subtle: rgba(244, 114, 182, 0.12);
+      --border-strong: rgba(244, 114, 182, 0.24);
+      --border-focus: #f472b6;
+
+      --accent-primary: #e11d48;
+      --accent-glow: rgba(225, 29, 72, 0.35);
+      --accent-gradient: linear-gradient(135deg, #fb7185, #db2777);
+      --on-accent: #ffffff;
+
+      --text-main: #fff1f2;
+      --text-secondary: #fecdd3;
+      --text-muted: #fda4af;
+      --text-dim: #9f6674;
+
+      --cat-rose: #fb7185;
+      --cat-amber: #fde047;
+      --cat-cyan: #38bdf8;
+      --cat-mint: #4ade80;
+      --cat-purple: #f472b6;
+      --cat-indigo: #c084fc;
+
+      --bubble-bot: #33192c;
+      --reaction-bg: rgba(244, 114, 182, 0.12);
+      --reaction-active-bg: rgba(244, 114, 182, 0.25);
+      --status-online: #4ade80;
+      --status-idle: #fde047;
+      --status-dnd: #f43f5e;
+    }
+
+    /* 5. GLACIER PETROL (✨ MỚI: Ngọc Lam Bắc Cực · Deep Gunmetal Teal, mát mắt và sắc nét) */
+    [data-theme="glacier-petrol"] {
+      --bg-outer: #060e12;
+      --bg-app: #0b151b;
+      --bg-rail: #0f1c24;
+      --bg-sidebar: #13242e;
+      --bg-chat: #182d39;
+      --bg-chat-header: rgba(19, 36, 46, 0.85);
+      --bg-surface: #203b4b;
+      --bg-surface-hover: #294a5e;
+      --bg-surface-active: #325a72;
+      --bg-composer: #1a313e;
+      --bg-members: #112029;
+      --border-subtle: rgba(45, 212, 191, 0.12);
+      --border-strong: rgba(45, 212, 191, 0.24);
+      --border-focus: #2dd4bf;
+
+      --accent-primary: #0d9488;
+      --accent-glow: rgba(45, 212, 191, 0.35);
+      --accent-gradient: linear-gradient(135deg, #2dd4bf, #0284c7);
+      --on-accent: #ffffff;
+
+      --text-main: #f0fdfa;
+      --text-secondary: #ccfbf1;
+      --text-muted: #82a8a4;
+      --text-dim: #557876;
+
+      --cat-rose: #f472b6;
+      --cat-amber: #facc15;
+      --cat-cyan: #2dd4bf;
+      --cat-mint: #34d399;
+      --cat-purple: #c084fc;
+      --cat-indigo: #38bdf8;
+
+      --bubble-bot: #1c3543;
+      --reaction-bg: rgba(45, 212, 191, 0.12);
+      --reaction-active-bg: rgba(45, 212, 191, 0.25);
+      --status-online: #2dd4bf;
+      --status-idle: #facc15;
+      --status-dnd: #f87171;
+    }
+
+    /* =============================================================
+       BASE RESET & APP CONTAINER
+    ============================================================= */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg-outer);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+
+    button {
+      font-family: inherit;
+      color: inherit;
+      border: none;
+      background: none;
+      cursor: pointer;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(150, 150, 150, 0.2);
+      border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(150, 150, 150, 0.4);
+    }
+
+    /* =============================================================
+       TOPBAR BỘ CHỌN THEME MÀU
+    ============================================================= */
+    .top-control-bar {
+      height: 50px;
+      padding: 0 16px;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .brand-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--accent-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      color: #fff;
+      box-shadow: 0 2px 10px var(--accent-glow);
+    }
+
+    .brand-text-label {
+      font-weight: 700;
+      font-size: 13.5px;
+      letter-spacing: -0.2px;
+      color: var(--text-main);
+    }
+
+    .theme-chip-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 3px 6px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .theme-chip-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .theme-chip-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .theme-chip-btn.active {
+      color: #ffffff;
+      background: var(--accent-primary);
+      box-shadow: 0 2px 10px var(--accent-glow);
+    }
+
+    .theme-chip-btn .chip-tag {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 4px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.15);
+      letter-spacing: 0.2px;
+    }
+
+    .dot-preview {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .info-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* =============================================================
+       MAIN WINDOW FRAME (macOS STYLE)
+    ============================================================= */
+    .app-window-shell {
+      flex: 1;
+      margin: 10px 14px 14px 14px;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-app);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--border-subtle);
+      transition: all 0.3s ease;
+    }
+
+    .window-header {
+      height: 38px;
+      background: rgba(0, 0, 0, 0.15);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      flex-shrink: 0;
+    }
+
+    .mac-dots {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .mac-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+    }
+    .mac-dot.close { background: #ff5f56; }
+    .mac-dot.min { background: #ffbd2e; }
+    .mac-dot.max { background: #27c93f; }
+
+    .window-title-text {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: -0.1px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* =============================================================
+       KHUNG GIAO DIỆN CHAT 4 CỘT
+    ============================================================= */
+    .chat-layout-grid {
+      flex: 1;
+      display: flex;
+      height: calc(100% - 38px);
+      overflow: hidden;
+    }
+
+    /* -------------------------------------------------------------
+       CỘT 1: WORKSPACE / SERVER RAIL
+    ------------------------------------------------------------- */
+    .server-rail {
+      width: 68px;
+      background: var(--bg-rail);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 10px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .rail-item {
+      position: relative;
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: var(--bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .rail-item:hover {
+      border-radius: 12px;
+      background: var(--bg-surface-hover);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .rail-item.active {
+      border-radius: 12px;
+      background: var(--accent-gradient);
+      color: #ffffff;
+      box-shadow: 0 4px 14px var(--accent-glow);
+    }
+
+    .rail-item::before {
+      content: '';
+      position: absolute;
+      left: -11px;
+      width: 4px;
+      height: 0;
+      background: #ffffff;
+      border-radius: 0 4px 4px 0;
+      transition: all 0.2s ease;
+      opacity: 0;
+    }
+
+    .rail-item:hover::before {
+      height: 16px;
+      opacity: 0.7;
+    }
+
+    .rail-item.active::before {
+      height: 28px;
+      opacity: 1;
+      background: var(--accent-primary);
+    }
+
+    .rail-mascot-img {
+      width: 26px;
+      height: 26px;
+      object-fit: contain;
+    }
+
+    .rail-server-avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      object-fit: cover;
+    }
+
+    .rail-badge {
+      position: absolute;
+      top: -3px;
+      right: -3px;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 10px;
+      border: 2px solid var(--bg-rail);
+    }
+
+    .rail-divider {
+      width: 32px;
+      height: 1px;
+      background: var(--border-subtle);
+      margin: 2px 0;
+    }
+
+    .rail-action-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      border: 1px dashed var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .rail-action-btn:hover {
+      border-color: var(--accent-primary);
+      color: var(--accent-primary);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .rail-spacer {
+      flex: 1;
+    }
+
+    .rail-compass {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(56, 189, 248, 0.25));
+      border: 1.5px solid var(--accent-primary);
+      box-shadow: 0 0 14px var(--accent-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .rail-compass:hover {
+      transform: scale(1.08) rotate(15deg);
+    }
+
+    /* -------------------------------------------------------------
+       CỘT 2: CHANNEL SIDEBAR & USER BAR
+    ------------------------------------------------------------- */
+    .channel-sidebar {
+      width: 230px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      height: 52px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .sidebar-header:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .server-name-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .server-name-text {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.2px;
+    }
+
+    .verified-check-shield {
+      color: var(--cat-cyan);
+      font-size: 13px;
+    }
+
+    .sidebar-search-btn {
+      margin: 10px 12px 6px 12px;
+      padding: 7px 10px;
+      border-radius: 9px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .sidebar-search-btn:hover {
+      border-color: var(--border-strong);
+      color: var(--text-main);
+    }
+
+    .search-key-badge {
+      padding: 1px 5px;
+      border-radius: 5px;
+      background: rgba(0, 0, 0, 0.2);
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .channel-tree-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .channel-category-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .cat-header {
+      padding: 4px 10px;
+      font-size: 10.5px;
+      font-weight: 800;
+      color: var(--text-dim);
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .channel-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+
+    .channel-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+
+    .channel-row.active {
+      background: var(--bg-surface-active);
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .channel-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .ch-icon {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .ch-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .unread-pill {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: var(--accent-primary);
+      color: #ffffff;
+    }
+
+    .voice-members-list {
+      margin-left: 24px;
+      margin-top: 3px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .voice-user-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      padding: 2px 4px;
+    }
+
+    .voice-user-avatar {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1.5px solid var(--status-online);
+    }
+
+    .speaking-wave {
+      display: inline-flex;
+      align-items: center;
+      gap: 1.5px;
+      margin-left: auto;
+    }
+
+    .speaking-bar {
+      width: 2px;
+      height: 8px;
+      background: var(--status-online);
+      border-radius: 1px;
+      animation: pulseBar 0.8s infinite ease-in-out alternate;
+    }
+    .speaking-bar:nth-child(2) { height: 12px; animation-delay: 0.2s; }
+    .speaking-bar:nth-child(3) { height: 6px; animation-delay: 0.4s; }
+
+    @keyframes pulseBar {
+      0% { transform: scaleY(0.4); opacity: 0.4; }
+      100% { transform: scaleY(1); opacity: 1; }
+    }
+
+    /* Bottom User Profile Bar */
+    .user-profile-bar {
+      height: 56px;
+      padding: 0 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .user-info-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 8px;
+      transition: background 0.15s ease;
+    }
+
+    .user-info-group:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .user-avatar-wrap {
+      position: relative;
+      width: 32px;
+      height: 32px;
+    }
+
+    .user-avatar-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .avatar-status-dot {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--status-online);
+      border: 2px solid var(--bg-sidebar);
+    }
+
+    .user-text-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+
+    .user-display-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .user-handle-status {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .user-quick-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .user-action-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .user-action-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    /* -------------------------------------------------------------
+       CỘT 3: MAIN CHAT AREA
+    ------------------------------------------------------------- */
+    .chat-main-column {
+      flex: 1;
+      background: var(--bg-chat);
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      position: relative;
+    }
+
+    .chat-top-header {
+      height: 52px;
+      padding: 0 18px;
+      background: var(--bg-chat-header);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 5;
+    }
+
+    .chat-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .chat-channel-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .chat-topic-divider {
+      width: 1px;
+      height: 16px;
+      background: var(--border-subtle);
+    }
+
+    .chat-topic-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 380px;
+    }
+
+    .chat-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+
+    .header-icon-btn:hover {
+      color: var(--text-main);
+      background: var(--bg-surface);
+    }
+
+    .header-icon-btn.active {
+      color: var(--accent-primary);
+      background: var(--bg-surface-active);
+    }
+
+    .header-search-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: var(--bg-surface);
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      font-size: 12px;
+      color: var(--text-muted);
+      width: 140px;
+      transition: width 0.2s ease, border-color 0.2s ease;
+    }
+
+    .header-search-box:focus-within {
+      width: 200px;
+      border-color: var(--border-focus);
+      color: var(--text-main);
+    }
+
+    .header-search-box input {
+      background: none;
+      border: none;
+      outline: none;
+      color: inherit;
+      font-size: 12px;
+      width: 100%;
+    }
+
+    .pinned-banner-bar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 7px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12.5px;
+      animation: slideDown 0.25s ease;
+    }
+
+    @keyframes slideDown {
+      from { transform: translateY(-10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .pinned-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-secondary);
+    }
+
+    .pin-icon-tag {
+      color: var(--cat-amber);
+      font-size: 13px;
+    }
+
+    .message-stream-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .chat-date-separator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 8px 0;
+      position: relative;
+    }
+
+    .chat-date-separator::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--border-subtle);
+      z-index: 1;
+    }
+
+    .date-badge {
+      position: relative;
+      z-index: 2;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .message-item {
+      display: flex;
+      gap: 14px;
+      padding: 6px 12px;
+      border-radius: 12px;
+      transition: background 0.15s ease;
+      position: relative;
+    }
+
+    .message-item:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .message-action-dock {
+      position: absolute;
+      top: -12px;
+      right: 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 2px 4px;
+      display: none;
+      align-items: center;
+      gap: 2px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 10;
+    }
+
+    .message-item:hover .message-action-dock {
+      display: flex;
+    }
+
+    .dock-btn {
+      padding: 4px 6px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .dock-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .msg-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      object-fit: cover;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .msg-body {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .msg-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      line-height: 1;
+    }
+
+    .msg-author {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .msg-author:hover {
+      text-decoration: underline;
+    }
+
+    .role-pill {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .role-lead {
+      background: rgba(168, 85, 247, 0.2);
+      color: var(--cat-purple);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+
+    .role-designer {
+      background: rgba(244, 114, 182, 0.2);
+      color: var(--cat-rose);
+      border: 1px solid rgba(244, 114, 182, 0.4);
+    }
+
+    .role-member {
+      background: rgba(56, 189, 248, 0.2);
+      color: var(--cat-cyan);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+
+    .msg-time {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .msg-reply-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+      position: relative;
+    }
+
+    .reply-corner-line {
+      width: 14px;
+      height: 10px;
+      border-left: 2px solid var(--border-strong);
+      border-top: 2px solid var(--border-strong);
+      border-top-left-radius: 6px;
+      margin-top: 4px;
+    }
+
+    .reply-snippet {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 500px;
+      font-style: italic;
+    }
+
+    .msg-text {
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+      word-break: break-word;
+    }
+
+    .msg-mention {
+      padding: 1px 6px;
+      border-radius: 6px;
+      background: rgba(144, 97, 249, 0.2);
+      color: var(--accent-primary);
+      font-weight: 600;
+    }
+
+    .code-card-embed {
+      margin-top: 6px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      max-width: 520px;
+    }
+
+    .code-card-header {
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .code-card-pre {
+      padding: 12px 14px;
+      overflow-x: auto;
+      color: #e2e8f0;
+      line-height: 1.5;
+    }
+
+    .image-attach-grid {
+      margin-top: 6px;
+      display: flex;
+      gap: 10px;
+      max-width: 520px;
+    }
+
+    .attach-img-card {
+      position: relative;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      flex: 1;
+      height: 170px;
+      cursor: pointer;
+    }
+
+    .attach-img-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .attach-img-card:hover img {
+      transform: scale(1.04);
+    }
+
+    .attach-overlay-label {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 6px 10px;
+      background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.8));
+      font-size: 11px;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .voice-note-card {
+      margin-top: 6px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      max-width: 380px;
+    }
+
+    .voice-play-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--accent-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 13px;
+      box-shadow: 0 2px 8px var(--accent-glow);
+      flex-shrink: 0;
+    }
+
+    .voice-waveforms {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 24px;
+    }
+
+    .wave-line {
+      flex: 1;
+      background: var(--accent-primary);
+      opacity: 0.45;
+      border-radius: 2px;
+    }
+
+    .voice-duration {
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+    }
+
+    .msg-reactions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .reaction-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      background: var(--reaction-bg);
+      border: 1px solid var(--border-subtle);
+      font-size: 12px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .reaction-pill:hover {
+      background: var(--reaction-active-bg);
+      border-color: var(--border-strong);
+      transform: translateY(-1px);
+    }
+
+    .reaction-pill.active {
+      background: var(--reaction-active-bg);
+      border-color: var(--accent-primary);
+      color: var(--text-main);
+    }
+
+    .reaction-count {
+      font-weight: 700;
+      font-size: 11.5px;
+    }
+
+    .typing-indicator-bar {
+      height: 24px;
+      padding: 0 24px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .typing-dots {
+      display: flex;
+      gap: 3px;
+    }
+
+    .typing-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      animation: typingBounce 1.2s infinite ease-in-out;
+    }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typingBounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+      40% { transform: translateY(-3px); opacity: 1; }
+    }
+
+    .composer-dock-container {
+      padding: 0 18px 16px 18px;
+    }
+
+    .composer-card {
+      background: var(--bg-composer);
+      border: 1px solid var(--border-strong);
+      border-radius: 14px;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .composer-card:focus-within {
+      border-color: var(--border-focus);
+      box-shadow: 0 8px 30px var(--accent-glow);
+    }
+
+    .composer-input-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .composer-attach-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .composer-attach-btn:hover {
+      background: var(--accent-primary);
+      color: #ffffff;
+    }
+
+    .composer-input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    .composer-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .composer-footer-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 6px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .format-tools-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .tool-icon-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .tool-icon-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .send-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      background: var(--accent-gradient);
+      color: #ffffff;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 10px var(--accent-glow);
+      transition: all 0.15s ease;
+    }
+
+    .send-action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px var(--accent-glow);
+    }
+
+    /* -------------------------------------------------------------
+       CỘT 4: RIGHT MEMBERS & DETAILS SIDEBAR
+    ------------------------------------------------------------- */
+    .members-sidebar {
+      width: 220px;
+      background: var(--bg-members);
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.25s ease;
+    }
+
+    .members-sidebar.hidden {
+      width: 0;
+      overflow: hidden;
+      border-left: none;
+    }
+
+    .members-header {
+      height: 52px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--text-dim);
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .members-scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .member-group-title {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: var(--text-dim);
+      letter-spacing: 0.5px;
+      padding: 2px 8px;
+      text-transform: uppercase;
+    }
+
+    .member-row-card {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .member-row-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .member-avatar-wrap {
+      position: relative;
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .member-avatar-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .member-status-indicator {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      border: 2px solid var(--bg-members);
+    }
+
+    .member-status-indicator.online { background: var(--status-online); }
+    .member-status-indicator.idle { background: var(--status-idle); }
+    .member-status-indicator.dnd { background: var(--status-dnd); }
+
+    .member-info-col {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.25;
+    }
+
+    .member-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .member-activity-sub {
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =============================================================
+       THANH ĐIỀU KHIỂN & BỘ CHỌN MÀU THEME TRÊN CÙNG
+  ============================================================= -->
+  <header class="top-control-bar">
+    <div class="brand-title-wrap">
+      <div class="brand-logo-icon">N</div>
+      <div class="brand-text-label">NomNa Design System — Chat Colorway Lab</div>
+    </div>
+
+    <!-- 5 Bảng Màu Tuyển Chọn (2 màu bạn đã ưng + 3 màu mới cực kỳ dễ nhìn) -->
+    <div class="theme-chip-group">
+      <!-- 1. Celestial Violet (Đã ưng) -->
+      <button class="theme-chip-btn active" onclick="switchTheme('celestial-violet')" title="Tím sương huyền ảo lấy cảm hứng từ ảnh mẫu">
+        <span class="dot-preview" style="background: #a855f7;"></span>
+        <span>Celestial Violet</span>
+        <span class="chip-tag" style="background: rgba(168, 85, 247, 0.3); color: #e9d5ff;">★ ĐÃ ƯNG</span>
+      </button>
+
+      <!-- 2. Graphite Onyx (Đã ưng) -->
+      <button class="theme-chip-btn" onclick="switchTheme('graphite-obsidian')" title="Đen than chì hiện đại chuẩn Linear/Discord Pro">
+        <span class="dot-preview" style="background: #6366f1;"></span>
+        <span>Graphite Onyx</span>
+        <span class="chip-tag" style="background: rgba(99, 102, 241, 0.3); color: #e0e7ff;">★ ĐÃ ƯNG</span>
+      </button>
+
+      <!-- 3. Midnight Slate (Mới - Xanh thép dịu mắt) -->
+      <button class="theme-chip-btn" onclick="switchTheme('midnight-slate')" title="Xanh thép không gian · Chuẩn Linear & Vercel, siêu dịu mắt">
+        <span class="dot-preview" style="background: #38bdf8;"></span>
+        <span>Midnight Slate</span>
+        <span class="chip-tag" style="background: rgba(56, 189, 248, 0.3); color: #bae6fd;">✨ MỚI</span>
+      </button>
+
+      <!-- 4. Crimson Noir (Mới - Rượu vang trầm quý phái) -->
+      <button class="theme-chip-btn" onclick="switchTheme('crimson-noir')" title="Rượu vang đêm · Rose Gold & Black Cherry, sang chảnh và thư giãn thị giác">
+        <span class="dot-preview" style="background: #fb7185;"></span>
+        <span>Crimson Noir</span>
+        <span class="chip-tag" style="background: rgba(251, 113, 133, 0.3); color: #fecdd3;">✨ MỚI</span>
+      </button>
+
+      <!-- 5. Glacier Petrol (Mới - Ngọc lam trầm Bắc Cực) -->
+      <button class="theme-chip-btn" onclick="switchTheme('glacier-petrol')" title="Ngọc lam Bắc Cực · Deep Gunmetal Teal, mát mắt và sắc nét">
+        <span class="dot-preview" style="background: #2dd4bf;"></span>
+        <span>Glacier Petrol</span>
+        <span class="chip-tag" style="background: rgba(45, 212, 191, 0.3); color: #99f6e4;">✨ MỚI</span>
+      </button>
+    </div>
+
+    <div class="top-actions">
+      <span class="info-badge">👑 Tuyển Chọn Tinh Tế</span>
+      <span class="info-badge">🟢 Realtime Live</span>
+    </div>
+  </header>
+
+  <!-- =============================================================
+       CỬA SỔ CHÍNH CỦA ỨNG DỤNG CHAT NOMNA (macOS FRAME)
+  ============================================================= -->
+  <main class="app-window-shell">
+    
+    <!-- Titlebar macOS -->
+    <div class="window-header">
+      <div class="mac-dots">
+        <div class="mac-dot close"></div>
+        <div class="mac-dot min"></div>
+        <div class="mac-dot max"></div>
+      </div>
+      <div class="window-title-text">
+        <span>NomNa Desktop</span>
+        <span style="opacity: 0.4;">—</span>
+        <span style="color: var(--text-main); font-weight: 700;"># general-chat</span>
+        <span style="opacity: 0.4;">·</span>
+        <span style="color: var(--accent-primary); font-size: 11px;">NomNa Core Community</span>
+      </div>
+      <div style="width: 50px;"></div>
+    </div>
+
+    <!-- KHUNG CHAT 4 CỘT -->
+    <div class="chat-layout-grid">
+
+      <!-- =========================================================
+           CỘT 1: WORKSPACE / SERVER RAIL
+      ========================================================= -->
+      <aside class="server-rail">
+        <div class="rail-item active" onclick="showNotification('Đang ở Không gian chính')" title="Trang chủ & Tin nhắn trực tiếp">
+          <img src="/mascot.png" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=nomna'" alt="NomNa" class="rail-mascot-img">
+          <span class="rail-badge">3</span>
+        </div>
+
+        <div class="rail-divider"></div>
+
+        <div class="rail-item" onclick="switchServer(this, 'NomNa Core Team', '#general-chat')" title="NomNa Core Team">
+          <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=100&q=80" alt="Core" class="rail-server-avatar">
+        </div>
+
+        <div class="rail-item" onclick="switchServer(this, 'UI/UX Creative Hub', '#showcase')" title="UI/UX Creative Hub">
+          <img src="https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=100&q=80" alt="Design" class="rail-server-avatar">
+          <span class="rail-badge">1</span>
+        </div>
+
+        <div class="rail-item" onclick="switchServer(this, 'Gaming & Chill', '#gaming-lounge')" title="Gaming & Chill Lounge">
+          <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?w=100&q=80" alt="Gaming" class="rail-server-avatar">
+        </div>
+
+        <div class="rail-action-btn" onclick="showNotification('Tạo máy chủ mới')" title="Tạo hoặc tham gia Server mới">
+          <span style="font-size: 18px; font-weight: 600;">+</span>
+        </div>
+
+        <div class="rail-spacer"></div>
+
+        <div class="rail-compass" onclick="showNotification('Khám phá cộng đồng công khai')" title="Khám phá cộng đồng NomNa">
+          <span style="font-size: 16px;">🧭</span>
+        </div>
+      </aside>
+
+      <!-- =========================================================
+           CỘT 2: CHANNEL SIDEBAR & USER BAR
+      ========================================================= -->
+      <nav class="channel-sidebar">
+        <div class="sidebar-header" onclick="showNotification('Cài đặt Không gian làm việc')">
+          <div class="server-name-badge">
+            <span class="server-name-text">NomNa Core Team</span>
+            <span class="verified-check-shield">✔</span>
+          </div>
+          <span style="font-size: 11px; color: var(--text-dim);">▾</span>
+        </div>
+
+        <div class="sidebar-search-btn" onclick="document.getElementById('header-search-input').focus()">
+          <span>Tìm kênh hoặc tin nhắn...</span>
+          <span class="search-key-badge">⌘K</span>
+        </div>
+
+        <div class="channel-tree-scroll">
+          
+          <div class="channel-category-group">
+            <div class="cat-header">
+              <span>📌 THÔNG TIN QUAN TRỌNG</span>
+            </div>
+            
+            <a href="javascript:void(0)" class="channel-row" onclick="selectChannel(this, '#thông-báo-chung')">
+              <div class="channel-left">
+                <span class="ch-icon" style="color: var(--cat-rose);">📢</span>
+                <span class="ch-name">thông-báo-chung</span>
+              </div>
+              <span class="unread-pill">2</span>
+            </a>
+
+            <a href="javascript:void(0)" class="channel-row" onclick="selectChannel(this, '#quy-định-server')">
+              <div class="channel-left">
+                <span class="ch-icon" style="color: var(--cat-amber);">📜</span>
+                <span class="ch-name">quy-định-server</span>
+              </div>
+            </a>
+          </div>
+
+          <div class="channel-category-group">
+            <div class="cat-header">
+              <span>💬 THẢO LUẬN CHÍNH</span>
+            </div>
+
+            <a href="javascript:void(0)" class="channel-row active" onclick="selectChannel(this, '#general-chat')">
+              <div class="channel-left">
+                <span class="ch-icon" style="color: var(--cat-cyan);">#</span>
+                <span class="ch-name">general-chat</span>
+              </div>
+            </a>
+
+            <a href="javascript:void(0)" class="channel-row" onclick="selectChannel(this, '#ui-ux-design')">
+              <div class="channel-left">
+                <span class="ch-icon" style="color: var(--cat-purple);">#</span>
+                <span class="ch-name">ui-ux-design</span>
+              </div>
+              <span class="unread-pill" style="background: var(--cat-purple);">5</span>
+            </a>
+
+            <a href="javascript:void(0)" class="channel-row" onclick="selectChannel(this, '#frontend-code')">
+              <div class="channel-left">
+                <span class="ch-icon" style="color: var(--cat-mint);">#</span>
+                <span class="ch-name">frontend-code</span>
+              </div>
+            </a>
+
+            <a href="javascript:void(0)" class="channel-row" onclick="selectChannel(this, '#memes-chill')">
+              <div class="channel-left">
+                <span class="ch-icon" style="color: var(--cat-amber);">#</span>
+                <span class="ch-name">memes-chill</span>
+              </div>
+            </a>
+          </div>
+
+          <div class="channel-category-group">
+            <div class="cat-header">
+              <span>🔊 PHÒNG THOẠI & CO-WORKING</span>
+            </div>
+
+            <a href="javascript:void(0)" class="channel-row" onclick="showNotification('Đã tham gia phòng thoại Dev!')">
+              <div class="channel-left">
+                <span class="ch-icon" style="color: var(--status-online);">🔊</span>
+                <span class="ch-name">Phòng Họp Dev</span>
+              </div>
+            </a>
+
+            <div class="voice-members-list">
+              <div class="voice-user-row">
+                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&q=80" alt="Celestial" class="voice-user-avatar">
+                <span>Celestial</span>
+                <div class="speaking-wave">
+                  <div class="speaking-bar"></div>
+                  <div class="speaking-bar"></div>
+                  <div class="speaking-bar"></div>
+                </div>
+              </div>
+              <div class="voice-user-row">
+                <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=50&q=80" alt="LinhDan" class="voice-user-avatar" style="border-color: transparent;">
+                <span style="opacity: 0.7;">LinhDan (Muted)</span>
+                <span style="margin-left: auto; font-size: 11px; opacity: 0.5;">🔇</span>
+              </div>
+            </div>
+
+            <a href="javascript:void(0)" class="channel-row" style="margin-top: 6px;" onclick="showNotification('Tham gia Lounge Lo-Fi')">
+              <div class="channel-left">
+                <span class="ch-icon" style="color: var(--cat-rose);">🎵</span>
+                <span class="ch-name">Lounge Lo-Fi Chill</span>
+              </div>
+            </a>
+          </div>
+
+        </div>
+
+        <div class="user-profile-bar">
+          <div class="user-info-group" onclick="showNotification('Xem hồ sơ cá nhân của bạn')">
+            <div class="user-avatar-wrap">
+              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80" alt="Avatar" class="user-avatar-img">
+              <div class="avatar-status-dot"></div>
+            </div>
+            <div class="user-text-meta">
+              <div class="user-display-name">Celestial</div>
+              <div class="user-handle-status">@vanmuzic</div>
+            </div>
+          </div>
+
+          <div class="user-quick-actions">
+            <button class="user-action-btn" id="mic-toggle-btn" onclick="toggleMute(this)" title="Bật/Tắt Mic">🎙️</button>
+            <button class="user-action-btn" id="deafen-toggle-btn" onclick="toggleDeafen(this)" title="Bật/Tắt Tai nghe">🎧</button>
+            <button class="user-action-btn" onclick="showNotification('Mở Cài đặt giao diện & hệ thống')" title="Cài đặt">⚙️</button>
+          </div>
+        </div>
+      </nav>
+
+      <!-- =========================================================
+           CỘT 3: MAIN CHAT AREA
+      ========================================================= -->
+      <section class="chat-main-column">
+
+        <header class="chat-top-header">
+          <div class="chat-header-left">
+            <div class="chat-channel-title">
+              <span style="color: var(--cat-cyan); font-weight: 800; font-size: 18px;">#</span>
+              <span id="active-channel-name">general-chat</span>
+            </div>
+            <div class="chat-topic-divider"></div>
+            <div class="chat-topic-desc" title="Thảo luận chung & chia sẻ ý tưởng phối màu giao diện NomNa ✨">
+              Thảo luận chung & chia sẻ ý tưởng phối màu giao diện NomNa ✨
+            </div>
+          </div>
+
+          <div class="chat-header-actions">
+            <button class="header-icon-btn" onclick="showNotification('Bắt đầu cuộc gọi nhóm')" title="Bắt đầu cuộc gọi">📞</button>
+            <button class="header-icon-btn" onclick="showNotification('Bật Video Call')" title="Bật Camera">📹</button>
+            <button class="header-icon-btn" onclick="togglePinnedBar()" title="Tin nhắn đã ghim">📌</button>
+
+            <div class="header-search-box">
+              <span>🔍</span>
+              <input type="text" id="header-search-input" placeholder="Tìm kiếm...">
+            </div>
+
+            <button class="header-icon-btn active" id="toggle-members-btn" onclick="toggleMembersSidebar()" title="Ẩn/Hiện danh sách thành viên">👥</button>
+          </div>
+        </header>
+
+        <div class="pinned-banner-bar" id="pinned-banner">
+          <div class="pinned-left">
+            <span class="pin-icon-tag">📌</span>
+            <span><strong>Ghim:</strong> Bộ màu tuyển chọn: Violet, Onyx và các tone mới (Midnight Slate, Crimson Noir, Glacier Petrol).</span>
+          </div>
+          <button class="header-icon-btn" style="width: 24px; height: 24px;" onclick="togglePinnedBar()">✕</button>
+        </div>
+
+        <div class="message-stream-scroll" id="message-container">
+          
+          <div class="chat-date-separator">
+            <span class="date-badge">Hôm nay, 24 Tháng 10, 2026</span>
+          </div>
+
+          <!-- Tin nhắn 1 -->
+          <div class="message-item">
+            <div class="message-action-dock">
+              <span class="dock-btn" onclick="quickReact(this, '🔥')">🔥</span>
+              <span class="dock-btn" onclick="quickReact(this, '❤️')">❤️</span>
+              <span class="dock-btn" onclick="quickReact(this, '✨')">✨</span>
+              <span class="dock-btn" onclick="showNotification('Trả lời tin nhắn')">↩ Trả lời</span>
+            </div>
+
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80" alt="Celestial" class="msg-avatar">
+            <div class="msg-body">
+              <div class="msg-header">
+                <span class="msg-author">Celestial</span>
+                <span class="role-pill role-lead">Core Lead</span>
+                <span class="msg-time">21:40</span>
+              </div>
+              <div class="msg-text">
+                Chào cả team! Anh vừa chốt giữ lại 2 bảng màu chuẩn là <strong>Celestial Violet</strong> và <strong>Graphite Onyx</strong>. Đồng thời bổ sung 2 gam màu mới siêu dễ nhìn:
+                <br>• <strong>Midnight Slate:</strong> Xanh thép không gian dịu mắt chuẩn Linear & Vercel.
+                <br>• <strong>Crimson Noir:</strong> Rượu vang đêm & Rose Gold sang chảnh, ấm áp thư giãn buổi tối!
+              </div>
+
+              <div class="msg-reactions">
+                <div class="reaction-pill active" onclick="toggleReaction(this)">
+                  <span>🔥</span>
+                  <span class="reaction-count">14</span>
+                </div>
+                <div class="reaction-pill active" onclick="toggleReaction(this)">
+                  <span>✨</span>
+                  <span class="reaction-count">11</span>
+                </div>
+                <div class="reaction-pill" onclick="toggleReaction(this)">
+                  <span>🚀</span>
+                  <span class="reaction-count">6</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tin nhắn 2 -->
+          <div class="message-item">
+            <div class="message-action-dock">
+              <span class="dock-btn" onclick="quickReact(this, '😍')">😍</span>
+              <span class="dock-btn" onclick="quickReact(this, '👍')">👍</span>
+              <span class="dock-btn" onclick="showNotification('Trả lời tin nhắn')">↩ Trả lời</span>
+            </div>
+
+            <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&q=80" alt="LinhDan" class="msg-avatar">
+            <div class="msg-body">
+              <div class="msg-reply-bar">
+                <div class="reply-corner-line"></div>
+                <span>Trả lời <strong>@Celestial</strong>:</span>
+                <span class="reply-snippet">"Chào cả team! Anh vừa chốt giữ lại 2 bảng màu chuẩn..."</span>
+              </div>
+
+              <div class="msg-header">
+                <span class="msg-author">LinhDan</span>
+                <span class="role-pill role-designer">UI Designer</span>
+                <span class="msg-time">21:42</span>
+              </div>
+              <div class="msg-text">
+                Bản <strong>Midnight Slate</strong> và <strong>Crimson Noir</strong> nhìn quá đỉnh luôn anh ơi! Nền không bị gắt hay xanh chuối, đọc tin nhắn cực kỳ êm mắt.
+                <br>Mã màu token cập nhật đây ạ:
+              </div>
+
+              <div class="code-card-embed">
+                <div class="code-card-header">
+                  <span>theme-palette.css</span>
+                  <span style="cursor: pointer;" onclick="showNotification('Đã sao chép mã!')">📋 Copy</span>
+                </div>
+                <pre class="code-card-pre"><code>/* Midnight Slate — Linear Dark Spec */
+--bg-app: #0e1422;
+--bg-chat: #1a263e;
+--accent-primary: #38bdf8; /* Ice Cyan */
+--text-main: #f8fafc;</code></pre>
+              </div>
+
+              <div class="msg-reactions">
+                <div class="reaction-pill active" onclick="toggleReaction(this)">
+                  <span>❤️</span>
+                  <span class="reaction-count">9</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tin nhắn 3 -->
+          <div class="message-item">
+            <div class="message-action-dock">
+              <span class="dock-btn" onclick="quickReact(this, '🎧')">🎧</span>
+              <span class="dock-btn" onclick="showNotification('Trả lời tin nhắn')">↩ Trả lời</span>
+            </div>
+
+            <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80" alt="MinhTri" class="msg-avatar">
+            <div class="msg-body">
+              <div class="msg-header">
+                <span class="msg-author">MinhTri</span>
+                <span class="role-pill role-member">Dev</span>
+                <span class="msg-time">21:45</span>
+              </div>
+              <div class="msg-text">
+                Cả 4 màu này đều đạt chuẩn độ tương phản WCAG AAA nên kể cả chat xuyên đêm cũng không bị mỏi mắt. Anh em test thử thanh chuyển theme trên cùng xem nhé!
+              </div>
+
+              <div class="voice-note-card">
+                <button class="voice-play-btn" onclick="playVoiceDemo(this)" title="Nghe ghi âm">▶</button>
+                <div class="voice-waveforms">
+                  <div class="wave-line" style="height: 40%;"></div>
+                  <div class="wave-line" style="height: 70%;"></div>
+                  <div class="wave-line" style="height: 100%;"></div>
+                  <div class="wave-line" style="height: 50%;"></div>
+                  <div class="wave-line" style="height: 85%;"></div>
+                  <div class="wave-line" style="height: 60%;"></div>
+                  <div class="wave-line" style="height: 90%;"></div>
+                  <div class="wave-line" style="height: 45%;"></div>
+                  <div class="wave-line" style="height: 75%;"></div>
+                  <div class="wave-line" style="height: 35%;"></div>
+                </div>
+                <span class="voice-duration" id="voice-timer">0:32</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="typing-indicator-bar" id="typing-bar">
+          <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+          <span><strong>LinhDan</strong> và 1 người khác đang soạn tin nhắn...</span>
+        </div>
+
+        <div class="composer-dock-container">
+          <form class="composer-card" id="chat-form" onsubmit="handleSendMessage(event)">
+            <div class="composer-input-row">
+              <button type="button" class="composer-attach-btn" onclick="showNotification('Đính kèm file, ảnh hoặc video')" title="Đính kèm tệp">
+                <span style="font-size: 16px; font-weight: 700;">+</span>
+              </button>
+              <input 
+                type="text" 
+                id="message-input" 
+                class="composer-input" 
+                placeholder="Gửi tin nhắn tới #general-chat... (Nhấn Enter để gửi)" 
+                autocomplete="off"
+              >
+            </div>
+
+            <div class="composer-footer-row">
+              <div class="format-tools-group">
+                <button type="button" class="tool-icon-btn" onclick="insertFormat('**')" title="Chữ đậm"><b>B</b></button>
+                <button type="button" class="tool-icon-btn" onclick="insertFormat('*')" title="Chữ nghiêng"><i>I</i></button>
+                <button type="button" class="tool-icon-btn" onclick="insertFormat('`')" title="Đoạn mã">&lt;/&gt;</button>
+                <button type="button" class="tool-icon-btn" onclick="insertFormat('😊')" title="Biểu tượng cảm xúc">😊</button>
+                <button type="button" class="tool-icon-btn" onclick="showNotification('Thu âm tin nhắn thoại')" title="Ghi âm giọng nói">🎙️</button>
+              </div>
+
+              <button type="submit" class="send-action-btn" title="Gửi tin nhắn">
+                <span>Gửi</span>
+                <span style="font-size: 11px;">➤</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </section>
+
+      <!-- =========================================================
+           CỘT 4: RIGHT MEMBERS & DETAILS SIDEBAR
+      ========================================================= -->
+      <aside class="members-sidebar" id="members-sidebar">
+        <div class="members-header">
+          <span>THÀNH VIÊN — 8</span>
+          <span style="font-size: 13px; color: var(--text-dim); cursor: pointer;" onclick="toggleMembersSidebar()" title="Đóng danh sách">✕</span>
+        </div>
+
+        <div class="members-scroll-area">
+          <div class="member-group-title">
+            <span>BAN QUẢN TRỊ — 2</span>
+          </div>
+
+          <div class="member-row-card" onclick="showNotification('Xem trang cá nhân của Celestial')">
+            <div class="member-avatar-wrap">
+              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&q=80" alt="Celestial" class="member-avatar-img">
+              <div class="member-status-indicator online"></div>
+            </div>
+            <div class="member-info-col">
+              <span class="member-name" style="color: var(--cat-purple);">Celestial</span>
+              <span class="member-activity-sub">🎧 After Dark — Mr.Kitty</span>
+            </div>
+          </div>
+
+          <div class="member-row-card" onclick="showNotification('Xem trang cá nhân của LinhDan')">
+            <div class="member-avatar-wrap">
+              <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=80&q=80" alt="LinhDan" class="member-avatar-img">
+              <div class="member-status-indicator online"></div>
+            </div>
+            <div class="member-info-col">
+              <span class="member-name" style="color: var(--cat-rose);">LinhDan</span>
+              <span class="member-activity-sub">🎨 Đang thiết kế Figma</span>
+            </div>
+          </div>
+
+          <div class="member-group-title" style="margin-top: 8px;">
+            <span>TRỰC TUYẾN — 4</span>
+          </div>
+
+          <div class="member-row-card" onclick="showNotification('Xem trang cá nhân của MinhTri')">
+            <div class="member-avatar-wrap">
+              <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80" alt="MinhTri" class="member-avatar-img">
+              <div class="member-status-indicator online"></div>
+            </div>
+            <div class="member-info-col">
+              <span class="member-name">MinhTri</span>
+              <span class="member-activity-sub">💻 Coding WebAPI .NET 9</span>
+            </div>
+          </div>
+
+          <div class="member-row-card" onclick="showNotification('Xem trang cá nhân của CyberSamurai')">
+            <div class="member-avatar-wrap">
+              <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=80&q=80" alt="CyberSamurai" class="member-avatar-img">
+              <div class="member-status-indicator idle"></div>
+            </div>
+            <div class="member-info-col">
+              <span class="member-name">CyberSamurai</span>
+              <span class="member-activity-sub">🎮 Cyberpunk 2077</span>
+            </div>
+          </div>
+
+          <div class="member-row-card" onclick="showNotification('Xem trang cá nhân của AnNhien')">
+            <div class="member-avatar-wrap">
+              <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&q=80" alt="AnNhien" class="member-avatar-img">
+              <div class="member-status-indicator online"></div>
+            </div>
+            <div class="member-info-col">
+              <span class="member-name">AnNhien</span>
+              <span class="member-activity-sub">☕ Đang nghỉ ngơi</span>
+            </div>
+          </div>
+
+          <div class="member-row-card" onclick="showNotification('Xem trang cá nhân của KhoaDev')">
+            <div class="member-avatar-wrap">
+              <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=80" alt="KhoaDev" class="member-avatar-img">
+              <div class="member-status-indicator dnd"></div>
+            </div>
+            <div class="member-info-col">
+              <span class="member-name">KhoaDev</span>
+              <span class="member-activity-sub">⛔ Đừng làm phiền (Focus)</span>
+            </div>
+          </div>
+
+          <div class="member-group-title" style="margin-top: 8px;">
+            <span>NGOẠI TUYẾN — 2</span>
+          </div>
+
+          <div class="member-row-card" style="opacity: 0.55;">
+            <div class="member-avatar-wrap">
+              <img src="https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=80&q=80" alt="HoangNam" class="member-avatar-img">
+            </div>
+            <div class="member-info-col">
+              <span class="member-name">HoangNam</span>
+              <span class="member-activity-sub">Offline 2 giờ trước</span>
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <script>
+    // 1. Chuyển đổi Theme màu sắc tức thì
+    function switchTheme(themeName) {
+      document.documentElement.setAttribute('data-theme', themeName);
+      
+      document.querySelectorAll('.theme-chip-btn').forEach(btn => {
+        if (btn.getAttribute('onclick').includes(themeName)) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      localStorage.setItem('nomna_chat_theme', themeName);
+      showNotification('Đã chuyển sang theme: ' + themeName);
+    }
+
+    const savedTheme = localStorage.getItem('nomna_chat_theme');
+    if (savedTheme) {
+      switchTheme(savedTheme);
+    }
+
+    function selectChannel(element, channelName) {
+      document.querySelectorAll('.channel-row').forEach(row => row.classList.remove('active'));
+      element.classList.add('active');
+      document.getElementById('active-channel-name').innerText = channelName.replace('#', '').trim();
+      document.getElementById('message-input').placeholder = `Gửi tin nhắn tới ${channelName}... (Nhấn Enter để gửi)`;
+      showNotification(`Đã chuyển tới kênh ${channelName}`);
+    }
+
+    function switchServer(element, serverName, defaultChannel) {
+      document.querySelectorAll('.rail-item').forEach(el => el.classList.remove('active'));
+      element.classList.add('active');
+      document.querySelector('.server-name-text').innerText = serverName;
+      showNotification(`Đã chuyển sang Server: ${serverName}`);
+    }
+
+    function toggleMembersSidebar() {
+      const sidebar = document.getElementById('members-sidebar');
+      const btn = document.getElementById('toggle-members-btn');
+      sidebar.classList.toggle('hidden');
+      btn.classList.toggle('active');
+    }
+
+    function togglePinnedBar() {
+      const banner = document.getElementById('pinned-banner');
+      if (banner.style.display === 'none') {
+        banner.style.display = 'flex';
+      } else {
+        banner.style.display = 'none';
+      }
+    }
+
+    function handleSendMessage(event) {
+      event.preventDefault();
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const container = document.getElementById('message-container');
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message-item';
+      msgDiv.style.animation = 'fadeIn 0.2s ease';
+      msgDiv.innerHTML = `
+        <div class="message-action-dock">
+          <span class="dock-btn" onclick="quickReact(this, '🔥')">🔥</span>
+          <span class="dock-btn" onclick="quickReact(this, '❤️')">❤️</span>
+          <span class="dock-btn" onclick="quickReact(this, '✨')">✨</span>
+          <span class="dock-btn" onclick="showNotification('Trả lời tin nhắn')">↩ Trả lời</span>
+        </div>
+        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80" alt="Celestial" class="msg-avatar">
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-author">Celestial</span>
+            <span class="role-pill role-lead">Core Lead</span>
+            <span class="msg-time">${timeStr}</span>
+          </div>
+          <div class="msg-text">${escapeHtml(text)}</div>
+          <div class="msg-reactions">
+            <div class="reaction-pill" onclick="toggleReaction(this)">
+              <span>✨</span>
+              <span class="reaction-count">1</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      container.appendChild(msgDiv);
+      input.value = '';
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function toggleReaction(element) {
+      const countSpan = element.querySelector('.reaction-count');
+      let count = parseInt(countSpan.innerText, 10);
+      if (element.classList.contains('active')) {
+        element.classList.remove('active');
+        countSpan.innerText = Math.max(0, count - 1);
+      } else {
+        element.classList.add('active');
+        countSpan.innerText = count + 1;
+      }
+    }
+
+    function quickReact(btn, emoji) {
+      const msgItem = btn.closest('.message-item');
+      let reactionsRow = msgItem.querySelector('.msg-reactions');
+      if (!reactionsRow) {
+        reactionsRow = document.createElement('div');
+        reactionsRow.className = 'msg-reactions';
+        msgItem.querySelector('.msg-body').appendChild(reactionsRow);
+      }
+
+      let existingPill = Array.from(reactionsRow.querySelectorAll('.reaction-pill')).find(p => p.innerText.includes(emoji));
+      if (existingPill) {
+        toggleReaction(existingPill);
+      } else {
+        const newPill = document.createElement('div');
+        newPill.className = 'reaction-pill active';
+        newPill.setAttribute('onclick', 'toggleReaction(this)');
+        newPill.innerHTML = `<span>${emoji}</span><span class="reaction-count">1</span>`;
+        reactionsRow.appendChild(newPill);
+      }
+    }
+
+    function toggleMute(btn) {
+      if (btn.innerText === '🎙️') {
+        btn.innerText = '🔇';
+        btn.style.color = 'var(--status-dnd)';
+        showNotification('Đã tắt Microphone');
+      } else {
+        btn.innerText = '🎙️';
+        btn.style.color = 'inherit';
+        showNotification('Đã bật Microphone');
+      }
+    }
+
+    function toggleDeafen(btn) {
+      if (btn.innerText === '🎧') {
+        btn.innerText = '❌';
+        btn.style.color = 'var(--status-dnd)';
+        showNotification('Đã tắt âm thanh máy');
+      } else {
+        btn.innerText = '🎧';
+        btn.style.color = 'inherit';
+        showNotification('Đã bật lại âm thanh');
+      }
+    }
+
+    function insertFormat(char) {
+      const input = document.getElementById('message-input');
+      input.value += char;
+      input.focus();
+    }
+
+    function showNotification(msg) {
+      let toast = document.getElementById('app-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'app-toast';
+        toast.style.cssText = `
+          position: fixed;
+          bottom: 24px;
+          left: 50%;
+          transform: translateX(-50%) translateY(20px);
+          background: var(--bg-surface);
+          color: var(--text-main);
+          border: 1px solid var(--border-strong);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+          padding: 8px 18px;
+          border-radius: 20px;
+          font-size: 12.5px;
+          font-weight: 600;
+          opacity: 0;
+          transition: all 0.25s ease;
+          pointer-events: none;
+          z-index: 9999;
+        `;
+        document.body.appendChild(toast);
+      }
+      toast.innerText = msg;
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateX(-50%) translateY(0)';
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(20px)';
+      }, 2000);
+    }
+
+    function playVoiceDemo(btn) {
+      if (btn.innerText === '▶') {
+        btn.innerText = '⏸';
+        showNotification('Đang phát ghi âm...');
+        let s = 32;
+        const timer = setInterval(() => {
+          s--;
+          if (s <= 0) {
+            clearInterval(timer);
+            btn.innerText = '▶';
+            document.getElementById('voice-timer').innerText = '0:32';
+          } else {
+            document.getElementById('voice-timer').innerText = `0:${s < 10 ? '0' + s : s}`;
+          }
+        }, 1000);
+      } else {
+        btn.innerText = '▶';
+      }
+    }
+  </script>
+</body>
+</html>

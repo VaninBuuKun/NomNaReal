@@ -8,15 +8,15 @@ import {
   ArrowLeft,
   CircleNotch,
 } from '@phosphor-icons/react';
-import { workspaceApi } from '../services';
+import { serverApi } from '../services';
 import { Button } from '../components/ui';
-import type { Workspace } from '../types';
+import type { Server } from '../types';
 
 export const JoinPage: React.FC = () => {
   const { inviteCode } = useParams<{ inviteCode: string }>();
   const navigate = useNavigate();
 
-  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [server, setServer] = useState<Server | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,24 +30,24 @@ export const JoinPage: React.FC = () => {
       return;
     }
 
-    const loadWorkspacePreview = async () => {
+    const loadServerPreview = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const ws = await workspaceApi.getWorkspaceByInviteCode(inviteCode);
-        setWorkspace(ws);
+        const s = await serverApi.getServerByInviteCode(inviteCode);
+        setServer(s);
       } catch (err: unknown) {
         const errorObj = err as { response?: { data?: { message?: string } } };
         setError(
           errorObj?.response?.data?.message ||
-            'Không tìm thấy không gian làm việc hoặc liên kết mời này đã hết hạn.'
+            'Không tìm thấy máy chủ hoặc liên kết mời này đã hết hạn.'
         );
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadWorkspacePreview();
+    loadServerPreview();
   }, [inviteCode]);
 
   const handleJoin = async () => {
@@ -63,13 +63,13 @@ export const JoinPage: React.FC = () => {
     try {
       setIsJoining(true);
       setError(null);
-      const joined = await workspaceApi.joinWorkspace(inviteCode);
+      const joined = await serverApi.joinServer(inviteCode);
       sessionStorage.removeItem('nomna_pending_invite');
-      navigate(`/workspace/${joined.id}`, { replace: true });
+      navigate(`/channels/${joined.id}`, { replace: true });
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
       setError(
-        errorObj?.response?.data?.message || 'Không thể tham gia không gian làm việc này.'
+        errorObj?.response?.data?.message || 'Không thể tham gia máy chủ này.'
       );
     } finally {
       setIsJoining(false);
@@ -114,19 +114,19 @@ export const JoinPage: React.FC = () => {
               Quay lại trang chủ
             </Button>
           </div>
-        ) : workspace ? (
+        ) : server ? (
           <>
             {/* Header Badge */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--accent-soft)] border border-[var(--accent-primary)]/20 text-[11px] font-bold text-[var(--accent-primary)] mb-5 shadow-2xs">
               <EnvelopeSimple size={13} weight="bold" />
-              <span>Lời mời tham gia Không gian</span>
+              <span>Lời mời tham gia Máy chủ</span>
             </div>
 
-            {/* Workspace Avatar */}
+            {/* Server Avatar */}
             <div className="w-20 h-20 rounded-[8px] overflow-hidden border-2 border-[var(--border-color)] bg-[var(--bg-surface)] flex items-center justify-center shadow-md mb-3.5">
               <img
-                src={workspace.iconUrl || '/default-avatar.png'}
-                alt={workspace.name}
+                src={server.iconUrl || '/default-avatar.png'}
+                alt={server.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.currentTarget.src = '/default-avatar.png';
@@ -134,18 +134,18 @@ export const JoinPage: React.FC = () => {
               />
             </div>
 
-            {/* Workspace Name & Info */}
+            {/* Server Name & Info */}
             <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tight">
-              {workspace.name}
+              {server.name}
             </h1>
             <div className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)] mt-1 mb-4">
               <Users size={14} weight="bold" />
-              <span>{workspace.memberCount || 1} thành viên</span>
+              <span>{server.memberCount || 1} thành viên</span>
             </div>
 
-            {workspace.description && (
+            {server.description && (
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed mb-6 line-clamp-3 bg-[var(--bg-chat)] p-3 rounded-[4px] border border-[var(--border-color)] w-full text-left">
-                {workspace.description}
+                {server.description}
               </p>
             )}
 

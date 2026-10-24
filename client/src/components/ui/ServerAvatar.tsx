@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getMediaUrl } from '../../utils/constants';
 
-export interface WorkspaceAvatarProps {
+export interface ServerAvatarProps {
   name?: string;
   iconUrl?: string | null;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -18,7 +18,7 @@ const sizeClasses: Record<string, string> = {
   xl: 'w-14 h-14',
 };
 
-export const WorkspaceAvatar: React.FC<WorkspaceAvatarProps> = ({
+export const ServerAvatar: React.FC<ServerAvatarProps> = ({
   name,
   iconUrl,
   size = 'md',
@@ -51,7 +51,7 @@ export const WorkspaceAvatar: React.FC<WorkspaceAvatarProps> = ({
         {/* Real image or fallback image with explicit alt and text-transparent to prevent broken text leak */}
         <img
           src={hasError ? '/default-avatar.png' : targetSrc}
-          alt={name || "Workspace"}
+          alt={name || "Server"}
           className={`w-full h-full object-cover transition-opacity duration-200 text-transparent ${
             isLoading ? 'opacity-0' : 'opacity-100'
           }`}
@@ -70,4 +70,8 @@ export const WorkspaceAvatar: React.FC<WorkspaceAvatarProps> = ({
   );
 };
 
-export default WorkspaceAvatar;
+export default ServerAvatar;
+
+// Compatibility alias
+export { ServerAvatar as WorkspaceAvatar };
+export type { ServerAvatarProps as WorkspaceAvatarProps };

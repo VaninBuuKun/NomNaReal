@@ -575,17 +575,30 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
                   <span>Đang tải danh sách bạn bè...</span>
                 </div>
               ) : filteredFriends.length === 0 ? (
-                <div className="py-16 text-center text-xs text-[var(--text-muted)] flex flex-col items-center gap-3">
-                  <div className="w-14 h-14 rounded-2xl bg-[var(--bg-surface)] flex items-center justify-center text-[var(--text-muted)]">
-                    <Users size={28} weight="duotone" />
+                <div className="py-16 text-center text-xs text-[var(--text-muted)] flex flex-col items-center gap-3.5">
+                  <div className="w-20 h-20 rounded-3xl bg-[var(--bg-surface)]/80 border border-[var(--border-color)] flex items-center justify-center p-2 shadow-sm">
+                    <img
+                      src="/mascot.png"
+                      alt="NomNa Mascot"
+                      className="w-full h-full object-contain transition-transform duration-300 hover:scale-110"
+                    />
                   </div>
-                  <p>
-                    {searchQuery
-                      ? `Không tìm thấy bạn bè nào khớp với "${searchQuery}"`
-                      : activeTab === 'online'
-                      ? 'Hiện tại không có bạn bè nào đang trực tuyến.'
-                      : 'Chưa có bạn bè nào trong danh sách. Bấm "Thêm bạn" để kết nối!'}
-                  </p>
+                  <div className="flex flex-col gap-1 max-w-sm">
+                    <p className="font-semibold text-sm text-[var(--text-primary)]">
+                      {searchQuery
+                        ? `Không tìm thấy bạn bè nào khớp với "${searchQuery}"`
+                        : activeTab === 'online'
+                        ? 'Chưa có bạn bè nào đang trực tuyến nè~'
+                        : 'Danh sách bạn bè đang trống trơn!'}
+                    </p>
+                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                      {searchQuery
+                        ? 'Thử tìm kiếm với từ khóa khác xem sao nhé.'
+                        : activeTab === 'online'
+                        ? 'Khi có bạn bè lên sóng, họ sẽ xuất hiện tại đây ngay lập tức ✨'
+                        : 'Bấm nút "Thêm bạn" màu xanh phía trên để kết nối và trò chuyện ngay thôi~'}
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="divide-y divide-[var(--border-color)]/50">

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg-c3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#4F46E5"/>
+    </linearGradient>
+  </defs>
+  <!-- Circular Badge -->
+  <circle cx="256" cy="256" r="232" fill="url(#bg-c3)"/>
+  
+  <!-- Clean Chat Bubble -->
+  <path d="M120 160 C120 125 155 100 200 100 H312 C357 100 392 125 392 160 V270 C392 305 357 330 312 330 H210 L150 380 C140 388 126 382 126 370 V330 C120 330 120 310 120 270 Z" fill="#FFFFFF"/>
+  
+  <!-- 3 Soundwave Bars in Negative Space / Indigo -->
+  <rect x="200" y="180" width="22" height="70" rx="11" fill="#4F46E5"/>
+  <rect x="245" y="150" width="22" height="130" rx="11" fill="#06B6D4"/>
+  <rect x="290" y="175" width="22" height="80" rx="11" fill="#4F46E5"/>
+</svg>

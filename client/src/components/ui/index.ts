@@ -6,6 +6,6 @@ export * from './Modal';
 export * from './Spinner';
 export * from './ImageWithSkeleton';
 export * from './Toast';
-export * from './WorkspaceAvatar';
+export * from './ServerAvatar';
 export * from './UserAvatar';
 export * from './UnsavedChangesBar';

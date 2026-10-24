@@ -1,12 +1,12 @@
-# 💬 NomNa — Nền Tảng Làm Việc Nhóm & Nhắn Tin Thời Gian Thực
+# 💬 NomNa — Real-Time Chat Platform
 
 <p align="center">
   <img src="previews/icon.png" alt="NomNa Logo" width="96" height="96" style="border-radius: 20%;" />
 </p>
 
 <p align="center">
-  <strong>Nền tảng Workspace thời gian thực hiệu năng cao, xây dựng trên .NET 9 & React 18.</strong><br />
-  Kết hợp sự tập trung, chuyên nghiệp của Slack và tính linh hoạt của Discord.
+  <strong>Nền tảng giao tiếp & nhắn tin thời gian thực hiệu năng cao, xây dựng theo phong cách Discord.</strong><br />
+  Được thiết kế trên nền tảng .NET 9 (Clean Architecture & CQRS) và React 18 (TypeScript & Vite), tập trung vào thiết kế hệ thống chuyên sâu, khả năng mở rộng chịu tải và chuẩn mực DevOps hiện đại.
 </p>
 
 <p align="center">
@@ -21,50 +21,53 @@
 
 ---
 
-## ⚡ Điểm Nhấn Kỹ Thuật
+## 🎯 Tổng Quan Hệ Thống
 
-- **Real-Time Engine**: Nhắn tin tức thì, trả lời theo phân luồng (Thread), và hiển thị typing indicator qua SignalR (WebSockets).
-- **User Presence Tracking**: Theo dõi trạng thái Online/Offline thời gian thực đa thiết bị, an toàn đa luồng (`ConcurrentDictionary` + Redis).
-- **Phân Trang Con Trỏ (Cursor Pagination)**: Tải tin nhắn cũ mượt mà, không giật màn hình với cơ chế neo vị trí cuộn (`Before` timestamp cursor).
-- **Nhắn Tin Riêng Kiểu Slack (Deferred DM)**: Kênh chat riêng tư chỉ thực sự tạo khi có tin nhắn đầu tiên gửi đi.
-- **Bảo Mật Đa Tầng**: Phân quyền kênh Public / Private, JWT Token xoay vòng (Rotation) qua HttpOnly Cookie, đăng nhập Google OAuth 2.0.
-- **Hạ Tầng 100% (Stateless)**: File đính kèm và avatar lưu trực tiếp trên AWS S3 / Cloudflare R2 (Fail-Fast trong môi trường Production).
-- **Sẵn Sàng Triển Khai (Production-Ready)**: Docker Alpine siêu nhẹ (< 70MB), Nginx Reverse Proxy tích hợp tự động gia hạn SSL (Certbot), CI/CD tự động qua GitHub Actions & GHCR.
+NomNa là hệ thống chat thời gian thực quy mô máy chủ (Discord-style) với mô hình phân quyền đa cấp, luồng dữ liệu hai chiều độ trễ thấp và cấu trúc backend phân tầng chặt chẽ. Dự án đóng vai trò như một môi trường thực nghiệm chuyên sâu về **Backend Engineering**, **System Design** và **DevOps Automation**.
+
+```mermaid
+graph TD
+    Client["Client (React 18 + Vite)"]
+    Nginx["Reverse Proxy (Nginx)"]
+    WebAPI["NomNa WebAPI (.NET 9)\nClean Architecture + CQRS"]
+    Postgres[("PostgreSQL 16\nRelational Data")]
+    Redis[("Redis 7\nCache & Presence")]
+    S3["AWS S3 / Cloudflare R2\nObject Storage"]
+
+    Client -->|HTTPS / WSS| Nginx
+    Nginx -->|Reverse Proxy| WebAPI
+    WebAPI -->|EF Core 9| Postgres
+    WebAPI -->|Presence & Caching| Redis
+    WebAPI -->|Media & Uploads| S3
+```
 
 ---
 
-## 🏛️ Kiến Trúc Hệ Thống
+## ⚡ Điểm Nhấn Kỹ Thuật
+
+- **Kiến trúc Clean Architecture & CQRS**: Phân tầng rành mạch (`Domain` → `Application` → `Infrastructure` → `WebAPI`). Nghiệp vụ tách biệt tuyệt đối theo nguyên tắc 3-file (Command, CommandHandler, CommandValidator) qua MediatR và FluentValidation.
+- **Real-Time Engine (SignalR)**: Nhắn tin tức thì, trích dẫn phản hồi (Quote Reply), gõ phím (Typing Indicator), và theo dõi hiện diện (Presence tracking Online/Offline) với cơ chế Reconnection Catch-up.
+- **Tối ưu Danh sách Tin nhắn**: Phân trang con trỏ hai chiều (Bi-directional Keyset Pagination) kết hợp ảo hóa giao diện (Message Virtualization), đảm bảo độ mượt khi xử lý hàng nghìn tin nhắn.
+- **Hệ Thống Phân Quyền Bitmask (64-bit)**: Quản lý quyền theo vai trò (Roles) và ghi đè cấp kênh (Channel Overwrites), tích hợp cơ chế thu hồi quyền tức thì (Realtime Access Revocation) và hủy cache tự động.
+- **Nhắn Tin Trực Tiếp Trì Hoãn (Deferred DM)**: Hội thoại cá nhân giữa hai người dùng chỉ được khởi tạo trong CSDL khi có tin nhắn đầu tiên, giảm thiểu rác dữ liệu.
+- **Hạ Tầng Không Trạng Thái (Stateless Storage)**: Avatar và file đính kèm được lưu trữ trực tiếp trên AWS S3 / Cloudflare R2 qua Presigned URL.
+
+---
+
+## 📁 Cấu Trúc Mã Nguồn
 
 ```
-                       ┌──────────────────────────────┐
-                       │   Client (React 18 + Vite)   │
-                       └──────────────┬───────────────┘
-                                      │ HTTPS / WSS
-                       ┌──────────────▼──────────────┐
-                       │     Nginx Reverse Proxy     │
-                       └──────────────┬───────────────┘
-                                      │ :8080
-                       ┌──────────────▼──────────────┐
-                       │   NomNa WebAPI (.NET 9)     │
-                       │  Clean Architecture + CQRS  │
-                       └───┬──────────┬───────────┬──┘
-             EF Core 9     │          │ Presence  │ S3 SDK
-        ┌──────────────────▼──┐   ┌───▼───┐   ┌───▼─────────────────┐
-        │  PostgreSQL 16 DB   │   │ Redis │   │ AWS S3 / Cloudflare │
-        └─────────────────────┘   └───────┘   └─────────────────────┘
-```
-
-### Cấu Trúc Mã Nguồn (Clean Architecture)
-
-```
-src/
-├── NomNa.Domain/          # Độc lập 100%: Thực thể (Entities), Enums, BaseEntity
-├── NomNa.Application/     # Nghiệp vụ CQRS (MediatR), Validation, Pipeline Behaviors
-│   └── Features/          # Tách biệt tuyệt đối: Command.cs, Handler.cs, Validator.cs
-├── NomNa.Infrastructure/  # EF Core, PostgreSQL, S3, Redis Presence, Email SMTP, JWT
-├── NomNa.WebAPI/          # Thin Controllers, SignalR Hub, Middlewares, DI Setup
-└── NomNa.Shared/          # Constants & DTOs dùng chung
-client/                    # React 18 SPA, Vite, Tailwind CSS, Atomic UI Primitives
+NomNaReal/
+├── src/
+│   ├── NomNa.Domain/          # 0 Dependency: Entities, Enums (Permissions, Roles)
+│   ├── NomNa.Application/     # Nghiệp vụ CQRS (MediatR), Behaviors, FluentValidation
+│   ├── NomNa.Infrastructure/  # EF Core, PostgreSQL, Services (JWT, S3, Cache)
+│   ├── NomNa.WebAPI/          # Thin Controllers, ChatHub, Middlewares, DI Setup
+│   └── NomNa.Shared/          # Contracts, DTOs & Constants dùng chung
+├── client/                    # React 18 SPA, Vite, Tailwind CSS, Atomic UI Primitives
+├── tests/                     # Unit Tests (Domain, Application) & Test Suites
+├── docs/                      # Tài liệu kỹ thuật chuyên sâu & System Design
+└── scripts/                   # Script vận hành, sao lưu và kiểm tra mã nguồn
 ```
 
 ---
@@ -72,88 +75,64 @@ client/                    # React 18 SPA, Vite, Tailwind CSS, Atomic UI Primiti
 ## 🚀 Khởi Chạy Nhanh (Local Development)
 
 ### Yêu Cầu Môi Trường
-
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - [Node.js 20+](https://nodejs.org/)
 - [Docker & Docker Compose](https://www.docker.com/)
 
-### 1. Khởi động Cơ Sở Dữ Liệu & Redis
-
+### 1. Khởi động PostgreSQL & Redis
 ```bash
 docker compose up -d
 ```
 
-### 2. Cấu Hình Biến Môi Trường
-
+### 2. Cấu hình Biến Môi Trường
 ```bash
 cp .env.example .env
-# File mẫu đã được cấu hình sẵn để chạy ngay với Docker local
 ```
 
-### 3. Khởi Chạy Backend (.NET 9)
-
+### 3. Chạy Backend (.NET 9)
 ```bash
 dotnet restore NomNa.sln
 dotnet run --project src/NomNa.WebAPI/NomNa.WebAPI.csproj
 ```
+> API sẵn sàng tại: `http://localhost:5000` (Swagger UI: `http://localhost:5000/swagger`)
 
-> API sẵn sàng tại `http://localhost:5000` (Swagger UI tại `/swagger`).
-
-### 4. Khởi Chạy Frontend (React 18)
-
+### 4. Chạy Frontend (React 18)
 ```bash
 cd client
 npm install
 npm run dev
 ```
-
-> Giao diện sẵn sàng tại `http://localhost:5173`.
+> Giao diện sẵn sàng tại: `http://localhost:5173`
 
 ---
 
-## 🐳 Triển Khai Production (VPS Vultr / Cloud)
+## 🧪 Kiểm Thử & Kiểm Soát Chất Lượng
 
-NomNa được thiết kế theo tư duy **"Cattle, not Pets"** — toàn bộ hệ thống có thể tái tạo hoàn chỉnh từ con số 0 trong **< 10 phút**:
+Dự án áp dụng quy tắc **Triple Gate Verification** — mọi thay đổi đều phải vượt qua 100% kiểm tra trước khi tích hợp:
 
 ```bash
-# 1. Cấu hình bảo mật server 1-Click (Docker, UFW Firewall, Fail2ban)
-bash scripts/setup-vps.sh
+# 1. Kiểm tra biên dịch Backend
+dotnet build NomNa.sln
 
-# 2. Cấp phát chứng chỉ SSL tự động (Let's Encrypt)
-bash scripts/issue-ssl.sh your-domain.com your-email@example.com
+# 2. Kiểm tra biên dịch & Type-check Frontend
+cd client && npm run build && cd ..
 
-# 3. Khởi động toàn bộ cụm Production
-docker compose -f docker-compose.prod.yml up -d
+# 3. Chạy toàn bộ Test Suites
+dotnet test NomNa.sln
 ```
 
-### Tự Động Hoá CI/CD (GitHub Actions)
-
-- **`ci.yml`**: Chạy trên mọi Pull Request — kiểm tra build .NET, TypeScript type-check và ESLint.
-- **`deploy.yml`**: Tự động kích hoạt khi push vào nhánh `main` — đóng gói Docker image, đẩy lên **GitHub Container Registry (GHCR)** và SSH vào VPS để cập nhật container không gián đoạn.
+Tự động hóa qua GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) chạy kiểm tra build, linting và unit tests trên mỗi Pull Request.
 
 ---
 
-## 🛠️ Cheatsheet Lệnh Vận Hành
+## 🗺️ Lộ Trình Nâng Cấp Hệ Thống (Engineering Roadmap)
 
-| Tác vụ                       | Câu lệnh thực thi                                              |
-| ---------------------------- | -------------------------------------------------------------- |
-| **Sao lưu nhanh DB**         | `bash scripts/backup-db.sh` _(Lưu nén tại `~/nomna/backups/`)_ |
-| **Phục hồi DB**              | `bash scripts/restore-db.sh <duong_dan_file.sql.gz>`           |
-| **Kiểm tra sức khỏe App**    | `curl -f http://localhost:8080/health`                         |
-| **Trạng thái các container** | `docker compose -f docker-compose.prod.yml ps`                 |
-| **Xem log trực tiếp**        | `docker compose -f docker-compose.prod.yml logs -f app`        |
+| Giai Đoạn | Trọng Tâm | Tình Trạng |
+|---|---|:---:|
+| **Foundation** | Clean Architecture, CQRS, SignalR Hub, Bitmask RBAC, Virtualization | ✅ Hoàn thành |
+| **Quality & Reliability** | Testcontainers (Postgres+Redis), Architecture Tests, Rate Limiting, Idempotency | 🚧 Đang triển khai |
+| **Deep Backend & Scale** | Redis Backplane đa node, Transactional Outbox, Keyset & Partitioning, Full-Text Search | 📋 Lên kế hoạch |
+| **DevOps & Observability** | OpenTelemetry, Prometheus + Grafana, Trivy security scan, Container packaging | 📋 Lên kế hoạch |
+| **Performance Benchmarks** | Kịch bản k6 WebSocket C10K, đo lường P99 fanout latency, tài liệu ADR | 📋 Lên kế hoạch |
 
----
-
-## 📜 Các Biến Môi Trường Quan Trọng
-
-| Biến môi trường     | Mục đích sử dụng            | Mặc định (Dev)                  |
-| ------------------- | --------------------------- | ------------------------------- |
-| `POSTGRES_DB`       | Tên Database PostgreSQL     | `NomNa`                         |
-| `POSTGRES_USER`     | Tài khoản kết nối DB        | `nomna_user`                    |
-| `POSTGRES_PASSWORD` | Mật khẩu DB                 | `nomna_secret_pass_2026`        |
-| `Jwt__Secret`       | Khoá bí mật ký JWT Token    | _(Tối thiểu 32 ký tự)_          |
-| `AwsS3__BucketName` | Tên Bucket S3 / R2 lưu file | _Dev: Tuỳ chọn, Prod: Bắt buộc_ |
-| `APP_IMAGE`         | Image triển khai (CI/CD)    | `nomna-app:latest`              |
-
----
+*Chi tiết kế hoạch kiến trúc và kịch bản chịu tải được lưu trữ tại [docs/deep-dive-infrastructure-and-performance-testing.md](docs/deep-dive-infrastructure-and-performance-testing.md).*

@@ -7,7 +7,8 @@ import { ChannelType, type Channel } from '../../types';
 interface CreateChannelModalProps {
   isOpen: boolean;
   onClose: () => void;
-  workspaceId: string | null;
+  serverId?: string | null;
+  workspaceId?: string | null;
   channelType?: ChannelType;
   initialCategoryId?: string | null;
   categories?: Channel[];
@@ -17,12 +18,14 @@ interface CreateChannelModalProps {
 export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
   isOpen,
   onClose,
+  serverId,
   workspaceId,
   channelType = ChannelType.Text,
   initialCategoryId = null,
   categories = [],
   onChannelCreated,
 }) => {
+  const effectiveServerId = serverId || workspaceId;
   const [type, setType] = useState<ChannelType>(channelType);
   const [name, setName] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(initialCategoryId || '');
@@ -56,7 +59,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!workspaceId) {
+    if (!effectiveServerId) {
       setError('Không tìm thấy máy chủ hiện tại.');
       return;
     }
@@ -70,7 +73,7 @@ export const CreateChannelModal: React.FC<CreateChannelModalProps> = ({
     try {
       setIsSubmitting(true);
       setError(null);
-      const newChannel = await channelApi.createChannel(workspaceId, {
+      const newChannel = await channelApi.createChannel(effectiveServerId, {
         name: isCategory ? trimmedName.toUpperCase() : trimmedName,
         type,
         isPrivate: isCategory ? false : isPrivate,

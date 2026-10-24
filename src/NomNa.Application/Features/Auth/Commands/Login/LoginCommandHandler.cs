@@ -53,7 +53,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResu
         await _userManager.ResetAccessFailedCountAsync(user);
         user.UpdateStatus(UserStatus.Online);
 
-        var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email ?? string.Empty, user.UserName);
+        var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email ?? string.Empty, user.UserName ?? string.Empty);
         var rawRefreshToken = _jwtService.GenerateRefreshToken();
 
         var refreshTokenEntity = new Domain.Entities.RefreshToken
@@ -66,7 +66,7 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResu
         _context.RefreshTokens.Add(refreshTokenEntity);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var userDto = new UserDto(user.Id, user.Email, user.UserName, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
+        var userDto = new UserDto(user.Id, user.Email ?? string.Empty, user.UserName ?? string.Empty, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
         return new AuthResultDto(accessToken, rawRefreshToken, expiresAt, userDto);
     }
 }

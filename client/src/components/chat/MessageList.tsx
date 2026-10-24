@@ -8,7 +8,7 @@ import {
   useImperativeHandle,
 } from "react";
 import { Virtuoso, type VirtuosoHandle, type StateSnapshot } from "react-virtuoso";
-import { CircleNotch, HandWaving, ArrowUp } from "@phosphor-icons/react";
+import { CircleNotch, ArrowUp } from "@phosphor-icons/react";
 import { getReadMarker, setReadMarker } from "../../utils/readMarkers";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
 import { MessageItem } from "./MessageItem";
@@ -419,20 +419,31 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                 {/* Channel Welcome Header when reached top of history */}
                 {!hasMoreMessages && currentChannel ? (
                   <div className="pt-6 pb-4 px-5 mx-4 select-none flex flex-col gap-2 border-b border-border/50 mb-1">
-                    <div className="w-12 h-12 rounded-2xl bg-accent-primary flex items-center justify-center text-white shadow-md shadow-accent-glow">
-                      <HandWaving size={26} weight="fill" className="text-white" />
+                    <div className="flex items-center gap-3.5 mb-1">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-accent-primary to-accent-hover flex items-center justify-center p-1.5 shadow-md shadow-accent-glow">
+                        <img
+                          src="/mascot.png"
+                          alt="NomNa Chibi Mascot"
+                          className="w-full h-full object-contain drop-shadow"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-accent-primary">
+                          NomNa Room ✨
+                        </span>
+                        <h3 className="text-xl font-bold text-text-primary tracking-tight">
+                          {currentChannel.type === 2 ||
+                          currentChannel.type === ChannelType.DirectMessage
+                            ? `Đoạn chat riêng với ${currentChannel.name}`
+                            : `Chào mừng bạn đến với kênh #${currentChannel.name}!`}
+                        </h3>
+                      </div>
                     </div>
-                    <h3 className="text-xl font-bold text-text-primary tracking-tight">
-                      {currentChannel.type === 2 ||
-                      currentChannel.type === ChannelType.DirectMessage
-                        ? `Đoạn chat riêng với ${currentChannel.name}`
-                        : `Chào mừng bạn đến với kênh #${currentChannel.name}!`}
-                    </h3>
                     <p className="text-xs text-text-muted leading-relaxed">
                       {currentChannel.type === 2 ||
                       currentChannel.type === ChannelType.DirectMessage
                         ? `Đây là sự bắt đầu của lịch sử trò chuyện trực tiếp giữa bạn và ${currentChannel.name}. Tin nhắn được bảo mật riêng tư.`
-                        : `Điểm bắt đầu cho cuộc trò chuyện. Nơi mọi người làm việc với nhau.`}
+                        : `Điểm bắt đầu cho kênh #${currentChannel.name}. Hãy gửi tin nhắn đầu tiên để khuấy động phòng chat nhé~ (≧◡≦)`}
                     </p>
                   </div>
                 ) : !hasMoreMessages && !currentChannel ? (

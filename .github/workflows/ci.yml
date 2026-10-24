@@ -39,9 +39,8 @@ jobs:
       - name: Build
         run: dotnet build NomNa.sln --no-restore -c Release
 
-      # Uncomment when you add test projects:
-      # - name: Test
-      #   run: dotnet test NomNa.sln --no-build -c Release --verbosity normal
+      - name: Run Tests
+        run: dotnet test NomNa.sln --no-build -c Release --verbosity normal
 
   # ============================================
   # Frontend: Install → Type-check → Lint → Build

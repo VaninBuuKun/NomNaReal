@@ -17,24 +17,24 @@ import {
   ChatCircleDots,
 } from "@phosphor-icons/react";
 import {
-  CreateWorkspaceModal,
-  JoinWorkspaceModal,
+  CreateServerModal,
+  JoinServerModal,
 } from "../components/server";
 import { SettingsModal } from "../components/settings";
-import { WorkspaceAvatar, UserAvatar } from "../components/ui";
-import { authApi, workspaceApi } from "../services";
-import type { User, Workspace } from "../types";
+import { ServerAvatar, UserAvatar } from "../components/ui";
+import { authApi, serverApi } from "../services";
+import type { User, Server } from "../types";
 import { LockKeyIcon } from "@phosphor-icons/react/dist/ssr";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [servers, setServers] = useState<Server[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [isJoinWorkspaceOpen, setIsJoinWorkspaceOpen] = useState(false);
+  const [isCreateServerOpen, setIsCreateServerOpen] = useState(false);
+  const [isJoinServerOpen, setIsJoinServerOpen] = useState(false);
 
   useEffect(() => {
     const initHome = async () => {
@@ -49,10 +49,10 @@ export const HomePage: React.FC = () => {
         setCurrentUser(user);
         localStorage.setItem("nomna_logged_in", "true");
 
-        const wsList = await workspaceApi.getWorkspaces();
-        setWorkspaces(wsList);
+        const serverList = await serverApi.getServers();
+        setServers(serverList);
       } catch (err) {
-        console.error("Failed to load user or workspaces on home:", err);
+        console.error("Failed to load user or servers on home:", err);
         localStorage.removeItem("nomna_logged_in");
         navigate("/login", { replace: true });
       } finally {
@@ -75,17 +75,17 @@ export const HomePage: React.FC = () => {
     navigate("/login");
   };
 
-  const handleWorkspaceCreated = (newWs: Workspace) => {
-    setWorkspaces((prev) => [...prev, newWs]);
-    navigate(`/workspace/${newWs.id}`);
+  const handleServerCreated = (newServer: Server) => {
+    setServers((prev) => [...prev, newServer]);
+    navigate(`/channels/${newServer.id}`);
   };
 
-  const handleWorkspaceJoined = (joinedWs: Workspace) => {
-    setWorkspaces((prev) => {
-      const exists = prev.some((w) => w.id === joinedWs.id);
-      return exists ? prev : [...prev, joinedWs];
+  const handleServerJoined = (joinedServer: Server) => {
+    setServers((prev) => {
+      const exists = prev.some((w) => w.id === joinedServer.id);
+      return exists ? prev : [...prev, joinedServer];
     });
-    navigate(`/workspace/${joinedWs.id}`);
+    navigate(`/channels/${joinedServer.id}`);
   };
 
   if (isLoading) {
@@ -109,8 +109,8 @@ export const HomePage: React.FC = () => {
             {/* Vòng viền Gradient tỏa sáng khi hover */}
             <div className="absolute -inset-0.5 rounded-xl bg-gradient-to-r from-[var(--accent-primary)] to-amber-500 opacity-0 group-hover:opacity-100 blur-xs transition-all duration-300 group-hover:scale-105" />
 
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--accent-primary)] to-amber-500 flex items-center justify-center text-white shadow-xs group-hover:scale-105 group-hover:rotate-3 transition-all duration-300">
-              <ChatCircleDots size={24} weight="fill" />
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-[var(--accent-primary)]/20 to-amber-500/20 border border-[var(--accent-primary)]/40 flex items-center justify-center p-1 shadow-xs group-hover:scale-105 group-hover:rotate-3 transition-all duration-300">
+              <img src="/mascot.png" alt="NomNa Mascot" className="w-full h-full object-contain drop-shadow" />
             </div>
           </div>
 
@@ -171,13 +171,13 @@ export const HomePage: React.FC = () => {
             </div>
 
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-[var(--text-primary)] leading-tight">
-              Nền tảng Workspace & giao tiếp thời gian thực hiện đại
+              Nền tảng Máy chủ & giao tiếp thời gian thực hiện đại
             </h1>
 
             <p className="text-sm md:text-base text-[var(--text-muted)] leading-relaxed">
               Kết nối mọi thành viên qua các kênh thảo luận chuyên sâu, luồng
-              thread tập trung và chia sẻ tài liệu, video dung lượng lớn. Chọn
-              một Workspace bên dưới để bắt đầu hoặc khởi tạo Workspace mới
+              trích dẫn tập trung và chia sẻ tài liệu, video dung lượng lớn. Chọn
+              một Máy chủ bên dưới để bắt đầu hoặc khởi tạo Máy chủ mới
               cho đội ngũ của bạn.
             </p>
 
@@ -189,7 +189,7 @@ export const HomePage: React.FC = () => {
                   weight="duotone"
                   className="text-[var(--accent-primary)] shrink-0"
                 />
-                <span className="font-semibold">Kênh & Thread</span>
+                <span className="font-semibold">Kênh & Trích dẫn</span>
               </div>
               <div className="flex items-center gap-2">
                 <CloudArrowUp
@@ -219,27 +219,27 @@ export const HomePage: React.FC = () => {
           </div>
         </section>
 
-        {/* 3. Workspaces Section (Grid + Add Workspace Button) */}
+        {/* 3. Servers Section (Grid + Add Server Button) */}
         <section className="flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border-color)]">
             <div>
               <div className="flex items-center gap-2.5">
                 <h2 className="text-xl font-black tracking-tight text-[var(--text-primary)]">
-                  Danh sách Workspace của bạn
+                  Danh sách Máy chủ của bạn
                 </h2>
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-[var(--accent-soft)] text-[var(--accent-primary)] border border-[var(--accent-primary)]/20">
-                  {workspaces.length}
+                  {servers.length}
                 </span>
               </div>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                Nhấp vào một Workspace để mở khung chat và bắt đầu làm việc
+                Nhấp vào một Máy chủ để mở khung chat và bắt đầu làm việc
               </p>
             </div>
 
             <div className="flex items-center gap-2.5 shrink-0">
               <button
                 type="button"
-                onClick={() => setIsJoinWorkspaceOpen(true)}
+                onClick={() => setIsJoinServerOpen(true)}
                 className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-[4px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-primary)] text-xs font-bold hover:bg-[var(--bg-surface-active)] hover:border-[var(--accent-primary)] transition-all cursor-pointer group shrink-0"
               >
                 <SignIn
@@ -252,7 +252,7 @@ export const HomePage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setIsCreateWorkspaceOpen(true)}
+                onClick={() => setIsCreateServerOpen(true)}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-[4px] bg-[var(--accent-primary)] text-white text-xs font-bold hover:bg-[var(--accent-hover)] transition-all shadow-[0_2px_10px_var(--accent-glow)] cursor-pointer group shrink-0"
               >
                 <Plus
@@ -260,28 +260,28 @@ export const HomePage: React.FC = () => {
                   weight="bold"
                   className="group-hover:rotate-90 transition-transform duration-200"
                 />
-                <span>Tạo Workspace mới</span>
+                <span>Tạo Máy chủ mới</span>
               </button>
             </div>
           </div>
 
-          {/* Workspaces Grid */}
+          {/* Servers Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {/* List of Existing Workspaces */}
-            {workspaces.map((ws) => {
-              const memberCount = ws.memberCount || 1;
+            {/* List of Existing Servers */}
+            {servers.map((s) => {
+              const memberCount = s.memberCount || 1;
 
               return (
                 <div
-                  key={ws.id}
-                  onClick={() => navigate(`/workspace/${ws.id}`)}
+                  key={s.id}
+                  onClick={() => navigate(`/channels/${s.id}`)}
                   className="group relative flex flex-col justify-between p-5 rounded-[4px] border border-[var(--border-color)] bg-[var(--bg-surface)] hover:border-[var(--accent-primary)] hover:shadow-[0_8px_24px_var(--accent-glow)] transition-all duration-200 cursor-pointer select-none"
                 >
                   <div className="flex items-start gap-3.5 mb-3">
-                    {/* Workspace Avatar */}
-                    <WorkspaceAvatar
-                      name={ws.name}
-                      iconUrl={ws.iconUrl}
+                    {/* Server Avatar */}
+                    <ServerAvatar
+                      name={s.name}
+                      iconUrl={s.iconUrl}
                       size="lg"
                       roundedClassName="rounded-[6px]"
                       className="shadow-xs group-hover:scale-105 group-hover:border-[var(--accent-primary)]/40 transition-all duration-200"
@@ -290,7 +290,7 @@ export const HomePage: React.FC = () => {
                     {/* Name & Member Count */}
                     <div className="min-w-0 flex-1">
                       <h3 className="font-bold text-base text-[var(--text-primary)] truncate group-hover:text-[var(--accent-primary)] transition-colors">
-                        {ws.name}
+                        {s.name}
                       </h3>
                       <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] mt-1">
                         <Users size={14} weight="bold" className="shrink-0" />
@@ -301,13 +301,13 @@ export const HomePage: React.FC = () => {
 
                   {/* Description (if any) */}
                   <p className="text-xs text-[var(--text-muted)] line-clamp-2 leading-relaxed mb-4 min-h-[36px]">
-                    {ws.description ||
-                      "Workspace thảo luận, cập nhật tiến độ và làm việc nhóm của dự án."}
+                    {s.description ||
+                      "Máy chủ thảo luận, cập nhật tiến độ và làm việc nhóm của dự án."}
                   </p>
 
                   {/* Enter Button Indicator */}
                   <div className="pt-3 border-t border-[var(--border-color)]/60 flex items-center justify-between text-xs font-semibold text-[var(--text-secondary)] group-hover:text-[var(--accent-primary)] transition-colors">
-                    <span>Truy cập Workspace</span>
+                    <span>Truy cập Máy chủ</span>
                     <ArrowRight
                       size={14}
                       weight="bold"
@@ -318,25 +318,25 @@ export const HomePage: React.FC = () => {
               );
             })}
 
-            {/* Quick Create Workspace Card */}
+            {/* Quick Create Server Card */}
             <div
-              onClick={() => setIsCreateWorkspaceOpen(true)}
+              onClick={() => setIsCreateServerOpen(true)}
               className="flex flex-col items-center justify-center text-center p-6 rounded-[4px] border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-primary)] bg-[var(--bg-surface)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200 cursor-pointer group min-h-[160px]"
             >
               <div className="w-12 h-12 rounded-full bg-[var(--bg-chat)] border border-[var(--border-color)] group-hover:border-[var(--accent-primary)] group-hover:scale-110 flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-all duration-200 mb-3 shadow-2xs">
                 <Plus size={22} weight="bold" />
               </div>
               <h3 className="font-bold text-sm text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
-                Tạo thêm Workspace mới
+                Tạo thêm Máy chủ mới
               </h3>
               <p className="text-xs text-[var(--text-muted)] mt-1 max-w-[200px] leading-relaxed">
-                Tạo một Workspace riêng cho phòng ban hoặc nhóm mới
+                Tạo một Máy chủ riêng cho phòng ban hoặc nhóm mới
               </p>
             </div>
 
-            {/* Quick Join Workspace Card */}
+            {/* Quick Join Server Card */}
             <div
-              onClick={() => setIsJoinWorkspaceOpen(true)}
+              onClick={() => setIsJoinServerOpen(true)}
               className="flex flex-col items-center justify-center text-center p-6 rounded-[4px] border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-primary)] bg-[var(--bg-surface)]/50 hover:bg-[var(--accent-soft)] transition-all duration-200 cursor-pointer group min-h-[160px]"
             >
               <div className="w-12 h-12 rounded-full bg-[var(--bg-chat)] border border-[var(--border-color)] group-hover:border-[var(--accent-primary)] group-hover:scale-110 flex items-center justify-center text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-all duration-200 mb-3 shadow-2xs">
@@ -346,7 +346,7 @@ export const HomePage: React.FC = () => {
                 Tham gia bằng mã mời
               </h3>
               <p className="text-xs text-[var(--text-muted)] mt-1 max-w-[200px] leading-relaxed">
-                Nhập mã mời hoặc liên kết để tham gia vào Workspace có sẵn
+                Nhập mã mời hoặc liên kết để tham gia vào Máy chủ có sẵn
               </p>
             </div>
           </div>
@@ -452,18 +452,18 @@ export const HomePage: React.FC = () => {
         onUserUpdated={(u) => setCurrentUser(u)}
       />
 
-      {/* Create Workspace Modal */}
-      <CreateWorkspaceModal
-        isOpen={isCreateWorkspaceOpen}
-        onClose={() => setIsCreateWorkspaceOpen(false)}
-        onWorkspaceCreated={handleWorkspaceCreated}
+      {/* Create Server Modal */}
+      <CreateServerModal
+        isOpen={isCreateServerOpen}
+        onClose={() => setIsCreateServerOpen(false)}
+        onServerCreated={handleServerCreated}
       />
 
-      {/* Join Workspace Modal */}
-      <JoinWorkspaceModal
-        isOpen={isJoinWorkspaceOpen}
-        onClose={() => setIsJoinWorkspaceOpen(false)}
-        onWorkspaceJoined={handleWorkspaceJoined}
+      {/* Join Server Modal */}
+      <JoinServerModal
+        isOpen={isJoinServerOpen}
+        onClose={() => setIsJoinServerOpen(false)}
+        onServerJoined={handleServerJoined}
       />
     </div>
   );

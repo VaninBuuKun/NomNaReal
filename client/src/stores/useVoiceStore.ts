@@ -13,6 +13,7 @@ export interface VoiceParticipant {
 interface VoiceStoreState {
   connectedChannelId: string | null;
   connectedChannelName: string | null;
+  connectedServerId: string | null;
   connectedWorkspaceId: string | null;
   isMuted: boolean;
   isDeafened: boolean;
@@ -26,7 +27,7 @@ interface VoiceStoreState {
   joinVoice: (
     channelId: string,
     channelName: string,
-    workspaceId: string,
+    serverId: string,
     user: { id: string; displayName: string; avatarUrl?: string | null }
   ) => void;
   leaveVoice: () => void;
@@ -41,6 +42,7 @@ interface VoiceStoreState {
 export const useVoiceStore = create<VoiceStoreState>((set) => ({
   connectedChannelId: null,
   connectedChannelName: null,
+  connectedServerId: null,
   connectedWorkspaceId: null,
   isMuted: false,
   isDeafened: false,
@@ -50,7 +52,7 @@ export const useVoiceStore = create<VoiceStoreState>((set) => ({
   pingMs: 18,
   participants: [],
 
-  joinVoice: (channelId, channelName, workspaceId, user) =>
+  joinVoice: (channelId, channelName, serverId, user) =>
     set((state) => {
       const existingUser = state.participants.find((p) => p.userId === user.id);
       const userParticipant: VoiceParticipant = existingUser || {
@@ -77,7 +79,8 @@ export const useVoiceStore = create<VoiceStoreState>((set) => ({
       return {
         connectedChannelId: channelId,
         connectedChannelName: channelName,
-        connectedWorkspaceId: workspaceId,
+        connectedServerId: serverId,
+        connectedWorkspaceId: serverId,
         participants: [userParticipant, companion],
       };
     }),
@@ -86,6 +89,7 @@ export const useVoiceStore = create<VoiceStoreState>((set) => ({
     set({
       connectedChannelId: null,
       connectedChannelName: null,
+      connectedServerId: null,
       connectedWorkspaceId: null,
       isSpeaking: false,
       isScreenSharing: false,

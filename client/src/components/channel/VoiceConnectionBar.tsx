@@ -11,10 +11,12 @@ import {
 import { useVoiceStore } from '../../stores/useVoiceStore';
 
 interface VoiceConnectionBarProps {
+  currentServerName?: string;
   currentWorkspaceName?: string;
 }
 
 export const VoiceConnectionBar: React.FC<VoiceConnectionBarProps> = ({
+  currentServerName,
   currentWorkspaceName,
 }) => {
   const {
@@ -46,7 +48,7 @@ export const VoiceConnectionBar: React.FC<VoiceConnectionBarProps> = ({
                 Đã Kết Nối Giọng Nói
               </div>
               <div className="text-[11px] text-[var(--text-muted)] truncate mt-0.5 font-medium">
-                {connectedChannelName || 'Kênh thoại'} / {currentWorkspaceName || 'NomNa'}
+                {connectedChannelName || 'Kênh thoại'} / {currentServerName || currentWorkspaceName || 'NomNa'}
               </div>
             </div>
           </div>

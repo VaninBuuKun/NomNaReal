@@ -33,9 +33,9 @@ public class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailCommand, Res
             var emailLower = request.Email.Trim().ToLowerInvariant();
             user = await _userManager.FindByEmailAsync(emailLower);
         }
-        else if (_currentUserService.UserId != Guid.Empty)
+        else if (_currentUserService.UserId is { } currentUserId && currentUserId != Guid.Empty)
         {
-            user = await _userManager.FindByIdAsync(_currentUserService.UserId.ToString());
+            user = await _userManager.FindByIdAsync(currentUserId.ToString());
         }
 
         if (user == null)

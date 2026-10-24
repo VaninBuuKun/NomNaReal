@@ -9,7 +9,7 @@ import {
   Folder,
 } from '@phosphor-icons/react';
 import { Modal } from '../ui';
-import { ChannelType, type Channel, type Workspace } from '../../types';
+import { ChannelType, type Channel, type Server, type Workspace } from '../../types';
 import {
   ChannelOverviewTab,
   ChannelPermissionsTab,
@@ -21,7 +21,8 @@ interface ChannelSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   channel: Channel | null;
-  workspace: Workspace | null;
+  server?: Server | null;
+  workspace?: Workspace | null;
   categories?: Channel[];
   onChannelUpdated: (channel: Channel) => void;
   onChannelDeleted: (channelId: string) => void;
@@ -31,6 +32,7 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   isOpen,
   onClose,
   channel,
+  server,
   workspace,
   categories = [],
   onChannelUpdated,
@@ -143,6 +145,7 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
           {activeTab === 'permissions' && !isCategory && (
             <ChannelPermissionsTab
               channel={channel}
+              server={server}
               workspace={workspace}
             />
           )}

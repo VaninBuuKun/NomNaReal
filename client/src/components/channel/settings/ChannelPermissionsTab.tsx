@@ -7,13 +7,14 @@ import {
 } from '@phosphor-icons/react';
 import { Spinner, UnsavedChangesBar } from '../../ui';
 import { roleApi } from '../../../services/roleApi';
-import type { ChannelOverwrite, Role, Channel, Workspace } from '../../../types';
+import type { ChannelOverwrite, Role, Channel, Server, Workspace } from '../../../types';
 import { OverwriteType } from '../../../types/role';
 import { Permissions } from '../../../types/permissions';
 
 interface ChannelPermissionsTabProps {
   channel: Channel;
-  workspace: Workspace | null;
+  server?: Server | null;
+  workspace?: Workspace | null;
 }
 
 interface OverwritePermissionItem {
@@ -70,9 +71,10 @@ const CHANNEL_PERMS: OverwritePermissionItem[] = [
 
 export const ChannelPermissionsTab: React.FC<ChannelPermissionsTabProps> = ({
   channel,
+  server,
   workspace,
 }) => {
-  const serverId = channel.serverId || workspace?.id || '';
+  const serverId = channel.serverId || server?.id || workspace?.id || '';
 
   // Overwrites & Roles
   const [overwrites, setOverwrites] = useState<ChannelOverwrite[]>([]);

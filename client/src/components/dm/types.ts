@@ -6,6 +6,7 @@ export interface DirectMessageItem {
   lastMessage?: string;
   lastMessageTime?: string;
   unreadCount?: number;
+  serverId?: string;
   workspaceId?: string;
   isPending?: boolean;
 }

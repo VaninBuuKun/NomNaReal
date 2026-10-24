@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Plus,
-  WechatLogoIcon,
 } from '@phosphor-icons/react';
 import { getMediaUrl } from '../../utils/constants';
 import type { Workspace } from '../../types';
@@ -47,15 +46,19 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
         />
         <button
           type="button"
-          title="Tin nhắn trực tiếp (Direct Messages)"
+          title="Tin nhắn trực tiếp & Bạn bè (NomNa Home)"
           onClick={() => onSelectView?.('dms')}
-          className={`w-12 h-12 flex items-center justify-center font-bold text-sm cursor-pointer transition-all duration-200 shadow-md ${
+          className={`w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-200 shadow-md ${
             activeSidebarView === 'dms'
-              ? 'rounded-[16px] bg-[var(--accent-primary,#5865f2)] text-white'
-              : 'rounded-[24px] hover:rounded-[16px] bg-[var(--bg-surface,#313338)] text-[var(--text-secondary,#dbdee1)] hover:bg-[var(--accent-primary,#5865f2)] hover:text-white'
+              ? 'rounded-[16px] bg-[var(--accent-primary,#5865f2)] ring-2 ring-white/20'
+              : 'rounded-[24px] hover:rounded-[16px] bg-[var(--bg-surface,#313338)] hover:bg-[var(--accent-primary,#5865f2)]'
           }`}
         >
-          <WechatLogoIcon size={26} weight="fill" />
+          <img
+            src="/mascot.png"
+            alt="NomNa Mascot"
+            className="w-8 h-8 object-contain drop-shadow transition-transform duration-200 hover:scale-110 active:scale-95"
+          />
         </button>
       </div>
 

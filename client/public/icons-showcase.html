@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NomNa — 5 Concept Icon & Favicon Chuyên Nghiệp (Vector Design)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background: #0c0e14;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 40px 24px 80px;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: #818cf8;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 34px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    .subtitle {
+      font-size: 15px;
+      color: #94a3b8;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .highlight {
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    /* Grid of Concepts */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 60px;
+    }
+    .card {
+      background: #141824;
+      border: 1px solid #1f2738;
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+    .card:hover {
+      border-color: #6366f1;
+      transform: translateY(-4px);
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .concept-tag {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: #1e2436;
+      color: #94a3b8;
+    }
+    .card-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-top: 4px;
+    }
+    .card-desc {
+      font-size: 13px;
+      color: #8b98b0;
+      line-height: 1.6;
+    }
+
+    /* Hero Icon Preview */
+    .hero-icon-box {
+      width: 100%;
+      height: 180px;
+      background: radial-gradient(circle at center, #1e2436 0%, #10131d 100%);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #232c40;
+    }
+    .hero-icon-box img {
+      width: 110px;
+      height: 110px;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.35));
+      transition: transform 0.2s ease;
+    }
+    .hero-icon-box:hover img {
+      transform: scale(1.08);
+    }
+
+    /* Tab Simulations */
+    .sim-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .tabs-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    /* Chrome Tab Light */
+    .tab-chrome-light {
+      background: #dee1e6;
+      padding: 6px 10px 0;
+      border-radius: 10px;
+      display: flex;
+      align-items: flex-end;
+    }
+    .tab-pill-light {
+      background: #ffffff;
+      border-radius: 8px 8px 0 0;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1f2937;
+      box-shadow: 0 -1px 3px rgba(0,0,0,0.05);
+      flex: 1;
+    }
+    .tab-pill-light img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+    }
+    /* Chrome Tab Dark */
+    .tab-chrome-dark {
+      background: #1f2023;
+      padding: 6px 10px 0;
+      border-radius: 10px;
+      display: flex;
+      align-items: flex-end;
+    }
+    .tab-pill-dark {
+      background: #313338;
+      border-radius: 8px 8px 0 0;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #f2f3f5;
+      box-shadow: 0 -1px 4px rgba(0,0,0,0.2);
+      flex: 1;
+    }
+    .tab-pill-dark img {
+      width: 16px;
+      height: 16px;
+      object-fit: contain;
+    }
+
+    /* Size scale row */
+    .sizes-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f121a;
+      border-radius: 12px;
+      padding: 10px 14px;
+      border: 1px solid #1a2030;
+    }
+    .size-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .size-item span {
+      font-size: 10px;
+      color: #64748b;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    footer {
+      text-align: center;
+      padding-top: 40px;
+      border-top: 1px solid #1e2436;
+      color: #64748b;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge-pill">✨ Human-Crafted Vector Identity</div>
+      <h1>5 Concept Icon Chuyên Nghiệp Cho NomNa</h1>
+      <p class="subtitle">
+        Thiết kế hình học chuẩn Vector theo triết lý <span class="highlight">Discord &amp; Facebook</span>: 
+        không vẽ lông 3D AI, không tai nghe gaming, tách nền trong suốt 100%, sắc nét tuyệt đối ở kích thước 16px trên thanh Tab.
+      </p>
+    </header>
+
+    <div class="grid">
+      <!-- CONCEPT 1 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="concept-tag">Concept 01</span>
+        </div>
+        <div>
+          <h2 class="card-title">The N-Dialogue</h2>
+          <p class="card-desc">Bong bóng hội thoại cách điệu thành chữ <strong>N</strong> tối giản. Màu Discord Blurple sang trọng, cực kỳ rõ ràng ở 16px.</p>
+        </div>
+        <div class="hero-icon-box">
+          <img src="/icons/concept-1.svg" alt="Concept 1">
+        </div>
+        <div>
+          <div class="sim-section-title">Xem trước trên Tab Chrome (16px)</div>
+          <div class="tabs-wrapper">
+            <div class="tab-chrome-light">
+              <div class="tab-pill-light">
+                <img src="/icons/concept-1.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+            <div class="tab-chrome-dark">
+              <div class="tab-pill-dark">
+                <img src="/icons/concept-1.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sizes-row">
+          <div class="size-item"><img src="/icons/concept-1.svg" style="width:16px;height:16px;"><span>16px</span></div>
+          <div class="size-item"><img src="/icons/concept-1.svg" style="width:24px;height:24px;"><span>24px</span></div>
+          <div class="size-item"><img src="/icons/concept-1.svg" style="width:32px;height:32px;"><span>32px</span></div>
+          <div class="size-item"><img src="/icons/concept-1.svg" style="width:48px;height:48px;"><span>48px</span></div>
+        </div>
+      </div>
+
+      <!-- CONCEPT 2 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="concept-tag">Concept 02</span>
+        </div>
+        <div>
+          <h2 class="card-title">The Clyde-Chibi</h2>
+          <p class="card-desc">Linh vật Tech phẳng tối giản (Vector Flat Mascot) phong cách Discord Clyde. Mặt cười nụ ấm áp, tai tròn, có đuôi chat.</p>
+        </div>
+        <div class="hero-icon-box">
+          <img src="/icons/concept-2.svg" alt="Concept 2">
+        </div>
+        <div>
+          <div class="sim-section-title">Xem trước trên Tab Chrome (16px)</div>
+          <div class="tabs-wrapper">
+            <div class="tab-chrome-light">
+              <div class="tab-pill-light">
+                <img src="/icons/concept-2.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+            <div class="tab-chrome-dark">
+              <div class="tab-pill-dark">
+                <img src="/icons/concept-2.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sizes-row">
+          <div class="size-item"><img src="/icons/concept-2.svg" style="width:16px;height:16px;"><span>16px</span></div>
+          <div class="size-item"><img src="/icons/concept-2.svg" style="width:24px;height:24px;"><span>24px</span></div>
+          <div class="size-item"><img src="/icons/concept-2.svg" style="width:32px;height:32px;"><span>32px</span></div>
+          <div class="size-item"><img src="/icons/concept-2.svg" style="width:48px;height:48px;"><span>48px</span></div>
+        </div>
+      </div>
+
+      <!-- CONCEPT 3 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="concept-tag">Concept 03</span>
+        </div>
+        <div>
+          <h2 class="card-title">Wave-Bubble (Voice &amp; Chat)</h2>
+          <p class="card-desc">Huy hiệu tròn Gradient Cyan-Indigo, bong bóng chat trắng lồng 3 dải sóng âm thanh thời gian thực. Đậm chất nền tảng đàm thoại.</p>
+        </div>
+        <div class="hero-icon-box">
+          <img src="/icons/concept-3.svg" alt="Concept 3">
+        </div>
+        <div>
+          <div class="sim-section-title">Xem trước trên Tab Chrome (16px)</div>
+          <div class="tabs-wrapper">
+            <div class="tab-chrome-light">
+              <div class="tab-pill-light">
+                <img src="/icons/concept-3.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+            <div class="tab-chrome-dark">
+              <div class="tab-pill-dark">
+                <img src="/icons/concept-3.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sizes-row">
+          <div class="size-item"><img src="/icons/concept-3.svg" style="width:16px;height:16px;"><span>16px</span></div>
+          <div class="size-item"><img src="/icons/concept-3.svg" style="width:24px;height:24px;"><span>24px</span></div>
+          <div class="size-item"><img src="/icons/concept-3.svg" style="width:32px;height:32px;"><span>32px</span></div>
+          <div class="size-item"><img src="/icons/concept-3.svg" style="width:48px;height:48px;"><span>48px</span></div>
+        </div>
+      </div>
+
+      <!-- CONCEPT 4 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="concept-tag">Concept 04</span>
+        </div>
+        <div>
+          <h2 class="card-title">Origami Flight N</h2>
+          <p class="card-desc">Chữ N gấp dải màu Gradient (Violet &rarr; Pink &rarr; Orange) tựa cánh thư bay. Nền Squircle Obsidian đen tuyền siêu sang như Linear.app.</p>
+        </div>
+        <div class="hero-icon-box">
+          <img src="/icons/concept-4.svg" alt="Concept 4">
+        </div>
+        <div>
+          <div class="sim-section-title">Xem trước trên Tab Chrome (16px)</div>
+          <div class="tabs-wrapper">
+            <div class="tab-chrome-light">
+              <div class="tab-pill-light">
+                <img src="/icons/concept-4.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+            <div class="tab-chrome-dark">
+              <div class="tab-pill-dark">
+                <img src="/icons/concept-4.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sizes-row">
+          <div class="size-item"><img src="/icons/concept-4.svg" style="width:16px;height:16px;"><span>16px</span></div>
+          <div class="size-item"><img src="/icons/concept-4.svg" style="width:24px;height:24px;"><span>24px</span></div>
+          <div class="size-item"><img src="/icons/concept-4.svg" style="width:32px;height:32px;"><span>32px</span></div>
+          <div class="size-item"><img src="/icons/concept-4.svg" style="width:48px;height:48px;"><span>48px</span></div>
+        </div>
+      </div>
+
+      <!-- CONCEPT 5 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="concept-tag">Concept 05</span>
+        </div>
+        <div>
+          <h2 class="card-title">Dual Connect Nodes</h2>
+          <p class="card-desc">Hai bong bóng giao thoa thân thiện (trắng &amp; cyan) trên nền tròn Royal Purple. Biểu thị sự kết nối "Nôm Na" gần gũi, không khoảng cách.</p>
+        </div>
+        <div class="hero-icon-box">
+          <img src="/icons/concept-5.svg" alt="Concept 5">
+        </div>
+        <div>
+          <div class="sim-section-title">Xem trước trên Tab Chrome (16px)</div>
+          <div class="tabs-wrapper">
+            <div class="tab-chrome-light">
+              <div class="tab-pill-light">
+                <img src="/icons/concept-5.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+            <div class="tab-chrome-dark">
+              <div class="tab-pill-dark">
+                <img src="/icons/concept-5.svg" alt="Tab Icon">
+                <span>NomNa — Trò chuyện</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="sizes-row">
+          <div class="size-item"><img src="/icons/concept-5.svg" style="width:16px;height:16px;"><span>16px</span></div>
+          <div class="size-item"><img src="/icons/concept-5.svg" style="width:24px;height:24px;"><span>24px</span></div>
+          <div class="size-item"><img src="/icons/concept-5.svg" style="width:32px;height:32px;"><span>32px</span></div>
+          <div class="size-item"><img src="/icons/concept-5.svg" style="width:48px;height:48px;"><span>48px</span></div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>NomNa Real-Time Chat Platform &bull; Thiết kế Vector chuẩn Brand Identity &bull; Sẵn sàng áp dụng với 1 lựa chọn</p>
+    </footer>
+  </div>
+</body>
+</html>

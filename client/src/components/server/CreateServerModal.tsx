@@ -2,19 +2,23 @@ import React, { useState, useRef } from 'react';
 import { UploadCloud, Loader2 } from 'lucide-react';
 import { getMediaUrl } from '../../utils/constants';
 import { Modal, Button, Input } from '../ui';
-import { workspaceApi } from '../../services/serverApi';
+import { serverApi } from '../../services/serverApi';
 import { fileApi } from '../../services/fileApi';
-import type { Workspace } from '../../types';
+import type { Server, Workspace } from '../../types';
 
-interface CreateWorkspaceModalProps {
+export interface CreateServerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onWorkspaceCreated: (workspace: Workspace) => void;
+  onServerCreated?: (server: Server) => void;
+  onWorkspaceCreated?: (workspace: Workspace) => void;
 }
 
-export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
+export type CreateWorkspaceModalProps = CreateServerModalProps;
+
+export const CreateServerModal: React.FC<CreateServerModalProps> = ({
   isOpen,
   onClose,
+  onServerCreated,
   onWorkspaceCreated,
 }) => {
   const [name, setName] = useState('');
@@ -66,8 +70,9 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
     try {
       setIsSubmitting(true);
       setError(null);
-      const newWs = await workspaceApi.createWorkspace(name.trim(), iconUrl.trim());
-      onWorkspaceCreated(newWs);
+      const newServer = await serverApi.createServer(name.trim(), iconUrl.trim());
+      onServerCreated?.(newServer);
+      onWorkspaceCreated?.(newServer);
       handleClose();
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
@@ -182,4 +187,4 @@ export const CreateWorkspaceModal: React.FC<CreateWorkspaceModalProps> = ({
     </Modal>
   );
 };
-export const CreateServerModal = CreateWorkspaceModal;
+export const CreateWorkspaceModal = CreateServerModal;

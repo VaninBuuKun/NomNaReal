@@ -52,8 +52,8 @@ export const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-amber-500/25 group-hover:scale-105 transition-transform">
-              <ChatCircleDots size={24} weight="fill" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500/20 to-orange-500/20 border border-amber-500/30 flex items-center justify-center p-1 shadow-lg shadow-amber-500/10 group-hover:scale-105 transition-transform">
+              <img src="/mascot.png" alt="NomNa Mascot" className="w-full h-full object-contain drop-shadow" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
@@ -549,7 +549,7 @@ export const LandingPage: React.FC = () => {
               Chế độ Lớp Học — Đơn giản hóa việc giảng dạy &amp; nộp bài
             </h2>
             <p className="mt-3 text-sm sm:text-base text-slate-300">
-              Mỗi workspace của bạn có thể bật chế độ Lớp Học chỉ với 1 click. Không cần cài thêm bất kỳ phần mềm nào khác.
+              Mỗi máy chủ của bạn có thể bật chế độ Lớp Học chỉ với 1 click. Không cần cài thêm bất kỳ phần mềm nào khác.
             </p>
           </div>
 
@@ -704,7 +704,7 @@ export const LandingPage: React.FC = () => {
                 <ul className="space-y-3 text-xs text-slate-300">
                   <li className="flex items-center gap-2.5">
                     <Check size={16} className="text-emerald-400" />
-                    <span>Tối đa <strong>50 thành viên</strong> mỗi workspace</span>
+                    <span>Tối đa <strong>50 thành viên</strong> mỗi máy chủ</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <Check size={16} className="text-emerald-400" />
@@ -787,7 +787,7 @@ export const LandingPage: React.FC = () => {
                 <ul className="space-y-3 text-xs text-slate-300">
                   <li className="flex items-center gap-2.5">
                     <Check size={16} className="text-emerald-400" />
-                    <span>Không giới hạn số thành viên &amp; workspace</span>
+                    <span>Không giới hạn số thành viên &amp; máy chủ</span>
                   </li>
                   <li className="flex items-center gap-2.5">
                     <Check size={16} className="text-emerald-400" />
@@ -924,11 +924,11 @@ export const LandingPage: React.FC = () => {
               },
               {
                 q: "Làm thế nào để tạo lớp học và mời học sinh vào?",
-                a: "Sau khi đăng ký tài khoản, bạn bấm vào nút 'Tạo Workspace', chọn mẫu 'Lớp Học' hoặc 'Nhóm Dự Án'. Hệ thống sẽ tự động tạo một đường link mời (hoặc mã mời 6 chữ số). Bạn chỉ cần gửi đường link đó vào nhóm lớp là mọi người có thể tham gia ngay.",
+                a: "Sau khi đăng ký tài khoản, bạn bấm vào nút 'Tạo Máy Chủ', chọn mẫu 'Lớp Học' hoặc 'Nhóm Dự Án'. Hệ thống sẽ tự động tạo một đường link mời (hoặc mã mời 6 chữ số). Bạn chỉ cần gửi đường link đó vào nhóm lớp là mọi người có thể tham gia ngay.",
               },
               {
                 q: "Dữ liệu thảo luận và tài liệu học tập của chúng tôi có được bảo mật không?",
-                a: "Chắc chắn. Tất cả kênh chat riêng tư và bài tập chỉ có thành viên trong workspace mới được quyền truy cập. Chúng tôi không chia sẻ hoặc bán dữ liệu của bạn cho bất kỳ bên thứ ba nào.",
+                a: "Chắc chắn. Tất cả kênh chat riêng tư và bài tập chỉ có thành viên trong máy chủ mới được quyền truy cập. Chúng tôi không chia sẻ hoặc bán dữ liệu của bạn cho bất kỳ bên thứ ba nào.",
               },
             ].map((faq, idx) => (
               <div
@@ -967,14 +967,14 @@ export const LandingPage: React.FC = () => {
               Sẵn sàng tạo không gian học tập &amp; làm việc nhóm hiệu quả hơn?
             </h2>
             <p className="mt-4 text-sm sm:text-base text-slate-300 max-w-xl mx-auto">
-              Chỉ mất chưa đầy 30 giây để tạo workspace đầu tiên của bạn. Hoàn toàn miễn phí, không yêu cầu thẻ tín dụng.
+              Chỉ mất chưa đầy 30 giây để tạo máy chủ đầu tiên của bạn. Hoàn toàn miễn phí, không yêu cầu thẻ tín dụng.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
               <Link
                 to="/register"
                 className="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-base shadow-lg shadow-amber-500/30 transition-all hover:scale-105"
               >
-                Tạo Workspace Miễn Phí
+                Tạo Máy Chủ Miễn Phí
               </Link>
               <Link
                 to="/login"
