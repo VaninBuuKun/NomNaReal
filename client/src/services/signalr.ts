@@ -1,5 +1,17 @@
 import * as signalR from '@microsoft/signalr';
-import type { Message, MessageEdited, ReactionUpdate, DeletedMessage, Channel, AppNotification } from '../types';
+import type {
+  Message,
+  MessageEdited,
+  ReactionUpdate,
+  DeletedMessage,
+  Channel,
+  AppNotification,
+  CallOfferPayload,
+  CallAnswerPayload,
+  IceCandidatePayload,
+  CallRejectedPayload,
+  CallEndedPayload,
+} from '../types';
 
 export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
 
@@ -385,6 +397,110 @@ export class SignalRService {
       } catch (err) {
         console.warn('StopTyping warning:', err);
       }
+    }
+  }
+
+  // ==========================================
+  // WebRTC 1v1 Call Signaling Methods
+  // ==========================================
+
+  public async startCall(targetUserId: string, offerSdp: string, isVideoCall: boolean): Promise<void> {
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      throw new Error('SignalR is not connected');
+    }
+    await this.connection.invoke('StartCall', targetUserId, offerSdp, isVideoCall);
+  }
+
+  public async acceptCall(callerId: string, answerSdp: string): Promise<void> {
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      throw new Error('SignalR is not connected');
+    }
+    await this.connection.invoke('AcceptCall', callerId, answerSdp);
+  }
+
+  public async rejectCall(callerId: string, reason?: string): Promise<void> {
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+    await this.connection.invoke('RejectCall', callerId, reason || null);
+  }
+
+  public async endCall(peerUserId: string): Promise<void> {
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+    await this.connection.invoke('EndCall', peerUserId);
+  }
+
+  public async sendIceCandidate(targetUserId: string, candidate: string): Promise<void> {
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+    await this.connection.invoke('SendIceCandidate', targetUserId, candidate);
+  }
+
+  public onCallIncoming(callback: (payload: CallOfferPayload) => void): void {
+    if (this.connection) {
+      this.connection.on('CallIncoming', callback);
+    }
+  }
+
+  public offCallIncoming(callback?: (payload: CallOfferPayload) => void): void {
+    if (this.connection) {
+      if (callback) this.connection.off('CallIncoming', callback);
+      else this.connection.off('CallIncoming');
+    }
+  }
+
+  public onCallAccepted(callback: (payload: CallAnswerPayload) => void): void {
+    if (this.connection) {
+      this.connection.on('CallAccepted', callback);
+    }
+  }
+
+  public offCallAccepted(callback?: (payload: CallAnswerPayload) => void): void {
+    if (this.connection) {
+      if (callback) this.connection.off('CallAccepted', callback);
+      else this.connection.off('CallAccepted');
+    }
+  }
+
+  public onCallRejected(callback: (payload: CallRejectedPayload) => void): void {
+    if (this.connection) {
+      this.connection.on('CallRejected', callback);
+    }
+  }
+
+  public offCallRejected(callback?: (payload: CallRejectedPayload) => void): void {
+    if (this.connection) {
+      if (callback) this.connection.off('CallRejected', callback);
+      else this.connection.off('CallRejected');
+    }
+  }
+
+  public onCallEnded(callback: (payload: CallEndedPayload) => void): void {
+    if (this.connection) {
+      this.connection.on('CallEnded', callback);
+    }
+  }
+
+  public offCallEnded(callback?: (payload: CallEndedPayload) => void): void {
+    if (this.connection) {
+      if (callback) this.connection.off('CallEnded', callback);
+      else this.connection.off('CallEnded');
+    }
+  }
+
+  public onReceiveIceCandidate(callback: (payload: IceCandidatePayload) => void): void {
+    if (this.connection) {
+      this.connection.on('ReceiveIceCandidate', callback);
+    }
+  }
+
+  public offReceiveIceCandidate(callback?: (payload: IceCandidatePayload) => void): void {
+    if (this.connection) {
+      if (callback) this.connection.off('ReceiveIceCandidate', callback);
+      else this.connection.off('ReceiveIceCandidate');
     }
   }
 

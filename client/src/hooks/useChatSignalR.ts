@@ -1,6 +1,6 @@
 import { useFriendStore } from "../stores";
 import { useCallback } from 'react';
-import { signalRService, messageApi } from '../services';
+import { signalRService, messageApi, webrtcService } from '../services';
 import {
   useWorkspaceStore,
   useChatStore,
@@ -63,6 +63,9 @@ export function useChatSignalR({
       (data) => setTypingUser(data.username),
       () => setTypingUser(null)
     );
+
+    // Initialize WebRTC 1v1 Call Signaling listeners
+    webrtcService.initSignalRListeners();
 
     // 2. Reactions
     signalRService.onReactionUpdated((update) => {
