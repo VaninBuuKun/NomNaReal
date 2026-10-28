@@ -15,6 +15,8 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
+    allowedHosts: true,
     proxy: {
       '/hubs': {
         target: 'http://localhost:5000',

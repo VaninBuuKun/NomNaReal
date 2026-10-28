@@ -228,16 +228,19 @@ class WebRtcService {
       if (!screenTrack) return;
       this.screenTrack = screenTrack;
 
-      // Replace outgoing video track on the WebRTC sender
+      // Replace outgoing video track on the WebRTC sender (or add track if audio-only call)
       const videoSender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
       if (videoSender) {
         await videoSender.replaceTrack(screenTrack);
+      } else {
+        this.peerConnection.addTrack(screenTrack, screenStream);
       }
 
-      // Update local preview to show the screen stream
+      // Update local preview to show the screen stream in Picture-in-Picture
+      useCallStore.getState().setLocalStream(screenStream);
       useCallStore.getState().setScreenSharing(true);
 
-      // When user clicks the native browser "Stop sharing" button
+      // When user clicks the native browser "Stop sharing" floating bar
       screenTrack.onended = () => {
         this.stopScreenShare();
       };
@@ -264,6 +267,10 @@ class WebRtcService {
       }
     }
 
+    // Restore local camera stream in PIP
+    if (this.localStream) {
+      useCallStore.getState().setLocalStream(this.localStream);
+    }
     useCallStore.getState().setScreenSharing(false);
   }
 
@@ -299,9 +306,14 @@ class WebRtcService {
     };
 
     pc.ontrack = (event) => {
-      if (event.streams && event.streams[0]) {
-        useCallStore.getState().setRemoteStream(event.streams[0]);
+      console.log('WebRTC ontrack received:', event.track.kind, event.streams);
+      let stream = event.streams && event.streams[0];
+      if (!stream) {
+        const currentRemote = useCallStore.getState().remoteStream || new MediaStream();
+        currentRemote.addTrack(event.track);
+        stream = currentRemote;
       }
+      useCallStore.getState().setRemoteStream(stream);
     };
 
     pc.onconnectionstatechange = () => {

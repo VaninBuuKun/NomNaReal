@@ -1,5 +1,5 @@
 export const DEFAULT_AVATAR = (import.meta.env.VITE_DEFAULT_AVATAR as string) || '';
-export const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+export const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || '/api';
 
 export const getMediaUrl = (url?: string | null): string => {
   if (!url || typeof url !== 'string' || url.trim() === '' || url.includes('default-avatar.png')) return '';

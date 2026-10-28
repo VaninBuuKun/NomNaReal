@@ -33,6 +33,7 @@ export const CallOverlay: React.FC = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Bind local media stream to local video element
   useEffect(() => {
@@ -41,10 +42,16 @@ export const CallOverlay: React.FC = () => {
     }
   }, [localStream, isMinimized]);
 
-  // Bind remote media stream to remote video element
+  // Bind remote media stream to both remote video and audio element
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
+    if (remoteStream) {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+      }
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch((e) => console.warn('Audio auto-play prevented:', e));
+      }
     }
   }, [remoteStream, isMinimized]);
 
@@ -92,6 +99,8 @@ export const CallOverlay: React.FC = () => {
   if (isMinimized) {
     return (
       <div className="fixed bottom-5 right-5 z-[160] w-80 bg-sidebar border border-border rounded-card shadow-floating p-3 flex flex-col gap-2.5 animate-in slide-in-from-bottom-2 duration-150 select-none">
+        {/* Dedicated Audio Element for Voice Stream */}
+        <audio ref={remoteAudioRef} autoPlay playsInline />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <Avatar src={peer?.avatarUrl} fallback={peer?.displayName || 'User'} size="sm" />
@@ -171,6 +180,8 @@ export const CallOverlay: React.FC = () => {
   // ---------------------------------------------------------------------------
   return (
     <div className="fixed inset-0 z-[150] bg-overlay backdrop-blur-sm flex items-center justify-center p-4 select-none animate-in fade-in duration-200">
+      {/* Dedicated Audio Element for Voice Stream */}
+      <audio ref={remoteAudioRef} autoPlay playsInline />
       <div className="w-full max-w-5xl h-[86vh] bg-chat border border-border rounded-modal shadow-modal flex flex-col overflow-hidden relative">
         {/* Top Bar: Caller Info, Duration & Minimize */}
         <div className="h-14 px-5 border-b border-border bg-sidebar/80 flex items-center justify-between shrink-0 z-20">
