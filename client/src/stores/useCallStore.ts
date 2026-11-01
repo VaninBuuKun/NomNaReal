@@ -1,6 +1,19 @@
 import { create } from 'zustand';
 import type { CallPeer, CallOfferPayload, CallStatus } from '../types';
 
+/** Media state the remote peer reports over the WebRTC data channel. */
+export interface RemoteMediaState {
+  cameraOff: boolean;
+  micMuted: boolean;
+  screenSharing: boolean;
+}
+
+const initialRemoteMedia: RemoteMediaState = {
+  cameraOff: false,
+  micMuted: false,
+  screenSharing: false,
+};
+
 interface CallStoreState {
   callStatus: CallStatus;
   peer: CallPeer | null;
@@ -9,10 +22,13 @@ interface CallStoreState {
   isCameraOff: boolean;
   isScreenSharing: boolean;
   isSpeakerMuted: boolean;
-  remoteVolume: number; // 0 to 1
-  isFullScreen: boolean;
+  /** Stable MediaStream (camera + mic). Never replaced by the screen-share stream. */
   localStream: MediaStream | null;
+  /** Stable MediaStream that accumulates remote tracks. */
   remoteStream: MediaStream | null;
+  /** Bumped whenever a remote track is added / muted / unmuted / ended so React re-renders. */
+  remoteTrackVersion: number;
+  remoteMedia: RemoteMediaState;
   incomingOffer: CallOfferPayload | null;
   callDuration: number;
   error: string | null;
@@ -21,17 +37,15 @@ interface CallStoreState {
   setIncomingCall: (offer: CallOfferPayload) => void;
   setOutgoingCall: (peer: CallPeer, isVideo: boolean) => void;
   setConnecting: () => void;
-  setConnected: (remoteStream?: MediaStream | null) => void;
+  setConnected: () => void;
   setLocalStream: (stream: MediaStream | null) => void;
   setRemoteStream: (stream: MediaStream | null) => void;
-  setIsVideoCall: (isVideo: boolean) => void;
+  bumpRemoteTrackVersion: () => void;
+  setRemoteMedia: (media: Partial<RemoteMediaState>) => void;
   setCameraOff: (isOff: boolean) => void;
-  toggleMic: () => void;
-  toggleCamera: () => void;
+  setMicMuted: (muted: boolean) => void;
   toggleSpeaker: () => void;
-  setRemoteVolume: (vol: number) => void;
   setScreenSharing: (sharing: boolean) => void;
-  toggleFullScreen: () => void;
   setError: (err: string | null) => void;
   setDuration: (duration: number | ((prev: number) => number)) => void;
   resetCall: () => void;
@@ -45,10 +59,10 @@ const initialState = {
   isCameraOff: false,
   isScreenSharing: false,
   isSpeakerMuted: false,
-  remoteVolume: 1,
-  isFullScreen: false,
   localStream: null,
   remoteStream: null,
+  remoteTrackVersion: 0,
+  remoteMedia: initialRemoteMedia,
   incomingOffer: null,
   callDuration: 0,
   error: null,
@@ -62,6 +76,7 @@ export const useCallStore = create<CallStoreState>((set) => ({
       callStatus: 'incoming',
       incomingOffer: offer,
       isVideoCall: offer.isVideoCall,
+      isCameraOff: !offer.isVideoCall,
       peer: {
         id: offer.callerId,
         displayName: offer.callerName,
@@ -75,69 +90,32 @@ export const useCallStore = create<CallStoreState>((set) => ({
       callStatus: 'outgoing',
       peer,
       isVideoCall: isVideo,
+      isCameraOff: !isVideo,
       incomingOffer: null,
       error: null,
       callDuration: 0,
     }),
 
-  setConnecting: () =>
-    set({
-      callStatus: 'connecting',
-      error: null,
-    }),
+  setConnecting: () => set({ callStatus: 'connecting' }),
 
-  setConnected: (remoteStream) =>
-    set((state) => ({
-      callStatus: 'connected',
-      remoteStream: remoteStream !== undefined ? remoteStream : state.remoteStream,
-      error: null,
-    })),
+  setConnected: () =>
+    set((state) => (state.callStatus === 'connected' ? state : { callStatus: 'connected' })),
 
   setLocalStream: (stream) => set({ localStream: stream }),
 
   setRemoteStream: (stream) => set({ remoteStream: stream }),
 
-  setIsVideoCall: (isVideo) => set({ isVideoCall: isVideo }),
+  bumpRemoteTrackVersion: () => set((state) => ({ remoteTrackVersion: state.remoteTrackVersion + 1 })),
+
+  setRemoteMedia: (media) => set((state) => ({ remoteMedia: { ...state.remoteMedia, ...media } })),
+
   setCameraOff: (isOff) => set({ isCameraOff: isOff }),
 
-  toggleMic: () =>
-    set((state) => {
-      const nextMuted = !state.isMicMuted;
-      if (state.localStream) {
-        state.localStream.getAudioTracks().forEach((track) => {
-          track.enabled = !nextMuted;
-        });
-      }
-      return { isMicMuted: nextMuted };
-    }),
+  setMicMuted: (muted) => set({ isMicMuted: muted }),
 
-  toggleCamera: () =>
-    set((state) => {
-      const nextOff = !state.isCameraOff;
-      if (state.localStream) {
-        state.localStream.getVideoTracks().forEach((track) => {
-          track.enabled = !nextOff;
-        });
-      }
-      return { isCameraOff: nextOff };
-    }),
-
-  toggleSpeaker: () =>
-    set((state) => ({
-      isSpeakerMuted: !state.isSpeakerMuted,
-    })),
-
-  setRemoteVolume: (vol) =>
-    set({
-      remoteVolume: Math.max(0, Math.min(1, vol)),
-    }),
+  toggleSpeaker: () => set((state) => ({ isSpeakerMuted: !state.isSpeakerMuted })),
 
   setScreenSharing: (sharing) => set({ isScreenSharing: sharing }),
-
-  toggleFullScreen: () =>
-    set((state) => ({
-      isFullScreen: !state.isFullScreen,
-    })),
 
   setError: (err) => set({ error: err }),
 
@@ -147,6 +125,10 @@ export const useCallStore = create<CallStoreState>((set) => ({
     })),
 
   resetCall: () => {
-    set(initialState);
+    set((state) => ({
+      ...initialState,
+      // Keep a reject / failure message visible after the session is torn down
+      error: state.error,
+    }));
   },
 }));

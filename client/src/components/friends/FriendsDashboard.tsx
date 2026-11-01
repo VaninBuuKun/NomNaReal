@@ -12,9 +12,10 @@ import {
   Lightning,
   UserCircleMinus,
   Prohibit,
+  List,
 } from '@phosphor-icons/react';
 import { Avatar } from '../ui';
-import { useFriendStore } from '../../stores';
+import { useFriendStore, useUiStore } from '../../stores';
 import type { User } from '../../types';
 import type { DirectMessageUser } from '../dm';
 
@@ -189,7 +190,17 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
     >
       {/* 1. Discord Friends Top Navigation Bar */}
       <header className="h-[54px] border-b border-[var(--border-color)] px-4 flex items-center justify-between shrink-0 bg-[var(--bg-chat)] z-10">
-        <div className="flex items-center gap-4 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
+          {/* Mobile Hamburger Menu Toggle Button */}
+          <button
+            type="button"
+            onClick={() => useUiStore.getState().toggleMobileSidebar()}
+            className="md:hidden p-1.5 rounded-control text-text-muted hover:text-text-primary hover:bg-surface-active transition-colors cursor-pointer shrink-0"
+            title="Mở danh sách kênh / bạn bè"
+          >
+            <List size={20} weight="bold" />
+          </button>
+
           {/* Friends Header Icon + Title */}
           <div className="flex items-center gap-2 text-[var(--text-secondary)] font-bold text-sm shrink-0 pr-2 border-r border-[var(--border-color)]">
             <Users size={20} weight="bold" className="text-[var(--text-muted)]" />
@@ -252,7 +263,7 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
             >
               <span>Chờ xử lý</span>
               {pendingIncoming.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#f23f43] text-white">
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-danger text-on-accent">
                   {pendingIncoming.length}
                 </span>
               )}

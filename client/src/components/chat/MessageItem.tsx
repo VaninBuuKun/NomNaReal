@@ -66,6 +66,7 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isEditMentionOpen, setIsEditMentionOpen] = useState(false);
   const [editMentionQuery, setEditMentionQuery] = useState("");
+  const [showMobileActions, setShowMobileActions] = useState(false);
   const editTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const showDateDivider = isDifferentDay(msg.createdAt, prevMsg?.createdAt);
@@ -191,7 +192,15 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
       {/* Message Row */}
       <div
         id={`msg-${msg.id}`}
+        onClick={() => {
+          // On touch devices without hover, clicking the message row toggles the action toolbar
+          if (typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches) {
+            setShowMobileActions((prev) => !prev);
+          }
+        }}
         className={`group relative flex flex-col w-full px-3.5 sm:px-4 transition-colors duration-150 ${
+          showMobileActions ? "ring-1 ring-accent-primary/40 bg-accent-soft/10 rounded-xl" : ""
+        } ${
           isMentioningMe
             ? "bg-accent-soft/20 hover:bg-accent-soft/30 before:absolute before:left-0 before:top-0 before:bottom-0 before:w-[3px] before:bg-accent-primary rounded-r-xl rounded-l-none"
             : "hover:bg-white/[0.03] rounded-xl"
@@ -509,14 +518,23 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
           </div>
         </div>
 
-        {/* Toolbar on Hover */}
-        <div className="absolute -top-3.5 right-4 bg-chat border border-border rounded-control p-0.5 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 transition-all duration-150 shadow-raised z-10">
+        {/* Toolbar on Hover / Mobile Touch */}
+        <div
+          className={`absolute -top-3.5 right-2 sm:right-4 bg-chat border border-border rounded-control p-0.5 flex items-center gap-0.5 transition-all duration-150 shadow-raised z-20 ${
+            showMobileActions
+              ? "opacity-100 translate-y-0 pointer-events-auto"
+              : "opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 pointer-events-none group-hover:pointer-events-auto"
+          }`}
+        >
           {/* Quick Emojis */}
           {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
             <button
               key={emoji}
               type="button"
-              onClick={() => onToggleReaction(msg.id, emoji)}
+              onClick={() => {
+                setShowMobileActions(false);
+                onToggleReaction(msg.id, emoji);
+              }}
               className="p-1 px-1.5 text-sm hover:scale-125 active:scale-95 transition-transform cursor-pointer rounded select-none"
               title={`Thả cảm xúc ${emoji}`}
             >
@@ -531,7 +549,10 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
             type="button"
             className="p-1.5 text-text-secondary hover:bg-surface hover:text-text-primary rounded-control text-xs transition-colors cursor-pointer"
             title="Trả lời"
-            onClick={() => onReplyMessage(msg)}
+            onClick={() => {
+              setShowMobileActions(false);
+              onReplyMessage(msg);
+            }}
           >
             <ArrowUUpLeft size={15} />
           </button>
@@ -545,9 +566,10 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
                 : "text-text-secondary hover:bg-surface hover:text-warning"
             }`}
             title={isPinned ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn"}
-            onClick={() =>
-              isPinned ? onUnpinMessage?.(msg.id) : onPinMessage?.(msg.id)
-            }
+            onClick={() => {
+              setShowMobileActions(false);
+              isPinned ? onUnpinMessage?.(msg.id) : onPinMessage?.(msg.id);
+            }}
           >
             <PushPin size={15} weight={isPinned ? "fill" : "regular"} />
           </button>
@@ -558,7 +580,10 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
               type="button"
               className="p-1.5 text-text-secondary hover:bg-surface hover:text-text-primary rounded-control text-xs transition-colors cursor-pointer"
               title="Chỉnh sửa tin nhắn"
-              onClick={startEdit}
+              onClick={() => {
+                setShowMobileActions(false);
+                startEdit();
+              }}
             >
               <PencilSimple size={15} />
             </button>
@@ -570,7 +595,10 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
               type="button"
               className="p-1.5 text-danger hover:bg-danger-soft rounded-control text-xs transition-colors cursor-pointer"
               title={isMe ? "Xoá tin nhắn" : "Xoá tin nhắn (Quản trị viên)"}
-              onClick={() => onDeleteMessage(msg)}
+              onClick={() => {
+                setShowMobileActions(false);
+                onDeleteMessage(msg);
+              }}
             >
               <Trash size={15} />
             </button>

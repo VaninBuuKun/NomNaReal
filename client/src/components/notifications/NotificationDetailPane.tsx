@@ -7,9 +7,11 @@ import {
   CalendarCheck,
   At,
   ChatTeardropDots,
+  List,
 } from '@phosphor-icons/react';
 import type { AppNotification } from '../../types';
 import { UserAvatar } from '../ui/UserAvatar';
+import { useUiStore } from '../../stores';
 
 interface NotificationDetailPaneProps {
   notification: AppNotification | null;
@@ -22,7 +24,17 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
 }) => {
   if (!notification) {
     return (
-      <div className="flex-1 min-h-0 flex flex-col items-center justify-center bg-[var(--bg-chat)] p-8 text-center select-none">
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center bg-[var(--bg-chat)] p-8 text-center select-none relative">
+        <div className="absolute top-3 left-4 md:hidden">
+          <button
+            type="button"
+            onClick={() => useUiStore.getState().toggleMobileSidebar()}
+            className="p-1.5 rounded-control text-text-muted hover:text-text-primary hover:bg-surface-active transition-colors cursor-pointer"
+            title="Mở danh sách thông báo"
+          >
+            <List size={20} weight="bold" />
+          </button>
+        </div>
         <div className="w-14 h-14 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-muted)] mb-3 shadow-xs">
           <Bell size={28} weight="duotone" className="opacity-40" />
         </div>
@@ -167,8 +179,16 @@ export const NotificationDetailPane: React.FC<NotificationDetailPaneProps> = ({
   return (
     <div className="flex-1 min-h-0 flex flex-col bg-[var(--bg-chat)] overflow-y-auto select-none">
       {/* 1. Header Toolbar (matching ChatArea h-[54px] & border-b) */}
-      <div className="h-[54px] px-6 border-b border-[var(--border-color)] bg-[var(--bg-chat)] flex items-center justify-between shrink-0 sticky top-0 z-20">
+      <div className="h-[54px] px-4 sm:px-6 border-b border-[var(--border-color)] bg-[var(--bg-chat)] flex items-center justify-between shrink-0 sticky top-0 z-20">
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => useUiStore.getState().toggleMobileSidebar()}
+            className="md:hidden p-1.5 rounded-control text-text-muted hover:text-text-primary hover:bg-surface-active transition-colors cursor-pointer mr-1"
+            title="Mở danh sách thông báo"
+          >
+            <List size={20} weight="bold" />
+          </button>
           {getHeaderIconAndTitle()}
         </div>
       </div>

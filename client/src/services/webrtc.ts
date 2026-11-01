@@ -4,19 +4,20 @@ import { useCallStore } from '../stores/useCallStore';
 import type { CallPeer, CallOfferPayload, CallAnswerPayload, IceCandidatePayload } from '../types';
 
 // ============================================================================
-// WebRTC Visual Developer Logging Helper
+// WebRTC Visual Developer Logging Helper  (open DevTools → Console, filter "WebRTC")
 // ============================================================================
+const BADGE = 'color: white; font-weight: bold; padding: 2px 6px; border-radius: 3px;';
 const LOG_COLORS = {
-  signaling: 'background: #6366f1; color: white; font-weight: bold; padding: 2px 5px; rounded: 3px;',
-  iceLocal: 'background: #0ea5e9; color: white; font-weight: bold; padding: 2px 5px; rounded: 3px;',
-  iceRemote: 'background: #14b8a6; color: white; font-weight: bold; padding: 2px 5px; rounded: 3px;',
-  state: 'background: #8b5cf6; color: white; font-weight: bold; padding: 2px 5px; rounded: 3px;',
-  media: 'background: #10b981; color: white; font-weight: bold; padding: 2px 5px; rounded: 3px;',
-  warn: 'background: #f59e0b; color: black; font-weight: bold; padding: 2px 5px; rounded: 3px;',
-  error: 'background: #ef4444; color: white; font-weight: bold; padding: 2px 5px; rounded: 3px;',
+  signaling: `background: #6366f1; ${BADGE}`,
+  iceLocal: `background: #0ea5e9; ${BADGE}`,
+  iceRemote: `background: #14b8a6; ${BADGE}`,
+  state: `background: #8b5cf6; ${BADGE}`,
+  media: `background: #10b981; ${BADGE}`,
+  warn: 'background: #f59e0b; color: black; font-weight: bold; padding: 2px 6px; border-radius: 3px;',
+  error: `background: #ef4444; ${BADGE}`,
 };
 
-function logWebrtc(category: keyof typeof LOG_COLORS, title: string, details?: any) {
+function logWebrtc(category: keyof typeof LOG_COLORS, title: string, details?: unknown) {
   const badge = `[WebRTC:${title}]`;
   const style = LOG_COLORS[category];
   if (details !== undefined) {
@@ -34,7 +35,6 @@ interface CandidateInfo {
 }
 
 function parseCandidateInfo(candStr: string): CandidateInfo {
-  // Candidate format example:
   // "candidate:842163049 1 udp 1677729535 192.168.1.15 58231 typ host ..."
   const parts = candStr.trim().split(' ');
   const proto = parts[2] ? parts[2].toUpperCase() : 'UDP';
@@ -46,59 +46,108 @@ function parseCandidateInfo(candStr: string): CandidateInfo {
 }
 
 // ============================================================================
-// WebRTC Configuration
+// Configuration
 // ============================================================================
-const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [
+const RING_TIMEOUT_MS = 35_000; // unanswered call → auto cancel
+const CONNECT_TIMEOUT_MS = 30_000; // answered but P2P never established
+const DISCONNECT_GRACE_MS = 8_000; // transient network blips must not kill the call
+const NOTICE_MS = 5_000;
+
+function buildIceServers(): RTCIceServer[] {
+  const servers: RTCIceServer[] = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-  ],
-  iceCandidatePoolSize: 10,
+  ];
+  // Optional TURN relay (needed when both peers sit behind symmetric NAT / strict firewalls):
+  //   VITE_TURN_URL=turn:host:3478,turns:host:5349  VITE_TURN_USERNAME=...  VITE_TURN_CREDENTIAL=...
+  const turnUrl = (import.meta.env.VITE_TURN_URL as string | undefined)?.trim();
+  if (turnUrl) {
+    servers.push({
+      urls: turnUrl.split(',').map((u) => u.trim()),
+      username: (import.meta.env.VITE_TURN_USERNAME as string | undefined) ?? '',
+      credential: (import.meta.env.VITE_TURN_CREDENTIAL as string | undefined) ?? '',
+    });
+  }
+  return servers;
+}
+
+const RTC_CONFIG: RTCConfiguration = {
+  iceServers: buildIceServers(),
   bundlePolicy: 'max-bundle',
   rtcpMuxPolicy: 'require',
 };
 
+const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+  channelCount: 1,
+};
+
+const CAMERA_CONSTRAINTS: MediaTrackConstraints = {
+  width: { ideal: 1280 },
+  height: { ideal: 720 },
+  facingMode: 'user',
+};
+
+interface CandidateStats {
+  candidateType?: string;
+  address?: string;
+  port?: number;
+  protocol?: string;
+}
+
+const sameId = (a?: string | null, b?: string | null) =>
+  Boolean(a && b && a.toLowerCase() === b.toLowerCase());
+
 class WebRtcService {
   private peerConnection: RTCPeerConnection | null = null;
+  private stateChannel: RTCDataChannel | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private cameraTrack: MediaStreamTrack | null = null;
-  private screenTrack: MediaStreamTrack | null = null;
+  private screenStream: MediaStream | null = null;
+  private syntheticCtx: AudioContext | null = null;
   private pendingCandidates: RTCIceCandidateInit[] = [];
   private activePeerId: string | null = null;
   private isInitialized = false;
 
-  // Timers
-  private ringingTimeoutTimer: number | null = null;
-  private cleanupDelayTimer: number | null = null;
-
   /**
-   * Initializes SignalR event listeners for Call Signaling.
-   * Safe to call multiple times (idempotent).
+   * Incremented on every new session and on every cleanup. Any async step that resumes after an
+   * `await` compares its captured id to detect that the call was cancelled meanwhile
+   * (user hung up while the permission prompt was open, remote ended, ...), preventing zombie
+   * peer connections and "busy" ghosts.
    */
+  private sessionId = 0;
+
+  private ringingTimer: number | null = null;
+  private connectTimer: number | null = null;
+  private disconnectTimer: number | null = null;
+  private noticeTimer: number | null = null;
+
+  // ==========================================================================
+  // Signaling listeners
+  // ==========================================================================
+
+  /** Safe to call multiple times (idempotent). */
   public initSignalRListeners(): void {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
-    logWebrtc('signaling', 'Init', 'SignalR Call Signaling listeners registered');
+    logWebrtc('signaling', 'Init', 'SignalR call listeners registered');
 
-    // 1. Incoming Call Offer
+    // 1. Incoming offer
     signalRService.onCallIncoming((payload: CallOfferPayload) => {
       const { callStatus } = useCallStore.getState();
       logWebrtc('signaling', 'CallIncoming', {
-        callerId: payload.callerId,
-        callerName: payload.callerName,
+        from: payload.callerName,
         isVideo: payload.isVideoCall,
         currentStatus: callStatus,
       });
 
-      // If user is already in a call or connecting, reject with busy message
       if (callStatus !== 'idle') {
-        logWebrtc('warn', 'BusyReject', `Auto-rejecting call because current status is ${callStatus}`);
-        signalRService.rejectCall(payload.callerId, 'Người nhận đang bận trong cuộc gọi khác.');
+        logWebrtc('warn', 'BusyReject', `Auto-rejecting: current status is ${callStatus}`);
+        signalRService.rejectCall(payload.callerId, 'Người nhận đang bận trong cuộc gọi khác.').catch(() => {});
         return;
       }
 
@@ -107,233 +156,203 @@ class WebRtcService {
       useCallStore.getState().setIncomingCall(payload);
       callSound.playIncomingRing();
 
-      // Set a 35s auto-reject timer if callee doesn't answer
-      this.ringingTimeoutTimer = window.setTimeout(() => {
-        logWebrtc('warn', 'IncomingTimeout', 'Incoming call timed out after 35 seconds without answer');
-        this.rejectCall('Cuộc gọi nhỡ (không có phản hồi)');
-      }, 35000);
+      this.ringingTimer = window.setTimeout(() => {
+        logWebrtc('warn', 'IncomingTimeout', 'No answer within 35s');
+        void this.rejectCall('Cuộc gọi nhỡ (không có phản hồi)');
+      }, RING_TIMEOUT_MS);
     });
 
-    // 2. Call Accepted
+    // 2. Answer received (caller side)
     signalRService.onCallAccepted(async (payload: CallAnswerPayload) => {
-      logWebrtc('signaling', 'CallAccepted', {
-        responderId: payload.responderId,
-        sdpBytes: payload.sdp?.length,
-      });
+      const { callStatus } = useCallStore.getState();
+      const pc = this.peerConnection;
+      if (callStatus !== 'outgoing' || !pc || !sameId(payload.responderId, this.activePeerId)) {
+        logWebrtc('warn', 'CallAcceptedIgnored', { callStatus, hasPc: Boolean(pc) });
+        return;
+      }
+
+      logWebrtc('signaling', 'CallAccepted', { sdpBytes: payload.sdp?.length });
+      const sid = this.sessionId;
       this.clearTimers();
       callSound.stop();
       useCallStore.getState().setConnecting();
+      this.startConnectTimer();
 
       try {
-        if (this.peerConnection) {
-          const desc = new RTCSessionDescription({ type: 'answer', sdp: payload.sdp });
-          logWebrtc('signaling', 'SetRemoteDescription', 'Applying SDP Answer');
-          await this.peerConnection.setRemoteDescription(desc);
-          await this.flushPendingCandidates();
-        }
+        await pc.setRemoteDescription({ type: 'answer', sdp: payload.sdp });
+        if (this.isStale(sid)) return;
+        await this.flushPendingCandidates();
       } catch (err) {
-        logWebrtc('error', 'SetRemoteDescriptionError', err);
+        logWebrtc('error', 'SetRemoteAnswerFailed', err);
+        if (!this.isStale(sid)) await this.terminate('Không thể thiết lập cuộc gọi (SDP lỗi).');
       }
     });
 
-    // 3. Call Rejected
+    // 3. Rejected (caller side)
     signalRService.onCallRejected((payload) => {
       logWebrtc('signaling', 'CallRejected', payload);
-      this.clearTimers();
+      if (this.activePeerId && !sameId(payload.peerId, this.activePeerId)) return;
       callSound.stop();
       callSound.playCallEnd();
-      const reason = payload.reason || 'Cuộc gọi đã bị từ chối';
-      useCallStore.getState().setError(reason);
-
-      // Reset immediately to idle to avoid getting stuck in busy state
       this.cleanup();
+      this.notify(payload.reason || 'Cuộc gọi đã bị từ chối');
     });
 
-    // 4. Call Ended
+    // 4. Ended by the other side
     signalRService.onCallEnded((payload) => {
       logWebrtc('signaling', 'CallEnded', payload);
-      this.clearTimers();
+      if (this.activePeerId && !sameId(payload.peerId, this.activePeerId)) return;
+      const { callStatus, peer } = useCallStore.getState();
+      if (callStatus === 'idle') return;
+
       callSound.stop();
-      callSound.playCallEnd();
       this.cleanup();
+      if (callStatus === 'incoming') {
+        this.notify(`Cuộc gọi nhỡ từ ${peer?.displayName ?? 'người dùng'}`);
+      } else {
+        callSound.playCallEnd();
+      }
     });
 
-    // 5. Receive ICE Candidate
+    // 5. Remote ICE candidate
     signalRService.onReceiveIceCandidate(async (payload: IceCandidatePayload) => {
+      if (useCallStore.getState().callStatus === 'idle') return; // stale candidate from a finished call
+      if (this.activePeerId && !sameId(payload.senderId, this.activePeerId)) return;
+
       try {
         const candidateInit: RTCIceCandidateInit =
-          typeof payload.candidate === 'string'
-            ? JSON.parse(payload.candidate)
-            : payload.candidate;
+          typeof payload.candidate === 'string' ? JSON.parse(payload.candidate) : payload.candidate;
 
         if (candidateInit.candidate) {
           const info = parseCandidateInfo(candidateInit.candidate);
           logWebrtc('iceRemote', 'CandidateReceived', `[${info.type}] ${info.ip}:${info.port} (${info.proto})`);
-        } else {
-          logWebrtc('iceRemote', 'CandidateReceived', '[END-OF-CANDIDATES]');
         }
 
-        if (this.peerConnection && this.peerConnection.remoteDescription) {
-          await this.peerConnection.addIceCandidate(candidateInit);
+        const pc = this.peerConnection;
+        if (pc && pc.remoteDescription) {
+          await pc.addIceCandidate(candidateInit);
         } else {
-          logWebrtc('iceRemote', 'Buffered', 'Queued ICE candidate pending remoteDescription');
           this.pendingCandidates.push(candidateInit);
         }
       } catch (err) {
-        logWebrtc('warn', 'CandidateParseError', err);
+        logWebrtc('warn', 'CandidateError', err);
       }
     });
   }
 
-  /**
-   * Initiates an outgoing call to the specified user.
-   */
+  // ==========================================================================
+  // Public call controls
+  // ==========================================================================
+
   public async startCall(peer: CallPeer, isVideo: boolean): Promise<void> {
+    const store = useCallStore.getState();
+    if (store.callStatus !== 'idle') {
+      logWebrtc('warn', 'StartCallIgnored', `Already in state "${store.callStatus}"`);
+      return;
+    }
+
+    this.cleanup();
+    const sid = this.sessionId;
+    this.activePeerId = peer.id;
+
+    logWebrtc('signaling', 'StartCall', { target: peer.displayName, isVideo });
+    useCallStore.getState().setOutgoingCall(peer, isVideo);
+    callSound.playOutgoingRing();
+
+    this.ringingTimer = window.setTimeout(() => {
+      logWebrtc('warn', 'OutgoingTimeout', 'No answer within 35s');
+      void this.terminate('Người nhận không nhấc máy.');
+    }, RING_TIMEOUT_MS);
+
     try {
-      this.clearTimers();
-      this.cleanup();
-      this.activePeerId = peer.id;
+      const stream = await this.acquireMedia(isVideo);
+      if (this.isStale(sid)) return this.discardStream(stream);
+      this.attachLocalStream(stream);
 
-      logWebrtc('signaling', 'StartCall', { target: peer.displayName, isVideo });
-      useCallStore.getState().setOutgoingCall(peer, isVideo);
-      callSound.playOutgoingRing();
-
-      // Auto cancel after 35s if no answer
-      this.ringingTimeoutTimer = window.setTimeout(() => {
-        logWebrtc('warn', 'OutgoingTimeout', 'Outgoing call timed out after 35 seconds without answer');
-        useCallStore.getState().setError('Người nhận không nhấc máy.');
-        this.endCall();
-      }, 35000);
-
-      // 1. Acquire Local Media
-      const stream = await this.getMediaStream(isVideo);
-      this.localStream = stream;
-      this.cameraTrack = stream.getVideoTracks()[0] || null;
-      useCallStore.getState().setLocalStream(stream);
-
-      // 2. Create PeerConnection
       const pc = this.createPeerConnection(peer.id);
       this.peerConnection = pc;
 
-      // 3. Add Local Tracks & Ensure Dual Transceivers
-      const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack) {
-        pc.addTrack(audioTrack, stream);
-        logWebrtc('media', 'LocalAudioAttached', `Audio track ID: ${audioTrack.id}`);
-      } else {
-        pc.addTransceiver('audio', { direction: 'sendrecv' });
-      }
+      // Caller: declare both m-lines up-front so camera / screen can be (re)attached any time
+      // later with replaceTrack() — no renegotiation needed.
+      const audioTrack = stream.getAudioTracks()[0] ?? null;
+      if (audioTrack) pc.addTransceiver(audioTrack, { direction: 'sendrecv', streams: [stream] });
+      else pc.addTransceiver('audio', { direction: 'sendrecv' });
 
-      if (this.cameraTrack) {
-        pc.addTrack(this.cameraTrack, stream);
-        logWebrtc('media', 'LocalVideoAttached', `Camera track ID: ${this.cameraTrack.id}`);
-      } else {
-        pc.addTransceiver('video', { direction: 'sendrecv' });
-      }
+      if (this.cameraTrack) pc.addTransceiver(this.cameraTrack, { direction: 'sendrecv', streams: [stream] });
+      else pc.addTransceiver('video', { direction: 'sendrecv' });
 
-      // 4. Create Offer & Set Local Description
-      logWebrtc('signaling', 'CreateOffer', 'Creating SDP Offer with Audio & Video');
-      const offer = await pc.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true,
-      });
+      const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      logWebrtc('signaling', 'OfferCreated', `Offer SDP size: ${offer.sdp?.length} bytes`);
+      if (this.isStale(sid)) return;
+      logWebrtc('signaling', 'OfferCreated', `SDP ${offer.sdp?.length ?? 0} bytes`);
 
-      // 5. Send Offer via SignalR
       await signalRService.startCall(peer.id, offer.sdp || '', isVideo);
-    } catch (err: any) {
+    } catch (err) {
+      if (this.isStale(sid)) return;
       logWebrtc('error', 'StartCallFailed', err);
       callSound.stop();
-      const msg =
-        err.name === 'NotAllowedError'
-          ? 'Vui lòng cấp quyền Micro/Camera trong trình duyệt.'
-          : err.name === 'NotReadableError'
-            ? 'Thiết bị Micro/Camera đang bị chiếm dụng bởi tab hoặc ứng dụng khác.'
-            : err.message || 'Không thể bắt đầu cuộc gọi.';
-      useCallStore.getState().setError(msg);
       this.cleanup();
+      this.notify(this.describeMediaError(err, 'Không thể bắt đầu cuộc gọi.'));
     }
   }
 
-  /**
-   * Accepts an incoming call offer.
-   */
   public async acceptCall(): Promise<void> {
-    const { incomingOffer } = useCallStore.getState();
-    if (!incomingOffer) return;
+    const { incomingOffer, callStatus } = useCallStore.getState();
+    if (!incomingOffer || callStatus !== 'incoming') return;
+
+    this.clearTimers();
+    callSound.stop();
+    const sid = ++this.sessionId;
+    this.activePeerId = incomingOffer.callerId;
+    useCallStore.getState().setConnecting();
+
+    logWebrtc('signaling', 'AcceptCall', { from: incomingOffer.callerName, isVideo: incomingOffer.isVideoCall });
 
     try {
-      this.clearTimers();
-      callSound.stop();
-      this.activePeerId = incomingOffer.callerId;
-      useCallStore.getState().setConnecting();
+      const stream = await this.acquireMedia(incomingOffer.isVideoCall);
+      if (this.isStale(sid)) return this.discardStream(stream);
+      this.attachLocalStream(stream);
 
-      logWebrtc('signaling', 'AcceptCall', { callerId: incomingOffer.callerId, isVideo: incomingOffer.isVideoCall });
-
-      // 1. Acquire Local Media
-      const stream = await this.getMediaStream(incomingOffer.isVideoCall);
-      this.localStream = stream;
-      this.cameraTrack = stream.getVideoTracks()[0] || null;
-      useCallStore.getState().setLocalStream(stream);
-
-      // 2. Create PeerConnection
       const pc = this.createPeerConnection(incomingOffer.callerId);
       this.peerConnection = pc;
 
-      // 3. Add Local Tracks & Ensure Transceivers
-      const audioTrack = stream.getAudioTracks()[0];
-      if (audioTrack) {
-        pc.addTrack(audioTrack, stream);
-      } else {
-        pc.addTransceiver('audio', { direction: 'sendrecv' });
+      // Callee: apply the offer FIRST so the transceivers are created from the offer's m-lines,
+      // then attach our tracks to those exact transceivers. (Tracks/transceivers added before
+      // setRemoteDescription are not guaranteed to be reused → video could never be sent back.)
+      await pc.setRemoteDescription({ type: 'offer', sdp: incomingOffer.sdp });
+      if (this.isStale(sid)) return;
+
+      const audioTrack = stream.getAudioTracks()[0] ?? null;
+      for (const tx of pc.getTransceivers()) {
+        const track = tx.receiver.track.kind === 'audio' ? audioTrack : this.cameraTrack;
+        tx.direction = 'sendrecv';
+        if (track) await tx.sender.replaceTrack(track);
       }
 
-      if (this.cameraTrack) {
-        pc.addTrack(this.cameraTrack, stream);
-      } else {
-        pc.addTransceiver('video', { direction: 'sendrecv' });
-      }
-
-      // 4. Set Remote Description (Offer)
-      logWebrtc('signaling', 'SetRemoteOffer', `Parsing Offer SDP (${incomingOffer.sdp?.length} bytes)`);
-      const offerDesc = new RTCSessionDescription({ type: 'offer', sdp: incomingOffer.sdp });
-      await pc.setRemoteDescription(offerDesc);
-
-      // 5. Flush any candidates that arrived while setting up
       await this.flushPendingCandidates();
 
-      // 6. Create Answer & Set Local Description
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      logWebrtc('signaling', 'AnswerCreated', `Answer SDP size: ${answer.sdp?.length} bytes`);
+      if (this.isStale(sid)) return;
+      logWebrtc('signaling', 'AnswerCreated', `SDP ${answer.sdp?.length ?? 0} bytes`);
 
-      // 7. Send Answer via SignalR
       await signalRService.acceptCall(incomingOffer.callerId, answer.sdp || '');
-    } catch (err: any) {
+      if (!this.isStale(sid)) this.startConnectTimer();
+    } catch (err) {
+      if (this.isStale(sid)) return;
       logWebrtc('error', 'AcceptCallFailed', err);
-      callSound.stop();
-      const msg =
-        err.name === 'NotAllowedError'
-          ? 'Vui lòng cấp quyền Micro/Camera để trả lời.'
-          : err.name === 'NotReadableError'
-            ? 'Thiết bị Micro/Camera đang bị chiếm dụng bởi tab hoặc ứng dụng khác.'
-            : err.message || 'Không thể kết nối cuộc gọi.';
-      useCallStore.getState().setError(msg);
-      this.rejectCall('Lỗi thiết bị truyền thông');
-      this.cleanup();
+      const message = this.describeMediaError(err, 'Không thể kết nối cuộc gọi.');
+      await this.rejectCall('Lỗi thiết bị truyền thông');
+      this.notify(message);
     }
   }
 
-  /**
-   * Rejects an incoming call.
-   */
   public async rejectCall(reason?: string): Promise<void> {
     const { incomingOffer, peer } = useCallStore.getState();
     const callerId = incomingOffer?.callerId || peer?.id || this.activePeerId;
-    this.clearTimers();
-    callSound.stop();
     logWebrtc('signaling', 'RejectCall', { callerId, reason });
+    callSound.stop();
+    this.cleanup();
     if (callerId) {
       try {
         await signalRService.rejectCall(callerId, reason);
@@ -341,18 +360,144 @@ class WebRtcService {
         logWebrtc('warn', 'RejectDispatchError', err);
       }
     }
-    this.cleanup();
   }
 
-  /**
-   * Ends the active or pending call.
-   */
+  /** User hang-up (also used for cancel while ringing). */
   public async endCall(): Promise<void> {
-    const peerId = this.activePeerId || useCallStore.getState().peer?.id;
-    this.clearTimers();
     callSound.stop();
     callSound.playCallEnd();
-    logWebrtc('signaling', 'EndCall', { peerId });
+    await this.terminate();
+  }
+
+  public toggleMic(): void {
+    const next = !useCallStore.getState().isMicMuted;
+    this.localStream?.getAudioTracks().forEach((t) => (t.enabled = !next));
+    useCallStore.getState().setMicMuted(next);
+    this.sendMediaState();
+  }
+
+  public async toggleCamera(): Promise<void> {
+    const store = useCallStore.getState();
+    if (!this.localStream) return;
+
+    // Camera already acquired → just enable / disable it
+    if (this.cameraTrack) {
+      const nextOff = !store.isCameraOff;
+      this.cameraTrack.enabled = !nextOff;
+      useCallStore.getState().setCameraOff(nextOff);
+      this.sendMediaState();
+      return;
+    }
+
+    // No camera yet (voice call, or the device was busy at start) → try to open it now
+    const sid = this.sessionId;
+    try {
+      const cam = await navigator.mediaDevices.getUserMedia({ video: CAMERA_CONSTRAINTS });
+      const track = cam.getVideoTracks()[0];
+      if (!track) return;
+      if (this.isStale(sid) || !this.localStream) {
+        track.stop();
+        return;
+      }
+      this.cameraTrack = track;
+      this.localStream.addTrack(track);
+      if (!this.screenStream) await this.getVideoSender()?.replaceTrack(track);
+      logWebrtc('media', 'CameraEnabled', track.label);
+      useCallStore.getState().setCameraOff(false);
+      this.sendMediaState();
+    } catch (err) {
+      logWebrtc('warn', 'CameraEnableFailed', err);
+      this.notify('Không thể bật camera (bị chặn hoặc đang được ứng dụng / tab khác sử dụng).');
+    }
+  }
+
+  public async startScreenShare(): Promise<void> {
+    const pc = this.peerConnection;
+    if (!pc || this.screenStream) return;
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      this.notify('Thiết bị này không hỗ trợ chia sẻ màn hình.');
+      return;
+    }
+
+    const sid = this.sessionId;
+    try {
+      logWebrtc('media', 'StartScreenShare', 'Prompting display picker');
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 15, max: 30 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      });
+      const track = stream.getVideoTracks()[0];
+      if (!track || this.isStale(sid)) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
+
+      // Hint the encoder to keep text sharp instead of smoothing motion
+      (track as MediaStreamTrack & { contentHint?: string }).contentHint = 'detail';
+
+      const sender = this.getVideoSender();
+      if (!sender) {
+        stream.getTracks().forEach((t) => t.stop());
+        this.notify('Kết nối chưa sẵn sàng để chia sẻ màn hình.');
+        return;
+      }
+      await sender.replaceTrack(track);
+      await this.tuneScreenSender(sender);
+
+      this.screenStream = stream;
+      track.onended = () => {
+        logWebrtc('media', 'ScreenShareNativeEnded', 'Stopped via browser UI');
+        void this.stopScreenShare();
+      };
+
+      logWebrtc('media', 'ScreenShareStarted', track.label);
+      useCallStore.getState().setScreenSharing(true);
+      this.sendMediaState();
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') return; // user cancelled picker
+      logWebrtc('error', 'ScreenShareFailed', err);
+      this.notify('Không thể chia sẻ màn hình.');
+    }
+  }
+
+  public async stopScreenShare(): Promise<void> {
+    const stream = this.screenStream;
+    if (!stream) return;
+    this.screenStream = null;
+    stream.getTracks().forEach((t) => {
+      t.onended = null;
+      t.stop();
+    });
+
+    try {
+      await this.getVideoSender()?.replaceTrack(this.cameraTrack);
+    } catch (err) {
+      logWebrtc('warn', 'RestoreCameraFailed', err);
+    }
+
+    logWebrtc('media', 'ScreenShareStopped', 'Camera track restored');
+    useCallStore.getState().setScreenSharing(false);
+    this.sendMediaState();
+  }
+
+  // ==========================================================================
+  // Internals
+  // ==========================================================================
+
+  private isStale(sid: number): boolean {
+    return sid !== this.sessionId;
+  }
+
+  private discardStream(stream: MediaStream): void {
+    stream.getTracks().forEach((t) => t.stop());
+    this.closeSyntheticContext();
+  }
+
+  /** Signals the peer, tears everything down and optionally shows a notice. */
+  private async terminate(notice?: string): Promise<void> {
+    const peerId = this.activePeerId || useCallStore.getState().peer?.id;
+    logWebrtc('signaling', 'EndCall', { peerId, notice });
+    this.cleanup();
     if (peerId) {
       try {
         await signalRService.endCall(peerId);
@@ -360,322 +505,336 @@ class WebRtcService {
         logWebrtc('warn', 'EndCallDispatchError', err);
       }
     }
-    this.cleanup();
+    if (notice) this.notify(notice);
+  }
+
+  private notify(message: string, durationMs = NOTICE_MS): void {
+    useCallStore.getState().setError(message);
+    if (this.noticeTimer !== null) clearTimeout(this.noticeTimer);
+    this.noticeTimer = window.setTimeout(() => {
+      this.noticeTimer = null;
+      if (useCallStore.getState().error === message) useCallStore.getState().setError(null);
+    }, durationMs);
+  }
+
+  private describeMediaError(err: unknown, fallback: string): string {
+    const name = err instanceof DOMException ? err.name : '';
+    if (name === 'NotAllowedError') return 'Hãy cấp quyền Micro/Camera cho trình duyệt rồi thử lại.';
+    if (name === 'NotFoundError') return 'Không tìm thấy micro hoặc camera trên thiết bị.';
+    if (name === 'NotReadableError') return 'Micro/Camera đang được ứng dụng hoặc tab khác sử dụng.';
+    if (err instanceof Error && err.message) return err.message;
+    return fallback;
+  }
+
+  private attachLocalStream(stream: MediaStream): void {
+    this.localStream = stream;
+    this.cameraTrack = stream.getVideoTracks()[0] ?? null;
+    const store = useCallStore.getState();
+    store.setLocalStream(stream);
+    store.setCameraOff(!this.cameraTrack);
+    store.setMicMuted(false);
+    store.setScreenSharing(false);
   }
 
   /**
-   * Starts sharing the screen, swapping the active video track with system audio support.
+   * Opens mic (+ camera for video calls) and degrades gracefully:
+   *  1. camera + mic  →  2. mic only (camera busy/missing)  →  3. silent stream (mic busy, e.g. 2 tabs on one PC)
+   * Only a *permission denial* is surfaced as a hard failure.
    */
-  public async startScreenShare(): Promise<void> {
-    if (!this.peerConnection) return;
-    try {
-      if (!navigator.mediaDevices?.getDisplayMedia) {
-        useCallStore.getState().setError('Trình duyệt không hỗ trợ chia sẻ màn hình.');
-        return;
-      }
-
-      logWebrtc('media', 'StartScreenShare', 'Prompting display media picker');
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          cursor: 'always',
-          displaySurface: 'monitor',
-          frameRate: { ideal: 30, max: 60 },
-        } as any,
-        audio: true, // Capture tab / system audio if user permits
-      });
-
-      const screenTrack = screenStream.getVideoTracks()[0];
-      if (!screenTrack) return;
-      this.screenTrack = screenTrack;
-
-      logWebrtc('media', 'ScreenTrackAcquired', {
-        id: screenTrack.id,
-        label: screenTrack.label,
-      });
-
-      // Replace outgoing video track on the WebRTC video transceiver
-      const videoTransceiver = this.peerConnection.getTransceivers().find(
-        (t) => t.receiver.track.kind === 'video'
-      );
-
-      if (videoTransceiver && videoTransceiver.sender) {
-        await videoTransceiver.sender.replaceTrack(screenTrack);
-      } else {
-        const videoSender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
-        if (videoSender) {
-          await videoSender.replaceTrack(screenTrack);
-        }
-      }
-
-      // Update local preview to show the screen stream in Picture-in-Picture
-      useCallStore.getState().setLocalStream(screenStream);
-      useCallStore.getState().setScreenSharing(true);
-
-      // When user clicks the native browser "Stop sharing" floating bar
-      screenTrack.onended = () => {
-        logWebrtc('media', 'ScreenShareNativeEnded', 'User stopped sharing via browser bar');
-        this.stopScreenShare();
-      };
-    } catch (err: any) {
-      if (err.name !== 'NotAllowedError') {
-        logWebrtc('error', 'ScreenShareFailed', err);
-        useCallStore.getState().setError('Không thể chia sẻ màn hình: ' + (err.message || ''));
-      }
+  private async acquireMedia(isVideo: boolean): Promise<MediaStream> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('Trình duyệt chỉ cho dùng Micro/Camera qua HTTPS hoặc localhost.');
     }
-  }
-
-  /**
-   * Stops screen sharing and restores the camera track.
-   */
-  public async stopScreenShare(): Promise<void> {
-    logWebrtc('media', 'StopScreenShare', 'Restoring camera track');
-    if (this.screenTrack) {
-      this.screenTrack.stop();
-      this.screenTrack = null;
-    }
-
-    if (this.peerConnection) {
-      const videoTransceiver = this.peerConnection.getTransceivers().find(
-        (t) => t.receiver.track.kind === 'video'
-      );
-      if (videoTransceiver && videoTransceiver.sender) {
-        await videoTransceiver.sender.replaceTrack(this.cameraTrack);
-      } else {
-        const videoSender = this.peerConnection.getSenders().find((s) => s.track?.kind === 'video');
-        if (videoSender) {
-          await videoSender.replaceTrack(this.cameraTrack);
-        }
-      }
-    }
-
-    // Restore local camera stream in PIP
-    if (this.localStream) {
-      useCallStore.getState().setLocalStream(this.localStream);
-    }
-    useCallStore.getState().setScreenSharing(false);
-  }
-
-  // ============================================================================
-  // Internal Helpers & Hardware Acquisition
-  // ============================================================================
-
-  private async getMediaStream(isVideo: boolean): Promise<MediaStream> {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error(
-        'Trình duyệt không hỗ trợ truy cập Micro/Camera. Vui lòng đảm bảo truy cập qua HTTPS hoặc localhost.'
-      );
-    }
-
-    // High quality audio constraints with Acoustic Echo Cancellation, Noise Suppression, and Highpass Filter
-    const audioConstraints: MediaTrackConstraints = {
-      echoCancellation: { ideal: true },
-      noiseSuppression: { ideal: true },
-      autoGainControl: { ideal: true },
-      channelCount: 1, // Mono voice avoids acoustic phasing / buzzing feedback loops
-      sampleRate: 48000,
-      // @ts-ignore - Chromium specific properties
-      googEchoCancellation: true,
-      // @ts-ignore
-      googAutoGainControl: true,
-      // @ts-ignore
-      googNoiseSuppression: true,
-      // @ts-ignore
-      googHighpassFilter: true, // Cut 50Hz/60Hz rumble & buzzing
-      // @ts-ignore
-      googAudioMirroring: false,
-    };
 
     if (isVideo) {
       try {
-        logWebrtc('media', 'RequestMedia', 'Attempting Camera + Microphone');
-        return await navigator.mediaDevices.getUserMedia({
-          audio: audioConstraints,
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user',
-          },
-        });
-      } catch (err: any) {
-        logWebrtc('warn', 'CameraBusyOrMissing', 'Webcam locked or missing, turning local camera off');
-        useCallStore.getState().setCameraOff(true);
+        logWebrtc('media', 'RequestMedia', 'Camera + Microphone');
+        return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: CAMERA_CONSTRAINTS });
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'NotAllowedError') throw err;
+        logWebrtc('warn', 'CameraUnavailable', err);
+        this.notify('Không mở được camera (đang được tab/ứng dụng khác dùng). Bạn vẫn nghe và xem được đối phương.');
       }
     }
 
     try {
-      logWebrtc('media', 'RequestMedia', 'Attempting Microphone only');
-      return await navigator.mediaDevices.getUserMedia({
-        audio: audioConstraints,
-        video: false,
-      });
-    } catch (err: any) {
-      logWebrtc('warn', 'MicBusyOrMissing', 'Microphone locked or not accessible. Creating silent synthetic stream.');
-      // When 2 tabs on the same machine conflict on hardware access, create a dummy silent stream
-      // so the connection succeeds rather than crashing!
-      return this.createSyntheticSilentStream();
+      logWebrtc('media', 'RequestMedia', 'Microphone only');
+      return await navigator.mediaDevices.getUserMedia({ audio: AUDIO_CONSTRAINTS, video: false });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') throw err;
+      logWebrtc('warn', 'MicUnavailable', 'Using a silent stream so the call can still connect');
+      this.notify('Không mở được micro. Bạn vẫn nghe được đối phương.');
+      return this.createSilentStream();
     }
   }
 
-  /**
-   * Generates a synthetic silent stream via Web Audio API.
-   * Prevents crashes when testing 2 tabs on the same machine when device lock occurs.
-   */
-  private createSyntheticSilentStream(): MediaStream {
+  private createSilentStream(): MediaStream {
     try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioCtx) {
-        const ctx = new AudioCtx();
+      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (Ctx) {
+        const ctx = new Ctx();
         const dest = ctx.createMediaStreamDestination();
-        const dummyOsc = ctx.createOscillator();
-        const dummyGain = ctx.createGain();
-        dummyGain.gain.value = 0; // Completely silent
-        dummyOsc.connect(dummyGain);
-        dummyGain.connect(dest);
-        dummyOsc.start();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start();
+        this.syntheticCtx = ctx;
         return dest.stream;
       }
     } catch {
-      // ignore
+      // fall through
     }
     return new MediaStream();
   }
 
+  private closeSyntheticContext(): void {
+    if (this.syntheticCtx) {
+      this.syntheticCtx.close().catch(() => {});
+      this.syntheticCtx = null;
+    }
+  }
+
+  private getVideoSender(): RTCRtpSender | null {
+    const tx = this.peerConnection?.getTransceivers().find((t) => t.receiver.track.kind === 'video');
+    return tx?.sender ?? null;
+  }
+
+  private async tuneScreenSender(sender: RTCRtpSender): Promise<void> {
+    try {
+      const params = sender.getParameters() as RTCRtpSendParameters & { degradationPreference?: string };
+      if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
+      params.encodings[0].maxBitrate = 3_000_000;
+      params.degradationPreference = 'maintain-resolution';
+      await sender.setParameters(params);
+    } catch (err) {
+      logWebrtc('warn', 'TuneScreenSenderFailed', err);
+    }
+  }
+
+  /** Broadcasts our camera / mic / screen state so the peer renders the right thing (avatar vs video). */
+  private sendMediaState(): void {
+    const ch = this.stateChannel;
+    if (!ch || ch.readyState !== 'open') return;
+    const s = useCallStore.getState();
+    try {
+      ch.send(
+        JSON.stringify({ cameraOff: s.isCameraOff, micMuted: s.isMicMuted, screenSharing: s.isScreenSharing })
+      );
+    } catch (err) {
+      logWebrtc('warn', 'StateSendFailed', err);
+    }
+  }
+
   private createPeerConnection(targetUserId: string): RTCPeerConnection {
     const pc = new RTCPeerConnection(RTC_CONFIG);
-    logWebrtc('state', 'CreatePeerConnection', 'Initialized RTCPeerConnection instance');
+    logWebrtc('state', 'CreatePeerConnection', {
+      iceServers: RTC_CONFIG.iceServers?.map((s) => s.urls),
+    });
+
+    // Pre-negotiated data channel (same id on both sides → no signaling needed)
+    const channel = pc.createDataChannel('nomna-state', { negotiated: true, id: 0 });
+    channel.onopen = () => {
+      logWebrtc('state', 'StateChannelOpen');
+      this.sendMediaState();
+    };
+    channel.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data as string) as Record<string, unknown>;
+        useCallStore.getState().setRemoteMedia({
+          cameraOff: data.cameraOff === true,
+          micMuted: data.micMuted === true,
+          screenSharing: data.screenSharing === true,
+        });
+      } catch {
+        // ignore malformed message
+      }
+    };
+    this.stateChannel = channel;
 
     pc.onicecandidate = (event) => {
+      if (this.peerConnection !== pc) return;
       if (event.candidate) {
         const info = parseCandidateInfo(event.candidate.candidate);
         logWebrtc('iceLocal', 'CandidateGenerated', `[${info.type}] ${info.ip}:${info.port} (${info.proto})`);
-        signalRService.sendIceCandidate(targetUserId, JSON.stringify(event.candidate));
+        signalRService.sendIceCandidate(targetUserId, JSON.stringify(event.candidate)).catch(() => {});
       } else {
-        logWebrtc('iceLocal', 'GatheringCompleted', 'All local ICE candidates collected');
+        logWebrtc('iceLocal', 'GatheringCompleted');
       }
     };
 
     pc.ontrack = (event) => {
-      logWebrtc('media', 'RemoteTrack', `${event.track.kind.toUpperCase()} track received (${event.track.id})`);
+      if (this.peerConnection !== pc) return;
+      const { track } = event;
+      logWebrtc('media', 'RemoteTrack', `${track.kind} (${track.id})`);
 
       if (!this.remoteStream) {
         this.remoteStream = new MediaStream();
+        useCallStore.getState().setRemoteStream(this.remoteStream);
       }
+      if (!this.remoteStream.getTracks().includes(track)) this.remoteStream.addTrack(track);
 
-      // Add track to local accumulator if not present
-      if (!this.remoteStream.getTracks().some((t) => t.id === event.track.id)) {
-        this.remoteStream.addTrack(event.track);
-      }
-
-      // Create a fresh MediaStream wrapper so Zustand/React registers reference change
-      useCallStore.getState().setRemoteStream(new MediaStream(this.remoteStream.getTracks()));
-
-      event.track.onunmute = () => {
-        logWebrtc('media', 'TrackUnmuted', `${event.track.kind} unmuted`);
-        if (this.remoteStream) {
-          useCallStore.getState().setRemoteStream(new MediaStream(this.remoteStream.getTracks()));
-        }
-      };
-
-      event.track.onended = () => {
-        logWebrtc('media', 'TrackEnded', `${event.track.kind} ended`);
-        if (this.remoteStream) {
-          this.remoteStream.removeTrack(event.track);
-          useCallStore.getState().setRemoteStream(new MediaStream(this.remoteStream.getTracks()));
-        }
-      };
+      const bump = () => useCallStore.getState().bumpRemoteTrackVersion();
+      track.onmute = bump;
+      track.onunmute = bump;
+      track.onended = bump;
+      bump();
     };
 
     pc.oniceconnectionstatechange = () => {
+      if (this.peerConnection !== pc) return;
       logWebrtc('state', 'IceConnectionState', pc.iceConnectionState);
-      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-        this.clearTimers();
-        useCallStore.getState().setConnected();
-      } else if (pc.iceConnectionState === 'failed') {
-        logWebrtc('error', 'IceFailed', 'P2P network path could not be established');
-        useCallStore.getState().setError('Không thể thiết lập kết nối mạng P2P.');
-        this.endCall();
+      if (pc.iceConnectionState === 'failed') {
+        void this.terminate('Không thể kết nối trực tiếp giữa 2 thiết bị (mạng chặn P2P).');
       }
     };
 
     pc.onconnectionstatechange = () => {
+      if (this.peerConnection !== pc) return;
       logWebrtc('state', 'ConnectionState', pc.connectionState);
+
       if (pc.connectionState === 'connected') {
-        this.clearTimers();
+        this.clearConnectionTimers();
         useCallStore.getState().setConnected();
-      } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-        this.endCall();
+        void this.logSelectedCandidatePair(pc);
+      } else if (pc.connectionState === 'disconnected') {
+        // Usually transient (wifi roaming, CPU spike). Give it time to recover before giving up.
+        if (this.disconnectTimer === null) {
+          this.disconnectTimer = window.setTimeout(() => {
+            this.disconnectTimer = null;
+            if (this.peerConnection === pc && pc.connectionState !== 'connected') {
+              void this.terminate('Mất kết nối mạng với đối phương.');
+            }
+          }, DISCONNECT_GRACE_MS);
+        }
+      } else if (pc.connectionState === 'failed') {
+        void this.terminate('Kết nối bị gián đoạn.');
       }
     };
 
     pc.onsignalingstatechange = () => {
+      if (this.peerConnection !== pc) return;
       logWebrtc('state', 'SignalingState', pc.signalingState);
     };
 
     return pc;
   }
 
-  private async flushPendingCandidates(): Promise<void> {
-    if (!this.peerConnection || !this.peerConnection.remoteDescription) return;
-    logWebrtc('iceRemote', 'FlushCandidates', `Flushing ${this.pendingCandidates.length} buffered candidates`);
-    while (this.pendingCandidates.length > 0) {
-      const candidateInit = this.pendingCandidates.shift();
-      if (candidateInit) {
-        try {
-          await this.peerConnection.addIceCandidate(candidateInit);
-        } catch (err) {
-          logWebrtc('warn', 'FlushCandidateError', err);
+  /** Logs which ICE path won (host = LAN, srflx = via STUN/public IP, relay = via TURN). */
+  private async logSelectedCandidatePair(pc: RTCPeerConnection): Promise<void> {
+    try {
+      const stats = await pc.getStats();
+      let pairId: string | undefined;
+      stats.forEach((report) => {
+        if (report.type === 'transport') {
+          pairId = (report as RTCTransportStats).selectedCandidatePairId ?? pairId;
         }
+      });
+      if (!pairId) return;
+      const pair = stats.get(pairId) as RTCIceCandidatePairStats | undefined;
+      if (!pair) return;
+      const local = stats.get(pair.localCandidateId) as CandidateStats | undefined;
+      const remote = stats.get(pair.remoteCandidateId) as CandidateStats | undefined;
+      const fmt = (c?: CandidateStats) =>
+        c ? `[${(c.candidateType ?? '?').toUpperCase()}] ${c.address ?? 'mdns'}:${c.port ?? '?'} (${c.protocol ?? '?'})` : 'n/a';
+      logWebrtc('state', 'SelectedCandidatePair', { local: fmt(local), remote: fmt(remote) });
+    } catch {
+      // stats are best-effort diagnostics only
+    }
+  }
+
+  private async flushPendingCandidates(): Promise<void> {
+    const pc = this.peerConnection;
+    if (!pc || !pc.remoteDescription) return;
+    const queued = this.pendingCandidates.splice(0);
+    if (queued.length) logWebrtc('iceRemote', 'FlushCandidates', `${queued.length} buffered`);
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(candidate);
+      } catch (err) {
+        logWebrtc('warn', 'FlushCandidateError', err);
       }
     }
   }
 
-  private clearTimers(): void {
-    if (this.ringingTimeoutTimer !== null) {
-      clearTimeout(this.ringingTimeoutTimer);
-      this.ringingTimeoutTimer = null;
+  private startConnectTimer(): void {
+    if (this.connectTimer !== null) clearTimeout(this.connectTimer);
+    this.connectTimer = window.setTimeout(() => {
+      this.connectTimer = null;
+      if (useCallStore.getState().callStatus === 'connecting') {
+        logWebrtc('error', 'ConnectTimeout', 'P2P not established within 30s');
+        void this.terminate('Không kết nối được trực tiếp sau 30 giây. Hãy kiểm tra mạng (cùng Wi-Fi / không bật cách ly thiết bị).');
+      }
+    }, CONNECT_TIMEOUT_MS);
+  }
+
+  private clearConnectionTimers(): void {
+    if (this.connectTimer !== null) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
     }
-    if (this.cleanupDelayTimer !== null) {
-      clearTimeout(this.cleanupDelayTimer);
-      this.cleanupDelayTimer = null;
+    if (this.disconnectTimer !== null) {
+      clearTimeout(this.disconnectTimer);
+      this.disconnectTimer = null;
     }
   }
 
+  private clearTimers(): void {
+    if (this.ringingTimer !== null) {
+      clearTimeout(this.ringingTimer);
+      this.ringingTimer = null;
+    }
+    this.clearConnectionTimers();
+  }
+
   private cleanup(): void {
-    logWebrtc('state', 'Cleanup', 'Destroying WebRTC session and resetting state');
+    logWebrtc('state', 'Cleanup', 'Destroying session');
+    this.sessionId++;
     this.clearTimers();
     callSound.stop();
 
-    if (this.screenTrack) {
-      this.screenTrack.stop();
-      this.screenTrack = null;
+    if (this.screenStream) {
+      this.screenStream.getTracks().forEach((t) => {
+        t.onended = null;
+        t.stop();
+      });
+      this.screenStream = null;
     }
 
-    if (this.localStream) {
-      this.localStream.getTracks().forEach((track) => track.stop());
-      this.localStream = null;
-    }
+    this.localStream?.getTracks().forEach((t) => t.stop());
+    this.localStream = null;
     this.cameraTrack = null;
+    this.closeSyntheticContext();
 
-    if (this.remoteStream) {
-      this.remoteStream.getTracks().forEach((track) => track.stop());
-      this.remoteStream = null;
+    this.remoteStream?.getTracks().forEach((t) => {
+      t.onmute = null;
+      t.onunmute = null;
+      t.onended = null;
+    });
+    this.remoteStream = null;
+
+    if (this.stateChannel) {
+      this.stateChannel.onopen = null;
+      this.stateChannel.onmessage = null;
+      this.stateChannel.close();
+      this.stateChannel = null;
     }
 
-    if (this.peerConnection) {
-      // Detach listeners before closing to prevent re-entrant callbacks
-      this.peerConnection.onicecandidate = null;
-      this.peerConnection.ontrack = null;
-      this.peerConnection.oniceconnectionstatechange = null;
-      this.peerConnection.onconnectionstatechange = null;
-      this.peerConnection.onsignalingstatechange = null;
-      this.peerConnection.close();
-      this.peerConnection = null;
+    const pc = this.peerConnection;
+    this.peerConnection = null; // handlers compare against this → become no-ops
+    if (pc) {
+      pc.onicecandidate = null;
+      pc.ontrack = null;
+      pc.oniceconnectionstatechange = null;
+      pc.onconnectionstatechange = null;
+      pc.onsignalingstatechange = null;
+      pc.close();
     }
 
     this.pendingCandidates = [];
     this.activePeerId = null;
 
-    // Immediately reset store to idle so neither caller nor callee is locked in busy state
     useCallStore.getState().resetCall();
   }
 }
