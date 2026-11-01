@@ -497,8 +497,8 @@ class WebRtcService {
           },
         });
       } catch (err: any) {
-        logWebrtc('warn', 'CameraBusyOrMissing', 'Webcam locked or missing, falling back to audio only');
-        useCallStore.getState().setIsVideoCall(false);
+        logWebrtc('warn', 'CameraBusyOrMissing', 'Webcam locked or missing, turning local camera off');
+        useCallStore.getState().setCameraOff(true);
       }
     }
 

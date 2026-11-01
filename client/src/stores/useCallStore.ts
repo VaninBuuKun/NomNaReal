@@ -25,6 +25,7 @@ interface CallStoreState {
   setLocalStream: (stream: MediaStream | null) => void;
   setRemoteStream: (stream: MediaStream | null) => void;
   setIsVideoCall: (isVideo: boolean) => void;
+  setCameraOff: (isOff: boolean) => void;
   toggleMic: () => void;
   toggleCamera: () => void;
   toggleSpeaker: () => void;
@@ -97,6 +98,7 @@ export const useCallStore = create<CallStoreState>((set) => ({
   setRemoteStream: (stream) => set({ remoteStream: stream }),
 
   setIsVideoCall: (isVideo) => set({ isVideoCall: isVideo }),
+  setCameraOff: (isOff) => set({ isCameraOff: isOff }),
 
   toggleMic: () =>
     set((state) => {

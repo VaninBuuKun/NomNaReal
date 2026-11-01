@@ -27,6 +27,83 @@ type LayoutMode = 'spotlight' | 'grid';
 type PipCorner = 'bottom-right' | 'top-right' | 'bottom-left' | 'top-left';
 type VideoFit = 'contain' | 'cover';
 
+/**
+ * Isolated, self-healing Video Player for WebRTC MediaStreams.
+ * - Manages its own dedicated HTMLVideoElement ref.
+ * - Explicitly forces DOM muted = true to comply with browser autoplay policies.
+ * - Programmatically calls play() on mount, stream change, and onloadedmetadata
+ *   to eliminate the "black screen / toàn đen thui" WebRTC autoplay bug.
+ */
+interface VideoPlayerProps {
+  stream: MediaStream | null;
+  className?: string;
+  isMuted?: boolean;
+}
+
+const VideoPlayer: React.FC<VideoPlayerProps> = ({
+  stream,
+  className = 'w-full h-full object-cover',
+  isMuted = true,
+}) => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+
+    if (!stream) {
+      el.srcObject = null;
+      return;
+    }
+
+    // Assign stream
+    if (el.srcObject !== stream) {
+      el.srcObject = stream;
+    }
+
+    // Force DOM properties (React JSX muted attribute is not always synchronized to DOM property)
+    el.muted = isMuted;
+    el.playsInline = true;
+    el.autoplay = true;
+
+    const playVideo = () => {
+      const p = el.play();
+      if (p !== undefined) {
+        p.catch((err) => {
+          // Playback might be waiting for first decoded frame
+          console.debug('[VideoPlayer] Play interrupted or waiting for frames:', err);
+        });
+      }
+    };
+
+    playVideo();
+    el.onloadedmetadata = () => {
+      playVideo();
+    };
+
+    // Track active status change listener
+    const handleTrackEvent = () => playVideo();
+    stream.addEventListener('addtrack', handleTrackEvent);
+    stream.addEventListener('removetrack', handleTrackEvent);
+
+    return () => {
+      el.onloadedmetadata = null;
+      stream.removeEventListener('addtrack', handleTrackEvent);
+      stream.removeEventListener('removetrack', handleTrackEvent);
+    };
+  }, [stream, isMuted]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted={isMuted}
+      className={className}
+    />
+  );
+};
+
 export const CallOverlay: React.FC = () => {
   const {
     callStatus,
@@ -59,62 +136,28 @@ export const CallOverlay: React.FC = () => {
   const [isAudioAutoplayBlocked, setIsAudioAutoplayBlocked] = useState(false);
   const [showAcousticHint, setShowAcousticHint] = useState(true);
 
-  // Video and Audio DOM references
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  // Dedicated remote audio element
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const controlsTimeoutRef = useRef<number | null>(null);
 
-  // Callback ref to reliably bind streams to video elements across swaps and layout shifts
-  const setLocalVideoRef = useCallback(
-    (el: HTMLVideoElement | null) => {
-      localVideoRef.current = el;
-      if (el && localStream) {
-        el.srcObject = localStream;
-      }
-    },
-    [localStream]
-  );
-
-  const setRemoteVideoRef = useCallback(
-    (el: HTMLVideoElement | null) => {
-      remoteVideoRef.current = el;
-      if (el && remoteStream) {
-        el.srcObject = remoteStream;
-      }
-    },
-    [remoteStream]
-  );
-
-  // Sync streams whenever streams change
+  // Bind remote audio stream
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream, isSwapped, layoutMode, isMinimized]);
+    if (remoteStream && remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.muted = isSpeakerMuted;
+      remoteAudioRef.current.volume = remoteVolume;
 
-  useEffect(() => {
-    if (remoteStream) {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
-      }
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = remoteStream;
-        remoteAudioRef.current.muted = isSpeakerMuted;
-        remoteAudioRef.current.volume = remoteVolume;
-
-        const playPromise = remoteAudioRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise
-            .then(() => setIsAudioAutoplayBlocked(false))
-            .catch((err) => {
-              console.warn('Audio auto-play prevented by browser:', err);
-              setIsAudioAutoplayBlocked(true);
-            });
-        }
+      const playPromise = remoteAudioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => setIsAudioAutoplayBlocked(false))
+          .catch((err) => {
+            console.warn('Audio auto-play prevented by browser:', err);
+            setIsAudioAutoplayBlocked(true);
+          });
       }
     }
-  }, [remoteStream, isSwapped, layoutMode, isMinimized, isSpeakerMuted, remoteVolume]);
+  }, [remoteStream, isSpeakerMuted, remoteVolume]);
 
   // Sync speaker muted state directly to audio element
   useEffect(() => {
@@ -154,12 +197,12 @@ export const CallOverlay: React.FC = () => {
     return () => clearInterval(interval);
   }, [callStatus, setDuration]);
 
-  // Reset swap when screen share changes to naturally focus the new screen
+  // Naturally swap to local stream when screen sharing starts so the presenter can see their presentation
   useEffect(() => {
     if (isScreenSharing) {
-      setIsSwapped(true); // You are sharing -> spotlight yourself to see your screen
+      setIsSwapped(true);
     } else {
-      setIsSwapped(false); // Back to partner's spotlight
+      setIsSwapped(false);
     }
   }, [isScreenSharing]);
 
@@ -224,17 +267,18 @@ export const CallOverlay: React.FC = () => {
     typeof navigator !== 'undefined' &&
     Boolean(navigator.mediaDevices?.getDisplayMedia);
 
+  // Check if remote stream has active video track
   const hasRemoteVideo = Boolean(
     remoteStream &&
       remoteStream.getVideoTracks().length > 0 &&
       remoteStream.getVideoTracks().some((t) => t.enabled)
   );
 
+  // Check if local stream has active video track (camera or screen share)
   const hasLocalVideo = Boolean(
-    !isCameraOff &&
-      localStream &&
+    localStream &&
       localStream.getVideoTracks().length > 0 &&
-      localStream.getVideoTracks().some((t) => t.enabled)
+      (isScreenSharing || (!isCameraOff && localStream.getVideoTracks().some((t) => t.enabled)))
   );
 
   // Helper to render Remote Video / Avatar tile
@@ -242,11 +286,8 @@ export const CallOverlay: React.FC = () => {
     return (
       <div className="w-full h-full relative bg-rail overflow-hidden flex items-center justify-center select-none">
         {callStatus === 'connected' && hasRemoteVideo ? (
-          <video
-            ref={setRemoteVideoRef}
-            autoPlay
-            playsInline
-            muted
+          <VideoPlayer
+            stream={remoteStream}
             className={`w-full h-full ${
               isSmallPreview ? 'object-cover' : videoFit === 'contain' ? 'object-contain' : 'object-cover'
             }`}
@@ -279,7 +320,7 @@ export const CallOverlay: React.FC = () => {
         )}
 
         {/* Remote Tile Badge */}
-        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-control bg-sidebar/80 backdrop-blur-xs border border-border text-[11px] font-medium text-text-primary flex items-center gap-1.5 shadow-raised pointer-events-none">
+        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-control bg-sidebar/80 backdrop-blur-xs border border-border text-[11px] font-medium text-text-primary flex items-center gap-1.5 shadow-raised pointer-events-none z-10">
           <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
           <span className="truncate max-w-[120px]">{peer?.displayName}</span>
         </div>
@@ -292,11 +333,8 @@ export const CallOverlay: React.FC = () => {
     return (
       <div className="w-full h-full relative bg-rail overflow-hidden flex items-center justify-center select-none">
         {hasLocalVideo && localStream ? (
-          <video
-            ref={setLocalVideoRef}
-            autoPlay
-            playsInline
-            muted
+          <VideoPlayer
+            stream={localStream}
             className={`w-full h-full ${
               isSmallPreview
                 ? 'object-cover'
@@ -315,7 +353,7 @@ export const CallOverlay: React.FC = () => {
         )}
 
         {/* Local Tile Badge */}
-        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-control bg-sidebar/80 backdrop-blur-xs border border-border text-[11px] font-medium text-text-primary flex items-center gap-1.5 shadow-raised pointer-events-none">
+        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-control bg-sidebar/80 backdrop-blur-xs border border-border text-[11px] font-medium text-text-primary flex items-center gap-1.5 shadow-raised pointer-events-none z-10">
           {isScreenSharing ? (
             <>
               <Screencast size={13} weight="bold" className="text-accent-primary" />
@@ -393,13 +431,7 @@ export const CallOverlay: React.FC = () => {
           {/* Small Video Preview */}
           <div className="h-32 bg-rail rounded-control overflow-hidden relative flex items-center justify-center">
             {callStatus === 'connected' && hasRemoteVideo ? (
-              <video
-                ref={setRemoteVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
+              <VideoPlayer stream={remoteStream} className="w-full h-full object-cover" />
             ) : (
               <div className="flex flex-col items-center gap-1 text-text-muted">
                 <Avatar src={peer?.avatarUrl} fallback={peer?.displayName || 'User'} size="md" />
