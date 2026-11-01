@@ -411,7 +411,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               </div>
             ),
             Footer: () => (
-              <div className="flex flex-col w-full pb-2">
+              <div className="flex flex-col w-full pb-8 sm:pb-4">
                 {isLoadingNewer && (
                   <div className="py-2.5 flex items-center justify-center gap-2 text-xs text-text-muted select-none">
                     <CircleNotch size={16} className="animate-spin text-accent-primary" />

@@ -1100,6 +1100,7 @@ export const ChatPage: React.FC = () => {
     } catch (err) {
       console.error("Logout API failed, continuing local clear:", err);
     }
+    useUiStore.getState().resetUiState();
     localStorage.removeItem("nomna_logged_in");
     await signalRService.disconnect();
     navigate("/login", { replace: true });

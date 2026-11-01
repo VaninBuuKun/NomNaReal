@@ -154,19 +154,16 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
       <div
         className={`h-full overflow-hidden transition-all duration-300 ease-in-out ${
           isAnyPanelOpen
-            ? 'fixed inset-y-0 right-0 z-45 max-w-[85vw] sm:max-w-[420px] shadow-modal translate-x-0 md:static md:z-auto md:max-w-none md:shadow-none'
-            : 'fixed inset-y-0 right-0 z-45 max-w-[85vw] sm:max-w-[420px] translate-x-full md:static md:z-auto md:translate-x-0 md:max-w-none'
+            ? 'fixed inset-y-0 right-0 z-45 w-[88vw] max-w-[360px] md:w-[var(--panel-width)] md:max-w-none shadow-modal translate-x-0 md:static md:z-auto md:shadow-none'
+            : 'fixed inset-y-0 right-0 z-45 w-[88vw] max-w-[360px] md:w-0 md:max-w-none translate-x-full md:static md:z-auto md:translate-x-0'
         } ${isAnyPanelOpen ? 'shrink-0 flex' : 'hidden md:flex shrink-0'}`}
         style={{
-          width: isAnyPanelOpen ? `${currentWidth}px` : '0px',
+          '--panel-width': isAnyPanelOpen ? `${currentWidth}px` : '0px',
           opacity: isAnyPanelOpen ? 1 : 0,
           pointerEvents: isAnyPanelOpen ? 'auto' : 'none',
-        }}
+        } as React.CSSProperties}
       >
-        <div
-          className="h-full shrink-0 flex w-full max-w-full"
-          style={{ width: `${currentWidth}px` }}
-        >
+        <div className="h-full shrink-0 flex w-full max-w-full">
           {/* 1. Member List Panel */}
           {isMemberPanelVisible && (
             <MemberListPanel

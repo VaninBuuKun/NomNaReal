@@ -455,7 +455,11 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   };
 
   return (
-    <div className={`${isSidebar ? "px-3" : "px-4"} pb-2.5 pt-1.5 shrink-0 relative`}>
+    <div
+      className={`${
+        isSidebar ? "px-3" : "px-3 sm:px-4"
+      } pb-[max(0.75rem,calc(env(safe-area-inset-bottom)+0.25rem))] sm:pb-2.5 pt-1.5 shrink-0 relative safe-area-bottom`}
+    >
       {/* Emoji Picker Popover */}
       <EmojiPickerPopover
         isOpen={showEmojiPicker}
@@ -687,7 +691,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                   setShowGifPicker((prev) => !prev);
                   setShowEmojiPicker(false);
                 }}
-                className={`hover:text-text-primary transition-colors cursor-pointer p-1 rounded-control hover:bg-surface-active flex items-center justify-center ${
+                className={`hidden sm:flex hover:text-text-primary transition-colors cursor-pointer p-1 rounded-control hover:bg-surface-active items-center justify-center ${
                   showGifPicker ? "text-accent-primary" : ""
                 }`}
                 title="Mở thư viện ảnh GIF"

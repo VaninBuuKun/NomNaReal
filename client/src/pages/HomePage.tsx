@@ -23,6 +23,7 @@ import {
 import { SettingsModal } from "../components/settings";
 import { ServerAvatar, UserAvatar } from "../components/ui";
 import { authApi, serverApi } from "../services";
+import { useUiStore } from "../stores";
 import type { User, Server } from "../types";
 import { LockKeyIcon } from "@phosphor-icons/react/dist/ssr";
 
@@ -69,6 +70,7 @@ export const HomePage: React.FC = () => {
     } catch {
       // ignore
     }
+    useUiStore.getState().resetUiState();
     localStorage.removeItem("nomna_logged_in");
     setCurrentUser(null);
     setIsSettingsOpen(false);

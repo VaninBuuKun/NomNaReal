@@ -10,7 +10,6 @@ import {
   ChatTeardropText,
   X,
   CircleNotch,
-  List,
 } from "@phosphor-icons/react";
 import { Avatar } from "../ui";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
@@ -325,16 +324,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const renderHeaderContent = () => (
     <div className="h-[54px] border-b border-border px-3 sm:px-5 flex items-center justify-between bg-chat shrink-0 select-none">
       <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-        {/* Mobile Hamburger Menu Toggle Button */}
-        <button
-          type="button"
-          onClick={() => useUiStore.getState().toggleMobileSidebar()}
-          className="md:hidden p-1.5 rounded-control text-text-muted hover:text-text-primary hover:bg-surface-active transition-colors cursor-pointer shrink-0"
-          title="Mở danh sách kênh / bạn bè"
-        >
-          <List size={20} weight="bold" />
-        </button>
-
         {isDm && dmUser ? (
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative shrink-0">

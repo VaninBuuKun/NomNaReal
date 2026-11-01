@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { authApi } from '../services/authApi';
+import { useUiStore } from '../stores';
 import type { User } from '../types';
 
 export function useAuth() {
@@ -56,6 +57,7 @@ export function useAuth() {
     try {
       await authApi.logout();
     } finally {
+      useUiStore.getState().resetUiState();
       localStorage.removeItem('nomna_logged_in');
       localStorage.removeItem('nomna_token');
       localStorage.removeItem('nomna_refresh_token');

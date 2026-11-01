@@ -10,6 +10,7 @@ import {
 import { Button } from '../components/ui';
 import { useTheme } from '../hooks/useTheme';
 import { authApi } from '../services';
+import { useUiStore } from '../stores';
 
 export type AuthMode =
   | 'login'
@@ -29,6 +30,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
   const [error, setError] = useState<string | null>(null);
   useTheme();
   const googleBtnContainerRef = useRef<HTMLDivElement>(null);
+
+  // Reset UI state when landing on auth pages (close dangling modals, sidebars)
+  useEffect(() => {
+    useUiStore.getState().resetUiState();
+  }, []);
 
   // Reset error when mode changes
   useEffect(() => {
@@ -272,14 +278,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
                   </Link>
                 </span>
               )}
-            </div>
-            <div>
-              <Link
-                to="/landing"
-                className="text-[11px] text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:underline inline-flex items-center gap-1"
-              >
-                <span>← Tìm hiểu thêm về NomNa</span>
-              </Link>
             </div>
           </footer>
         )}
