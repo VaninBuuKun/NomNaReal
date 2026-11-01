@@ -8,6 +8,9 @@ interface CallStoreState {
   isMicMuted: boolean;
   isCameraOff: boolean;
   isScreenSharing: boolean;
+  isSpeakerMuted: boolean;
+  remoteVolume: number; // 0 to 1
+  isFullScreen: boolean;
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   incomingOffer: CallOfferPayload | null;
@@ -17,12 +20,17 @@ interface CallStoreState {
   // Actions
   setIncomingCall: (offer: CallOfferPayload) => void;
   setOutgoingCall: (peer: CallPeer, isVideo: boolean) => void;
+  setConnecting: () => void;
   setConnected: (remoteStream?: MediaStream | null) => void;
   setLocalStream: (stream: MediaStream | null) => void;
   setRemoteStream: (stream: MediaStream | null) => void;
+  setIsVideoCall: (isVideo: boolean) => void;
   toggleMic: () => void;
   toggleCamera: () => void;
+  toggleSpeaker: () => void;
+  setRemoteVolume: (vol: number) => void;
   setScreenSharing: (sharing: boolean) => void;
+  toggleFullScreen: () => void;
   setError: (err: string | null) => void;
   setDuration: (duration: number | ((prev: number) => number)) => void;
   resetCall: () => void;
@@ -35,6 +43,9 @@ const initialState = {
   isMicMuted: false,
   isCameraOff: false,
   isScreenSharing: false,
+  isSpeakerMuted: false,
+  remoteVolume: 1,
+  isFullScreen: false,
   localStream: null,
   remoteStream: null,
   incomingOffer: null,
@@ -68,6 +79,12 @@ export const useCallStore = create<CallStoreState>((set) => ({
       callDuration: 0,
     }),
 
+  setConnecting: () =>
+    set({
+      callStatus: 'connecting',
+      error: null,
+    }),
+
   setConnected: (remoteStream) =>
     set((state) => ({
       callStatus: 'connected',
@@ -78,6 +95,8 @@ export const useCallStore = create<CallStoreState>((set) => ({
   setLocalStream: (stream) => set({ localStream: stream }),
 
   setRemoteStream: (stream) => set({ remoteStream: stream }),
+
+  setIsVideoCall: (isVideo) => set({ isVideoCall: isVideo }),
 
   toggleMic: () =>
     set((state) => {
@@ -101,7 +120,22 @@ export const useCallStore = create<CallStoreState>((set) => ({
       return { isCameraOff: nextOff };
     }),
 
+  toggleSpeaker: () =>
+    set((state) => ({
+      isSpeakerMuted: !state.isSpeakerMuted,
+    })),
+
+  setRemoteVolume: (vol) =>
+    set({
+      remoteVolume: Math.max(0, Math.min(1, vol)),
+    }),
+
   setScreenSharing: (sharing) => set({ isScreenSharing: sharing }),
+
+  toggleFullScreen: () =>
+    set((state) => ({
+      isFullScreen: !state.isFullScreen,
+    })),
 
   setError: (err) => set({ error: err }),
 

@@ -28,7 +28,7 @@ export interface CallEndedPayload {
   peerId: string;
 }
 
-export type CallStatus = 'idle' | 'outgoing' | 'incoming' | 'connected';
+export type CallStatus = 'idle' | 'outgoing' | 'incoming' | 'connecting' | 'connected';
 
 export interface CallPeer {
   id: string;

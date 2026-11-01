@@ -59,6 +59,28 @@ public class CallSignalingPayloadTests
     }
 
     [Fact]
+    public void CallRejectedPayload_Should_Initialize_Correctly()
+    {
+        var peerId = Guid.NewGuid();
+        var reason = "Người dùng hiện không trực tuyến.";
+
+        var payload = new CallRejectedPayload(peerId, reason);
+
+        payload.PeerId.Should().Be(peerId);
+        payload.Reason.Should().Be(reason);
+    }
+
+    [Fact]
+    public void CallEndedPayload_Should_Initialize_Correctly()
+    {
+        var peerId = Guid.NewGuid();
+
+        var payload = new CallEndedPayload(peerId);
+
+        payload.PeerId.Should().Be(peerId);
+    }
+
+    [Fact]
     public void CallSignalingConstants_Should_Define_Required_Events_And_Methods()
     {
         SignalRConstants.Events.CallIncoming.Should().Be("CallIncoming");

@@ -44,7 +44,8 @@ graph TD
 ## ⚡ Điểm Nhấn Kỹ Thuật
 
 - **Kiến trúc Clean Architecture & CQRS**: Phân tầng rành mạch (`Domain` → `Application` → `Infrastructure` → `WebAPI`). Nghiệp vụ tách biệt tuyệt đối theo nguyên tắc 3-file (Command, CommandHandler, CommandValidator) qua MediatR và FluentValidation.
-- **Real-Time Engine (SignalR)**: Nhắn tin tức thì, , gõ phím (Typing Indicator), và theo dõi hiện diện (Presence tracking Online/Offline) với cơ chế Reconnection Catch-up.
+- **Real-Time Engine (SignalR)**: Nhắn tin tức thì, gõ phím (Typing Indicator), và theo dõi hiện diện (Presence tracking Online/Offline) với cơ chế Reconnection Catch-up.
+- **WebRTC 1-1 Voice & Video Call**: Đàm thoại P2P độ trễ thấp (<100ms), chia sẻ màn hình, cô lập audio pipeline, pre-negotiated dual transceivers không cần đàm phán lại SDP. Xem chi tiết tại [Tài liệu Kiến trúc WebRTC](docs/architecture/webrtc-architecture-and-engineering-deep-dive.md).
 - **Tối ưu Danh sách Tin nhắn**: Phân trang con trỏ hai chiều (Bi-directional Keyset Pagination) kết hợp ảo hóa giao diện (Message Virtualization), đảm bảo độ mượt khi xử lý hàng nghìn tin nhắn.
 - **Hệ Thống Phân Quyền Bitmask (64-bit)**: Quản lý quyền theo vai trò (Roles) và ghi đè cấp kênh (Channel Overwrites), tích hợp cơ chế thu hồi quyền tức thì (Realtime Access Revocation) và hủy cache tự động.
 - **Lưu trữ**: Avatar và file đính kèm được lưu trữ trực tiếp trên AWS S3 / Cloudflare R2 qua Presigned URL.

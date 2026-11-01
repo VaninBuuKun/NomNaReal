@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -25,6 +26,9 @@ public class ChatHub : Hub
     private readonly ILogger<ChatHub> _logger;
     private readonly IUserPresenceTracker _presenceTracker; // Singleton Service theo dõi danh sách connection/online status
     private readonly IServiceScopeFactory _scopeFactory;   // Dùng để tạo DI Scope ngắn hạn truy cập DbContext (Scoped Service) trong Hub lifecycle
+
+    // Track active 1v1 call pairings (UserId <-> PeerUserId) across connections
+    private static readonly ConcurrentDictionary<Guid, Guid> _activeCalls = new();
 
     public ChatHub(
         ISender mediator,
@@ -346,6 +350,25 @@ public class ChatHub : Hub
             throw new HubException("Cannot call yourself.");
         }
 
+        // Kiểm tra xem đối phương có đang Online không
+        var isTargetOnline = await _presenceTracker.IsUserOnlineAsync(targetUserId);
+        if (!isTargetOnline)
+        {
+            var offlinePayload = new CallRejectedPayload(targetUserId, "Người dùng hiện không trực tuyến.");
+            await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, offlinePayload);
+            return;
+        }
+
+        // Dọn dẹp bất kỳ trạng thái cuộc gọi cũ nào của caller nếu có
+        if (_activeCalls.TryRemove(callerId, out var oldPartner))
+        {
+            _activeCalls.TryRemove(oldPartner, out _);
+        }
+
+        // Lưu intent cuộc gọi active giữa 2 user
+        _activeCalls[callerId] = targetUserId;
+        _activeCalls[targetUserId] = callerId;
+
         var callerName = Context.User?.FindFirstValue(ClaimTypes.Name) ?? "User";
         string? callerAvatar = null;
 
@@ -382,6 +405,9 @@ public class ChatHub : Hub
             throw new HubException("User is not authenticated.");
         }
 
+        _activeCalls[callerId] = responderId;
+        _activeCalls[responderId] = callerId;
+
         var payload = new CallAnswerPayload(responderId, callerId, answerSdp);
 
         _logger.LogInformation("User {ResponderId} accepted call from {CallerId}", responderId, callerId);
@@ -399,6 +425,9 @@ public class ChatHub : Hub
             throw new HubException("User is not authenticated.");
         }
 
+        _activeCalls.TryRemove(callerId, out _);
+        _activeCalls.TryRemove(responderId, out _);
+
         var payload = new CallRejectedPayload(responderId, reason);
 
         _logger.LogInformation("User {ResponderId} rejected call from {CallerId} (Reason: {Reason})", responderId, callerId, reason);
@@ -415,6 +444,9 @@ public class ChatHub : Hub
         {
             throw new HubException("User is not authenticated.");
         }
+
+        _activeCalls.TryRemove(senderId, out _);
+        _activeCalls.TryRemove(peerUserId, out _);
 
         var payload = new CallEndedPayload(senderId);
 
@@ -505,6 +537,23 @@ public class ChatHub : Hub
 
         if (Guid.TryParse(userIdStr, out var userId))
         {
+            // Nếu User đang trong cuộc gọi dở mà bị ngắt kết nối (tắt tab, mất mạng), tự động báo CallEnded cho đối phương
+            if (_activeCalls.TryRemove(userId, out var partnerId))
+            {
+                _activeCalls.TryRemove(partnerId, out _);
+                try
+                {
+                    await Clients.User(partnerId.ToString()).SendAsync(
+                        SignalRConstants.Events.CallEnded,
+                        new CallEndedPayload(userId));
+                    _logger.LogInformation("Disconnected user {UserId} had active call with {PartnerId}, dispatched CallEnded", userId, partnerId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to dispatch CallEnded on disconnect to partner {PartnerId}", partnerId);
+                }
+            }
+
             // _presenceTracker trả về true NẾU TẤT CẢ CONNECTION CỦA USER ĐÃ ĐÓNG (người dùng thực sự Offline hẳn)
             var becameOffline = await _presenceTracker.UserDisconnectedAsync(userId, Context.ConnectionId);
             if (becameOffline)
