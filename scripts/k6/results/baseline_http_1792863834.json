@@ -1,0 +1,196 @@
+{
+    "metrics": {
+        "http_req_waiting": {
+            "avg": 8617.311048694133,
+            "min": 3.723888,
+            "med": 3049.293495,
+            "max": 37224.901247,
+            "p(90)": 24252.844022999998,
+            "p(95)": 31324.88266875
+        },
+        "nomna_failure_rate": {
+            "passes": 47,
+            "fails": 882,
+            "thresholds": {
+                "rate<0.05": true
+            },
+            "value": 0.05059203444564048
+        },
+        "vus_max": {
+            "max": 300,
+            "value": 300,
+            "min": 300
+        },
+        "data_sent": {
+            "count": 821614,
+            "rate": 9708.891915572578
+        },
+        "nomna_failed_ops": {
+            "count": 47,
+            "rate": 0.5553920941365547
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(95)": 26934.013505599993,
+            "avg": 7751.507375420316,
+            "min": 3.779591,
+            "med": 2882.493955,
+            "max": 35230.48286,
+            "p(90)": 21271.811832
+        },
+        "http_req_blocked": {
+            "min": 0.000561,
+            "med": 0.0040745,
+            "max": 12.536683,
+            "p(90)": 0.786722,
+            "p(95)": 1.0009039999999998,
+            "avg": 0.17142144842406898
+        },
+        "nomna_successful_ops": {
+            "rate": 10.42246440486045,
+            "count": 882
+        },
+        "http_req_duration": {
+            "max": 37224.91802,
+            "p(90)": 24253.035846500003,
+            "p(95)": 31324.918841500003,
+            "avg": 8617.447069787251,
+            "min": 3.779591,
+            "med": 3049.3880415000003,
+            "thresholds": {
+                "p(95)<300": true,
+                "p(99)<800": true
+            }
+        },
+        "iterations": {
+            "count": 465,
+            "rate": 5.49483667603187
+        },
+        "http_req_receiving": {
+            "avg": 0.09375431160458442,
+            "min": 0.00684,
+            "med": 0.0540835,
+            "max": 1.184712,
+            "p(90)": 0.23142600000000002,
+            "p(95)": 0.31309549999999997
+        },
+        "iteration_duration": {
+            "min": 366.180264,
+            "med": 27463.875771,
+            "max": 67434.506195,
+            "p(90)": 40803.529220000004,
+            "p(95)": 49966.72085539997,
+            "avg": 26167.313824959143
+        },
+        "http_req_connecting": {
+            "med": 0,
+            "max": 12.326022,
+            "p(90)": 0.5821015,
+            "p(95)": 0.7153627499999999,
+            "avg": 0.12848779871060173,
+            "min": 0
+        },
+        "http_req_tls_handshaking": {
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0
+        },
+        "data_received": {
+            "count": 5893386,
+            "rate": 69641.27642755432
+        },
+        "http_req_failed": {
+            "passes": 47,
+            "fails": 1349,
+            "value": 0.0336676217765043
+        },
+        "http_reqs": {
+            "count": 1396,
+            "rate": 16.496326881162346
+        },
+        "nomna_get_messages_duration_ms": {
+            "min": 5,
+            "med": 1942.5,
+            "max": 28413,
+            "p(90)": 20329,
+            "p(95)": 26269,
+            "avg": 5618.8426724137935
+        },
+        "nomna_send_message_duration_ms": {
+            "max": 34739,
+            "p(90)": 32172.8,
+            "p(95)": 33854.85,
+            "avg": 8337.381465517241,
+            "min": 4,
+            "med": 2599
+        },
+        "checks": {
+            "passes": 1347,
+            "fails": 47,
+            "value": 0.966284074605452
+        },
+        "vus": {
+            "value": 97,
+            "min": 0,
+            "max": 300
+        },
+        "http_req_sending": {
+            "avg": 0.042266781518624646,
+            "min": 0.002932,
+            "med": 0.0149325,
+            "max": 1.673131,
+            "p(90)": 0.128414,
+            "p(95)": 0.1612695
+        }
+    },
+    "setup_data": {
+        "channelId": "01a16f00-d847-7434-8f3c-7c21edb3ecf9"
+    },
+    "root_group": {
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "setup": {
+                "checks": {
+                    "Setup Login Successful (200)": {
+                        "name": "Setup Login Successful (200)",
+                        "path": "::setup::Setup Login Successful (200)",
+                        "id": "a34b64e245bf818c7000e7cdaf4d9e6b",
+                        "passes": 1,
+                        "fails": 0
+                    }
+                },
+                "name": "setup",
+                "path": "::setup",
+                "id": "5c0f8025f7e0b6654089e5b00e950f1a",
+                "groups": {}
+            }
+        },
+        "checks": {
+            "Login 200": {
+                "name": "Login 200",
+                "path": "::Login 200",
+                "id": "ac854669b7c617b3d138ba46d69d141d",
+                "passes": 464,
+                "fails": 1
+            },
+            "GET /messages status 200": {
+                "fails": 0,
+                "name": "GET /messages status 200",
+                "path": "::GET /messages status 200",
+                "id": "b03f13ad3519f4e1132971490dafbba4",
+                "passes": 464
+            },
+            "POST /messages status 200": {
+                "name": "POST /messages status 200",
+                "path": "::POST /messages status 200",
+                "id": "37bc0a8499ac90fa24234d5c5aadaf89",
+                "passes": 418,
+                "fails": 46
+            }
+        },
+        "name": "",
+        "path": ""
+    }
+}
