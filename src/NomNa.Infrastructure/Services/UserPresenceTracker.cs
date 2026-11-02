@@ -13,7 +13,7 @@ public class UserPresenceTracker : IUserPresenceTracker
 
         OnlineUsers.AddOrUpdate(
             userId,
-            _ =>
+            _ => //Chạy khi chưa có key
             {
                 isFirstConnection = true;
                 return new HashSet<string> { connectionId };

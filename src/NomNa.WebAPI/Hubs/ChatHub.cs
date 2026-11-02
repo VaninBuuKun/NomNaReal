@@ -65,27 +65,10 @@ public partial class ChatHub : Hub
 
         if (Guid.TryParse(userIdStr, out var userId))
         {
-            // _presenceTracker trả về true NẾU ĐÂY LÀ CONNECTION ĐẦU TIÊN của User (chuyển trạng thái từ Offline -> Online)
+            // _presenceTracker (Redis) trả về true NẾU ĐÂY LÀ CONNECTION ĐẦU TIÊN của User (chuyển trạng thái từ Offline -> Online)
             var becameOnline = await _presenceTracker.UserConnectedAsync(userId, Context.ConnectionId);
             if (becameOnline)
             {
-                try
-                {
-                    // Cập nhật trạng thái User thành Online trong DB
-                    using var scope = _scopeFactory.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-                    var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-                    if (user != null)
-                    {
-                        user.Status = UserStatus.Online;
-                        await db.SaveChangesAsync(default);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to update user status to Online in database for {UserId}", userId);
-                }
-
                 // Broadcast toàn hệ thống (Clients.All) báo rằng User này vừa mới Online
                 await Clients.All.SendAsync(SignalRConstants.Events.UserStatusChanged, new
                 {
@@ -125,27 +108,10 @@ public partial class ChatHub : Hub
                 }
             }
 
-            // _presenceTracker trả về true NẾU TẤT CẢ CONNECTION CỦA USER ĐÃ ĐÓNG (người dùng thực sự Offline hẳn)
+            // _presenceTracker (Redis) trả về true NẾU TẤT CẢ CONNECTION CỦA USER ĐÃ ĐÓNG (người dùng thực sự Offline hẳn)
             var becameOffline = await _presenceTracker.UserDisconnectedAsync(userId, Context.ConnectionId);
             if (becameOffline)
             {
-                try
-                {
-                    // Cập nhật trạng thái User thành Offline trong DB
-                    using var scope = _scopeFactory.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-                    var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId);
-                    if (user != null)
-                    {
-                        user.Status = UserStatus.Offline;
-                        await db.SaveChangesAsync(default);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to update user status to Offline in database for {UserId}", userId);
-                }
-
                 // Broadcast cho toàn hệ thống biết User đã Offline
                 await Clients.All.SendAsync(SignalRConstants.Events.UserStatusChanged, new
                 {

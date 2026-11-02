@@ -6,6 +6,7 @@ using NomNa.Application.Common.Interfaces;
 using NomNa.Domain.Entities;
 using NomNa.Infrastructure.Persistence;
 using NomNa.Infrastructure.Services;
+using StackExchange.Redis;
 
 namespace NomNa.Infrastructure;
 
@@ -25,7 +26,20 @@ public static class DependencyInjection
         services.AddScoped<IGoogleAuthService, GoogleAuthService>();
         services.AddScoped<IFileStorageService, S3FileStorageService>();
         services.AddScoped<IEmailService, EmailService>();
-        services.AddSingleton<IUserPresenceTracker, UserPresenceTracker>();
+        // Redis Connection Multiplexer for distributed caching & presence tracking
+        var redisConn = configuration.GetConnectionString("Redis") 
+            ?? configuration["Redis"] 
+            ?? "localhost:6380";
+
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            var options = ConfigurationOptions.Parse(redisConn);
+            options.AbortOnConnectFail = false;
+            options.ConnectTimeout = 5000;
+            return ConnectionMultiplexer.Connect(options);
+        });
+
+        services.AddSingleton<IUserPresenceTracker, RedisUserPresenceTracker>();
         services.AddMemoryCache();
         services.AddSingleton<IUserProfileCache, UserProfileCache>();
         services.AddSingleton<IPinnedMessageCache, PinnedMessageCache>();
