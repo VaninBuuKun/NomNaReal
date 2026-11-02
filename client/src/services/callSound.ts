@@ -1,11 +1,13 @@
 /**
- * Synthesizes call ringtones and cues via the Web Audio API.
- * Guarantees zero latency, no network downloads, and zero missing asset issues.
+ * CallSoundService:
+ * Hỗ trợ phát bài hát MP3 tùy chỉnh (tại /sounds/ringtone.mp3, /sounds/calling.mp3, /sounds/call-end.mp3).
+ * Nếu không có file MP3 hoặc tải thất bại, tự động chuyển sang Web Audio API tổng hợp âm thanh dự phòng.
  */
 class CallSoundService {
   private audioCtx: AudioContext | null = null;
   private ringInterval: number | null = null;
   private activeOscillators: OscillatorNode[] = [];
+  private currentAudioElement: HTMLAudioElement | null = null;
 
   private getAudioContext(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -22,17 +24,111 @@ class CallSoundService {
   }
 
   /**
-   * Plays a gentle modern outgoing ring sound (pleasant two-tone pulse every 2.6s)
+   * Thử phát file âm thanh từ URL.
+   * Nếu thành công trả về true. Nếu file không tồn tại hoặc lỗi, gọi fallback.
+   */
+  private tryPlayAudioFile(url: string, loop: boolean, onFallback: () => void): void {
+    const audio = new Audio(url);
+    audio.loop = loop;
+    this.currentAudioElement = audio;
+
+    let hasHandledError = false;
+    const handleError = () => {
+      if (hasHandledError) return;
+      hasHandledError = true;
+      if (this.currentAudioElement === audio) {
+        this.currentAudioElement = null;
+      }
+      onFallback();
+    };
+
+    audio.addEventListener('error', handleError, { once: true });
+
+    audio.play().catch((err) => {
+      // Nếu là lỗi 404 hoặc không load được media -> fallback sang synth
+      if (err?.name === 'NotSupportedError' || audio.error) {
+        handleError();
+      } else {
+        // Có thể bị chặn autoplay do chính sách trình duyệt
+        console.warn(`[CallSound] Audio play paused or blocked:`, err);
+      }
+    });
+  }
+
+  /**
+   * Phát nhạc chờ khi gọi đi (Outgoing)
+   * Ưu tiên file /sounds/calling.mp3, nếu không có thì chạy Synth pulse.
    */
   public playOutgoingRing(): void {
     this.stop();
+    this.tryPlayAudioFile('/sounds/calling.mp3', true, () => {
+      this.playSyntheticOutgoing();
+    });
+  }
+
+  /**
+   * Phát nhạc chuông khi có người gọi đến (Incoming)
+   * Ưu tiên file /sounds/ringtone.mp3, nếu không có thì chạy Synth arpeggio.
+   */
+  public playIncomingRing(): void {
+    this.stop();
+    this.tryPlayAudioFile('/sounds/ringtone.mp3', true, () => {
+      this.playSyntheticIncoming();
+    });
+  }
+
+  /**
+   * Phát âm thanh khi kết thúc cuộc gọi
+   * Ưu tiên file /sounds/call-end.mp3, nếu không có thì chạy Synth cue.
+   */
+  public playCallEnd(): void {
+    this.stop();
+    this.tryPlayAudioFile('/sounds/call-end.mp3', false, () => {
+      this.playSyntheticCallEnd();
+    });
+  }
+
+  /**
+   * Dừng toàn bộ âm thanh (cả file MP3 lẫn Web Audio synth)
+   */
+  public stop(): void {
+    // 1. Dừng Audio Element nếu đang phát MP3
+    if (this.currentAudioElement) {
+      try {
+        this.currentAudioElement.pause();
+        this.currentAudioElement.currentTime = 0;
+      } catch {
+        // ignore
+      }
+      this.currentAudioElement = null;
+    }
+
+    // 2. Dừng Web Audio intervals và oscillators
+    if (this.ringInterval !== null) {
+      clearInterval(this.ringInterval);
+      this.ringInterval = null;
+    }
+    for (const osc of this.activeOscillators) {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch {
+        // already stopped
+      }
+    }
+    this.activeOscillators = [];
+  }
+
+  // ==========================================
+  // Fallback Web Audio API Synthesizers
+  // ==========================================
+
+  private playSyntheticOutgoing(): void {
     const ctx = this.getAudioContext();
     if (!ctx) return;
 
     const playPulse = () => {
       const now = ctx.currentTime;
-      // Tone 1: 440 Hz (A4)
-      // Tone 2: 480 Hz
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -63,11 +159,7 @@ class CallSoundService {
     this.ringInterval = window.setInterval(playPulse, 2600);
   }
 
-  /**
-   * Plays an upbeat, melodic incoming call ring (3-tone major chord arpeggio)
-   */
-  public playIncomingRing(): void {
-    this.stop();
+  private playSyntheticIncoming(): void {
     const ctx = this.getAudioContext();
     if (!ctx) return;
 
@@ -99,11 +191,7 @@ class CallSoundService {
     this.ringInterval = window.setInterval(playChord, 2200);
   }
 
-  /**
-   * Plays a brief descending cue when a call ends or is rejected
-   */
-  public playCallEnd(): void {
-    this.stop();
+  private playSyntheticCallEnd(): void {
     const ctx = this.getAudioContext();
     if (!ctx) return;
 
@@ -123,25 +211,6 @@ class CallSoundService {
 
     osc.start(now);
     osc.stop(now + 0.32);
-  }
-
-  /**
-   * Stops all active ringing oscillators and intervals
-   */
-  public stop(): void {
-    if (this.ringInterval !== null) {
-      clearInterval(this.ringInterval);
-      this.ringInterval = null;
-    }
-    for (const osc of this.activeOscillators) {
-      try {
-        osc.stop();
-        osc.disconnect();
-      } catch {
-        // already stopped
-      }
-    }
-    this.activeOscillators = [];
   }
 }
 

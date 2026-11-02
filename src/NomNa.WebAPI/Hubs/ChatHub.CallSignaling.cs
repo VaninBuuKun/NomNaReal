@@ -22,6 +22,7 @@ public partial class ChatHub
             throw new HubException("User is not authenticated.");
         }
 
+
         if (callerId == targetUserId)
         {
             throw new HubException("Cannot call yourself.");
