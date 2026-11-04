@@ -12,7 +12,7 @@ COPY src/NomNa.Application/NomNa.Application.csproj src/NomNa.Application/
 COPY src/NomNa.Infrastructure/NomNa.Infrastructure.csproj src/NomNa.Infrastructure/
 COPY src/NomNa.WebAPI/NomNa.WebAPI.csproj src/NomNa.WebAPI/
 
-RUN dotnet restore NomNa.sln
+RUN dotnet restore src/NomNa.WebAPI/NomNa.WebAPI.csproj
 
 # Copy backend source and compile
 COPY src/ src/
