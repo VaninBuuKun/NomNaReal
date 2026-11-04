@@ -9,7 +9,7 @@ public record UserDto(
     string DisplayName,
     string? AvatarUrl,
     string? Bio,
-    UserStatus Status
+    UserStatusPreference StatusPreference
 );
 
 public record AuthResultDto(

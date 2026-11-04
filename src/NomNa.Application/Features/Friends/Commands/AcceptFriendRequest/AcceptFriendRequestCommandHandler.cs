@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using NomNa.Application.Common.Helpers;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Friends.DTOs;
@@ -12,11 +13,16 @@ public class AcceptFriendRequestCommandHandler : IRequestHandler<AcceptFriendReq
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserPresenceTracker _presenceTracker;
 
-    public AcceptFriendRequestCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public AcceptFriendRequestCommandHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IUserPresenceTracker presenceTracker)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _presenceTracker = presenceTracker;
     }
 
     public async Task<Result<FriendDto>> Handle(AcceptFriendRequestCommand request, CancellationToken cancellationToken)
@@ -55,7 +61,8 @@ public class AcceptFriendRequestCommandHandler : IRequestHandler<AcceptFriendReq
         };
         _context.Notifications.Add(notif);
 
-        await _context.SaveChangesAsync(cancellationToken);
+        var isOnline = await _presenceTracker.IsUserOnlineAsync(friendship.Requester.Id);
+        var resolvedStatus = UserPresenceResolver.Resolve(isOnline, friendship.Requester.StatusPreference);
 
         return new FriendDto(
             friendship.Id,
@@ -63,7 +70,7 @@ public class AcceptFriendRequestCommandHandler : IRequestHandler<AcceptFriendReq
             friendship.Requester.DisplayName,
             friendship.Requester.UserName ?? string.Empty,
             friendship.Requester.AvatarUrl,
-            friendship.Requester.Status,
+            resolvedStatus,
             FriendshipStatus.Accepted,
             friendship.CreatedAt
         );

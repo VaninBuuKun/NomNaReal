@@ -33,7 +33,7 @@ public class GetCurrentUserQueryHandler : IRequestHandler<GetCurrentUserQuery, R
                 u.DisplayName,
                 u.AvatarUrl,
                 u.Bio,
-                u.Status
+                u.StatusPreference
             ))
             .FirstOrDefaultAsync(cancellationToken);
 

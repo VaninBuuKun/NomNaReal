@@ -21,6 +21,7 @@ export class SignalRService {
   private reconnectedCallbacks: Array<(connectionId?: string) => void> = [];
   private statusListeners: Array<(status: ConnectionStatus) => void> = [];
   private status: ConnectionStatus = "connected";
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
   private setStatus(next: ConnectionStatus): void {
     if (this.status === next) return;
@@ -75,10 +76,14 @@ export class SignalRService {
       .build();
 
     this.connection.onreconnecting(() => this.setStatus("reconnecting"));
-    this.connection.onclose(() => this.setStatus("disconnected"));
+    this.connection.onclose(() => {
+      this.stopHeartbeat();
+      this.setStatus("disconnected");
+    });
 
     this.connection.onreconnected(async (connectionId) => {
       this.setStatus("connected");
+      this.startHeartbeat();
       console.log("SignalR Reconnected. ConnectionId:", connectionId);
       // Tự động tham gia lại Channel đang mở sau khi kết nối lại thành công
       if (this.currentChannelId) {
@@ -118,6 +123,7 @@ export class SignalRService {
         await this.connection.start();
         console.log("SignalR Connected successfully.");
         this.setStatus("connected");
+        this.startHeartbeat();
       }
     } catch (err: any) {
       if (err?.name === "AbortError" || err?.message?.includes("stopped")) {
@@ -637,6 +643,7 @@ export class SignalRService {
   }
 
   public async disconnect(): Promise<void> {
+    this.stopHeartbeat();
     if (this.connection) {
       const conn = this.connection;
       this.connection = null;
@@ -648,6 +655,25 @@ export class SignalRService {
       } catch {
         // Ignore expected abort during unmounting
       }
+    }
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatInterval = setInterval(() => {
+      if (
+        this.connection &&
+        this.connection.state === signalR.HubConnectionState.Connected
+      ) {
+        this.connection.invoke("PingPresence").catch(() => {});
+      }
+    }, 25_000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
   }
 }

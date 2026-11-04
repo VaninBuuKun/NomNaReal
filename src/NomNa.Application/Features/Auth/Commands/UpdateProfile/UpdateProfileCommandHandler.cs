@@ -65,7 +65,7 @@ public class UpdateProfileCommandHandler : IRequestHandler<UpdateProfileCommand,
             user.DisplayName,
             user.AvatarUrl,
             user.Bio,
-            user.Status
+            user.StatusPreference
         );
     }
 }

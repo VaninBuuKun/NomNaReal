@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using NomNa.Application.Common.Helpers;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Application.Common.Models;
 using NomNa.Domain.Enums;
@@ -37,8 +38,6 @@ public class GetDirectMessagesQueryHandler : IRequestHandler<GetDirectMessagesQu
                 return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
         }
 
-        var onlineUsers = await _presenceTracker.GetOnlineUsersAsync();
-
         // Find DM channels where current user is a participant
         var query = _context.Channels
             .AsNoTracking()
@@ -56,6 +55,15 @@ public class GetDirectMessagesQueryHandler : IRequestHandler<GetDirectMessagesQu
             .OrderByDescending(c => c.LastMessageAt ?? c.CreatedAt)
             .ToListAsync(cancellationToken);
 
+        var otherUserIds = dmChannels
+            .SelectMany(c => c.Members)
+            .Where(m => m.UserId != currentUserId.Value)
+            .Select(m => m.UserId)
+            .Distinct()
+            .ToList();
+
+        var onlinePresenceMap = await _presenceTracker.AreUsersOnlineAsync(otherUserIds);
+
         var result = new List<DirectMessageChannelDto>();
         var seenUserIds = new HashSet<Guid>();
 
@@ -67,7 +75,7 @@ public class GetDirectMessagesQueryHandler : IRequestHandler<GetDirectMessagesQu
             if (otherMember == null) continue;
             if (!seenUserIds.Add(otherMember.Id)) continue; // Deduplicate: keep only the most recent channel per user
 
-            var status = onlineUsers.Contains(otherMember.Id) ? "online" : otherMember.Status.ToString().ToLower();
+            var status = UserPresenceResolver.Resolve(onlinePresenceMap.GetValueOrDefault(otherMember.Id), otherMember.StatusPreference);
 
             result.Add(new DirectMessageChannelDto(
                 ch.Id,

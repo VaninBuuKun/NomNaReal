@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using NomNa.Application.Common.Helpers;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Friends.DTOs;
@@ -12,11 +13,16 @@ public class SendFriendRequestCommandHandler : IRequestHandler<SendFriendRequest
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserPresenceTracker _presenceTracker;
 
-    public SendFriendRequestCommandHandler(IApplicationDbContext context, ICurrentUserService currentUserService)
+    public SendFriendRequestCommandHandler(
+        IApplicationDbContext context,
+        ICurrentUserService currentUserService,
+        IUserPresenceTracker presenceTracker)
     {
         _context = context;
         _currentUserService = currentUserService;
+        _presenceTracker = presenceTracker;
     }
 
     public async Task<Result<FriendDto>> Handle(SendFriendRequestCommand request, CancellationToken cancellationToken)
@@ -60,13 +66,16 @@ public class SendFriendRequestCommandHandler : IRequestHandler<SendFriendRequest
 
                     await _context.SaveChangesAsync(cancellationToken);
 
+                    var isOnlineExisting = await _presenceTracker.IsUserOnlineAsync(targetUser.Id);
+                    var resolvedExistingStatus = UserPresenceResolver.Resolve(isOnlineExisting, targetUser.StatusPreference);
+
                     return new FriendDto(
                         existingFriendship.Id,
                         targetUser.Id,
                         targetUser.DisplayName,
                         targetUser.UserName ?? string.Empty,
                         targetUser.AvatarUrl,
-                        targetUser.Status,
+                        resolvedExistingStatus,
                         FriendshipStatus.Accepted,
                         existingFriendship.CreatedAt
                     );
@@ -99,13 +108,16 @@ public class SendFriendRequestCommandHandler : IRequestHandler<SendFriendRequest
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        var isOnline = await _presenceTracker.IsUserOnlineAsync(targetUser.Id);
+        var resolvedStatus = UserPresenceResolver.Resolve(isOnline, targetUser.StatusPreference);
+
         return new FriendDto(
             friendship.Id,
             targetUser.Id,
             targetUser.DisplayName,
             targetUser.UserName ?? string.Empty,
             targetUser.AvatarUrl,
-            targetUser.Status,
+            resolvedStatus,
             FriendshipStatus.Pending,
             friendship.CreatedAt
         );

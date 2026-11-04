@@ -9,10 +9,14 @@ namespace NomNa.WebAPI.Services;
 public class SignalRNotificationDispatcher : INotificationDispatcher
 {
     private readonly IHubContext<ChatHub> _hubContext;
+    private readonly ILogger<SignalRNotificationDispatcher> _logger;
 
-    public SignalRNotificationDispatcher(IHubContext<ChatHub> hubContext)
+    public SignalRNotificationDispatcher(
+        IHubContext<ChatHub> hubContext,
+        ILogger<SignalRNotificationDispatcher> logger)
     {
         _hubContext = hubContext;
+        _logger = logger;
     }
 
     public async Task DispatchAsync(NotificationDto notification, CancellationToken cancellationToken = default)
@@ -25,7 +29,7 @@ public class SignalRNotificationDispatcher : INotificationDispatcher
         catch (Exception ex)
         {
             // Log or ignore if user is offline
-            Console.WriteLine($"[SignalRNotificationDispatcher] Error dispatching notification to user {notification.UserId}: {ex.Message}");
+            _logger.LogWarning(ex, "[SignalRNotificationDispatcher] Error dispatching notification to user {UserId}: {Message}", notification.UserId, ex.Message);
         }
     }
 }

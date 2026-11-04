@@ -46,7 +46,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
             UserName = usernameLower,
             DisplayName = request.DisplayName.Trim(),
             AvatarUrl = null,
-            Status = UserStatus.Online
+            StatusPreference = UserStatusPreference.Online
         };
 
         var result = await _userManager.CreateAsync(user, request.Password);
@@ -75,7 +75,7 @@ public class RegisterCommandHandler : IRequestHandler<RegisterCommand, Result<Au
         _context.RefreshTokens.Add(refreshTokenEntity);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var userDto = new UserDto(user.Id, user.Email, user.UserName, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
+        var userDto = new UserDto(user.Id, user.Email, user.UserName, user.DisplayName, user.AvatarUrl, user.Bio, user.StatusPreference);
         return new AuthResultDto(accessToken, rawRefreshToken, expiresAt, userDto);
     }
 }

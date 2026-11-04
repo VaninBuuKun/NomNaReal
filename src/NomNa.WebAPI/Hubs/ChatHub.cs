@@ -55,6 +55,18 @@ public partial class ChatHub : Hub
     }
 
     /// <summary>
+    /// Endpoint heartbeat từ client gửi định kỳ (mỗi 25s) để gia hạn connection lease trong Redis.
+    /// Giúp tự động giải phóng trạng thái Online nếu client bị crash hoặc mất mạng đột ngột.
+    /// </summary>
+    public async Task PingPresence()
+    {
+        if (Guid.TryParse(Context.UserIdentifier, out var userId))
+        {
+            await _presenceTracker.HeartbeatAsync(userId, Context.ConnectionId);
+        }
+    }
+
+    /// <summary>
     /// Event Handler kích hoạt khi một WebSocket/Transport Connection thiết lập thành công.
     /// Quản lý Multi-device Connection (Một User có thể mở nhiều Tab/Thiết bị khác nhau).
     /// </summary>

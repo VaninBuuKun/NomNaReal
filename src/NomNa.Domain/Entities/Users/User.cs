@@ -8,7 +8,7 @@ public class User : IdentityUser<Guid>
     public string DisplayName { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public string? Bio { get; set; }
-    public UserStatus Status { get; set; } = UserStatus.Offline;
+    public UserStatusPreference StatusPreference { get; set; } = UserStatusPreference.Online;
     public DateTime? LastSeenAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -26,13 +26,9 @@ public class User : IdentityUser<Guid>
         Id = Guid.NewGuid();
     }
 
-    public void UpdateStatus(UserStatus status)
+    public void UpdateStatusPreference(UserStatusPreference preference)
     {
-        Status = status;
+        StatusPreference = preference;
         UpdatedAt = DateTime.UtcNow;
-        if (status == UserStatus.Offline)
-        {
-            LastSeenAt = DateTime.UtcNow;
-        }
     }
 }
