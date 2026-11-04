@@ -101,13 +101,77 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const [showGifPicker, setShowGifPicker] = useState(false);
   const [isMentionOpen, setIsMentionOpen] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
+  const [confirmedMentions, setConfirmedMentions] = useState<Set<string>>(new Set());
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   const [dismissedInputUrl, setDismissedInputUrl] = useState<string | null>(null);
 
   const plusMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<any>(null);
+
+  // Synchronize backdrop scroll position with textarea
+  useEffect(() => {
+    if (backdropRef.current && textareaRef.current) {
+      backdropRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, [content]);
+
+  // Render tokens in backdrop for mention highlighting.
+  // Rule: Broadcast mentions only color when full word is typed (@all, @everyone, @here, @channel).
+  // User mentions only color when selected from the autocomplete suggestion popover.
+  const renderHighlightedBackdrop = (text: string) => {
+    if (!text) return null;
+    const mentionRegex = /((?<!\w)@[a-zA-Z0-9_\.]+)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = mentionRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+      const token = match[0];
+      const tag = token.slice(1).toLowerCase();
+      const isBroadcast = tag === "all" || tag === "everyone" || tag === "channel";
+      const isHere = tag === "here";
+      const isConfirmedUser = confirmedMentions.has(tag);
+
+      // Only color if full broadcast keyword OR explicitly selected user from suggestion
+      if (!isBroadcast && !isHere && !isConfirmedUser) {
+        parts.push(token);
+      } else {
+        parts.push(
+          <span
+            key={match.index}
+            className={`rounded-[3px] font-medium ${
+              isHere
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "bg-[var(--accent-soft,#5865f226)] text-[var(--accent-primary,#5865f2)]"
+            }`}
+            style={{
+              boxDecorationBreak: "clone",
+              WebkitBoxDecorationBreak: "clone",
+            }}
+          >
+            {token}
+          </span>
+        );
+      }
+      lastIndex = match.index + token.length;
+    }
+
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    if (text.endsWith("\n")) {
+      parts.push("\u200B");
+    }
+
+    return parts;
+  };
 
   // Sync draft when active channel changes
   useEffect(() => {
@@ -116,6 +180,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     } else {
       setContent("");
     }
+    setConfirmedMentions(new Set());
     setPendingAttachments([]);
     setDismissedInputUrl(null);
   }, [channelId]);
@@ -201,6 +266,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     const updatedBefore = textBeforeCursor.replace(/@([a-zA-Z0-9_\.]*)$/, `@${username} `);
     const newContent = updatedBefore + textAfterCursor;
     setContent(newContent);
+    setConfirmedMentions((prev) => new Set(prev).add(username.toLowerCase()));
     if (channelId) {
       setDraft(channelId, newContent);
     }
@@ -387,6 +453,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     try {
       await onSendMessage(text, readyAttachments, replyingToMessage?.id);
       setContent("");
+      setConfirmedMentions(new Set());
       onCancelReply();
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
@@ -657,28 +724,57 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             </div>
           )}
 
-          {/* Direct Input Textarea */}
-          <textarea
-            ref={textareaRef}
-            className={`flex-1 bg-transparent border-none outline-none caret-accent-primary placeholder:text-text-muted text-text-primary resize-none leading-relaxed disabled:opacity-50 py-1 max-h-36 no-scrollbar ${
-              isSidebar ? "text-[0.88rem]" : "text-[0.93rem]"
-            }`}
-            rows={1}
-            value={content}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePaste}
-            disabled={!channelId || !canSendMessages}
-            placeholder={
-              !channelId
-                ? "Chọn một kênh để nhắn tin..."
-                : !canSendMessages
-                ? `Bạn không có quyền gửi tin nhắn trong kênh #${channelName || "này"}.`
-                : isDm
-                ? `Nhắn @${channelName || "người dùng"}`
-                : `Nhắn #${channelName || "kênh"}`
-            }
-          />
+          {/* Direct Input Area with Mention Highlight Overlay */}
+          <div className="relative flex-1 min-w-0 flex items-stretch">
+            {/* Synchronized Backdrop for Mention Highlighting (@all, @everyone, etc.) */}
+            {Boolean(content) && (
+              <div
+                ref={backdropRef}
+                aria-hidden="true"
+                className={`absolute inset-0 pointer-events-none whitespace-pre-wrap break-words leading-relaxed py-1 overflow-hidden select-none font-normal text-text-primary no-scrollbar ${
+                  isSidebar ? "text-[0.88rem]" : "text-[0.93rem]"
+                }`}
+                style={{
+                  fontFamily: "inherit",
+                  letterSpacing: "inherit",
+                  wordBreak: "break-word",
+                }}
+              >
+                {renderHighlightedBackdrop(content)}
+              </div>
+            )}
+
+            <textarea
+              ref={textareaRef}
+              className={`w-full bg-transparent border-none outline-none caret-accent-primary placeholder:text-text-muted resize-none leading-relaxed disabled:opacity-50 py-1 max-h-36 no-scrollbar font-normal ${
+                isSidebar ? "text-[0.88rem]" : "text-[0.93rem]"
+              } ${
+                content
+                  ? "text-transparent selection:text-transparent selection:bg-accent-primary/30"
+                  : "text-text-primary"
+              }`}
+              rows={1}
+              value={content}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
+              onScroll={() => {
+                if (backdropRef.current && textareaRef.current) {
+                  backdropRef.current.scrollTop = textareaRef.current.scrollTop;
+                }
+              }}
+              disabled={!channelId || !canSendMessages}
+              placeholder={
+                !channelId
+                  ? "Chọn một kênh để nhắn tin..."
+                  : !canSendMessages
+                  ? `Bạn không có quyền gửi tin nhắn trong kênh #${channelName || "này"}.`
+                  : isDm
+                  ? `Nhắn @${channelName || "người dùng"}`
+                  : `Nhắn #${channelName || "kênh"}`
+              }
+            />
+          </div>
 
           {/* Right Action Icons Row */}
           <div className="flex items-center gap-1.5 shrink-0 text-text-muted">

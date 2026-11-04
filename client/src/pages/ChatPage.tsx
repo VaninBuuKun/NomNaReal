@@ -266,21 +266,25 @@ export const ChatPage: React.FC = () => {
   // Keep channel messages cache up-to-date with active messages
   useEffect(() => {
     if (activeChannelId && messages.length > 0) {
-      channelMessagesCacheRef.current.set(activeChannelId, {
-        messages,
-        hasMore: hasMoreMessages,
-      });
+      const sample = messages[0];
+      // Only cache if messages actually belong to this activeChannelId to prevent cross-contamination
+      if (sample && (sample.channelId === activeChannelId || !sample.channelId)) {
+        channelMessagesCacheRef.current.set(activeChannelId, {
+          messages,
+          hasMore: hasMoreMessages,
+        });
+      }
     }
   }, [activeChannelId, messages, hasMoreMessages]);
 
-  // Fetch Channel Messages with instant SWR cache
+  // Fetch Channel Messages with instant SWR cache and history preservation
   const loadMessages = async (channelId: string) => {
     const isCached = channelMessagesCacheRef.current.has(channelId);
     try {
       if (!isCached) {
         setIsLoadingMessages(true);
       }
-      const res = await messageApi.getMessages(channelId, undefined, undefined, 25);
+      const res = await messageApi.getMessages(channelId, undefined, undefined, 50);
       channelMessagesCacheRef.current.set(channelId, {
         messages: res.messages,
         hasMore: res.hasOlder ?? res.hasMore ?? false,
@@ -290,11 +294,27 @@ export const ChatPage: React.FC = () => {
           const pending = prev.filter(
             (m) => m.id.startsWith("temp-") && m.channelId === channelId
           );
-          if (pending.length === 0) return res.messages;
-          const stillPending = pending.filter(
-            (om) => !res.messages.some((sm) => sm.content === om.content && sm.senderId === om.senderId)
+          if (prev.length === 0) {
+            return [...res.messages, ...pending];
+          }
+          // Merge unique to preserve any older history already loaded in memory
+          const prevMap = new Map(prev.map((m) => [m.id, m]));
+          for (const sm of res.messages) {
+            prevMap.set(sm.id, sm);
+          }
+          for (const pm of pending) {
+            if (!prevMap.has(pm.id)) {
+              prevMap.set(pm.id, pm);
+            }
+          }
+          const merged = Array.from(prevMap.values()).sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           );
-          return [...res.messages, ...stillPending];
+          channelMessagesCacheRef.current.set(channelId, {
+            messages: merged,
+            hasMore: res.hasOlder ?? res.hasMore ?? false,
+          });
+          return merged;
         });
         setHasMoreMessages(res.hasOlder ?? res.hasMore ?? false);
         setHasNewerMessages(false);
@@ -313,7 +333,7 @@ export const ChatPage: React.FC = () => {
     }
   };
 
-  // Load older messages (infinite scroll up)
+  // Load older messages (infinite scroll up - Discord batch size 50)
   const handleLoadMoreMessages = async () => {
     if (
       !activeChannelId ||
@@ -331,7 +351,7 @@ export const ChatPage: React.FC = () => {
         activeChannelId,
         oldestMessage.createdAt,
         undefined,
-        25
+        50
       );
       appendOlderMessages(res.messages);
       setHasMoreMessages(res.hasOlder ?? res.hasMore ?? false);
@@ -342,7 +362,7 @@ export const ChatPage: React.FC = () => {
     }
   };
 
-  // Load newer messages (infinite scroll down when viewing history)
+  // Load newer messages (infinite scroll down when viewing history - batch 50)
   const handleLoadNewerMessages = async () => {
     if (
       !activeChannelId ||
@@ -360,7 +380,7 @@ export const ChatPage: React.FC = () => {
         activeChannelId,
         undefined,
         newestMessage.createdAt,
-        25
+        50
       );
       appendNewerMessages(res.messages);
       setHasNewerMessages(res.hasNewer ?? false);
@@ -379,6 +399,16 @@ export const ChatPage: React.FC = () => {
   // Switch Active Channel
   const handleSelectChannel = async (targetChannelId: string, wsId?: string) => {
     useChatStore.getState().setTypingUser(null);
+
+    // Save previous channel messages before switching
+    const prevChannelId = activeChannelIdRef.current;
+    if (prevChannelId && messages.length > 0) {
+      channelMessagesCacheRef.current.set(prevChannelId, {
+        messages,
+        hasMore: hasMoreMessages,
+      });
+    }
+
     setActiveChannelId(targetChannelId);
     activeChannelIdRef.current = targetChannelId;
     setActiveDmId(null);
@@ -923,10 +953,7 @@ export const ChatPage: React.FC = () => {
           }
         });
       } else if (channelId && activeChannelId !== channelId) {
-        setActiveChannelId(channelId);
-        activeChannelIdRef.current = channelId;
-        loadMessages(channelId);
-        signalRService.joinChannel(channelId);
+        handleSelectChannel(channelId, serverId);
       } else if (!channelId && channels.length > 0) {
         const selectable = channels.filter((c) => c.type !== ChannelType.Category);
         const target = selectable.find((c) => c.name?.toLowerCase() === "general") || selectable[0];
@@ -1126,6 +1153,15 @@ export const ChatPage: React.FC = () => {
   };
 
   const handleSelectDmConversation = async (dm: DirectMessageItem) => {
+    // Save previous channel messages before switching
+    const prevChannelId = activeChannelIdRef.current;
+    if (prevChannelId && messages.length > 0) {
+      channelMessagesCacheRef.current.set(prevChannelId, {
+        messages,
+        hasMore: hasMoreMessages,
+      });
+    }
+
     setActiveWorkspaceId(null);
     setActiveDmId(dm.id);
     setActiveChannelId(dm.id);

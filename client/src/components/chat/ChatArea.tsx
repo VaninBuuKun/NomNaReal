@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   MagnifyingGlass,
   Users,
@@ -114,7 +114,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   );
   const connectionStatus = useConnectionStatus();
 
-  const [isStickyDismissed, setIsStickyDismissed] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [unreadBelowCount, setUnreadBelowCount] = useState(0);
@@ -180,7 +179,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   // Reset states when channel changes
   useEffect(() => {
-    setIsStickyDismissed(false);
     setReplyingToMessage(null);
     setShowScrollToBottom(false);
     setUnreadBelowCount(0);
@@ -253,29 +251,32 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   };
 
   // Toggle reaction with optimistic update
-  const handleReactionClick = (msgId: string, emoji: string) => {
-    if (currentUser?.id) {
-      const targetMsg = messages.find((m) => m.id === msgId);
-      const currentGroup = targetMsg?.reactions?.find((r) => r.emoji === emoji);
-      const willAdd = !currentGroup?.hasReacted;
+  const handleReactionClick = useCallback(
+    (msgId: string, emoji: string) => {
+      if (currentUser?.id) {
+        const targetMsg = messages.find((m) => m.id === msgId);
+        const currentGroup = targetMsg?.reactions?.find((r) => r.emoji === emoji);
+        const willAdd = !currentGroup?.hasReacted;
 
-      useChatStore.getState().applyReactionDelta(
-        {
-          messageId: msgId,
-          emoji,
-          userId: currentUser.id,
-          isAdded: willAdd,
-        } as any,
-        currentUser.id
-      );
-    }
+        useChatStore.getState().applyReactionDelta(
+          {
+            messageId: msgId,
+            emoji,
+            userId: currentUser.id,
+            isAdded: willAdd,
+          } as any,
+          currentUser.id
+        );
+      }
 
-    if (onToggleReaction) {
-      onToggleReaction(msgId, emoji);
-    } else {
-      messageApi.toggleReaction(msgId, emoji);
-    }
-  };
+      if (onToggleReaction) {
+        onToggleReaction(msgId, emoji);
+      } else {
+        messageApi.toggleReaction(msgId, emoji);
+      }
+    },
+    [currentUser?.id, messages, onToggleReaction]
+  );
 
   // Voice Chat resizer
   const handleVoiceChatResizeStart = (e: React.MouseEvent) => {
@@ -456,13 +457,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const renderChatStreamAndInput = (isSidebar: boolean = false) => (
     <>
-      {/* Sticky Pin Bar (Zalo Style) */}
-      {!isStickyDismissed && pinnedMessages && pinnedMessages.length > 0 && (
+      {/* Sticky Pin Bar (Discord / Zalo Minimalist Style) */}
+      {pinnedMessages && pinnedMessages.length > 0 && (
         <StickyPinBar
           pinnedMessages={pinnedMessages}
           onJumpToMessage={handleJumpToMessage}
           onOpenSidebar={() => onTogglePinnedSidebar?.()}
-          onDismiss={() => setIsStickyDismissed(true)}
         />
       )}
 

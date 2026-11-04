@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useMemo,
   useCallback,
@@ -50,6 +51,15 @@ export interface MessageListProps {
 
 const START_INDEX = 100000;
 
+// Persistent scroll memory per channel (persists across channel switches)
+const channelScrollMemory = new Map<
+  string,
+  {
+    topMessageId?: string;
+    isAtBottom: boolean;
+  }
+>();
+
 export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
   (
     {
@@ -84,9 +94,13 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const [firstItemIndex, setFirstItemIndex] = useState(START_INDEX);
     const firstItemIndexRef = useRef(START_INDEX);
     const prevMessagesRef = useRef<Message[]>(messages);
+    const prevMessagesLengthRef = useRef(messages.length);
+    const prevLastMessageIdRef = useRef(messages[messages.length - 1]?.id);
     const activeChannelIdRef = useRef<string | null>(null);
     const isAtBottomRef = useRef(true);
     const currentTopMessageIdRef = useRef<string | undefined>(undefined);
+    const isUserScrollingRef = useRef(false);
+    const hasRestoredChannelRef = useRef<string | null>(null);
 
     // Keep firstItemIndexRef in sync with state
     useEffect(() => {
@@ -168,31 +182,93 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       advanceReadMarker();
     }, [advanceReadMarker]);
 
-    // Handle channel switching: reset to bottom of newest messages
+    // Save scroll position when leaving channel
+    useEffect(() => {
+      return () => {
+        const cid = activeChannelIdRef.current;
+        if (cid && currentTopMessageIdRef.current) {
+          channelScrollMemory.set(cid, {
+            topMessageId: currentTopMessageIdRef.current,
+            isAtBottom: isAtBottomRef.current,
+          });
+        }
+      };
+    }, [channelId]);
+
+    // Handle channel switching: restore saved channel state or initialize
     useEffect(() => {
       if (currentChannel?.id && currentChannel.id !== activeChannelIdRef.current) {
+        // Save old channel state before updating ref
+        if (activeChannelIdRef.current && currentTopMessageIdRef.current) {
+          channelScrollMemory.set(activeChannelIdRef.current, {
+            topMessageId: currentTopMessageIdRef.current,
+            isAtBottom: isAtBottomRef.current,
+          });
+        }
+
         activeChannelIdRef.current = currentChannel.id;
         setFirstItemIndex(START_INDEX);
         firstItemIndexRef.current = START_INDEX;
-        isAtBottomRef.current = true;
-        onAtBottomChange?.(true);
-        onUnreadCountChange?.(0);
+        hasRestoredChannelRef.current = null;
+
+        const saved = channelScrollMemory.get(currentChannel.id);
+        if (saved && !saved.isAtBottom && saved.topMessageId) {
+          isAtBottomRef.current = false;
+          currentTopMessageIdRef.current = saved.topMessageId;
+          onAtBottomChange?.(false);
+        } else {
+          isAtBottomRef.current = true;
+          currentTopMessageIdRef.current = undefined;
+          onAtBottomChange?.(true);
+          onUnreadCountChange?.(0);
+        }
       }
     }, [currentChannel?.id, onAtBottomChange, onUnreadCountChange]);
 
-    // Ensure view is scrolled to bottom when channel switches and messages load
+    // Restore scroll position when channel or messages change
     useEffect(() => {
-      if (messages.length > 0) {
-        virtuosoRef.current?.scrollToIndex({
-          index: firstItemIndex + messages.length - 1,
-          align: "end",
-          behavior: "auto",
-        });
-      }
-    }, [currentChannel?.id]);
+      if (!currentChannel?.id || messages.length === 0) return;
+      if (hasRestoredChannelRef.current === currentChannel.id) return;
 
-    // Handle prepending older messages: offset firstItemIndex so viewport doesn't jump
-    useEffect(() => {
+      const saved = channelScrollMemory.get(currentChannel.id);
+      if (saved && !saved.isAtBottom && saved.topMessageId) {
+        const targetIndex = messages.findIndex((m) => m.id === saved.topMessageId);
+        if (targetIndex !== -1) {
+          hasRestoredChannelRef.current = currentChannel.id;
+          virtuosoRef.current?.scrollToIndex({
+            index: firstItemIndex + targetIndex,
+            align: "start",
+            behavior: "auto",
+          });
+          isAtBottomRef.current = false;
+          onAtBottomChange?.(false);
+          return;
+        }
+      }
+
+      // If at bottom, maintain scroll to bottom
+      if (!saved || saved.isAtBottom) {
+        hasRestoredChannelRef.current = currentChannel.id;
+        if (!hasMoreMessages && messages.length <= 15) {
+          virtuosoRef.current?.scrollToIndex({
+            index: firstItemIndex,
+            align: "start",
+            behavior: "auto",
+          });
+        } else {
+          virtuosoRef.current?.scrollToIndex({
+            index: firstItemIndex + messages.length - 1,
+            align: "end",
+            behavior: "auto",
+          });
+        }
+        isAtBottomRef.current = true;
+        onAtBottomChange?.(true);
+      }
+    }, [currentChannel?.id, messages, firstItemIndex, hasMoreMessages, onAtBottomChange]);
+
+    // Handle prepending older messages: offset firstItemIndex synchronously so viewport doesn't jump
+    useLayoutEffect(() => {
       const prev = prevMessagesRef.current;
       if (messages.length > prev.length) {
         const oldFirstId = prev[0]?.id;
@@ -347,19 +423,56 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           key={currentChannel?.id || "empty-channel"}
           ref={virtuosoRef}
           firstItemIndex={firstItemIndex}
-          initialTopMostItemIndex={
-            messages.length > 0
-              ? firstItemIndex + messages.length - 1
-              : firstItemIndex
-          }
-          alignToBottom={true}
+          initialTopMostItemIndex={(() => {
+            const saved = currentChannel?.id ? channelScrollMemory.get(currentChannel.id) : undefined;
+            if (saved && !saved.isAtBottom && saved.topMessageId && messages.length > 0) {
+              const targetIdx = messages.findIndex((m) => m.id === saved.topMessageId);
+              if (targetIdx !== -1) {
+                return { index: firstItemIndex + targetIdx, align: "start" };
+              }
+            }
+            if (!hasMoreMessages && messages.length <= 15) {
+              return { index: firstItemIndex, align: "start" };
+            }
+            return messages.length > 0
+              ? { index: firstItemIndex + messages.length - 1, align: "end" }
+              : firstItemIndex;
+          })()}
           data={messages}
           computeItemKey={(_index, msg) => msg.id}
           className="flex-1 w-full no-scrollbar"
-          followOutput={(isAtBottom) => (isAtBottom ? "smooth" : false)}
+          increaseViewportBy={{ top: 800, bottom: 400 }}
+          isScrolling={(scrolling) => {
+            isUserScrollingRef.current = scrolling;
+          }}
+          followOutput={(isAtBottom) => {
+            const prevLen = prevMessagesLengthRef.current;
+            const prevLastId = prevLastMessageIdRef.current;
+            const currentLen = messages.length;
+            const currentLastId = messages[messages.length - 1]?.id;
+
+            prevMessagesLengthRef.current = currentLen;
+            prevLastMessageIdRef.current = currentLastId;
+
+            // Follow output only if a new message was actually appended to the bottom
+            const isNewMessageAtBottom = currentLen > prevLen && currentLastId !== prevLastId;
+
+            if (!isAtBottom) return false;
+            if (!isNewMessageAtBottom) {
+              return false; // Stable: prevent jitter when reactions toggle or messages edit
+            }
+            return "auto";
+          }}
           atBottomStateChange={(atBottom) => {
             isAtBottomRef.current = atBottom;
             onAtBottomChange?.(atBottom);
+            if (channelId && isUserScrollingRef.current) {
+              const prevSaved = channelScrollMemory.get(channelId);
+              channelScrollMemory.set(channelId, {
+                topMessageId: prevSaved?.topMessageId,
+                isAtBottom: atBottom,
+              });
+            }
             if (atBottom) {
               onUnreadCountChange?.(0);
               advanceReadMarker();
@@ -368,7 +481,14 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           rangeChanged={(range) => {
             const realIndex = range.startIndex - firstItemIndex;
             if (realIndex >= 0 && realIndex < messages.length) {
-              currentTopMessageIdRef.current = messages[realIndex].id;
+              const topId = messages[realIndex].id;
+              currentTopMessageIdRef.current = topId;
+              if (channelId && isUserScrollingRef.current) {
+                channelScrollMemory.set(channelId, {
+                  topMessageId: topId,
+                  isAtBottom: isAtBottomRef.current,
+                });
+              }
             }
             if (firstUnreadId) {
               const unreadIdx = messages.findIndex((m) => m.id === firstUnreadId);

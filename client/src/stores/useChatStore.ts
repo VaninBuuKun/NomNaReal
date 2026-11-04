@@ -114,11 +114,18 @@ export const useChatStore = create<ChatState>((set) => ({
     })),
 
   setReactions: (messageId, reactions) =>
-    set((state) => ({
-      messages: state.messages.map((m) =>
-        m.id === messageId ? { ...m, reactions } : m
-      ),
-    })),
+    set((state) => {
+      const target = state.messages.find((m) => m.id === messageId);
+      if (!target) return state;
+      if (JSON.stringify(target.reactions) === JSON.stringify(reactions)) {
+        return state;
+      }
+      return {
+        messages: state.messages.map((m) =>
+          m.id === messageId ? { ...m, reactions } : m
+        ),
+      };
+    }),
 
   applyReactionDelta: (delta, currentUserId) =>
     set((state) => ({
@@ -130,9 +137,10 @@ export const useChatStore = create<ChatState>((set) => ({
         if (delta.isAdded) {
           if (groupIndex >= 0) {
             const group = currentReactions[groupIndex];
-            const newUserIds = group.userIds.includes(delta.userId)
-              ? group.userIds
-              : [...group.userIds, delta.userId];
+            if (group.userIds.includes(delta.userId)) {
+              return m; // Idempotent: already added
+            }
+            const newUserIds = [...group.userIds, delta.userId];
             currentReactions[groupIndex] = {
               ...group,
               count: newUserIds.length,
@@ -150,6 +158,9 @@ export const useChatStore = create<ChatState>((set) => ({
         } else {
           if (groupIndex >= 0) {
             const group = currentReactions[groupIndex];
+            if (!group.userIds.includes(delta.userId)) {
+              return m; // Idempotent: already removed
+            }
             const newUserIds = group.userIds.filter((id) => id !== delta.userId);
             if (newUserIds.length === 0) {
               currentReactions.splice(groupIndex, 1);
