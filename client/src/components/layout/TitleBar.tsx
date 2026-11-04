@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Tray, Users, At } from '@phosphor-icons/react';
+import { Tray, Users, At, List } from '@phosphor-icons/react';
 import { NotificationPopover } from '../notifications/NotificationPopover';
 import { getMediaUrl } from '../../utils/constants';
 import type { AppNotification } from '../../types';
+import { useUiStore } from '../../stores';
 
 export type TitleBarContext =
   | { kind: 'friends' }
@@ -27,6 +28,18 @@ export const TitleBar: React.FC<TitleBarProps> = ({
 
   return (
     <header className="h-[30px] shrink-0 relative flex items-center justify-center bg-[var(--bg-rail)] border-b border-[var(--border-color)] select-none z-40">
+      {/* Left mobile hamburger button */}
+      <div className="absolute left-2 top-0 h-full flex items-center md:hidden">
+        <button
+          type="button"
+          onClick={() => useUiStore.getState().toggleMobileSidebar()}
+          className="p-1 rounded-[4px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+          title="Mở thanh điều hướng"
+        >
+          <List size={16} weight="bold" />
+        </button>
+      </div>
+
       {/* Centered context title: Bạn bè / Server (icon + name) / DM */}
       <div className="flex items-center gap-1.5 max-w-[50%] min-w-0 text-xs font-semibold text-[var(--text-secondary)]">
         {context.kind === 'friends' && (

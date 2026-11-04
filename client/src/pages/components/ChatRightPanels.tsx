@@ -125,10 +125,10 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
 
   return (
     <>
-      {/* Resizer Divider */}
+      {/* Resizer Divider (Hidden on mobile) */}
       {isAnyPanelOpen && currentResizer && (
         <div
-          className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
+          className={`hidden md:block w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
             currentResizer.isResizing
               ? 'bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]'
               : 'bg-[var(--border-color)]'
@@ -138,9 +138,25 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
         />
       )}
 
+      {/* Mobile Backdrop Overlay */}
+      {isAnyPanelOpen && (
+        <div
+          className="fixed inset-0 bg-overlay z-40 md:hidden backdrop-blur-xs transition-opacity"
+          onClick={() => {
+            if (isMemberPanelVisible) setMemberListOpen(false);
+            if (isSearchOpen) closeSearch();
+            if (isPinnedSidebarOpen) closePinnedSidebar();
+          }}
+        />
+      )}
+
       {/* Sliding Right Drawer Container with Smooth Transition */}
       <div
-        className="h-full shrink-0 flex overflow-hidden transition-[width,opacity] duration-300 ease-in-out"
+        className={`h-full overflow-hidden transition-all duration-300 ease-in-out ${
+          isAnyPanelOpen
+            ? 'fixed inset-y-0 right-0 z-45 max-w-[85vw] sm:max-w-[420px] shadow-modal translate-x-0 md:static md:z-auto md:max-w-none md:shadow-none'
+            : 'fixed inset-y-0 right-0 z-45 max-w-[85vw] sm:max-w-[420px] translate-x-full md:static md:z-auto md:translate-x-0 md:max-w-none'
+        } ${isAnyPanelOpen ? 'shrink-0 flex' : 'hidden md:flex shrink-0'}`}
         style={{
           width: isAnyPanelOpen ? `${currentWidth}px` : '0px',
           opacity: isAnyPanelOpen ? 1 : 0,
@@ -148,7 +164,7 @@ export const ChatRightPanels: React.FC<ChatRightPanelsProps> = ({
         }}
       >
         <div
-          className="h-full shrink-0 flex"
+          className="h-full shrink-0 flex w-full max-w-full"
           style={{ width: `${currentWidth}px` }}
         >
           {/* 1. Member List Panel */}

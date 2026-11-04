@@ -716,8 +716,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
               <Smiley size={20} weight="bold" />
             </button>
 
-            {/* In Sidebar: Send Button */}
-            {isSidebar && (content.trim() || pendingAttachments.length > 0) && (
+            {/* Send Button (Visible on both main chat and sidebar when text/attachment exists) */}
+            {(content.trim() || pendingAttachments.length > 0) && (
               <button
                 type="button"
                 onClick={handleSend}
@@ -726,13 +726,13 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                   sending ||
                   pendingAttachments.some((a) => a.status === "uploading")
                 }
-                className="w-7 h-7 rounded-full bg-accent-primary text-white hover:bg-accent-hover transition-all flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-50 shrink-0 ml-0.5"
+                className="w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-accent-primary text-white hover:bg-accent-hover transition-all flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-50 shrink-0 ml-0.5"
                 title="Gửi tin nhắn (Enter)"
               >
                 {sending ? (
                   <CircleNotch size={14} className="animate-spin" />
                 ) : (
-                  <PaperPlaneRight size={13} weight="fill" />
+                  <PaperPlaneRight size={14} weight="fill" />
                 )}
               </button>
             )}

@@ -10,10 +10,11 @@ import {
   ChatTeardropText,
   X,
   CircleNotch,
+  List,
 } from "@phosphor-icons/react";
 import { Avatar } from "../ui";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
-import { messageApi } from "../../services/messageApi";
+import { messageApi, webrtcService } from "../../services";
 import { StickyPinBar } from "./StickyPinBar";
 import { DeleteMessageModal } from "./DeleteMessageModal";
 import { MessageList, type MessageListHandle } from "./MessageList";
@@ -308,9 +309,32 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const dmUser = activeDm?.user;
   const isVoice = Boolean(currentChannel && currentChannel.type === ChannelType.Voice);
 
+  const handleStartCall = (isVideo: boolean) => {
+    const target = dmUser || workspaceMembers?.find((m) => m.id !== currentUser?.id);
+    if (!target) return;
+    webrtcService.startCall(
+      {
+        id: target.id,
+        displayName: target.displayName || target.username,
+        avatarUrl: target.avatarUrl,
+      },
+      isVideo
+    );
+  };
+
   const renderHeaderContent = () => (
-    <div className="h-[54px] border-b border-border px-5 flex items-center justify-between bg-chat shrink-0 select-none">
-      <div className="flex items-center gap-2.5 min-w-0">
+    <div className="h-[54px] border-b border-border px-3 sm:px-5 flex items-center justify-between bg-chat shrink-0 select-none">
+      <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+        {/* Mobile Hamburger Menu Toggle Button */}
+        <button
+          type="button"
+          onClick={() => useUiStore.getState().toggleMobileSidebar()}
+          className="md:hidden p-1.5 rounded-control text-text-muted hover:text-text-primary hover:bg-surface-active transition-colors cursor-pointer shrink-0"
+          title="Mở danh sách kênh / bạn bè"
+        >
+          <List size={20} weight="bold" />
+        </button>
+
         {isDm && dmUser ? (
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative shrink-0">
@@ -366,6 +390,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
           <>
             <button
               type="button"
+              onClick={() => handleStartCall(false)}
               className="p-1.5 rounded-control text-text-muted hover:text-text-primary hover:bg-surface-active transition-colors cursor-pointer inline-flex items-center justify-center"
               title="Bắt đầu cuộc gọi thoại"
             >
@@ -373,6 +398,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             </button>
             <button
               type="button"
+              onClick={() => handleStartCall(true)}
               className="p-1.5 rounded-control text-text-muted hover:text-text-primary hover:bg-surface-active transition-colors cursor-pointer inline-flex items-center justify-center"
               title="Bắt đầu cuộc gọi video"
             >

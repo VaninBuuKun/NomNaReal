@@ -147,12 +147,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 dot-matrix-bg overflow-x-hidden animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 py-8 dot-matrix-bg overflow-y-auto overflow-x-hidden animate-in fade-in duration-200">
       {/* Ambient Center Warm Glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[580px] h-[580px] rounded-full bg-[radial-gradient(circle,var(--accent-glow)_0%,transparent_70%)] blur-[80px] pointer-events-none z-0" />
 
       {/* Main Glassmorphic Card */}
-      <div className="w-full max-w-[480px] md:max-w-[500px] bg-[var(--card-glass-bg)] border border-[var(--card-glass-border)] rounded-3xl p-7 sm:p-8 shadow-2xl backdrop-blur-xl relative z-10 flex flex-col gap-4">
+      <div className="w-full max-w-[480px] md:max-w-[500px] bg-[var(--card-glass-bg)] border border-[var(--card-glass-border)] rounded-3xl p-7 sm:p-8 shadow-2xl backdrop-blur-xl relative z-10 flex flex-col gap-4 my-auto">
         <header className="flex flex-col items-center text-center">
           <h1 className="text-2xl font-extrabold tracking-tight text-[var(--text-primary)]">
             {mode === 'register'
@@ -168,7 +168,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ mode, onAuthSuccess }) => {
         </header>
 
         {error && (mode === 'login' || mode === 'register') && (
-          <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-xl font-medium animate-in fade-in duration-150">
+          <div className="p-3 bg-danger-soft border border-danger/20 text-danger text-xs rounded-card font-medium animate-in fade-in duration-150">
             {error}
           </div>
         )}

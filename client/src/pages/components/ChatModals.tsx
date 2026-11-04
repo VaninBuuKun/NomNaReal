@@ -12,6 +12,7 @@ import {
 import { NewDirectMessageModal, type DirectMessageUser } from '../../components/dm';
 import { SettingsModal } from '../../components/settings';
 import { UserProfileModal, type UserProfileData } from '../../components/profile';
+import { IncomingCallModal, CallOverlay } from '../../components/call';
 import { useUiStore, useChatStore, useDmStore, useFriendStore } from '../../stores';
 import type { User, Workspace, Channel } from '../../types';
 
@@ -241,7 +242,9 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
         }}
       />
 
-      
+      {/* WebRTC 1v1 Audio/Video Call Modals */}
+      <IncomingCallModal />
+      <CallOverlay />
     </>
   );
 };

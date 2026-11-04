@@ -13,7 +13,7 @@ public class UserPresenceTracker : IUserPresenceTracker
 
         OnlineUsers.AddOrUpdate(
             userId,
-            _ =>
+            _ => //Chạy khi chưa có key
             {
                 isFirstConnection = true;
                 return new HashSet<string> { connectionId };
@@ -58,10 +58,31 @@ public class UserPresenceTracker : IUserPresenceTracker
         return Task.FromResult(isLastConnection);
     }
 
+    public Task HeartbeatAsync(Guid userId, string connectionId)
+    {
+        if (OnlineUsers.TryGetValue(userId, out var connections))
+        {
+            lock (connections)
+            {
+                connections.Add(connectionId);
+            }
+        }
+        return Task.CompletedTask;
+    }
+
     public Task<bool> IsUserOnlineAsync(Guid userId)
     {
         var isOnline = OnlineUsers.TryGetValue(userId, out var connections) && connections.Count > 0;
         return Task.FromResult(isOnline);
+    }
+
+    public Task<IReadOnlyDictionary<Guid, bool>> AreUsersOnlineAsync(IReadOnlyCollection<Guid> userIds)
+    {
+        var result = userIds.ToDictionary(
+            id => id,
+            id => OnlineUsers.TryGetValue(id, out var connections) && connections.Count > 0
+        );
+        return Task.FromResult<IReadOnlyDictionary<Guid, bool>>(result);
     }
 
     public Task<IReadOnlyCollection<Guid>> GetOnlineUsersAsync()

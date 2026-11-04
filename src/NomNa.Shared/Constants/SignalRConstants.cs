@@ -24,6 +24,14 @@ public static class SignalRConstants
         public const string FriendRequestAccepted = "FriendRequestAccepted";
         public const string FriendshipRemoved = "FriendshipRemoved";
         public const string RemovedFromServer = "RemovedFromServer";
+
+        // WebRTC 1v1 Call Signaling Events
+        public const string CallIncoming = "CallIncoming";
+        public const string CallAccepted = "CallAccepted";
+        public const string CallRejected = "CallRejected";
+        public const string CallEnded = "CallEnded";
+        public const string ReceiveIceCandidate = "ReceiveIceCandidate";
+        public const string UserBusy = "UserBusy";
     }
 
     public static class Methods
@@ -37,5 +45,12 @@ public static class SignalRConstants
         public const string StartTyping = "StartTyping";
         public const string StopTyping = "StopTyping";
         public const string GetOnlineUsers = "GetOnlineUsers";
+
+        // WebRTC 1v1 Call Signaling Methods
+        public const string StartCall = "StartCall";
+        public const string AcceptCall = "AcceptCall";
+        public const string RejectCall = "RejectCall";
+        public const string EndCall = "EndCall";
+        public const string SendIceCandidate = "SendIceCandidate";
     }
 }

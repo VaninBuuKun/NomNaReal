@@ -8,7 +8,7 @@ public record FriendDto(
     string DisplayName,
     string Username,
     string? AvatarUrl,
-    UserStatus Status,
+    string Status,
     FriendshipStatus FriendshipStatus,
     DateTime CreatedAt
 );

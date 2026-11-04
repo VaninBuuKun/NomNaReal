@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NomNa.Domain.Entities;
 using NomNa.Domain.Enums;
 
@@ -9,11 +10,16 @@ public class ApplicationDbContextInitializer
 {
     private readonly ApplicationDbContext _context;
     private readonly UserManager<User> _userManager;
+    private readonly ILogger<ApplicationDbContextInitializer> _logger;
 
-    public ApplicationDbContextInitializer(ApplicationDbContext context, UserManager<User> userManager)
+    public ApplicationDbContextInitializer(
+        ApplicationDbContext context,
+        UserManager<User> userManager,
+        ILogger<ApplicationDbContextInitializer> logger)
     {
         _context = context;
         _userManager = userManager;
+        _logger = logger;
     }
 
     public async Task InitializeAsync()
@@ -28,7 +34,7 @@ public class ApplicationDbContextInitializer
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"An error occurred while migrating the database: {ex.Message}");
+            _logger.LogError(ex, "An error occurred while migrating the database: {Message}", ex.Message);
             throw;
         }
     }
@@ -44,7 +50,7 @@ public class ApplicationDbContextInitializer
             Email = "alex@nomna.local",
             UserName = "alexrivers",
             DisplayName = "Alex Rivers",
-            Status = UserStatus.Online,
+            StatusPreference = UserStatusPreference.Online,
             Bio = "Tech Lead & System Architect",
             EmailConfirmed = true
         };
@@ -54,7 +60,7 @@ public class ApplicationDbContextInitializer
             Email = "minh@nomna.local",
             UserName = "minhdev",
             DisplayName = "Minh Dev",
-            Status = UserStatus.Online,
+            StatusPreference = UserStatusPreference.Online,
             Bio = "Senior .NET Engineer",
             EmailConfirmed = true
         };
@@ -64,7 +70,7 @@ public class ApplicationDbContextInitializer
             Email = "van@nomna.local",
             UserName = "vannguyen",
             DisplayName = "Van Nguyen",
-            Status = UserStatus.Online,
+            StatusPreference = UserStatusPreference.Online,
             Bio = "Fullstack Developer",
             EmailConfirmed = true
         };

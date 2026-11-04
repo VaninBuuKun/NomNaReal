@@ -22,6 +22,7 @@ interface UiState {
   isMemberListOpen: boolean;
   isSearchOpen: boolean;
   isPinnedSidebarOpen: boolean;
+  isMobileSidebarOpen: boolean;
 
   // Modals
   isSettingsOpen: boolean;
@@ -52,6 +53,8 @@ interface UiState {
   closePinnedSidebar: () => void;
   togglePinnedSidebar: () => void;
   setPinnedSidebarWidth: (width: number) => void;
+  setMobileSidebarOpen: (open: boolean) => void;
+  toggleMobileSidebar: () => void;
 
   setSettingsOpen: (open: boolean) => void;
   setCreateWorkspaceOpen: (open: boolean) => void;
@@ -70,6 +73,7 @@ export const useUiStore = create<UiState>((set) => ({
   activeSidebarView: 'channels',
   isMemberListOpen: localStorage.getItem('nomna_member_list_open') !== 'false',
   isSearchOpen: false,
+  isMobileSidebarOpen: false,
 
   isSettingsOpen: false,
   isCreateWorkspaceOpen: false,
@@ -187,6 +191,9 @@ export const useUiStore = create<UiState>((set) => ({
     localStorage.setItem('nomna_pinned_width', width.toString());
     set({ pinnedSidebarWidth: width });
   },
+
+  setMobileSidebarOpen: (open) => set({ isMobileSidebarOpen: open }),
+  toggleMobileSidebar: () => set((state) => ({ isMobileSidebarOpen: !state.isMobileSidebarOpen })),
 
   setSettingsOpen: (open) => set({ isSettingsOpen: open }),
   setCreateWorkspaceOpen: (open) => set({ isCreateWorkspaceOpen: open }),

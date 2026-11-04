@@ -1,7 +1,9 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using NomNa.Application.Common.Helpers;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Application.Common.Models;
+using NomNa.Domain.Enums;
 
 namespace NomNa.Application.Features.Servers.Queries.GetServerMembers;
 
@@ -42,7 +44,8 @@ public class GetServerMembersQueryHandler : IRequestHandler<GetServerMembersQuer
             .OrderBy(m => m.User.DisplayName)
             .ToListAsync(cancellationToken);
 
-        var onlineUsers = await _presenceTracker.GetOnlineUsersAsync();
+        var memberUserIds = members.Select(m => m.UserId).ToList();
+        var onlinePresenceMap = await _presenceTracker.AreUsersOnlineAsync(memberUserIds);
 
         return members.Select(m => new ServerMemberDto(
             m.Id,
@@ -52,7 +55,7 @@ public class GetServerMembersQueryHandler : IRequestHandler<GetServerMembersQuer
             m.User.AvatarUrl,
             m.User.Email,
             m.Role.ToString(),
-            onlineUsers.Contains(m.UserId) ? "online" : m.User.Status.ToString().ToLower(),
+            UserPresenceResolver.Resolve(onlinePresenceMap.GetValueOrDefault(m.UserId), m.User.StatusPreference),
             m.MemberRoles.Select(mr => new NomNa.Application.Features.Roles.DTOs.RoleDto(
                 mr.Role.Id,
                 mr.Role.ServerId,

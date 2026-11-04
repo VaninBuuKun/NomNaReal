@@ -73,7 +73,7 @@ public class GoogleLoginCommandHandler : IRequestHandler<GoogleLoginCommand, Res
                     DisplayName = !string.IsNullOrWhiteSpace(payload.Name) ? payload.Name : candidateUsername,
                     AvatarUrl = payload.Picture,
                     EmailConfirmed = true,
-                    Status = UserStatus.Online
+                    StatusPreference = UserStatusPreference.Online
                 };
 
                 var createResult = await _userManager.CreateAsync(user);
@@ -87,7 +87,6 @@ public class GoogleLoginCommandHandler : IRequestHandler<GoogleLoginCommand, Res
             }
         }
 
-        user.UpdateStatus(UserStatus.Online);
         if (!string.IsNullOrWhiteSpace(payload.Picture) && string.IsNullOrWhiteSpace(user.AvatarUrl))
         {
             user.AvatarUrl = payload.Picture;
@@ -107,7 +106,7 @@ public class GoogleLoginCommandHandler : IRequestHandler<GoogleLoginCommand, Res
         _context.RefreshTokens.Add(refreshTokenEntity);
         await _context.SaveChangesAsync(cancellationToken);
 
-        var userDto = new UserDto(user.Id, user.Email ?? string.Empty, user.UserName ?? string.Empty, user.DisplayName, user.AvatarUrl, user.Bio, user.Status);
+        var userDto = new UserDto(user.Id, user.Email ?? string.Empty, user.UserName ?? string.Empty, user.DisplayName, user.AvatarUrl, user.Bio, user.StatusPreference);
         return new AuthResultDto(accessToken, rawRefreshToken, expiresAt, userDto);
     }
 }

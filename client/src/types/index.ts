@@ -6,3 +6,4 @@ export * from './message';
 export * from './notification';
 export * from './permissions';
 export * from './role';
+export * from './call';

@@ -150,6 +150,8 @@ export const ChatPage: React.FC = () => {
     setChannelToAddMember,
     setNewDmOpen,
     setSettingsOpen,
+    isMobileSidebarOpen,
+    setMobileSidebarOpen,
   } = useUiStore();
 
   // Auto-close all right sidebars when switching to DMs view
@@ -1426,8 +1428,20 @@ export const ChatPage: React.FC = () => {
         />
         <div className="flex-1 min-h-0 flex overflow-hidden">
         {/* 1 & 2. Left Sidebar Section (WorkspaceRail + Sub-Sidebar, with User Footer Bar spanning across the bottom) */}
+        {/* Mobile Backdrop Overlay */}
+        {isMobileSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-overlay z-40 md:hidden backdrop-blur-xs transition-opacity"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
+
         <div
-          className="h-full flex flex-col shrink-0 overflow-hidden bg-[var(--bg-sidebar)]"
+          className={`h-full flex flex-col shrink-0 overflow-hidden bg-[var(--bg-sidebar)] transition-transform duration-200 z-45 ${
+            isMobileSidebarOpen
+              ? "fixed inset-y-0 left-0 max-w-[85vw] shadow-modal translate-x-0 md:static md:max-w-none md:shadow-none"
+              : "fixed inset-y-0 left-0 max-w-[85vw] -translate-x-full md:static md:translate-x-0 md:max-w-none"
+          }`}
           style={{
             width: `${72 + (activeSidebarView === "notifications" ? Math.max(channelWidth, 310) : channelWidth)}px`,
           }}
@@ -1441,6 +1455,7 @@ export const ChatPage: React.FC = () => {
               unreadDmCount={totalUnreadDmCount}
               onSelectView={(view: any) => {
                 setActiveSidebarView(view);
+                setMobileSidebarOpen(false);
                 if (view === "dms") {
                   setActiveWorkspaceId(null);
                   refreshUserDms();
@@ -1451,13 +1466,17 @@ export const ChatPage: React.FC = () => {
                   }
                 }
               }}
-              onSelectWorkspace={handleSelectWorkspace}
+              onSelectWorkspace={(id) => {
+                handleSelectWorkspace(id);
+                setMobileSidebarOpen(false);
+              }}
               onCreateWorkspace={() => setCreateWorkspaceOpen(true)}
               onGoHome={() => {
                 setActiveSidebarView("dms");
                 setActiveWorkspaceId(null);
                 refreshUserDms();
                 navigate("/channels/@me");
+                setMobileSidebarOpen(false);
               }}
             />
 
@@ -1469,7 +1488,10 @@ export const ChatPage: React.FC = () => {
                     currentWorkspace={currentWorkspace}
                     channels={channels}
                     activeChannelId={activeChannelId}
-                    onSelectChannel={handleSelectChannel}
+                    onSelectChannel={(chId) => {
+                      handleSelectChannel(chId);
+                      setMobileSidebarOpen(false);
+                    }}
                     onCreateChannel={handleCreateChannel}
                     onOpenSettings={() => setSettingsOpen(true)}
                     isOwner={isOwner}
@@ -1488,8 +1510,12 @@ export const ChatPage: React.FC = () => {
                       setActiveDmId(null);
                       setActiveChannelId(null);
                       navigate("/channels/@me");
+                      setMobileSidebarOpen(false);
                     }}
-                    onSelectConversation={handleSelectDmConversation}
+                    onSelectConversation={(item) => {
+                      handleSelectDmConversation(item);
+                      setMobileSidebarOpen(false);
+                    }}
                     onOpenNewDm={() => setNewDmOpen(true)}
                     onRemoveConversation={(id, e) => {
                       e.stopPropagation();
@@ -1500,13 +1526,19 @@ export const ChatPage: React.FC = () => {
                       }
                     }}
                     onlineFriendsCount={onlineFriendsCount}
-                    onStartDmWithFriend={(friend) => handleStartDmWithUser(friend)}
+                    onStartDmWithFriend={(friend) => {
+                      handleStartDmWithUser(friend);
+                      setMobileSidebarOpen(false);
+                    }}
                   />
                 ) : activeSidebarView === "notifications" ? (
                   <NotificationsSidebar
                     notifications={notifications}
                     activeNotificationId={selectedNotification?.id}
-                    onSelectNotification={handleNotificationSelect}
+                    onSelectNotification={(n) => {
+                      handleNotificationSelect(n);
+                      setMobileSidebarOpen(false);
+                    }}
                     onMarkAllRead={handleMarkAllNotificationsRead}
                   />
                 ) : null}
@@ -1524,9 +1556,9 @@ export const ChatPage: React.FC = () => {
           />
         </div>
 
-        {/* 2.5 Resizer Divider */}
+        {/* 2.5 Resizer Divider (Hidden on mobile) */}
         <div
-          className={`w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
+          className={`hidden md:block w-px cursor-col-resize relative shrink-0 z-25 transition-colors duration-150 select-none hover:bg-[var(--accent-primary)] after:content-[''] after:absolute after:top-0 after:bottom-0 after:-left-[3px] after:-right-[3px] after:z-26 ${
             isResizingChannel
               ? "bg-[var(--accent-primary)] shadow-[0_0_8px_var(--accent-glow)]"
               : "bg-[var(--border-color)]"
