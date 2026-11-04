@@ -263,7 +263,7 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
                 );
               }}
               title="Xem thông tin thành viên"
-              className="cursor-pointer hover:opacity-95 hover:scale-105 active:scale-95 transition-all shrink-0 mt-0.5"
+              className="cursor-pointer hover:opacity-90 transition-opacity shrink-0 mt-0.5"
             >
               <UserAvatar
                 name={msg.senderDisplayName}
@@ -472,7 +472,7 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
                               target="_blank"
                               rel="noreferrer"
                               download={file.fileName}
-                              className="flex items-center gap-2.5 p-2 rounded-control bg-chat border border-border hover:border-accent-primary max-w-sm transition-all group/file text-left"
+                              className="flex items-center gap-2.5 p-2 rounded-control bg-chat border border-border hover:border-accent-primary max-w-sm transition-colors group/file text-left"
                             >
                               <div className="w-8 h-8 rounded-control bg-surface border border-border flex items-center justify-center text-text-muted group-hover/file:text-accent-primary shrink-0">
                                 <FileText size={18} />
@@ -495,22 +495,26 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
               </>
             )}
 
-            {/* Reactions Row */}
+            {/* Reactions Row - taller, comfortable Discord-style pills */}
             {msg.reactions && msg.reactions.length > 0 && (
-              <div className="flex gap-1.5 mt-1.5 flex-wrap">
+              <div className="flex gap-1.5 mt-2 flex-wrap items-center">
                 {msg.reactions.map((r) => (
                   <button
                     type="button"
                     key={r.emoji}
-                    onClick={() => onToggleReaction(msg.id, r.emoji)}
-                    className={`border rounded-md px-2 py-0.5 text-[0.78rem] font-medium inline-flex items-center gap-1.5 cursor-pointer select-none transition-all duration-150 active:scale-90 hover:scale-105 ${
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleReaction(msg.id, r.emoji);
+                    }}
+                    className={`h-7 sm:h-7.5 min-h-[28px] px-2.5 rounded-lg border text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer select-none transition-colors duration-100 shrink-0 ${
                       r.hasReacted
-                        ? "bg-accent-soft border-accent-primary text-accent-primary shadow-xs"
+                        ? "bg-accent-soft border-accent-primary text-accent-primary shadow-xs ring-1 ring-accent-primary/25"
                         : "bg-surface border-border text-text-secondary hover:border-border-hover hover:bg-surface-active"
                     }`}
+                    title={`${r.count} người đã thả cảm xúc ${r.emoji}`}
                   >
-                    <span className="inline-block transition-transform duration-150 active:scale-125">{r.emoji}</span>
-                    <span>{r.count}</span>
+                    <span className="text-sm sm:text-[0.95rem] select-none leading-none">{r.emoji}</span>
+                    <span className="leading-none tabular-nums font-semibold">{r.count}</span>
                   </button>
                 ))}
               </div>
@@ -518,24 +522,25 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
           </div>
         </div>
 
-        {/* Toolbar on Hover / Mobile Touch */}
+        {/* Toolbar on Hover / Mobile Touch - Stable, zero-flicker with hover bridge */}
         <div
-          className={`absolute -top-3.5 right-2 sm:right-4 bg-chat border border-border rounded-control p-0.5 flex items-center gap-0.5 transition-all duration-150 shadow-raised z-20 ${
+          className={`absolute -top-3.5 right-2 sm:right-4 bg-chat border border-border rounded-lg p-0.5 flex items-center gap-0.5 shadow-raised z-20 before:absolute before:-inset-2 before:content-[''] before:z-[-1] ${
             showMobileActions
-              ? "opacity-100 translate-y-0 pointer-events-auto"
-              : "opacity-0 group-hover:opacity-100 group-hover:translate-y-0 translate-y-1 pointer-events-none group-hover:pointer-events-auto"
+              ? "opacity-100 pointer-events-auto"
+              : "opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none group-hover:pointer-events-auto"
           }`}
         >
           {/* Quick Emojis */}
-          {QUICK_EMOJIS.slice(0, 3).map((emoji) => (
+          {QUICK_EMOJIS.slice(0, 4).map((emoji) => (
             <button
               key={emoji}
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setShowMobileActions(false);
                 onToggleReaction(msg.id, emoji);
               }}
-              className="p-1 px-1.5 text-sm hover:scale-125 active:scale-95 transition-transform cursor-pointer rounded select-none"
+              className="w-7 h-7 flex items-center justify-center text-sm hover:bg-surface-active cursor-pointer rounded-md select-none transition-colors duration-100 leading-none"
               title={`Thả cảm xúc ${emoji}`}
             >
               {emoji}
@@ -547,9 +552,10 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
           {/* Quote Reply */}
           <button
             type="button"
-            className="p-1.5 text-text-secondary hover:bg-surface hover:text-text-primary rounded-control text-xs transition-colors cursor-pointer"
+            className="w-7 h-7 flex items-center justify-center text-text-secondary hover:bg-surface hover:text-text-primary rounded-md text-xs transition-colors duration-100 cursor-pointer"
             title="Trả lời"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setShowMobileActions(false);
               onReplyMessage(msg);
             }}
@@ -560,13 +566,14 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
           {/* Pin / Unpin Message */}
           <button
             type="button"
-            className={`p-1.5 rounded-control text-xs transition-colors cursor-pointer ${
+            className={`w-7 h-7 flex items-center justify-center rounded-md text-xs transition-colors duration-100 cursor-pointer ${
               isPinned
                 ? "text-warning bg-warning-soft hover:bg-warning-soft/80"
                 : "text-text-secondary hover:bg-surface hover:text-warning"
             }`}
             title={isPinned ? "Bỏ ghim tin nhắn" : "Ghim tin nhắn"}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setShowMobileActions(false);
               isPinned ? onUnpinMessage?.(msg.id) : onPinMessage?.(msg.id);
             }}
@@ -578,9 +585,10 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
           {isMe && (
             <button
               type="button"
-              className="p-1.5 text-text-secondary hover:bg-surface hover:text-text-primary rounded-control text-xs transition-colors cursor-pointer"
+              className="w-7 h-7 flex items-center justify-center text-text-secondary hover:bg-surface hover:text-text-primary rounded-md text-xs transition-colors duration-100 cursor-pointer"
               title="Chỉnh sửa tin nhắn"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setShowMobileActions(false);
                 startEdit();
               }}
@@ -593,9 +601,10 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
           {(isMe || canManageMessages || isAdmin) && (
             <button
               type="button"
-              className="p-1.5 text-danger hover:bg-danger-soft rounded-control text-xs transition-colors cursor-pointer"
+              className="w-7 h-7 flex items-center justify-center text-danger hover:bg-danger-soft rounded-md text-xs transition-colors duration-100 cursor-pointer"
               title={isMe ? "Xoá tin nhắn" : "Xoá tin nhắn (Quản trị viên)"}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setShowMobileActions(false);
                 onDeleteMessage(msg);
               }}

@@ -60,8 +60,8 @@ export const PinnedMessagesSidebar: React.FC<PinnedMessagesSidebarProps> = ({
 
   return (
     <aside
-      style={{ width }}
-      className="flex-shrink-0 border-l border-[var(--border-color)] bg-[var(--bg-sidebar)] flex flex-col h-full z-20 select-none transition-all duration-150 animate-in slide-in-from-right-4"
+      style={{ '--pinned-panel-width': `${width}px` } as React.CSSProperties}
+      className="w-full md:w-[var(--pinned-panel-width,360px)] shrink-0 border-l border-[var(--border-color)] bg-[var(--bg-sidebar)] flex flex-col h-full z-20 select-none transition-all duration-150 animate-in slide-in-from-right-4"
     >
       {/* 1. Header (Unified with MemberListPanel & ChannelTasksSidebar) */}
       <div className="h-[54px] border-b border-[var(--border-color)] px-3.5 flex items-center justify-between shrink-0 bg-[var(--bg-sidebar)]">
@@ -77,10 +77,10 @@ export const PinnedMessagesSidebar: React.FC<PinnedMessagesSidebarProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+          className="p-1.5 rounded-control text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer flex items-center justify-center"
           title="Đóng danh sách ghim"
         >
-          <X size={15} />
+          <X size={16} weight="bold" />
         </button>
       </div>
 

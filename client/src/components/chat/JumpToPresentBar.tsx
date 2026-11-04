@@ -25,7 +25,7 @@ export const JumpToPresentBar: React.FC<JumpToPresentBarProps> = ({
     return (
       <div
         className={`absolute ${
-          isSidebar ? "bottom-16 left-3 right-3" : "bottom-20 left-6 right-6"
+          isSidebar ? "bottom-16 left-3 right-3" : "bottom-22 sm:bottom-20 left-4 sm:left-6 right-4 sm:right-6"
         } z-30 animate-in fade-in slide-in-from-bottom-2 duration-150`}
       >
         <div className="flex items-center justify-between px-3.5 py-2 rounded-control bg-surface border border-accent-primary/40 shadow-floating">
@@ -53,7 +53,7 @@ export const JumpToPresentBar: React.FC<JumpToPresentBarProps> = ({
     return (
       <div
         className={`absolute ${
-          isSidebar ? "bottom-16 right-4" : "bottom-20 right-6"
+          isSidebar ? "bottom-16 right-4" : "bottom-22 sm:bottom-20 right-4 sm:right-6"
         } z-30 animate-in fade-in slide-in-from-bottom-2 duration-150`}
       >
         <button

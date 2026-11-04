@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   MagnifyingGlass,
   Users,
@@ -10,7 +10,6 @@ import {
   ChatTeardropText,
   X,
   CircleNotch,
-  List,
 } from "@phosphor-icons/react";
 import { Avatar } from "../ui";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
@@ -115,7 +114,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   );
   const connectionStatus = useConnectionStatus();
 
-  const [isStickyDismissed, setIsStickyDismissed] = useState(false);
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [unreadBelowCount, setUnreadBelowCount] = useState(0);
@@ -181,7 +179,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   // Reset states when channel changes
   useEffect(() => {
-    setIsStickyDismissed(false);
     setReplyingToMessage(null);
     setShowScrollToBottom(false);
     setUnreadBelowCount(0);
@@ -254,29 +251,32 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   };
 
   // Toggle reaction with optimistic update
-  const handleReactionClick = (msgId: string, emoji: string) => {
-    if (currentUser?.id) {
-      const targetMsg = messages.find((m) => m.id === msgId);
-      const currentGroup = targetMsg?.reactions?.find((r) => r.emoji === emoji);
-      const willAdd = !currentGroup?.hasReacted;
+  const handleReactionClick = useCallback(
+    (msgId: string, emoji: string) => {
+      if (currentUser?.id) {
+        const targetMsg = messages.find((m) => m.id === msgId);
+        const currentGroup = targetMsg?.reactions?.find((r) => r.emoji === emoji);
+        const willAdd = !currentGroup?.hasReacted;
 
-      useChatStore.getState().applyReactionDelta(
-        {
-          messageId: msgId,
-          emoji,
-          userId: currentUser.id,
-          isAdded: willAdd,
-        } as any,
-        currentUser.id
-      );
-    }
+        useChatStore.getState().applyReactionDelta(
+          {
+            messageId: msgId,
+            emoji,
+            userId: currentUser.id,
+            isAdded: willAdd,
+          } as any,
+          currentUser.id
+        );
+      }
 
-    if (onToggleReaction) {
-      onToggleReaction(msgId, emoji);
-    } else {
-      messageApi.toggleReaction(msgId, emoji);
-    }
-  };
+      if (onToggleReaction) {
+        onToggleReaction(msgId, emoji);
+      } else {
+        messageApi.toggleReaction(msgId, emoji);
+      }
+    },
+    [currentUser?.id, messages, onToggleReaction]
+  );
 
   // Voice Chat resizer
   const handleVoiceChatResizeStart = (e: React.MouseEvent) => {
@@ -325,16 +325,6 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
   const renderHeaderContent = () => (
     <div className="h-[54px] border-b border-border px-3 sm:px-5 flex items-center justify-between bg-chat shrink-0 select-none">
       <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-        {/* Mobile Hamburger Menu Toggle Button */}
-        <button
-          type="button"
-          onClick={() => useUiStore.getState().toggleMobileSidebar()}
-          className="md:hidden p-1.5 rounded-control text-text-muted hover:text-text-primary hover:bg-surface-active transition-colors cursor-pointer shrink-0"
-          title="Mở danh sách kênh / bạn bè"
-        >
-          <List size={20} weight="bold" />
-        </button>
-
         {isDm && dmUser ? (
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative shrink-0">
@@ -467,13 +457,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
 
   const renderChatStreamAndInput = (isSidebar: boolean = false) => (
     <>
-      {/* Sticky Pin Bar (Zalo Style) */}
-      {!isStickyDismissed && pinnedMessages && pinnedMessages.length > 0 && (
+      {/* Sticky Pin Bar (Discord / Zalo Minimalist Style) */}
+      {pinnedMessages && pinnedMessages.length > 0 && (
         <StickyPinBar
           pinnedMessages={pinnedMessages}
           onJumpToMessage={handleJumpToMessage}
           onOpenSidebar={() => onTogglePinnedSidebar?.()}
-          onDismiss={() => setIsStickyDismissed(true)}
         />
       )}
 

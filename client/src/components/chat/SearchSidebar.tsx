@@ -103,8 +103,8 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
 
   return (
     <aside
-      style={{ width: `${width}px` }}
-      className="h-full bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col shrink-0 overflow-hidden select-none z-20 shadow-lg"
+      style={{ '--search-panel-width': `${width}px` } as React.CSSProperties}
+      className="w-full md:w-[var(--search-panel-width,380px)] h-full bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col shrink-0 overflow-hidden select-none z-20 shadow-lg"
     >
       {/* 1. Header (Unified with MemberListPanel) */}
       <div className="h-[54px] border-b border-[var(--border-color)] px-3.5 flex items-center justify-between bg-[var(--bg-sidebar)] shrink-0">
@@ -121,10 +121,10 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+          className="p-1.5 rounded-control text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer flex items-center justify-center"
           title="Đóng tìm kiếm"
         >
-          <X size={15} />
+          <X size={16} weight="bold" />
         </button>
       </div>
 

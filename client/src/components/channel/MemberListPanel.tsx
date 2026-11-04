@@ -179,9 +179,8 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
     <aside
       ref={panelRef}
       id="memberListPanel"
-      style={width ? { width: `${width}px` } : undefined}
-      className={`shrink-0 h-full min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col select-none relative z-20 animate-in fade-in slide-in-from-right-2 duration-150 ${width ? '' : 'w-[270px]'
-        }`}
+      style={width ? ({ '--member-panel-width': `${width}px` } as React.CSSProperties) : undefined}
+      className="w-full md:w-[var(--member-panel-width,270px)] shrink-0 h-full min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-color)] flex flex-col select-none relative z-20 animate-in fade-in slide-in-from-right-2 duration-150"
     >
       {/* 1. Header */}
       <div className="h-[54px] border-b border-[var(--border-color)] px-3.5 flex items-center justify-between shrink-0 bg-[var(--bg-sidebar)]">
@@ -210,10 +209,10 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+            className="p-1.5 rounded-control text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer flex items-center justify-center"
             title="Đóng danh sách thành viên"
           >
-            <X size={15} />
+            <X size={16} weight="bold" />
           </button>
         </div>
       </div>

@@ -67,6 +67,7 @@ interface UiState {
 
   setChannelWidth: (width: number) => void;
   setMemberWidth: (width: number) => void;
+  resetUiState: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -214,4 +215,22 @@ export const useUiStore = create<UiState>((set) => ({
     localStorage.setItem('nomna_member_width', width.toString());
     set({ memberWidth: width });
   },
+
+  resetUiState: () =>
+    set({
+      activeSidebarView: 'channels',
+      isMemberListOpen: localStorage.getItem('nomna_member_list_open') !== 'false',
+      isSearchOpen: false,
+      isPinnedSidebarOpen: false,
+      isMobileSidebarOpen: false,
+      isSettingsOpen: false,
+      isCreateWorkspaceOpen: false,
+      isEditWorkspaceOpen: false,
+      isCreateChannelOpen: false,
+      createChannelType: ChannelType.Text,
+      channelToEdit: null,
+      channelToAddMember: null,
+      isNewDmOpen: false,
+      memberToKick: null,
+    }),
 }));

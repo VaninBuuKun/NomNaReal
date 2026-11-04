@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { PushPin, CaretDown, X, ArrowRight } from "@phosphor-icons/react";
+import { PushPin, CaretDown, ArrowRight } from "@phosphor-icons/react";
 import type { PinnedMessage } from "../../types";
 import { formatMessageTime } from "../../utils/formatDate";
 import { UserAvatar } from "../ui/UserAvatar";
@@ -8,14 +8,13 @@ interface StickyPinBarProps {
   pinnedMessages: PinnedMessage[];
   onJumpToMessage: (messageId: string) => void;
   onOpenSidebar: () => void;
-  onDismiss: () => void;
+  onDismiss?: () => void;
 }
 
 export const StickyPinBar: React.FC<StickyPinBarProps> = ({
   pinnedMessages,
   onJumpToMessage,
   onOpenSidebar,
-  onDismiss,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +43,7 @@ export const StickyPinBar: React.FC<StickyPinBarProps> = ({
   if (!pinnedMessages || pinnedMessages.length === 0) return null;
 
   const latestPin = pinnedMessages[0];
-  const dropdownPins = pinnedMessages.slice(0, 3);
+  const dropdownPins = pinnedMessages.slice(0, 4);
   const totalCount = pinnedMessages.length;
 
   const getSnippet = (pin: PinnedMessage) => {
@@ -62,26 +61,40 @@ export const StickyPinBar: React.FC<StickyPinBarProps> = ({
 
   return (
     <div ref={containerRef} className="relative w-full z-30 select-none">
-      {/* 1. Main Sticky Bar (Zalo Minimalist: thin, sleek, focused) */}
+      {/* 1. Main Sticky Bar (Clean Discord/Zalo style, unified item presentation) */}
       <div className="h-9 px-3.5 bg-[var(--bg-surface)]/95 backdrop-blur-sm border-b border-[var(--border-color)] flex items-center justify-between gap-2 text-xs shadow-xs">
-        {/* Left: Latest Pin Snippet (Click to jump) */}
-        <button
-          type="button"
-          onClick={() => onJumpToMessage(latestPin.messageId)}
-          className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer group py-1 rounded hover:bg-[var(--bg-surface-active)] transition-colors -ml-1 pl-1"
-          title="Bấm để cuộn tới tin nhắn này"
-        >
-          <PushPin size={13} weight="fill" className="text-amber-500 flex-shrink-0" />
-          <span className="font-semibold text-[var(--text-primary)] flex-shrink-0 group-hover:text-[var(--accent-primary)] transition-colors">
-            {latestPin.message.senderDisplayName || latestPin.message.senderUsername}:
-          </span>
-          <span className="truncate text-[var(--text-muted)] group-hover:text-[var(--text-primary)]">
-            {getSnippet(latestPin)}
-          </span>
-        </button>
+        {isOpen ? (
+          /* Header when expanded: clean title, avoiding duplicate of first item */
+          <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-primary)]">
+            <PushPin size={13} weight="fill" className="text-amber-500 flex-shrink-0" />
+            <span>Tin nhắn đã ghim ({totalCount})</span>
+          </div>
+        ) : (
+          /* When collapsed: shows latest pin with unified avatar + name + snippet format */
+          <button
+            type="button"
+            onClick={() => onJumpToMessage(latestPin.messageId)}
+            className="flex-1 min-w-0 flex items-center gap-2 text-left cursor-pointer group py-1 rounded hover:bg-[var(--bg-surface-active)] transition-colors -ml-1 pl-1"
+            title="Bấm để cuộn tới tin nhắn này"
+          >
+            <PushPin size={13} weight="fill" className="text-amber-500 flex-shrink-0" />
+            <UserAvatar
+              size="xs"
+              name={latestPin.message.senderDisplayName || latestPin.message.senderUsername}
+              avatarUrl={latestPin.message.senderAvatarUrl}
+              className="w-4.5 h-4.5 flex-shrink-0"
+            />
+            <span className="font-semibold text-[var(--text-primary)] flex-shrink-0 group-hover:text-[var(--accent-primary)] transition-colors">
+              {latestPin.message.senderDisplayName || latestPin.message.senderUsername}:
+            </span>
+            <span className="truncate text-[var(--text-muted)] group-hover:text-[var(--text-primary)]">
+              {getSnippet(latestPin)}
+            </span>
+          </button>
+        )}
 
-        {/* Right: Dropdown toggle (if > 1) & Dismiss button */}
-        <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Right: Dropdown toggle or details button - 'X' button removed per request */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {totalCount > 1 ? (
             <button
               type="button"
@@ -91,41 +104,33 @@ export const StickyPinBar: React.FC<StickyPinBarProps> = ({
                   ? "bg-[var(--accent-soft)] text-[var(--accent-primary)]"
                   : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)]"
               }`}
-              title={isOpen ? "Đóng danh sách ghim" : "Mở danh sách ghim"}
+              title={isOpen ? "Thu gọn danh sách ghim" : "Mở danh sách ghim"}
             >
-              <span>{totalCount} tin ghim</span>
+              <span>{isOpen ? "Thu gọn" : `${totalCount} tin ghim`}</span>
               <CaretDown
                 size={11}
                 weight="bold"
-                className={`transition-transform duration-150 ${isOpen ? "rotate-180" : ""}`}
+                className={`transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
               />
             </button>
           ) : (
             <button
               type="button"
               onClick={onOpenSidebar}
-              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] px-1.5 py-0.5 rounded hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer"
-              title="Xem chi tiết tin ghim"
+              className="text-[11px] text-[var(--text-muted)] hover:text-[var(--text-primary)] px-2 py-0.5 rounded hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer flex items-center gap-1 font-medium"
+              title="Xem chi tiết tin ghim trong sidebar"
             >
-              Chi tiết
+              <span>Chi tiết</span>
+              <ArrowRight size={11} weight="bold" />
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer"
-            title="Tạm ẩn thanh ghim"
-          >
-            <X size={12} weight="bold" />
-          </button>
         </div>
       </div>
 
-      {/* 2. Sleek Zalo-style Dropdown (Max 3 items, no clutter) */}
+      {/* 2. Sleek Dropdown (Unified design with avatar + name + snippet + time) */}
       {isOpen && (
         <div className="absolute top-full left-0 right-0 bg-[var(--bg-surface)] border-b border-x border-[var(--border-color)] shadow-lg rounded-b-lg overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150 z-40">
-          {/* List: Max 3 items */}
+          {/* List of pinned items */}
           <div className="divide-y divide-[var(--border-color)]/60">
             {dropdownPins.map((pin) => (
               <div
@@ -160,7 +165,7 @@ export const StickyPinBar: React.FC<StickyPinBarProps> = ({
             ))}
           </div>
 
-          {/* Footer: 1 clean full-width action to see all in Sidebar */}
+          {/* Footer: Action to see all in Sidebar */}
           <button
             type="button"
             onClick={() => {

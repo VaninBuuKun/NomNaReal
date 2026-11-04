@@ -33,10 +33,10 @@ export const TitleBar: React.FC<TitleBarProps> = ({
         <button
           type="button"
           onClick={() => useUiStore.getState().toggleMobileSidebar()}
-          className="p-1 rounded-[4px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+          className="p-1.5 rounded-[4px] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] active:bg-[var(--bg-surface-active)] transition-colors cursor-pointer flex items-center justify-center"
           title="Mở thanh điều hướng"
         >
-          <List size={16} weight="bold" />
+          <List size={18} weight="bold" />
         </button>
       </div>
 
