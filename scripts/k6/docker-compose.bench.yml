@@ -66,6 +66,7 @@ services:
       - ./lib:/lib:ro
       - ./lib:/scripts/lib:ro
       - ./results:/results
+    environment:
       - TARGET_URL=http://nginx
       - WS_URL=ws://nginx/hubs/chat
     depends_on:
