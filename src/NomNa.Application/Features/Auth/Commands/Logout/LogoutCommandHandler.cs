@@ -54,3 +54,4 @@ public class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result>
         return Result.Success();
     }
 }
+

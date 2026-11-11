@@ -45,6 +45,9 @@ public static class SignalRConstants
         public const string StartTyping = "StartTyping";
         public const string StopTyping = "StopTyping";
         public const string GetOnlineUsers = "GetOnlineUsers";
+        public const string SetStatusPreference = "SetStatusPreference";
+        public const string JoinServer = "JoinServer";
+        public const string LeaveServer = "LeaveServer";
 
         // WebRTC 1v1 Call Signaling Methods
         public const string StartCall = "StartCall";

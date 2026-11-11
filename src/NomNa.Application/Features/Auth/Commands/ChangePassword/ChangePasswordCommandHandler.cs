@@ -60,3 +60,4 @@ public class ChangePasswordCommandHandler : IRequestHandler<ChangePasswordComman
         return Result.Success();
     }
 }
+

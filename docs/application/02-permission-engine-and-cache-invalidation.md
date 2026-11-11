@@ -87,3 +87,4 @@ public void InvalidateServer(Guid serverId)
 | **Tước quyền** | `perms &= ~denyPermissions` | Xóa bỏ các bit quyền bị cấm |
 | **Kiểm tra quyền** | `(perms & req) == req` | Kiểm tra xem user có đủ quyền yêu cầu không |
 | **Kiểm tra 1 trong nhiều** | `(perms & reqs) != 0` | Kiểm tra xem user có ít nhất 1 quyền trong nhóm |
+

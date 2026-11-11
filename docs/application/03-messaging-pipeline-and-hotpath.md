@@ -100,3 +100,4 @@ if (message.DirectMessageRecipientIds != null && message.DirectMessageRecipientI
 1. **Không bao giờ mở `_context` trong SignalR Hub:** Mọi logic đọc/ghi dữ liệu bắt buộc phải đi qua MediatR Handler. Hub chỉ có 1 nhiệm vụ duy nhất: **Nhận lệnh và Phát tán (Route & Broadcast)**.
 2. **Idempotency với `ClientMessageId`:** Bất kỳ thao tác gửi tin nhắn nào cũng nên kèm `ClientMessageId` để phía client dễ dàng quản lý state local mà không bị phụ thuộc vào độ trễ mạng.
 3. **Async Fire-and-Forget cho Notifications:** Realtime SignalR notification được đẩy qua background task (`_ = _notificationDispatcher.DispatchAsync(...)`), không làm block thời gian phản hồi của lệnh gửi tin.
+

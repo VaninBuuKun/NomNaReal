@@ -17,3 +17,4 @@ public class ChangePasswordCommandValidator : AbstractValidator<ChangePasswordCo
             .Equal(x => x.NewPassword).WithMessage("Passwords do not match.");
     }
 }
+

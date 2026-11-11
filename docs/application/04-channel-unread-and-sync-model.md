@@ -91,3 +91,4 @@ sequenceDiagram
 ### Điểm mấu chốt:
 * **Trải nghiệm tức thời (Optimistic Update):** Khi người dùng nhấp vào kênh, Frontend xóa ngay chấm chưa đọc trong state Zustand, không cần đợi HTTP response của lệnh `MarkChannelAsRead`.
 * **Tiết kiệm tài nguyên:** Kênh Public không cần ép tạo bản ghi `ChannelMember` giả lập cho mọi user. Thay vào đó, phía Client theo dõi thời gian thực qua SignalR và đồng bộ khi user tương tác trực tiếp.
+

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using NomNa.Application.Common.Helpers;
 using NomNa.Application.Common.Interfaces;
 using NomNa.Domain.Enums;
 using NomNa.Shared.Constants;
@@ -68,7 +69,7 @@ public partial class ChatHub : Hub
 
     /// <summary>
     /// Invoked when a new WebSocket or transport connection is established.
-    /// Handles multi-device presence tracking (one user may have multiple active tabs or devices).
+    /// Handles multi-device presence tracking and registers the connection into mutual server groups.
     /// </summary>
     public override async Task OnConnectedAsync()
     {
@@ -77,15 +78,43 @@ public partial class ChatHub : Hub
 
         if (Guid.TryParse(userIdStr, out var userId))
         {
-            // _presenceTracker returns true if this is the user's first active connection (Offline -> Online)
+            List<Guid> serverIds;
+            UserStatusPreference statusPreference = UserStatusPreference.Online;
+
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+                // 1. Subscribe connection to all servers the user belongs to
+                serverIds = await db.ServerMembers.AsNoTracking()
+                    .Where(sm => sm.UserId == userId)
+                    .Select(sm => sm.ServerId)
+                    .ToListAsync();
+
+                statusPreference = await db.Users.AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => (UserStatusPreference?)u.StatusPreference)
+                    .FirstOrDefaultAsync() ?? UserStatusPreference.Online;
+            }
+
+            // Join server groups in SignalR
+            foreach (var serverId in serverIds)
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"server_{serverId}");
+            }
+            Context.Items["UserServers"] = serverIds;
+
+            // 2. Track connection lease in Redis. Returns true if this is the user's first connection (Offline -> Online)
             var becameOnline = await _presenceTracker.UserConnectedAsync(userId, Context.ConnectionId);
             if (becameOnline)
             {
-                await Clients.All.SendAsync(SignalRConstants.Events.UserStatusChanged, new
+                var resolvedStatus = UserPresenceResolver.Resolve(isOnlineInRedis: true, statusPreference);
+
+                // If user preference is Invisible, resolved status is "offline" -> Do NOT announce online status
+                if (resolvedStatus != "offline")
                 {
-                    userId = userId.ToString(),
-                    status = "online"
-                });
+                    await BroadcastPresenceToPeersAsync(userId, resolvedStatus, serverIds);
+                }
             }
         }
         
@@ -94,7 +123,7 @@ public partial class ChatHub : Hub
 
     /// <summary>
     /// Invoked when a WebSocket or transport connection is disconnected.
-    /// Cleans up active call state and updates presence when all connections for a user terminate.
+    /// Cleans up active call state and broadcasts offline presence only when all connections terminate.
     /// </summary>
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
@@ -124,15 +153,154 @@ public partial class ChatHub : Hub
             var becameOffline = await _presenceTracker.UserDisconnectedAsync(userId, Context.ConnectionId);
             if (becameOffline)
             {
-                await Clients.All.SendAsync(SignalRConstants.Events.UserStatusChanged, new
+                List<Guid> serverIds;
+                UserStatusPreference statusPreference = UserStatusPreference.Online;
+
+                using (var scope = _scopeFactory.CreateScope())
                 {
-                    userId = userId.ToString(),
-                    status = "offline"
-                });
+                    var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+                    statusPreference = await db.Users.AsNoTracking()
+                        .Where(u => u.Id == userId)
+                        .Select(u => (UserStatusPreference?)u.StatusPreference)
+                        .FirstOrDefaultAsync() ?? UserStatusPreference.Online;
+
+                    serverIds = Context.Items.TryGetValue("UserServers", out var sObj) && sObj is List<Guid> sList
+                        ? sList
+                        : await db.ServerMembers.AsNoTracking()
+                            .Where(sm => sm.UserId == userId)
+                            .Select(sm => sm.ServerId)
+                            .ToListAsync();
+                }
+
+                // If user was Invisible, they already appeared offline to everyone; do not duplicate broadcast
+                if (statusPreference != UserStatusPreference.Invisible)
+                {
+                    await BroadcastPresenceToPeersAsync(userId, "offline", serverIds);
+                }
             }
         }
         
         await base.OnDisconnectedAsync(exception);
+    }
+
+    /// <summary>
+    /// Updates the user's status preference (Online, Idle, DoNotDisturb, Invisible) in real-time.
+    /// Resolves effective status against active Redis lease and dispatches to mutual peers.
+    /// </summary>
+    public async Task SetStatusPreference(UserStatusPreference preference)
+    {
+        if (!Guid.TryParse(Context.UserIdentifier, out var userId))
+        {
+            throw new HubException("User is not authenticated.");
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null)
+        {
+            throw new HubException("User not found.");
+        }
+
+        user.UpdateStatusPreference(preference);
+        await db.SaveChangesAsync();
+
+        var isOnlineInRedis = await _presenceTracker.IsUserOnlineAsync(userId);
+        var resolvedStatus = UserPresenceResolver.Resolve(isOnlineInRedis, preference);
+
+        var serverIds = Context.Items.TryGetValue("UserServers", out var sObj) && sObj is List<Guid> sList
+            ? sList
+            : await db.ServerMembers.AsNoTracking()
+                .Where(sm => sm.UserId == userId)
+                .Select(sm => sm.ServerId)
+                .ToListAsync();
+
+        await BroadcastPresenceToPeersAsync(userId, resolvedStatus, serverIds);
+    }
+
+    /// <summary>
+    /// Subscribes connection to a server group to receive scoped server events and presence.
+    /// </summary>
+    public async Task JoinServer(Guid serverId)
+    {
+        if (!Guid.TryParse(Context.UserIdentifier, out var userId))
+        {
+            throw new HubException("User is not authenticated.");
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        var isMember = await db.ServerMembers.AsNoTracking()
+            .AnyAsync(sm => sm.ServerId == serverId && sm.UserId == userId);
+
+        if (!isMember)
+        {
+            throw new HubException("Access denied: You are not a member of this server.");
+        }
+
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"server_{serverId}");
+
+        if (Context.Items.TryGetValue("UserServers", out var sObj) && sObj is List<Guid> sList)
+        {
+            lock (sList)
+            {
+                if (!sList.Contains(serverId)) sList.Add(serverId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Unsubscribes connection from a server group when leaving or being removed from a server.
+    /// </summary>
+    public async Task LeaveServer(Guid serverId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"server_{serverId}");
+
+        if (Context.Items.TryGetValue("UserServers", out var sObj) && sObj is List<Guid> sList)
+        {
+            lock (sList)
+            {
+                sList.Remove(serverId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Scopes presence status updates strictly to mutual server groups and direct friends.
+    /// Eliminates O(N^2) global Clients.All broadcast storms and protects user privacy.
+    /// </summary>
+    private async Task BroadcastPresenceToPeersAsync(Guid userId, string status, List<Guid> serverIds)
+    {
+        var payload = new
+        {
+            userId = userId.ToString(),
+            status
+        };
+
+        // 1. Multicast to all mutual server groups
+        if (serverIds.Count > 0)
+        {
+            var serverGroupNames = serverIds.Select(id => $"server_{id}").ToList();
+            await Clients.Groups(serverGroupNames).SendAsync(SignalRConstants.Events.UserStatusChanged, payload);
+        }
+
+        // 2. Multicast to accepted friends (who might not share any mutual server)
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+        var friendIds = await db.Friendships.AsNoTracking()
+            .Where(f => f.Status == FriendshipStatus.Accepted && (f.RequesterId == userId || f.AddresseeId == userId))
+            .Select(f => f.RequesterId == userId ? f.AddresseeId : f.RequesterId)
+            .ToListAsync();
+
+        if (friendIds.Count > 0)
+        {
+            var friendIdStrings = friendIds.Select(id => id.ToString()).ToList();
+            await Clients.Users(friendIdStrings).SendAsync(SignalRConstants.Events.UserStatusChanged, payload);
+        }
     }
 
     #endregion

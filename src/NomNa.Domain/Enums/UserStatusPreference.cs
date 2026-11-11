@@ -1,28 +1,28 @@
 namespace NomNa.Domain.Enums;
 
 /// <summary>
-/// Chế độ hiển thị trạng thái do người dùng thiết lập (Status Preference theo chuẩn Discord).
-/// Trạng thái kết nối vật lý (Online/Offline) do Redis quản lý độc lập.
+/// User status display preference following the Discord specification.
+/// Physical network connectivity (Online/Offline) is tracked independently via Redis leases.
 /// </summary>
 public enum UserStatusPreference
 {
     /// <summary>
-    /// Chế độ bình thường: Khi có kết nối Redis thì hiển thị Online (chấm xanh).
+    /// Normal mode: Displays as Online (green dot) when active Redis lease exists.
     /// </summary>
     Online = 0,
 
     /// <summary>
-    /// Chế độ Vắng mặt / Chờ (Away / Idle): Khi có kết nối Redis thì hiển thị Chờ (chấm vàng).
+    /// Away / Idle mode: Displays as Idle (amber dot) when active Redis lease exists.
     /// </summary>
     Idle = 1,
 
     /// <summary>
-    /// Chế độ Đừng làm phiền (Do Not Disturb): Khi có kết nối Redis thì hiển thị Bận (chấm đỏ, tắt chuông thông báo).
+    /// Do Not Disturb mode: Displays as Busy (red dot, suppressed notifications) when active Redis lease exists.
     /// </summary>
     DoNotDisturb = 2,
 
     /// <summary>
-    /// Chế độ Ẩn danh / Tàng hình (Invisible): Vẫn kết nối chat bình thường nhưng cố tình hiển thị như Offline (chấm xám) với người khác.
+    /// Invisible mode: Connected normally but intentionally appears Offline (grey dot) to others.
     /// </summary>
     Invisible = 3
 }

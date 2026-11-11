@@ -69,3 +69,4 @@ sequenceDiagram
 * **Luôn tra cứu bằng `NormalizedEmail`/`NormalizedUserName`**.
 * **Chỉ gọi `ResetAccessFailedCountAsync` khi `AccessFailedCount > 0`** (tiết kiệm 1 lệnh UPDATE DB ở mỗi lần đăng nhập thành công).
 * **Fail-Fast JWT Secret trên Production**: Nếu `environment.IsProduction()` mà `Jwt:Secret` thiếu hoặc dùng chuỗi mặc định, server sẽ tự dừng ngay khi khởi động để bảo vệ an toàn dữ liệu.
+

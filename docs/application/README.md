@@ -27,6 +27,10 @@
    *Cỗ Máy Trạng Thái Cuộc Gọi 1-1 WebRTC & Lớp Bảo Vệ An Ninh:*  
    Bản chất bắt tay P2P qua SignalR Signaling, State Machine cuộc gọi (`Idle` $\to$ `Ringing` $\to$ `Connected` $\to$ `Ended`), cơ chế xử lý máy bận (`UserBusy`), chặn cuộc gọi từ người bị Block và bảo vệ ICE Candidate chống giả mạo.
 
+6. **[`06-realtime-presence-and-backplane.md`](./06-realtime-presence-and-backplane.md)**  
+   *Mở Rộng Trạng Thái Hiện Diện & SignalR Redis Backplane:*  
+   Khắc phục bão broadcast $O(N^2)$ của `Clients.All`, thu hẹp phạm vi phát tán theo Mutual Servers & Friends, tôn trọng chế độ ẩn danh (Invisible), và cấu hình Redis Backplane scale-out đa node.
+
 ---
 
 ## 🧭 Sơ Đồ Khái Niệm Tổng Thể (Big Picture)
@@ -61,3 +65,4 @@ graph TD
     CallState --> Postgres
     Hub --> Redis
 ```
+

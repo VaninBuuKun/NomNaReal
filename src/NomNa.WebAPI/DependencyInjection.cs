@@ -22,7 +22,22 @@ public static class DependencyInjection
 
         // 2. Framework Services
         services.AddControllers();
-        services.AddSignalR();
+
+        var signalRBuilder = services.AddSignalR();
+        var redisConn = configuration.GetConnectionString("Redis") 
+            ?? configuration["Redis"] 
+            ?? "localhost:6380";
+
+        if (!string.IsNullOrWhiteSpace(redisConn))
+        {
+            signalRBuilder.AddStackExchangeRedis(redisConn, options =>
+            {
+                options.Configuration.AbortOnConnectFail = false;
+                options.Configuration.ConnectTimeout = 5000;
+                options.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("nomna_signalr");
+            });
+        }
+
         services.AddEndpointsApiExplorer();
         services.AddHttpClient();
 

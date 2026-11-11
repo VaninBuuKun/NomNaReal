@@ -103,3 +103,4 @@ sequenceDiagram
 1. **Server không giữ luồng Video/Audio:** Mọi dữ liệu media chỉ trao đổi trực tiếp giữa 2 trình duyệt (P2P Mesh). Server SignalR chỉ là trạm trung chuyển SDP và ICE.
 2. **Dọn dẹp cặp cuộc gọi đối xứng (`RemoveCallPair`):** Khi một bên ngắt máy hoặc từ chối, server bắt buộc phải xóa cả 2 chiều trong `_activeCalls` để cả 2 người dùng có thể thực hiện cuộc gọi mới.
 3. **Presence gắn với Redis:** Kiểm tra `IsUserOnlineAsync(targetUserId)` dựa trên Redis ZSET Lease trước khi phát tín hiệu gọi, tránh gửi tín hiệu ảo cho người dùng đã tắt ứng dụng.
+

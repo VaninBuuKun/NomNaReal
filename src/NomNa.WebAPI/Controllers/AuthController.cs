@@ -10,6 +10,7 @@ using NomNa.Application.Features.Auth.Commands.Register;
 using NomNa.Application.Features.Auth.Commands.ResendVerification;
 using NomNa.Application.Features.Auth.Commands.ResetPassword;
 using NomNa.Application.Features.Auth.Commands.UpdateProfile;
+using NomNa.Application.Features.Auth.Commands.UpdateStatusPreference;
 using NomNa.Application.Features.Auth.Commands.VerifyEmail;
 using NomNa.Application.Features.Auth.Queries.GetCurrentUser;
 
@@ -155,6 +156,14 @@ public class AuthController : ApiControllerBase
     [Authorize]
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [Authorize]
+    [HttpPut("status-preference")]
+    public async Task<IActionResult> UpdateStatusPreference([FromBody] UpdateStatusPreferenceCommand command)
     {
         var result = await Mediator.Send(command);
         return HandleResult(result);

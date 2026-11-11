@@ -1,6 +1,8 @@
 using FluentAssertions;
 using NomNa.Application.Features.Auth.Commands.ChangePassword;
 using NomNa.Application.Features.Auth.Commands.Logout;
+using NomNa.Application.Features.Auth.Commands.UpdateStatusPreference;
+using NomNa.Domain.Enums;
 using Xunit;
 
 namespace NomNa.Application.UnitTests;
@@ -9,6 +11,30 @@ public class AuthCommandValidatorTests
 {
     private readonly LogoutCommandValidator _logoutValidator = new();
     private readonly ChangePasswordCommandValidator _changePasswordValidator = new();
+    private readonly UpdateStatusPreferenceCommandValidator _preferenceValidator = new();
+
+    [Theory]
+    [InlineData(UserStatusPreference.Online)]
+    [InlineData(UserStatusPreference.Idle)]
+    [InlineData(UserStatusPreference.DoNotDisturb)]
+    [InlineData(UserStatusPreference.Invisible)]
+    public void UpdateStatusPreferenceCommandValidator_Should_Pass_For_Valid_Enums(UserStatusPreference preference)
+    {
+        var command = new UpdateStatusPreferenceCommand(preference);
+        var result = _preferenceValidator.Validate(command);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void UpdateStatusPreferenceCommandValidator_Should_Fail_For_Undefined_Enum()
+    {
+        var command = new UpdateStatusPreferenceCommand((UserStatusPreference)999);
+        var result = _preferenceValidator.Validate(command);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.PropertyName == "Preference");
+    }
 
     [Fact]
     public void LogoutCommandValidator_Should_Pass_When_Token_Is_Null_Or_Valid()
@@ -62,3 +88,4 @@ public class AuthCommandValidatorTests
         result.Errors.Should().Contain(e => e.PropertyName == "NewPassword");
     }
 }
+

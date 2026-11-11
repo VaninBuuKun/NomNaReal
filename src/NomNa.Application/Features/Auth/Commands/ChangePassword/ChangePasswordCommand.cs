@@ -8,3 +8,4 @@ public record ChangePasswordCommand(
     string NewPassword,
     string ConfirmPassword
 ) : IRequest<Result>;
+
