@@ -38,7 +38,11 @@ public record MessageDto(
     DateTime CreatedAt,
     List<ReactionGroupDto>? Reactions = null,
     List<MessageAttachmentDto>? Attachments = null
-);
+)
+{
+    public Guid? ClientMessageId { get; init; }
+    public List<Guid>? DirectMessageRecipientIds { get; init; }
+};
 
 public record ReactionToggledDto(
     Guid MessageId,

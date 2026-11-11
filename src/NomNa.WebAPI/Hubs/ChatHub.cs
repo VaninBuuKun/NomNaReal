@@ -11,22 +11,22 @@ using NomNa.Shared.Models;
 namespace NomNa.WebAPI.Hubs;
 
 /// <summary>
-/// SignalR ChatHub: Đóng vai trò là Realtime Gateway/Endpoint cho các tính năng Chat, WebRTC và Presence.
-/// [Authorize]: Yêu cầu tất cả kết nối WebSocket/Transport phải được xác thực (JWT Bearer Token trong Query String/Header).
-/// Hub là Transient (được khởi tạo và tiêu hủy theo mỗi Invocation/RPC call từ client).
-/// Được phân chia thành các partial classes:
-/// - ChatHub.cs: Constructor, DI dependencies, Connection & Presence Lifecycle.
-/// - ChatHub.Channels.cs: Join/Leave group, Typing indicator.
-/// - ChatHub.Messages.cs: Gửi, sửa, xóa tin nhắn và reactions.
-/// - ChatHub.CallSignaling.cs: WebRTC 1v1 Audio/Video Call Signaling.
+/// SignalR ChatHub: Real-time gateway endpoint for chat messaging, WebRTC signaling, and user presence.
+/// [Authorize]: Requires all WebSocket and transport connections to be authenticated via JWT bearer token.
+/// Hub instances are transient (created and disposed per invocation/RPC call from client).
+/// Split across multiple partial classes:
+/// - ChatHub.cs: Constructor, DI dependencies, connection & presence lifecycle.
+/// - ChatHub.Channels.cs: Group join/leave, typing indicator.
+/// - ChatHub.Messages.cs: Message creation, editing, deletion, and reactions.
+/// - ChatHub.CallSignaling.cs: WebRTC 1v1 audio/video call signaling.
 /// </summary>
 [Authorize]
 public partial class ChatHub : Hub
 {
     private readonly ISender _mediator;
     private readonly ILogger<ChatHub> _logger;
-    private readonly IUserPresenceTracker _presenceTracker; // Singleton Service theo dõi danh sách connection/online status
-    private readonly IServiceScopeFactory _scopeFactory;   // Dùng để tạo DI Scope ngắn hạn truy cập DbContext (Scoped Service) trong Hub lifecycle
+    private readonly IUserPresenceTracker _presenceTracker;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     // Track active 1v1 call pairings (UserId <-> PeerUserId) across connections
     private static readonly ConcurrentDictionary<Guid, Guid> _activeCalls = new();
@@ -46,7 +46,7 @@ public partial class ChatHub : Hub
     #region Presence & Connection Lifecycle (OnConnected / OnDisconnected)
 
     /// <summary>
-    /// Lấy danh sách các UserId đang Online từ In-Memory/Redis Tracker.
+    /// Retrieves the list of currently online user IDs from the presence tracker.
     /// </summary>
     public async Task<IReadOnlyCollection<string>> GetOnlineUsers()
     {
@@ -55,8 +55,8 @@ public partial class ChatHub : Hub
     }
 
     /// <summary>
-    /// Endpoint heartbeat từ client gửi định kỳ (mỗi 25s) để gia hạn connection lease trong Redis.
-    /// Giúp tự động giải phóng trạng thái Online nếu client bị crash hoặc mất mạng đột ngột.
+    /// Periodic heartbeat endpoint sent by clients (e.g. every 25s) to renew connection lease in Redis.
+    /// Enables automatic online status expiration if a client crashes or abruptly loses connection.
     /// </summary>
     public async Task PingPresence()
     {
@@ -67,8 +67,8 @@ public partial class ChatHub : Hub
     }
 
     /// <summary>
-    /// Event Handler kích hoạt khi một WebSocket/Transport Connection thiết lập thành công.
-    /// Quản lý Multi-device Connection (Một User có thể mở nhiều Tab/Thiết bị khác nhau).
+    /// Invoked when a new WebSocket or transport connection is established.
+    /// Handles multi-device presence tracking (one user may have multiple active tabs or devices).
     /// </summary>
     public override async Task OnConnectedAsync()
     {
@@ -77,11 +77,10 @@ public partial class ChatHub : Hub
 
         if (Guid.TryParse(userIdStr, out var userId))
         {
-            // _presenceTracker (Redis) trả về true NẾU ĐÂY LÀ CONNECTION ĐẦU TIÊN của User (chuyển trạng thái từ Offline -> Online)
+            // _presenceTracker returns true if this is the user's first active connection (Offline -> Online)
             var becameOnline = await _presenceTracker.UserConnectedAsync(userId, Context.ConnectionId);
             if (becameOnline)
             {
-                // Broadcast toàn hệ thống (Clients.All) báo rằng User này vừa mới Online
                 await Clients.All.SendAsync(SignalRConstants.Events.UserStatusChanged, new
                 {
                     userId = userId.ToString(),
@@ -94,7 +93,8 @@ public partial class ChatHub : Hub
     }
 
     /// <summary>
-    /// Event Handler kích hoạt khi kết nối WebSocket bị ngắt (Client đóng tab, mất mạng, timeout,...).
+    /// Invoked when a WebSocket or transport connection is disconnected.
+    /// Cleans up active call state and updates presence when all connections for a user terminate.
     /// </summary>
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
@@ -103,7 +103,7 @@ public partial class ChatHub : Hub
 
         if (Guid.TryParse(userIdStr, out var userId))
         {
-            // Nếu User đang trong cuộc gọi dở mà bị ngắt kết nối (tắt tab, mất mạng), tự động báo CallEnded cho đối phương
+            // If user disconnects during an active call, notify partner with CallEnded
             if (_activeCalls.TryRemove(userId, out var partnerId))
             {
                 _activeCalls.TryRemove(partnerId, out _);
@@ -120,11 +120,10 @@ public partial class ChatHub : Hub
                 }
             }
 
-            // _presenceTracker (Redis) trả về true NẾU TẤT CẢ CONNECTION CỦA USER ĐÃ ĐÓNG (người dùng thực sự Offline hẳn)
+            // _presenceTracker returns true if all connections of the user are closed (User is truly offline)
             var becameOffline = await _presenceTracker.UserDisconnectedAsync(userId, Context.ConnectionId);
             if (becameOffline)
             {
-                // Broadcast cho toàn hệ thống biết User đã Offline
                 await Clients.All.SendAsync(SignalRConstants.Events.UserStatusChanged, new
                 {
                     userId = userId.ToString(),

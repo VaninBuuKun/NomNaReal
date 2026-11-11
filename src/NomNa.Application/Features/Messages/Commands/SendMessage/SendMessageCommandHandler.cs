@@ -39,7 +39,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
             return Error.NotFound("Channel.NotFound", $"Channel {request.ChannelId} not found.");
 
         if (channel.Type == Domain.Enums.ChannelType.Category)
-            return Error.Validation("Channel.InvalidType", "Không thể gửi tin nhắn vào danh mục.");
+            return Error.Validation("Channel.InvalidType", "Cannot send messages into a category channel.");
 
         // Rule: Private channels verify ChannelMember; public channels verify ServerMember.
         if (channel.IsPrivate || channel.Type == Domain.Enums.ChannelType.DirectMessage)
@@ -100,34 +100,33 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
         else if (message.Attachments.Count > 0)
         {
             channel.LastMessageContent = message.Attachments.Any(a => a.Type == "image" || a.ContentType.StartsWith("image/"))
-                ? "[Hình ảnh]"
-                : "[Tệp đính kèm]";
+                ? "[Image]"
+                : "[Attachment]";
         }
 
         _context.Messages.Add(message);
-        await _context.SaveChangesAsync(cancellationToken);
 
-        // 5. Parse Mentions and Create Notifications
+        // 5. Parse Mentions and Prepare Notifications
         var hasContent = !string.IsNullOrWhiteSpace(content);
         var hasAttachments = message.Attachments.Count > 0;
+        var createdNotifications = new List<Notification>();
+        List<Guid>? directMessageRecipients = null;
 
         if (hasContent || hasAttachments)
         {
             var snippet = hasContent
                 ? (content.Length > 150 ? content.Substring(0, 147) + "..." : content)
-                : (message.Attachments.Any(a => a.Type == "image" || a.ContentType.StartsWith("image/")) ? "[Hình ảnh]" : "[Tệp đính kèm]");
-
-            var createdNotifications = new List<Notification>();
+                : (message.Attachments.Any(a => a.Type == "image" || a.ContentType.StartsWith("image/")) ? "[Image]" : "[Attachment]");
 
             // A. Direct Message Notifications
             if (channel.Type == Domain.Enums.ChannelType.DirectMessage)
             {
-                var dmRecipients = await _context.ChannelMembers
+                directMessageRecipients = await _context.ChannelMembers
                     .Where(cm => cm.ChannelId == channel.Id && cm.UserId != userId.Value)
                     .Select(cm => cm.UserId)
                     .ToListAsync(cancellationToken);
 
-                foreach (var rId in dmRecipients)
+                foreach (var rId in directMessageRecipients)
                 {
                     var dmNotif = new Notification
                     {
@@ -199,7 +198,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                         ChannelId = channel.Id,
                         MessageId = message.Id,
                         Type = Domain.Enums.NotificationType.Mention,
-                        Title = $"{user.DisplayName} đã nhắc đến bạn trong #{channel.Name}",
+                        Title = $"{user.DisplayName} mentioned you in #{channel.Name}",
                         Content = snippet,
                         IsRead = false
                     };
@@ -218,7 +217,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                         ChannelId = channel.Id,
                         MessageId = message.Id,
                         Type = Domain.Enums.NotificationType.ThreadReply,
-                        Title = $"{user.DisplayName} đã trả lời tin nhắn của bạn trong #{channel.Name}",
+                        Title = $"{user.DisplayName} replied to your message in #{channel.Name}",
                         Content = snippet,
                         IsRead = false
                     };
@@ -226,34 +225,35 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                     _context.Notifications.Add(replyNotif);
                 }
             }
+        }
 
-            if (createdNotifications.Count > 0)
+        // Single atomic SaveChangesAsync call for both Message and Notifications
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Dispatch realtime SignalR notifications in background
+        if (createdNotifications.Count > 0)
+        {
+            foreach (var notif in createdNotifications)
             {
-                await _context.SaveChangesAsync(cancellationToken);
-
-                // Dispatch realtime SignalR notifications
-                foreach (var notif in createdNotifications)
-                {
-                    var notifDto = new Features.Notifications.DTOs.NotificationDto(
-                        notif.Id,
-                        notif.UserId,
-                        notif.ActorId,
-                        user.DisplayName,
-                        user.UserName,
-                        user.AvatarUrl,
-                        notif.ServerId,
-                        null,
-                        notif.ChannelId,
-                        channel.Name,
-                        notif.MessageId,
-                        notif.Type,
-                        notif.Title,
-                        notif.Content,
-                        notif.IsRead,
-                        notif.CreatedAt
-                    );
-                    _ = _notificationDispatcher.DispatchAsync(notifDto, CancellationToken.None);
-                }
+                var notifDto = new Features.Notifications.DTOs.NotificationDto(
+                    notif.Id,
+                    notif.UserId,
+                    notif.ActorId,
+                    user.DisplayName,
+                    user.UserName,
+                    user.AvatarUrl,
+                    notif.ServerId,
+                    null,
+                    notif.ChannelId,
+                    channel.Name,
+                    notif.MessageId,
+                    notif.Type,
+                    notif.Title,
+                    notif.Content,
+                    notif.IsRead,
+                    notif.CreatedAt
+                );
+                _ = _notificationDispatcher.DispatchAsync(notifDto, CancellationToken.None);
             }
         }
 
@@ -273,7 +273,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
                 replyToMessage.SenderId,
                 replyToMessage.Sender?.DisplayName ?? "Unknown",
                 replyToMessage.Sender?.AvatarUrl,
-                replyToMessage.DeletedAt != null ? "Tin nhắn đã bị xóa" : replyToMessage.Content,
+                replyToMessage.DeletedAt != null ? "Message was deleted" : replyToMessage.Content,
                 replyToMessage.DeletedAt != null
             );
         }
@@ -291,7 +291,11 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Res
             message.CreatedAt,
             null,
             attachmentDtos
-        );
+        )
+        {
+            ClientMessageId = request.ClientMessageId,
+            DirectMessageRecipientIds = directMessageRecipients
+        };
     }
 }
 

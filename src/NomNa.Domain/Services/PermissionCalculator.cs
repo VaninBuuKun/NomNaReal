@@ -4,20 +4,20 @@ using NomNa.Domain.Enums;
 namespace NomNa.Domain.Services;
 
 /// <summary>
-/// Domain Service thuần túy (Pure Function) tính toán quyền hạn thành viên theo thuật toán phân quyền đa cấp chuẩn Discord.
-/// Không có external dependency, độ phức tạp O(N) với N là số lượng role/overwrite, chạy ở mức CPU nanoseconds.
+/// Pure Domain Service evaluating member permissions following the Discord-grade hierarchical algorithm.
+/// Zero external dependencies, O(N) complexity where N is the number of roles/overwrites, executing in nanoseconds.
 /// </summary>
 public static class PermissionCalculator
 {
     /// <summary>
-    /// Tính toán quyền hạn thực tế của một thành viên trong một Channel cụ thể.
+    /// Computes the effective permissions of a user in a specific channel.
     /// </summary>
-    /// <param name="userId">ID người dùng cần kiểm tra.</param>
-    /// <param name="serverOwnerId">ID chủ sở hữu Server.</param>
-    /// <param name="everyoneRole">Role @everyone mặc định của server.</param>
-    /// <param name="memberRoles">Danh sách các Role mà thành viên này được gán (không bắt buộc bao gồm @everyone).</param>
-    /// <param name="channelOverwrites">Danh sách các Overwrites được cấu hình trên Channel này.</param>
-    /// <returns>Bitmask Permissions cuối cùng sau khi áp dụng toàn bộ hierarchy.</returns>
+    /// <param name="userId">Target user identifier.</param>
+    /// <param name="serverOwnerId">Server owner identifier.</param>
+    /// <param name="everyoneRole">Default @everyone role of the server.</param>
+    /// <param name="memberRoles">Assigned roles for the member.</param>
+    /// <param name="channelOverwrites">Configured overwrites on this channel.</param>
+    /// <returns>Final effective Permissions bitmask after resolving the entire hierarchy.</returns>
     public static Permissions CalculateChannelPermissions(
         Guid userId,
         Guid serverOwnerId,
@@ -26,8 +26,8 @@ public static class PermissionCalculator
         IEnumerable<ChannelPermissionOverwrite> channelOverwrites)
     {
         // -------------------------------------------------------------
-        // BƯỚC 1: OWNER BYPASS
-        // Chủ server luôn có mọi quyền tối cao, không bao giờ bị ghi đè hay tước quyền.
+        // STEP 1: OWNER BYPASS
+        // Server owner always has all permissions, immune to denies or overrides.
         // -------------------------------------------------------------
         if (userId == serverOwnerId)
         {
@@ -35,20 +35,20 @@ public static class PermissionCalculator
         }
 
         // -------------------------------------------------------------
-        // BƯỚC 2: BASE PERMISSIONS (Gộp quyền cấp Server)
-        // Bắt đầu từ quyền của role @everyone, sau đó OR (|) với toàn bộ role của member.
+        // STEP 2: BASE PERMISSIONS (Server-level union)
+        // Starts with @everyone permissions, then unions (|) all member roles.
         // -------------------------------------------------------------
         Permissions permissions = everyoneRole.Permissions;
 
         var rolesList = memberRoles as IReadOnlyList<Role> ?? memberRoles.ToList();
         foreach (var role in rolesList)
         {
-            permissions |= role.Permissions; //|=: or: gộp bit các bit 1, k làm mất bit 1 cũ.
+            permissions |= role.Permissions;
         }
 
         // -------------------------------------------------------------
-        // BƯỚC 3: ADMINISTRATOR BYPASS
-        // Nếu user có bất kỳ role nào mang quyền Administrator -> bypass toàn bộ channel overwrites.
+        // STEP 3: ADMINISTRATOR BYPASS
+        // If member possesses Administrator in any server role -> bypass all channel overwrites.
         // -------------------------------------------------------------
         if (HasPermission(permissions, Permissions.Administrator))
         {
@@ -58,8 +58,8 @@ public static class PermissionCalculator
         var overwritesList = channelOverwrites as IReadOnlyList<ChannelPermissionOverwrite> ?? channelOverwrites.ToList();
 
         // -------------------------------------------------------------
-        // BƯỚC 4: CHANNEL OVERWRITES CHO @EVERYONE
-        // Áp dụng Deny trước (& ~Deny), sau đó Allow (| Allow). (nếu đảm bảo allow & deny = 0 thì thứ tự k quan trọng nhưng cách code này sẽ đảm bảo tính thống nhất hệ thống allow luôn thắng deny)
+        // STEP 4: CHANNEL OVERWRITES FOR @EVERYONE
+        // Apply Deny first (& ~Deny), then Apply Allow (| Allow).
         // -------------------------------------------------------------
         var everyoneOverwrite = overwritesList.FirstOrDefault(o => 
             o.TargetType == OverwriteType.Role && o.TargetId == everyoneRole.Id);
@@ -71,9 +71,9 @@ public static class PermissionCalculator
         }
 
         // -------------------------------------------------------------
-        // BƯỚC 5: CHANNEL OVERWRITES CHO TẤT CẢ ROLES CỦA MEMBER
-        // Quy tắc Discord: Gom tất cả Deny của các role lại, gom tất cả Allow lại.
-        // Áp dụng Deny trước, Allow sau (Allow thắng Deny giữa các role ngang hàng).
+        // STEP 5: CHANNEL OVERWRITES FOR ALL MEMBER ROLES
+        // Discord rule: Aggregate all Deny bits and Allow bits across member roles.
+        // Apply Deny first, then Allow (Allow wins conflicts among peer roles).
         // -------------------------------------------------------------
         var roleIds = new HashSet<Guid>(rolesList.Select(r => r.Id));
         Permissions rolesDeny = Permissions.None;
@@ -92,8 +92,8 @@ public static class PermissionCalculator
         permissions |= rolesAllow;
 
         // -------------------------------------------------------------
-        // BƯỚC 6: MEMBER OVERWRITE CỤ THỂ (Ưu tiên cao nhất)
-        // Ghi đè chỉ định thẳng cho đích danh cá nhân user tại channel này.
+        // STEP 6: MEMBER-SPECIFIC OVERWRITE (Highest priority overwrite)
+        // Direct override tailored specifically for this individual user in the channel.
         // -------------------------------------------------------------
         var memberOverwrite = overwritesList.FirstOrDefault(o => 
             o.TargetType == OverwriteType.Member && o.TargetId == userId);
@@ -105,9 +105,8 @@ public static class PermissionCalculator
         }
 
         // -------------------------------------------------------------
-        // BƯỚC 7: IMPLICIT VIEW CHANNEL ENFORCEMENT
-        // Quy tắc Discord: Nếu không có quyền ViewChannel, thì user không thể 
-        // thực hiện bất kỳ hành động nào khác trong channel đó (None).
+        // STEP 7: IMPLICIT VIEW CHANNEL ENFORCEMENT
+        // Discord rule: Without ViewChannel permission, the member cannot perform any action (None).
         // -------------------------------------------------------------
         if (!HasPermission(permissions, Permissions.ViewChannel))
         {
@@ -118,7 +117,7 @@ public static class PermissionCalculator
     }
 
     /// <summary>
-    /// Tính toán quyền cấp Server (không xét Channel overwrites).
+    /// Computes server-level permissions without channel overwrites.
     /// </summary>
     public static Permissions CalculateServerPermissions(
         Guid userId,
@@ -146,7 +145,7 @@ public static class PermissionCalculator
     }
 
     /// <summary>
-    /// Kiểm tra xem một tập quyền có chứa quyền bắt buộc hay không.
+    /// Determines whether the permissions set includes the required permission.
     /// </summary>
     public static bool HasPermission(Permissions userPermissions, Permissions requiredPermission)
     {
@@ -154,21 +153,10 @@ public static class PermissionCalculator
     }
 
     /// <summary>
-    /// Kiểm tra xem một tập quyền có chứa bất kỳ quyền nào trong danh sách hay không.
+    /// Determines whether the permissions set includes any of the specified permissions.
     /// </summary>
     public static bool HasAnyPermission(Permissions userPermissions, Permissions requiredPermissions)
     {
         return (userPermissions & requiredPermissions) != 0;
     }
 }
-
-
-/*
-Ý tưởng cơ bản thì sẽ có role trên server, everyone là role mặc định, owener là dựa vào chủ sỡ hữu.
-các quyền ở channel có thể override nó có 2 cái allow, deny để dễ hình dung mặc định là 0 hết sẽ là k chọn j.
-kiểu ở một permission cụ thể có thể chọn là allow, deny, kế thừa từ cha(k làm j hết).
-thuật toán thì ms vào tính permission trên các role của user.
-tính thểm các permission trên every override trên channel,
-dựng base permission rồi thì sẽ duyệt qua từng role cụ thể để xem allow nhưng thàng nào, deny những thằng nào,
-vs lại allow deny giống nhau trên 1 permission nào đó sẽ ưu tiên dùng alow.
-*/

@@ -59,7 +59,19 @@ public static class DependencyInjection
         });
 
         // 5. Configure JWT Authentication & SignalR WebSocket Token Handling
-        var jwtSecret = configuration["Jwt:Secret"] ?? "NomNaSuperSecretKeyForDevelopmentAndDemoPurposes2026!MustBeLongEnough";
+        var jwtSecret = configuration["Jwt:Secret"];
+        const string defaultDevSecret = "NomNaSuperSecretKeyForDevelopmentAndDemoPurposes2026!MustBeLongEnough";
+
+        if (environment.IsProduction())
+        {
+            if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret == defaultDevSecret || jwtSecret.Length < 32)
+            {
+                throw new InvalidOperationException(
+                    "Production configuration error: 'Jwt:Secret' must be configured via environment variables and be at least 32 characters long.");
+            }
+        }
+
+        jwtSecret ??= defaultDevSecret;
         var key = Encoding.UTF8.GetBytes(jwtSecret);
 
         services.AddAuthentication(options =>

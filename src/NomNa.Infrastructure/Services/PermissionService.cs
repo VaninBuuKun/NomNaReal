@@ -10,8 +10,9 @@ using NomNa.Domain.Services;
 namespace NomNa.Infrastructure.Services;
 
 /// <summary>
-/// Service giải quyết và cache quyền hạn của User trên Server và Channel.
-/// Sử dụng Cache-Aside (IMemoryCache) với CancellationChangeToken để hỗ trợ Invalidation tức thì.
+/// Service resolving and caching user permissions across Servers and Channels.
+/// Employs a Cache-Aside pattern (IMemoryCache) coupled with CancellationChangeTokens
+/// for instant and deterministic cache invalidation upon role or overwrite updates.
 /// </summary>
 public class PermissionService : IPermissionService
 {
@@ -19,9 +20,10 @@ public class PermissionService : IPermissionService
     private readonly IMemoryCache _cache;
     private static readonly TimeSpan DefaultCacheExpiration = TimeSpan.FromMinutes(2);
 
-    private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _serverTokens = new();
-    private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _channelTokens = new();
-    private readonly ConcurrentDictionary<(Guid ServerId, Guid UserId), CancellationTokenSource> _userTokens = new();
+    // Static token registries shared across scoped PermissionService instances to guarantee reliable cache invalidation
+    private static readonly ConcurrentDictionary<Guid, CancellationTokenSource> _serverTokens = new();
+    private static readonly ConcurrentDictionary<Guid, CancellationTokenSource> _channelTokens = new();
+    private static readonly ConcurrentDictionary<(Guid ServerId, Guid UserId), CancellationTokenSource> _userTokens = new();
 
     public PermissionService(IApplicationDbContext context, IMemoryCache cache)
     {

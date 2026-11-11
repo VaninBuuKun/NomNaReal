@@ -8,24 +8,23 @@ using NomNa.Shared.Constants;
 namespace NomNa.WebAPI.Hubs;
 
 /// <summary>
-/// Partial class phụ trách quản lý Channel Groups và Ephemeral Events (Typing Indicators).
+/// Partial class handling channel groups and ephemeral events (typing indicators).
 /// </summary>
 public partial class ChatHub
 {
     /// <summary>
-    /// Tham gia vào một Channel Group để nhận tin nhắn Realtime của Channel đó.
-    /// Khái niệm Groups trong SignalR cho phép multicast tin nhắn tới một tập hợp các ConnectionId cụ thể.
+    /// Subscribes connection to a channel group to receive real-time message multicasts.
+    /// Performs permission check before registering the connection to the SignalR group.
     /// </summary>
     public async Task JoinChannel(Guid channelId)
     {
-        // 1. Kiểm tra Principal Claim để xác định UserId từ JWT Token
+        // 1. Verify authenticated user identity from claims
         if (!Guid.TryParse(Context.UserIdentifier, out var userId))
         {
             throw new HubException("User is not authenticated.");
         }
 
-        // 2. Vì Hub là Transient và ChatHub có thể gọi DbContext, ta tự tạo Service Scope 
-        // để query DB kiểm tra phân quyền (Authorization Check) trước khi cho phép subscribe Group.
+        // 2. Query channel and verify permissions within a transient scope
         using (var scope = _scopeFactory.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
@@ -58,7 +57,7 @@ public partial class ChatHub
             }
         }
 
-        // 3. Đăng ký ConnectionId hiện tại vào SignalR Group đại diện cho Channel (Mapping Connection <-> Group)
+        // 3. Register current ConnectionId into the channel group mapping
         var groupName = channelId.ToString();
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
 
@@ -76,7 +75,7 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Rời khỏi SignalR Group đại diện cho Channel khi Client chuyển tab hoặc đóng channel.
+    /// Unsubscribes connection from a channel group upon navigation or tab switch.
     /// </summary>
     public async Task LeaveChannel(Guid channelId)
     {
@@ -95,8 +94,8 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Trạng thái gõ phím (Typing Indicator) - Đây là dạng Ephemeral Data (dữ liệu tạm thời không lưu DB).
-    /// Dùng `Clients.OthersInGroup` để gửi sự kiện cho TẤT CẢ mọi người trong channel NGOẠI TRỪ người đang gõ.
+    /// Broadcasts ephemeral typing indicator to other users currently viewing the channel.
+    /// Throttled to at most once per 1.5 seconds per connection per channel.
     /// </summary>
     public async Task StartTyping(string channelId)
     {
@@ -139,7 +138,7 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Thông báo dừng gõ phím để ẩn indicator trên UI các client khác.
+    /// Broadcasts stop-typing event to clear typing indicators on peer client UIs.
     /// </summary>
     public async Task StopTyping(string channelId)
     {

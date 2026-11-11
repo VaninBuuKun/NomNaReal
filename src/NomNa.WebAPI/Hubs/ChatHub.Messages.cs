@@ -10,64 +10,44 @@ using NomNa.Shared.Constants;
 namespace NomNa.WebAPI.Hubs;
 
 /// <summary>
-/// Partial class phụ trách các RPC endpoints liên quan đến tin nhắn và tương tác (Message & Reactions).
+/// Partial class handling WebSocket RPC endpoints for messages and reactions.
 /// </summary>
 public partial class ChatHub
 {
     /// <summary>
-    /// Endpoint Client gọi qua WebSocket RPC để gửi tin nhắn chính.
-    /// Xử lý theo mô hình Command Pattern qua MediatR, sau đó Broadcast tới Group Channel.
+    /// WebSocket RPC endpoint invoked by clients to send messages.
+    /// Dispatches SendMessageCommand via MediatR and broadcasts the resulting message.
     /// </summary>
-    public async Task<MessageDto> SendMessage(Guid channelId, string? content, Guid? replyToMessageId = null, List<AttachmentInputDto>? attachments = null)
+    public async Task<MessageDto> SendMessage(
+        Guid channelId,
+        string? content,
+        Guid? replyToMessageId = null,
+        List<AttachmentInputDto>? attachments = null,
+        Guid? clientMessageId = null)
     {
         try
         {
-            // Execute Business Logic qua Application Layer (CQRS Command)
-            var command = new SendMessageCommand(channelId, content, replyToMessageId, attachments);
+            var command = new SendMessageCommand(channelId, content, replyToMessageId, attachments, clientMessageId);
             var result = await _mediator.Send(command);
 
             if (!result.IsSuccess)
             {
-                // Bắn HubException về cho Client catch trong SignalR Client SDK
                 throw new HubException(result.Error.Message);
             }
 
             var message = result.Value!;
 
-            // Broadcast (Multicast) tin nhắn vừa tạo cho TẤT CẢ các Client đang ở trong Channel Group
+            // 1. Multicast to all clients currently connected to the channel group
             var groupName = channelId.ToString();
             await Clients.Group(groupName).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
 
-            // Cho kênh Direct Message: Đồng thời bắn thẳng tới UserId của người nhận (dù họ chưa mở tab chat đó)
-            try
+            // 2. For Direct Messages: Dispatch directly to recipient user connections (0 extra DB queries)
+            if (message.DirectMessageRecipientIds != null && message.DirectMessageRecipientIds.Count > 0)
             {
-                using var scope = _scopeFactory.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-                var channel = await db.Channels
-                    .AsNoTracking()
-                    .Select(c => new { c.Id, c.Type })
-                    .FirstOrDefaultAsync(c => c.Id == channelId);
-
-                if (channel != null && channel.Type == ChannelType.DirectMessage)
-                {
-                    var recipientUserIds = await db.ChannelMembers
-                        .AsNoTracking()
-                        .Where(cm => cm.ChannelId == channelId && cm.UserId != message.SenderId)
-                        .Select(cm => cm.UserId.ToString())
-                        .ToListAsync();
-
-                    if (recipientUserIds.Count > 0)
-                    {
-                        await Clients.Users(recipientUserIds).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to dispatch direct message to user clients for channel {ChannelId}", channelId);
+                var recipientStrings = message.DirectMessageRecipientIds.Select(id => id.ToString()).ToList();
+                await Clients.Users(recipientStrings).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
             }
 
-            // Trả về cho caller (client vừa gọi SendMessage) kết quả để UI client nhận Promise/Task result
             return message;
         }
         catch (ValidationException ex)
@@ -78,7 +58,7 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Chỉnh sửa nội dung tin nhắn và bắn Event MessageEdited tới Channel Group.
+    /// Edits an existing message and broadcasts MessageEdited to the channel group.
     /// </summary>
     public async Task<MessageEditedDto> EditMessage(Guid messageId, string content)
     {
@@ -98,7 +78,7 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Xóa tin nhắn và thông báo Realtime để Client loại bỏ Message khỏi DOM/State UI.
+    /// Deletes a message and broadcasts MessageDeleted to the channel group.
     /// </summary>
     public async Task<DeletedMessageDto> DeleteMessage(Guid messageId)
     {
@@ -118,7 +98,7 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Thêm/Gỡ Reaction (Cảm xúc emoji) trên tin nhắn Realtime.
+    /// Toggles emoji reaction on a message and broadcasts ReceiveReactionUpdated to the channel group.
     /// </summary>
     public async Task<ReactionToggledDto> ToggleReaction(Guid messageId, string emoji)
     {
