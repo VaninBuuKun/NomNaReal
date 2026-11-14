@@ -54,6 +54,14 @@ public partial class ChatHub
                 {
                     throw new HubException("Access denied to this direct message.");
                 }
+
+                if (Context.Items.TryGetValue("UserDmChannels", out var dmsObj) && dmsObj is HashSet<Guid> dms)
+                {
+                    lock (dms)
+                    {
+                        dms.Add(channelId);
+                    }
+                }
             }
         }
 
@@ -76,9 +84,21 @@ public partial class ChatHub
 
     /// <summary>
     /// Unsubscribes connection from a channel group upon navigation or tab switch.
+    /// Preserves Direct Message channel subscriptions to retain background notifications and badge counters.
     /// </summary>
     public async Task LeaveChannel(Guid channelId)
     {
+        if (Context.Items.TryGetValue("UserDmChannels", out var dmsObj) && dmsObj is HashSet<Guid> dms)
+        {
+            lock (dms)
+            {
+                if (dms.Contains(channelId))
+                {
+                    return;
+                }
+            }
+        }
+
         var groupName = channelId.ToString();
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
 
@@ -127,7 +147,7 @@ public partial class ChatHub
 
         var groupName = channelId;
         var username = Context.User?.FindFirstValue(ClaimTypes.Name) ?? "Someone";
-        var userId = Context.UserIdentifier;
+        var userId = Context.UserIdentifier;    
 
         await Clients.OthersInGroup(groupName).SendAsync(SignalRConstants.Events.UserTyping, new
         {

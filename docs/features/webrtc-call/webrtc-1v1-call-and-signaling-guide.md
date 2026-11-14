@@ -1,7 +1,8 @@
 # 📞 NomNa — WebRTC 1-1 Voice & Video Call: Feature Guide & Signaling Architecture
 > **Phiên bản:** v1.0 (Production Merged)  
 > **Vị trí tài liệu:** `docs/features/webrtc-call/webrtc-1v1-call-and-signaling-guide.md`  
-> **Tài liệu chuyên sâu chi tiết:** [`docs/architecture/webrtc-architecture-and-engineering-deep-dive.md`](../../architecture/webrtc-architecture-and-engineering-deep-dive.md)
+> **Tài liệu chuyên sâu chi tiết:** [`docs/architecture/webrtc-architecture-and-engineering-deep-dive.md`](../../architecture/webrtc-architecture-and-engineering-deep-dive.md)  
+> **Cẩm nang ôn tập ChatHub & WebRTC:** [`docs/application/07-chathub-and-webrtc-master-handbook.md`](../../application/07-chathub-and-webrtc-master-handbook.md)
 
 ---
 

@@ -159,7 +159,26 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
                             </span>
                           );
                         }
-                        return item.lastMessage || `@${item.user.username}`;
+                        const raw = (item.lastMessage || '').trim();
+                        if (!raw) return `@${item.user.username}`;
+                        if (raw === '[Image]') return '📷 Đã gửi một hình ảnh';
+                        if (raw.startsWith('[Images')) return '📷 ' + raw.replace(/^\[|\]$/g, '');
+                        if (raw === '[GIF]') return '🎬 Đã gửi một ảnh GIF';
+                        if (raw === '[Attachment]') return '📎 Đã gửi một tệp đính kèm';
+                        if (raw === '[Video]') return '🎥 Đã gửi một video';
+                        if (raw === '[Audio]') return '🎤 Tin nhắn thoại';
+                        if (raw.startsWith('![GIF') ||
+                          (/^https?:\/\/\S+$/i.test(raw) &&
+                            (raw.includes('tenor.com') ||
+                              raw.includes('giphy.com') ||
+                              /\.gif(\?.*)?$/i.test(raw)))
+                        ) {
+                          return '🎬 Đã gửi một ảnh GIF';
+                        }
+                        if (/^https?:\/\/\S+\.(png|jpe?g|webp|avif)(\?.*)?$/i.test(raw)) {
+                          return '📷 Đã gửi một hình ảnh';
+                        }
+                        return raw;
                       })()}
                     </div>
                   </div>

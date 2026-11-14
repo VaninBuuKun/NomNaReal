@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -39,7 +40,7 @@ export const Modal: React.FC<ModalProps> = ({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const sizeClasses = {
     sm: 'max-w-sm',
@@ -50,9 +51,11 @@ export const Modal: React.FC<ModalProps> = ({
     full: 'max-w-[95vw] h-[92vh]',
   };
 
-  return (
+  const hasHeader = Boolean(title) || showCloseButton;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 animate-in fade-in duration-150"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
@@ -64,10 +67,10 @@ export const Modal: React.FC<ModalProps> = ({
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        {(title || showCloseButton) && (
+        {hasHeader && (
           <header className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-chat)] shrink-0">
             <div>
-              {typeof title === 'string' ? (
+              {typeof title === 'string' && title ? (
                 <h2 className="text-base font-bold text-[var(--text-primary)]">{title}</h2>
               ) : (
                 title
@@ -92,6 +95,7 @@ export const Modal: React.FC<ModalProps> = ({
 
         <div className={cn('flex-1 overflow-y-auto', bodyClassName)}>{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

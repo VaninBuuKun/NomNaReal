@@ -79,6 +79,7 @@ public partial class ChatHub : Hub
         if (Guid.TryParse(userIdStr, out var userId))
         {
             List<Guid> serverIds;
+            List<Guid> dmChannelIds;
             UserStatusPreference statusPreference = UserStatusPreference.Online;
 
             using (var scope = _scopeFactory.CreateScope())
@@ -89,6 +90,12 @@ public partial class ChatHub : Hub
                 serverIds = await db.ServerMembers.AsNoTracking()
                     .Where(sm => sm.UserId == userId)
                     .Select(sm => sm.ServerId)
+                    .ToListAsync();
+
+                // 2. Query all Direct Message channels the user participates in
+                dmChannelIds = await db.ChannelMembers.AsNoTracking()
+                    .Where(cm => cm.UserId == userId && cm.Channel.Type == ChannelType.DirectMessage)
+                    .Select(cm => cm.ChannelId)
                     .ToListAsync();
 
                 statusPreference = await db.Users.AsNoTracking()
@@ -104,7 +111,14 @@ public partial class ChatHub : Hub
             }
             Context.Items["UserServers"] = serverIds;
 
-            // 2. Track connection lease in Redis. Returns true if this is the user's first connection (Offline -> Online)
+            // Join DM channel groups in SignalR to receive real-time direct messages across any view
+            foreach (var dmId in dmChannelIds)
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, dmId.ToString());
+            }
+            Context.Items["UserDmChannels"] = new HashSet<Guid>(dmChannelIds);
+
+            // 3. Track connection lease in Redis. Returns true if this is the user's first connection (Offline -> Online)
             var becameOnline = await _presenceTracker.UserConnectedAsync(userId, Context.ConnectionId);
             if (becameOnline)
             {
@@ -279,6 +293,9 @@ public partial class ChatHub : Hub
             userId = userId.ToString(),
             status
         };
+
+        // 0. Dispatch to caller / user's own connections (for multi-device / multi-tab synchronization)
+        await Clients.User(userId.ToString()).SendAsync(SignalRConstants.Events.UserStatusChanged, payload);
 
         // 1. Multicast to all mutual server groups
         if (serverIds.Count > 0)

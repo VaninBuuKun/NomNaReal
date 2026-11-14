@@ -41,7 +41,6 @@ public partial class ChatHub
         if (_activeCalls.TryGetValue(targetUserId, out _))
         {
             var busyPayload = new CallRejectedPayload(targetUserId, "User is currently busy in another call.");
-            await Clients.Caller.SendAsync(SignalRConstants.Events.UserBusy, busyPayload);
             await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, busyPayload);
             return;
         }
@@ -114,9 +113,6 @@ public partial class ChatHub
         {
             throw new HubException("No pending call found from this user.");
         }
-
-        _activeCalls[callerId] = responderId;
-        _activeCalls[responderId] = callerId;
 
         var payload = new CallAnswerPayload(responderId, callerId, answerSdp);
 

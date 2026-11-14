@@ -37,16 +37,9 @@ public partial class ChatHub
 
             var message = result.Value!;
 
-            // 1. Multicast to all clients currently connected to the channel group
+            // Multicast to all clients in the channel group
             var groupName = channelId.ToString();
             await Clients.Group(groupName).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
-
-            // 2. For Direct Messages: Dispatch directly to recipient user connections (0 extra DB queries)
-            if (message.DirectMessageRecipientIds != null && message.DirectMessageRecipientIds.Count > 0)
-            {
-                var recipientStrings = message.DirectMessageRecipientIds.Select(id => id.ToString()).ToList();
-                await Clients.Users(recipientStrings).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
-            }
 
             return message;
         }

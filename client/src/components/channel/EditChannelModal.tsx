@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Hash, SpeakerHigh } from "@phosphor-icons/react";
-import { Trash } from "lucide-react";
 import { Modal, Button, Input } from "../ui";
 import { channelApi } from "../../services/channelApi";
 import { ChannelType, type Channel } from "../../types";
@@ -175,7 +174,6 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
                 size="sm"
                 onClick={() => setShowDeleteConfirm(true)}
                 className="text-red-500 hover:bg-red-500/10 border-red-500/30 w-full justify-start"
-                leftIcon={<Trash size={14} />}
               >
                 Xóa kênh #{channel.name}
               </Button>

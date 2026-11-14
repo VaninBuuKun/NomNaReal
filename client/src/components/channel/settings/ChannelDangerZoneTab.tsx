@@ -86,11 +86,10 @@ export const ChannelDangerZoneTab: React.FC<ChannelDangerZoneTabProps> = ({
               type="button"
               variant="danger"
               size="sm"
+              leftIcon={<Trash size={14} weight="bold" />}
               onClick={() => setShowConfirm(true)}
-              className="flex items-center gap-2"
             >
-              <Trash size={14} weight="bold" />
-              <span>{isCategory ? 'Xóa danh mục này' : 'Xóa kênh này'}</span>
+              {isCategory ? 'Xóa danh mục này' : 'Xóa kênh này'}
             </Button>
           ) : (
             <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-[4px] space-y-3">

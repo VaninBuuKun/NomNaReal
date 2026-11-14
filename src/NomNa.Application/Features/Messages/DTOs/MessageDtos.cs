@@ -41,7 +41,6 @@ public record MessageDto(
 )
 {
     public Guid? ClientMessageId { get; init; }
-    public List<Guid>? DirectMessageRecipientIds { get; init; }
 };
 
 public record ReactionToggledDto(

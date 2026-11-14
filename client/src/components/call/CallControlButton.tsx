@@ -12,10 +12,10 @@ interface CallControlButtonProps {
 }
 
 const VARIANT_CLASSES: Record<CallControlVariant, string> = {
-  default: 'bg-surface hover:bg-surface-active text-text-primary border border-transparent',
-  off: 'bg-danger-soft text-danger border border-danger/20',
-  accent: 'bg-accent-soft text-accent-primary border border-accent-primary/30',
-  end: 'bg-danger hover:bg-danger-hover text-on-accent border border-transparent',
+  default: 'bg-sidebar/80 text-text-primary hover:bg-surface-active',
+  off: 'bg-danger text-white hover:bg-danger-hover',
+  accent: 'bg-accent-primary text-on-accent hover:bg-accent-hover',
+  end: 'bg-danger text-white hover:bg-danger-hover',
 };
 
 const SIZE_CLASSES = {
@@ -23,23 +23,35 @@ const SIZE_CLASSES = {
   lg: 'w-10 h-10 sm:w-12 sm:h-12',
 };
 
-/** Round icon button used by the call dock and the minimized call widget. */
+/**
+ * Standardized call action button with constant dimensions to prevent layout shifts.
+ */
 export const CallControlButton: React.FC<CallControlButtonProps> = ({
   label,
-  onClick,
   variant = 'default',
   size = 'lg',
-  disabled = false,
+  onClick,
+  disabled,
   children,
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    disabled={disabled}
-    title={label}
-    aria-label={label}
-    className={`${SIZE_CLASSES[size]} ${VARIANT_CLASSES[variant]} shrink-0 rounded-full flex items-center justify-center cursor-pointer transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary/40 disabled:opacity-50 disabled:pointer-events-none`}
-  >
-    {children}
-  </button>
-);
+}) => {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={`
+        ${SIZE_CLASSES[size]} shrink-0 
+        flex items-center justify-center 
+        rounded-full 
+        transition-colors cursor-pointer
+        border-0 outline-none focus:outline-none focus:ring-0 focus:ring-offset-0
+        ${VARIANT_CLASSES[variant]}
+        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+      `}
+    >
+      {children}
+    </button>
+  );
+};

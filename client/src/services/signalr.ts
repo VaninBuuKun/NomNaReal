@@ -52,13 +52,43 @@ export class SignalRService {
     onUserStoppedTyping?: (data: { channelId: string; userId: string }) => void,
   ): Promise<void> {
     if (this.connection) {
+      // Re-bind listeners so the latest React state and callbacks are used
+      this.connection.off("ReceiveMessage");
+      this.connection.on("ReceiveMessage", onMessageReceived);
+
+      if (onUserTyping) {
+        this.connection.off("UserTyping");
+        this.connection.on("UserTyping", onUserTyping);
+      }
+
+      if (onUserStoppedTyping) {
+        this.connection.off("UserStoppedTyping");
+        this.connection.on("UserStoppedTyping", onUserStoppedTyping);
+      }
+
+      if (this.connection.state === signalR.HubConnectionState.Disconnected) {
+        try {
+          await this.connection.start();
+          console.log("SignalR Re-connected successfully.");
+          this.setStatus("connected");
+          this.startHeartbeat();
+
+          if (this.currentChannelId) {
+            await this.connection.invoke("JoinChannel", this.currentChannelId);
+          }
+        } catch (err: any) {
+          if (err?.name === "AbortError" || err?.message?.includes("stopped")) {
+            return;
+          }
+          console.error("SignalR Connection Error: ", err);
+        }
+      }
       return;
     }
 
     const rawApiUrl = (import.meta.env.VITE_API_URL as string)?.trim() || "";
     let hubUrl = "/hubs/chat";
 
-    // Nếu VITE_API_URL là một URL tuyệt đối (ví dụ http://localhost:5000/api), lấy origin để trỏ vào /hubs/chat
     if (rawApiUrl.startsWith("http://") || rawApiUrl.startsWith("https://")) {
       const origin = rawApiUrl.replace(/\/api\/?$/, "");
       hubUrl = `${origin}/hubs/chat`;
@@ -66,7 +96,7 @@ export class SignalRService {
 
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl, {
-        withCredentials: true, // Đính kèm HttpOnly cookie chứa token xác thực
+        withCredentials: true,
         transport:
           signalR.HttpTransportType.WebSockets |
           signalR.HttpTransportType.LongPolling,
@@ -85,7 +115,7 @@ export class SignalRService {
       this.setStatus("connected");
       this.startHeartbeat();
       console.log("SignalR Reconnected. ConnectionId:", connectionId);
-      // Tự động tham gia lại Channel đang mở sau khi kết nối lại thành công
+      // Automatically rejoin active channel after reconnect
       if (this.currentChannelId) {
         try {
           await this.connection?.invoke("JoinChannel", this.currentChannelId);
@@ -96,7 +126,7 @@ export class SignalRService {
           console.error("Failed to rejoin channel after reconnect:", err);
         }
       }
-      // Thông báo cho các listener đồng bộ lại dữ liệu bị lỡ trong lúc mất mạng (gap-fill)
+      // Notify listeners to perform gap-fill sync
       for (const cb of this.reconnectedCallbacks) {
         try {
           cb(connectionId);
@@ -124,6 +154,14 @@ export class SignalRService {
         console.log("SignalR Connected successfully.");
         this.setStatus("connected");
         this.startHeartbeat();
+
+        if (this.currentChannelId) {
+          try {
+            await this.connection.invoke("JoinChannel", this.currentChannelId);
+          } catch (joinErr) {
+            console.error("Failed to join channel on initial connect:", joinErr);
+          }
+        }
       }
     } catch (err: any) {
       if (err?.name === "AbortError" || err?.message?.includes("stopped")) {
@@ -144,6 +182,9 @@ export class SignalRService {
   }
 
   public async joinChannel(channelId: string): Promise<void> {
+    const prevChannelId = this.currentChannelId;
+    this.currentChannelId = channelId;
+
     if (
       !this.connection ||
       this.connection.state !== signalR.HubConnectionState.Connected
@@ -151,12 +192,19 @@ export class SignalRService {
       return;
     }
 
-    if (this.currentChannelId && this.currentChannelId !== channelId) {
-      await this.connection.invoke("LeaveChannel", this.currentChannelId);
+    if (prevChannelId && prevChannelId !== channelId) {
+      try {
+        await this.connection.invoke("LeaveChannel", prevChannelId);
+      } catch (err) {
+        console.warn("Failed to leave previous channel:", err);
+      }
     }
 
-    this.currentChannelId = channelId;
-    await this.connection.invoke("JoinChannel", channelId);
+    try {
+      await this.connection.invoke("JoinChannel", channelId);
+    } catch (err) {
+      console.error("Failed to join channel:", err);
+    }
   }
   //on, off chủ yếu là để bật/tắt sự kiện đó k, callback là một hàm, mục tiếu linh động lắng nghe, k lắng nghe để tiết kiệm tài nguyên.
   public onReactionUpdated(callback: (update: ReactionUpdate) => void): void {
@@ -405,6 +453,24 @@ export class SignalRService {
     } catch (err) {
       console.error("Failed to get online users:", err);
       return [];
+    }
+  }
+
+  /**
+   * Updates user status preference in real-time via SignalR RPC.
+   * @param preference 0: Online, 1: Idle, 2: DoNotDisturb, 3: Invisible
+   */
+  public async setStatusPreference(preference: number): Promise<void> {
+    if (
+      !this.connection ||
+      this.connection.state !== signalR.HubConnectionState.Connected
+    ) {
+      return;
+    }
+    try {
+      await this.connection.invoke("SetStatusPreference", preference);
+    } catch (err) {
+      console.error("Failed to set status preference via SignalR:", err);
     }
   }
 

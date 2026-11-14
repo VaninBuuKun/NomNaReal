@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../utils/constants';
+import { toast } from '../stores/useToastStore';
+import { resolveApiError } from '../utils/errorMapper';
 
 export const httpClient = axios.create({
   baseURL: API_BASE_URL,
@@ -71,6 +73,14 @@ httpClient.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
+    }
+
+    // Intercept 403 Forbidden errors to provide immediate, user-friendly feedback
+    if (error.response?.status === 403) {
+      const { title, description } = resolveApiError(error);
+      toast.error(title, description);
+      // Mark error so calling components don't emit a redundant duplicate toast
+      error._toastHandled = true;
     }
 
     return Promise.reject(error);

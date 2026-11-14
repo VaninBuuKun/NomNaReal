@@ -2,6 +2,7 @@ import ws from 'k6/ws';
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
+import { initTokenPool, getVuSession } from '../lib/auth-pool.js';
 
 // Custom metric tracking
 const messageReceivedCounter = new Counter('nomna_signalr_messages_received');
@@ -26,33 +27,43 @@ const SIGNALR_HUB_URL = __ENV.WS_URL || 'ws://localhost:5050/hubs/chat';
 const RECORD_SEPARATOR = String.fromCharCode(0x1e); // SignalR 0x1E record separator
 
 export function setup() {
-  console.log(`[k6 Setup] Authenticating to get channel ID for WebSocket test...`);
-  const loginRes = http.post(
-    `${BASE_HTTP_URL}/api/auth/login`,
-    JSON.stringify({
-      emailOrUsername: 'alex@nomna.local',
-      password: 'Password123!',
-    }),
-    { headers: { 'Content-Type': 'application/json' } }
-  );
+  console.log(`[k6 Setup] Authenticating to get channel ID and token pool for WebSocket test...`);
+  const seedUsers = [
+    { email: 'alex@nomna.local', password: 'Password123!' },
+    { email: 'minh@nomna.local', password: 'Password123!' },
+    { email: 'van@nomna.local', password: 'Password123!' },
+  ];
+  const tokenPool = initTokenPool(BASE_HTTP_URL, seedUsers);
 
-  const serversRes = http.get(`${BASE_HTTP_URL}/api/servers`);
+  const adminHeaders = {
+    'Content-Type': 'application/json',
+    'Cookie': `access_token=${tokenPool[0].token}`,
+  };
+
+  const serversRes = http.get(`${BASE_HTTP_URL}/api/servers`, { headers: adminHeaders });
   const servers = serversRes.json();
   const serverId = servers[0].id;
 
-  const channelsRes = http.get(`${BASE_HTTP_URL}/api/servers/${serverId}/channels`);
+  const channelsRes = http.get(`${BASE_HTTP_URL}/api/servers/${serverId}/channels`, { headers: adminHeaders });
   const channels = channelsRes.json();
   const channelId = channels[0].id;
 
   console.log(`[k6 Setup] SignalR test target channel: ${channelId}`);
-  return { channelId };
+  return { channelId, tokenPool };
 }
 
 export default function (data) {
   const channelId = data.channelId;
-  const params = { tags: { client_type: 'signalr_bench' } };
+  const session = getVuSession(data.tokenPool, __VU);
+  const wsUrlWithToken = `${SIGNALR_HUB_URL}?access_token=${encodeURIComponent(session.token)}`;
+  const params = {
+    headers: {
+      Cookie: `access_token=${session.token}`,
+    },
+    tags: { client_type: 'signalr_bench' },
+  };
 
-  const res = ws.connect(SIGNALR_HUB_URL, params, function (socket) {
+  const res = ws.connect(wsUrlWithToken, params, function (socket) {
     let handshakeCompleted = false;
 
     socket.on('open', () => {

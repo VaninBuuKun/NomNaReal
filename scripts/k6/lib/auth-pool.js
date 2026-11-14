@@ -25,10 +25,18 @@ export function initTokenPool(baseUrl, userList) {
 
     if (ok) {
       const data = res.json();
+      const cookieToken =
+        res.cookies &&
+        res.cookies.access_token &&
+        res.cookies.access_token.length > 0
+          ? res.cookies.access_token[0].value
+          : null;
+      const jwtToken = cookieToken || (data && data.token) || null;
+
       tokenPool.push({
         email: user.email,
-        token: data.token,
-        userId: data.user ? data.user.id : null,
+        token: jwtToken,
+        userId: data ? data.id || (data.user ? data.user.id : null) : null,
       });
     } else {
       console.warn(`[Token Pool] Failed to login user: ${user.email}, Status: ${res.status}`);
@@ -52,8 +60,10 @@ export function getVuSession(tokenPool, vuId) {
   return {
     headers: {
       'Content-Type': 'application/json',
+      'Cookie': `access_token=${session.token}`,
       'Authorization': `Bearer ${session.token}`,
     },
+    token: session.token,
     userEmail: session.email,
     userId: session.userId,
   };

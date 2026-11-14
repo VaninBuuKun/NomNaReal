@@ -7,6 +7,8 @@
 #
 # Usage:
 #   ./scripts/worktree-hub.sh status
+#   ./scripts/worktree-hub.sh init-dual [base_branch]
+#   ./scripts/worktree-hub.sh audit-commits
 #   ./scripts/worktree-hub.sh init-wave1 [base_branch]
 #   ./scripts/worktree-hub.sh init-wave2 [base_branch]
 #   ./scripts/worktree-hub.sh init-wave3 [base_branch]
@@ -50,12 +52,50 @@ show_status() {
     echo "=============================================================================="
     git -C "$REPO_ROOT" worktree list
     echo "------------------------------------------------------------------------------"
-    echo " Master Plan & Prompts: plans/multi-branch-worktree-scaling-master-plan.md"
+    echo " Dual-Branch Master Plan: plans/dual-branch-commit-benchmark-and-nfr-master-plan.md"
+    echo "=============================================================================="
+}
+
+audit_commits() {
+    echo "=============================================================================="
+    echo " NomNa Working Tree Commit Slicer Audit (Grouped by Scope)"
+    echo "=============================================================================="
+    local total
+    total=$(git -C "$REPO_ROOT" status -s | wc -l)
+    echo "Total uncommitted files: $total"
+    if [ "$total" -gt 8 ]; then
+        echo "  [WARN] >8 modified files detected! Slice them into atomic commits by scope:"
+    fi
+    echo ""
+    echo "1. [Backend Core / Hotpath] (src/, tests/):"
+    git -C "$REPO_ROOT" status -s -- src/ tests/ || true
+    echo ""
+    echo "2. [Frontend UI / Client] (client/):"
+    git -C "$REPO_ROOT" status -s -- client/ || true
+    echo ""
+    echo "3. [Documentation & RFCs] (docs/, README.md):"
+    git -C "$REPO_ROOT" status -s -- docs/ README.md || true
+    echo ""
+    echo "4. [Benchmarking, Labs & Scripts] (scripts/, labs/, plans/, .gitignore):"
+    git -C "$REPO_ROOT" status -s -- scripts/ labs/ plans/ .gitignore || true
     echo "=============================================================================="
 }
 
 case "${1:-status}" in
     status)
+        show_status
+        ;;
+    audit-commits)
+        audit_commits
+        ;;
+    init-dual)
+        echo "==> Initializing Dual-Branch Architecture (Core Track + Performance Lab Track)..."
+        if [ -d "${PROJECTS_DIR}/NomNaReal-fe" ]; then
+            echo "  [CLEAN] Removing legacy unused worktree: ${PROJECTS_DIR}/NomNaReal-fe"
+            git -C "$REPO_ROOT" worktree remove "${PROJECTS_DIR}/NomNaReal-fe" || true
+        fi
+        create_worktree "NomNaReal-perf" "perf/system-benchmarking"
+        echo ""
         show_status
         ;;
     init-wave1)

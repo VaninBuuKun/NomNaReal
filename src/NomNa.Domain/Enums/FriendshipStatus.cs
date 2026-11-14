@@ -6,3 +6,4 @@ public enum FriendshipStatus
     Accepted = 1,
     Blocked = 2
 }
+    

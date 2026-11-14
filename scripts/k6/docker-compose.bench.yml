@@ -7,6 +7,7 @@ services:
       POSTGRES_DB: NomNa
       POSTGRES_USER: db_user
       POSTGRES_PASSWORD: 123456
+    command: ["postgres", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=all"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U db_user -d NomNa"]
       interval: 3s
@@ -20,6 +21,24 @@ services:
     networks:
       - nomna_bench_net
 
+  redis:
+    image: redis:7-alpine
+    container_name: bench_redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+    networks:
+      - nomna_bench_net
+
   webapi-1:
     build:
       context: ../..
@@ -29,9 +48,13 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=NomNa;Username=db_user;Password=123456
+      - ConnectionStrings__Redis=redis:6379
+      - Redis=redis:6379
       - NODE_ID=Node-1
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     deploy:
       resources:

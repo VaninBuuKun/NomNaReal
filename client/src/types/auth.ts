@@ -8,6 +8,7 @@ export interface User {
   avatarUrl?: string | null;
   bio?: string | null;
   status: UserStatus;
+  statusPreference?: UserStatus;
 }
 
 // Backend sets access_token and refresh_token in HttpOnly cookies and returns User

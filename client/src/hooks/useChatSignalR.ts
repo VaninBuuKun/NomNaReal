@@ -17,6 +17,7 @@ import type { DirectMessageUser } from '../components/dm';
 
 interface UseChatSignalRParams {
   currentUser: User | null;
+  setCurrentUser?: React.Dispatch<React.SetStateAction<User | null>>;
   activeWorkspaceIdRef: React.MutableRefObject<string | null>;
   activeChannelIdRef: React.MutableRefObject<string | null>;
   activeSidebarViewRef: React.MutableRefObject<string>;
@@ -32,6 +33,7 @@ interface UseChatSignalRParams {
 
 export function useChatSignalR({
   currentUser,
+  setCurrentUser,
   activeWorkspaceIdRef,
   activeChannelIdRef,
   activeSidebarViewRef,
@@ -94,6 +96,18 @@ export function useChatSignalR({
         | 'dnd';
       updateUserStatus(data.userId, normalized);
       useFriendStore.getState().updateFriendStatus(data.userId, normalized);
+
+      // Multi-device sync: reflect updated presence status on current user
+      if (currentUser?.id && data.userId.toLowerCase() === currentUser.id.toLowerCase()) {
+        const prefMap: Record<string, 0 | 1 | 2 | 3> = {
+          online: 0,
+          away: 1,
+          dnd: 2,
+          offline: 3,
+        };
+        const pref = prefMap[normalized] ?? 0;
+        setCurrentUser?.((prev) => (prev ? { ...prev, statusPreference: pref } : null));
+      }
     });
 
     // 6. Added to Private Channel

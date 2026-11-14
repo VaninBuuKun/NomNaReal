@@ -31,6 +31,10 @@
    *Mở Rộng Trạng Thái Hiện Diện & SignalR Redis Backplane:*  
    Khắc phục bão broadcast $O(N^2)$ của `Clients.All`, thu hẹp phạm vi phát tán theo Mutual Servers & Friends, tôn trọng chế độ ẩn danh (Invisible), và cấu hình Redis Backplane scale-out đa node.
 
+7. **[`07-chathub-and-webrtc-master-handbook.md`](./07-chathub-and-webrtc-master-handbook.md)**  
+   *Cẩm Nang Nghiên Cứu & Ôn Tập Toàn Diện: SignalR ChatHub & WebRTC P2P:*  
+   Bản phân tích chuyên sâu toàn bộ kiến trúc ChatHub (4 phân mảnh partial class, vòng đời transient, Redis Backplane) và WebRTC P2P (SDP Offer/Answer, NAT/Firewall, STUN/TURN, ICE Candidates, Trickle ICE, 3 lớp khiên an ninh và State Machine).
+
 ---
 
 ## 🧭 Sơ Đồ Khái Niệm Tổng Thể (Big Picture)

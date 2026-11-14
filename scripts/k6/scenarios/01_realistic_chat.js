@@ -41,6 +41,7 @@ export function setup() {
   // 2. Locate active servers and channels for the benchmark
   const adminHeaders = {
     'Content-Type': 'application/json',
+    'Cookie': `access_token=${tokenPool[0].token}`,
     'Authorization': `Bearer ${tokenPool[0].token}`,
   };
 
