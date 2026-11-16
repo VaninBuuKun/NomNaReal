@@ -69,7 +69,7 @@ export const PinnedMessagesSidebar: React.FC<PinnedMessagesSidebarProps> = ({
           <span className="font-bold text-sm text-[var(--text-primary)] truncate">
             Tin nhắn đã ghim
           </span>
-          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[var(--accent-soft)] text-[var(--accent-primary)] shrink-0">
+          <span className="badge-count min-w-[18px] h-[18px] px-1.5 text-[10px] bg-[var(--accent-soft)] text-[var(--accent-primary)]">
             {pinnedMessages.length}
           </span>
         </div>

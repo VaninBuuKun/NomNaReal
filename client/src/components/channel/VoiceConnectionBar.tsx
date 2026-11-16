@@ -5,7 +5,6 @@ import {
   VideoCamera,
   VideoCameraSlash,
   Screencast,
-  Waveform,
   ChatTeardropText,
 } from '@phosphor-icons/react';
 import { useVoiceStore } from '../../stores/useVoiceStore';
@@ -25,11 +24,10 @@ export const VoiceConnectionBar: React.FC<VoiceConnectionBarProps> = ({
     connectedChannelId,
     connectedChannelName,
     connectedServerId,
-    isSpeaking,
     isScreenSharing,
     isCameraActive,
+    isTextChatOpen,
     leaveVoice,
-    toggleSpeaking,
     toggleScreenSharing,
     toggleCamera,
     toggleTextChat,
@@ -61,11 +59,11 @@ export const VoiceConnectionBar: React.FC<VoiceConnectionBarProps> = ({
             title="Nhấn để quay lại kênh thoại"
             className="flex items-center gap-2 min-w-0 flex-1 text-left cursor-pointer group"
           >
-            <div className="w-7 h-7 rounded-control bg-surface-active flex items-center justify-center text-text-primary shrink-0 border border-border">
+            <div className="w-7 h-7 rounded-control bg-success/15 flex items-center justify-center text-success shrink-0 border border-success/30">
               <Broadcast size={16} weight="bold" />
             </div>
             <div className="min-w-0 flex-1 leading-none">
-              <div className="text-xs font-bold text-text-primary truncate tracking-tight">
+              <div className="text-xs font-bold text-success truncate tracking-tight">
                 Đã Kết Nối Giọng Nói
               </div>
               <div className="text-[11px] text-text-muted group-hover:text-text-primary transition-colors truncate mt-0.5 font-medium">
@@ -88,14 +86,14 @@ export const VoiceConnectionBar: React.FC<VoiceConnectionBarProps> = ({
           </div>
         </div>
 
-        {/* Bottom Row: 4 Quick Action Buttons */}
-        <div className="flex items-center gap-1 pt-0.5">
+        {/* Bottom Row: 3 Clean Quick Action Buttons (Camera, Screen Share, Text Chat) */}
+        <div className="flex items-center gap-1.5 pt-0.5">
           {/* Camera Toggle */}
           <button
             type="button"
             onClick={toggleCamera}
             title={isCameraActive ? 'Tắt Camera' : 'Bật Camera'}
-            className={`flex-1 h-8 rounded-control flex items-center justify-center transition-colors cursor-pointer ${
+            className={`flex-1 h-8 rounded-control flex items-center justify-center gap-1 text-[11px] font-semibold transition-colors cursor-pointer ${
               isCameraActive
                 ? 'bg-surface-active text-text-primary border border-border-hover'
                 : 'bg-surface-active/60 hover:bg-surface-active text-text-muted hover:text-text-primary'
@@ -106,6 +104,7 @@ export const VoiceConnectionBar: React.FC<VoiceConnectionBarProps> = ({
             ) : (
               <VideoCameraSlash size={15} weight="bold" />
             )}
+            <span>Video</span>
           </button>
 
           {/* Screen Share Toggle */}
@@ -113,27 +112,14 @@ export const VoiceConnectionBar: React.FC<VoiceConnectionBarProps> = ({
             type="button"
             onClick={toggleScreenSharing}
             title={isScreenSharing ? 'Dừng chia sẻ' : 'Chia sẻ màn hình'}
-            className={`flex-1 h-8 rounded-control flex items-center justify-center transition-colors cursor-pointer ${
+            className={`flex-1 h-8 rounded-control flex items-center justify-center gap-1 text-[11px] font-semibold transition-colors cursor-pointer ${
               isScreenSharing
                 ? 'bg-surface-active text-text-primary border border-border-hover'
                 : 'bg-surface-active/60 hover:bg-surface-active text-text-muted hover:text-text-primary'
             }`}
           >
             <Screencast size={15} weight="bold" />
-          </button>
-
-          {/* Speaking Voice Test Toggle */}
-          <button
-            type="button"
-            onClick={toggleSpeaking}
-            title={isSpeaking ? 'Dừng thử giọng' : 'Thử giọng'}
-            className={`flex-1 h-8 rounded-control flex items-center justify-center transition-colors cursor-pointer ${
-              isSpeaking
-                ? 'bg-surface-active text-text-primary border border-border-hover'
-                : 'bg-surface-active/60 hover:bg-surface-active text-text-muted hover:text-text-primary'
-            }`}
-          >
-            <Waveform size={15} weight="bold" />
+            <span>Màn hình</span>
           </button>
 
           {/* Text Chat Toggle */}
@@ -141,9 +127,14 @@ export const VoiceConnectionBar: React.FC<VoiceConnectionBarProps> = ({
             type="button"
             onClick={handleOpenVoiceChat}
             title="Mở trò chuyện kênh thoại"
-            className="flex-1 h-8 rounded-control bg-surface-active/60 hover:bg-surface-active text-text-muted hover:text-text-primary flex items-center justify-center transition-colors cursor-pointer"
+            className={`flex-1 h-8 rounded-control flex items-center justify-center gap-1 text-[11px] font-semibold transition-colors cursor-pointer ${
+              isTextChatOpen
+                ? 'bg-surface-active text-text-primary border border-border-hover'
+                : 'bg-surface-active/60 hover:bg-surface-active text-text-muted hover:text-text-primary'
+            }`}
           >
             <ChatTeardropText size={15} weight="bold" />
+            <span>Chat</span>
           </button>
         </div>
       </div>

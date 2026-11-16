@@ -250,6 +250,36 @@ export class SignalRService {
       console.error("Failed to join channel:", err);
     }
   }
+
+  public async joinServer(serverId: string): Promise<void> {
+    if (!serverId) return;
+    if (
+      !this.connection ||
+      this.connection.state !== signalR.HubConnectionState.Connected
+    ) {
+      return;
+    }
+    try {
+      await this.connection.invoke("JoinServer", serverId);
+    } catch (err) {
+      console.warn("Failed to invoke JoinServer:", err);
+    }
+  }
+
+  public async leaveServer(serverId: string): Promise<void> {
+    if (!serverId) return;
+    if (
+      !this.connection ||
+      this.connection.state !== signalR.HubConnectionState.Connected
+    ) {
+      return;
+    }
+    try {
+      await this.connection.invoke("LeaveServer", serverId);
+    } catch (err) {
+      console.warn("Failed to invoke LeaveServer:", err);
+    }
+  }
   //on, off chủ yếu là để bật/tắt sự kiện đó k, callback là một hàm, mục tiếu linh động lắng nghe, k lắng nghe để tiết kiệm tài nguyên.
   public onReactionUpdated(callback: (update: ReactionUpdate) => void): void {
     if (this.connection) {

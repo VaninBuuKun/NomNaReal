@@ -69,7 +69,7 @@ export const JumpToPresentBar: React.FC<JumpToPresentBarProps> = ({
           />
           <span>Tin nhắn mới nhất</span>
           {unreadBelowCount > 0 && (
-            <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-accent-primary text-on-accent text-[10px] font-bold">
+            <span className="badge-count ml-0.5 min-w-[18px] h-[18px] px-1.5 bg-danger text-white text-[10px]">
               {unreadBelowCount > 99 ? "99+" : unreadBelowCount}
             </span>
           )}

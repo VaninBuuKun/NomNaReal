@@ -84,7 +84,7 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
             <span>Bạn bè</span>
           </div>
           {onlineFriendsCount > 0 && (
-            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[11px] font-bold rounded-full bg-accent-primary text-on-accent leading-none shrink-0 shadow-xs">
+            <span className="badge-count min-w-[18px] h-[18px] px-1.5 text-[10px] bg-accent-primary text-white">
               {onlineFriendsCount}
             </span>
           )}
@@ -187,8 +187,8 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
                 {/* Right badges & Close button on hover */}
                 <div className="flex items-center gap-1 shrink-0 ml-1">
                   {item.unreadCount !== undefined && item.unreadCount > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-accent-primary text-on-accent text-[10px] font-bold leading-none shrink-0">
-                      {item.unreadCount}
+                    <span className="badge-count min-w-[16px] h-[16px] px-1 bg-danger text-white text-[10px]">
+                      {item.unreadCount > 99 ? '99+' : item.unreadCount}
                     </span>
                   )}
                   {onRemoveConversation && (

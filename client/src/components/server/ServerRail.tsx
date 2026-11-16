@@ -65,7 +65,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
           />
 
           {unreadDmCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-danger text-white text-[11px] font-bold rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center border-2 border-[var(--bg-rail,#1e1f22)] shadow-xs pointer-events-none select-none z-20">
+            <span className="badge-count absolute -top-1 -right-1 bg-danger text-white text-[10px] min-w-5 h-5 px-1 border-2 border-[var(--bg-rail,#1e1f22)] pointer-events-none z-20">
               {unreadDmCount > 99 ? '99+' : unreadDmCount}
             </span>
           )}
@@ -137,7 +137,7 @@ export const WorkspaceRail: React.FC<WorkspaceRailProps> = ({
                 )}
 
                 {badgeCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-danger text-white text-[11px] font-bold rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center border-2 border-[var(--bg-rail,#1e1f22)] shadow-xs pointer-events-none select-none z-20">
+                  <span className="badge-count absolute -top-1 -right-1 bg-danger text-white text-[10px] min-w-5 h-5 px-1 border-2 border-[var(--bg-rail,#1e1f22)] pointer-events-none z-20">
                     {badgeCount > 99 ? '99+' : badgeCount}
                   </span>
                 )}

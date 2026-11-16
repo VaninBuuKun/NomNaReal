@@ -231,6 +231,19 @@ body,
   animation: messageHighlightPulse 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
+/* ------------------ Numeric Counter Badges (Optical Centering) ------------------ */
+.badge-count {
+  display: inline-grid;
+  place-items: center;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  user-select: none;
+  flex-shrink: 0;
+}
+
 /* Mobile Safe Area utilities */
 .safe-area-bottom {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));

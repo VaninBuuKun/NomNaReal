@@ -218,8 +218,8 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-[13px] text-text-primary">Thông báo</h3>
                 {unreadCount > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full text-[10px] font-bold bg-danger text-on-accent leading-none">
-                    {unreadCount}
+                  <span className="badge-count min-w-[18px] h-[18px] px-1.5 text-[10px] bg-danger text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
               </div>

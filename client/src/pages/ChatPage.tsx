@@ -1498,6 +1498,7 @@ export const ChatPage: React.FC = () => {
   useEffect(() => {
     setChannelMemberIdsMap({});
     if (activeWorkspaceId) {
+      void signalRService.joinServer(activeWorkspaceId);
       void useVoiceStore.getState().syncServerVoiceParticipants(activeWorkspaceId);
     }
   }, [activeWorkspaceId]);

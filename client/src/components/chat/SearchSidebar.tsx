@@ -113,7 +113,7 @@ export const SearchSidebar: React.FC<SearchSidebarProps> = ({
             Tìm kiếm
           </span>
           {hasSearched && (
-            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[var(--accent-soft)] text-[var(--accent-primary)] shrink-0">
+            <span className="badge-count h-[18px] px-2 text-[10px] bg-[var(--accent-soft)] text-[var(--accent-primary)]">
               {results.length} kết quả
             </span>
           )}

@@ -87,7 +87,7 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           >
             <Tray size={17} weight={isInboxOpen ? 'fill' : 'bold'} />
             {unreadNotificationCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 bg-[var(--status-dnd)] text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+              <span className="badge-count absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-1 bg-danger text-white text-[10px]">
                 {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
               </span>
             )}

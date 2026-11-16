@@ -97,8 +97,8 @@ export const NotificationsSidebar: React.FC<NotificationsSidebarProps> = ({
           </div>
           <span className="truncate font-bold text-[0.95rem]">Thông báo</span>
           {unreadCount > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[var(--accent-soft)] text-[var(--accent-primary)] border border-[var(--accent-primary)]/20 min-w-[18px] text-center leading-none">
-              {unreadCount}
+            <span className="badge-count min-w-[18px] h-[18px] px-1.5 text-[10px] bg-danger text-white">
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </div>

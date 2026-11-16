@@ -252,8 +252,8 @@ export const FriendsDashboard: React.FC<FriendsDashboardProps> = ({
             >
               <span>Chờ xử lý</span>
               {pendingIncoming.length > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-danger text-on-accent">
-                  {pendingIncoming.length}
+                <span className="badge-count min-w-[18px] h-[18px] px-1.5 text-[10px] bg-danger text-white">
+                  {pendingIncoming.length > 99 ? '99+' : pendingIncoming.length}
                 </span>
               )}
             </button>

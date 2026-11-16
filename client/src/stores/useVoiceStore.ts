@@ -115,38 +115,62 @@ function ensureAudioContext(): AudioContext | null {
 }
 
 /**
- * Plays a short synthesized UI sound cue for voice join, leave, mute, or deafen actions.
+ * Plays a distinct, Discord-like two-tone synthesized sound cue for voice join, leave, peer-join, peer-leave, mute, or deafen actions.
  */
-function playVoiceSoundCue(kind: 'join' | 'leave' | 'mute' | 'unmute') {
+function playVoiceSoundCue(kind: 'join' | 'leave' | 'peer-join' | 'peer-leave' | 'mute' | 'unmute') {
   try {
     const ctx = ensureAudioContext();
     if (!ctx) return;
+
+    const scheduleNote = (
+      freq: number,
+      startTime: number,
+      duration: number,
+      peakGain = 0.14,
+      type: OscillatorType = 'sine'
+    ) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.001, startTime);
+      gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.01);
+    };
+
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
 
     if (kind === 'join') {
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
+      // Bright ascending major-third chime (F5 -> A5)
+      scheduleNote(698.46, now, 0.09, 0.15, 'triangle');
+      scheduleNote(880.0, now + 0.075, 0.16, 0.16, 'triangle');
+    } else if (kind === 'peer-join') {
+      // Soft ascending chime when another user joins the active voice room (E5 -> G#5)
+      scheduleNote(659.25, now, 0.08, 0.11, 'sine');
+      scheduleNote(830.61, now + 0.07, 0.14, 0.12, 'sine');
     } else if (kind === 'leave') {
-      osc.frequency.setValueAtTime(520, now);
-      osc.frequency.exponentialRampToValueAtTime(320, now + 0.15);
+      // Warm descending chime when disconnecting (A5 -> D5)
+      scheduleNote(880.0, now, 0.09, 0.14, 'triangle');
+      scheduleNote(587.33, now + 0.075, 0.17, 0.15, 'triangle');
+    } else if (kind === 'peer-leave') {
+      // Soft descending chime when another user leaves the active voice room (G5 -> D5)
+      scheduleNote(783.99, now, 0.08, 0.11, 'sine');
+      scheduleNote(587.33, now + 0.07, 0.14, 0.11, 'sine');
     } else if (kind === 'mute') {
-      osc.frequency.setValueAtTime(420, now);
-      osc.frequency.setValueAtTime(340, now + 0.06);
+      // Crisp double low tap
+      scheduleNote(480, now, 0.055, 0.1, 'sine');
+      scheduleNote(360, now + 0.05, 0.07, 0.1, 'sine');
     } else {
-      osc.frequency.setValueAtTime(340, now);
-      osc.frequency.setValueAtTime(460, now + 0.06);
+      // Crisp double high tap
+      scheduleNote(360, now, 0.055, 0.1, 'sine');
+      scheduleNote(520, now + 0.05, 0.07, 0.1, 'sine');
     }
-
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.17);
   } catch {
     // Ignore audio cue errors
   }
@@ -508,6 +532,14 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
         const targetChId = peer.channelId || get().connectedChannelId;
         if (!targetChId) return;
         const targetKey = normId(targetChId);
+        const currentState = get();
+        const isCurrentVoiceRoom = sameId(targetChId, currentState.connectedChannelId);
+        const isPeerSelf = sameId(peer.userId, currentState.currentUserId);
+        const alreadyInRoom = currentState.participants.some((p) => sameId(p.userId, peer.userId));
+
+        if (isCurrentVoiceRoom && !isPeerSelf && !alreadyInRoom && !currentState.isDeafened) {
+          playVoiceSoundCue('peer-join');
+        }
 
         set((state) => {
           const existingInChannel =
@@ -550,6 +582,14 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
         closePeerConnection(payload.userId);
         const peerKey = normId(payload.userId);
         const chKey = normId(payload.channelId);
+        const currentState = get();
+        const isCurrentVoiceRoom = sameId(payload.channelId, currentState.connectedChannelId);
+        const isPeerSelf = sameId(payload.userId, currentState.currentUserId);
+        const wasInRoom = currentState.participants.some((p) => sameId(p.userId, payload.userId));
+
+        if (isCurrentVoiceRoom && !isPeerSelf && wasInRoom && !currentState.isDeafened) {
+          playVoiceSoundCue('peer-leave');
+        }
 
         set((state) => {
           const nextStreams = { ...state.remoteStreams };
@@ -696,10 +736,10 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
       }
 
       set((state) => {
-        const nextMap: Record<string, VoiceParticipant[]> =
-          allParticipants.length > 0
-            ? { ...state.channelParticipantsMap, ...grouped }
-            : { ...state.channelParticipantsMap };
+        const nextMap = { ...state.channelParticipantsMap };
+        for (const [k, v] of Object.entries(grouped)) {
+          nextMap[k] = v;
+        }
 
         // Always preserve current user's active room participants if connected
         if (state.connectedChannelId && state.participants.length > 0) {
@@ -751,6 +791,13 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
           ...existingChannelList.filter((p) => !sameId(p.userId, user.id)),
         ];
 
+        // Remove self from any previous voice channel in the map
+        const cleanedMap: Record<string, VoiceParticipant[]> = {};
+        for (const [key, list] of Object.entries(state.channelParticipantsMap)) {
+          cleanedMap[normId(key)] = list.filter((p) => !sameId(p.userId, user.id));
+        }
+        cleanedMap[chKey] = mergedInitial;
+
         return {
           currentUserId: user.id,
           connectedChannelId: channelId,
@@ -758,10 +805,7 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
           connectedServerId: serverId,
           connectedWorkspaceId: serverId,
           participants: mergedInitial,
-          channelParticipantsMap: {
-            ...state.channelParticipantsMap,
-            [chKey]: mergedInitial,
-          },
+          channelParticipantsMap: cleanedMap,
           localVideoStream: null,
           remoteStreams: {},
         };
@@ -769,7 +813,14 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
 
       playVoiceSoundCue('join');
 
-      // 1. Acquire microphone access and start Web Audio VAD BEFORE or alongside signaling
+      // 1. Dispatch JoinVoiceChannel RPC to SignalR Hub IMMEDIATELY so peers see us without waiting on getUserMedia prompt
+      try {
+        await signalRService.joinVoiceChannel(channelId, initialMuted, initialDeafened);
+      } catch (err) {
+        console.error('Failed to join voice channel on Hub:', err);
+      }
+
+      // 2. Acquire microphone access and start Web Audio VAD
       try {
         if (navigator?.mediaDevices?.getUserMedia) {
           const stream = await navigator.mediaDevices.getUserMedia({
@@ -902,13 +953,6 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
         }
       } catch (err) {
         console.warn('Microphone stream access unavailable for voice channel:', err);
-      }
-
-      // 2. Dispatch JoinVoiceChannel RPC to SignalR Hub
-      try {
-        await signalRService.joinVoiceChannel(channelId, initialMuted, initialDeafened);
-      } catch (err) {
-        console.error('Failed to join voice channel on Hub:', err);
       }
 
       // 3. Periodically measure real WebRTC RTT ping across active peer connections

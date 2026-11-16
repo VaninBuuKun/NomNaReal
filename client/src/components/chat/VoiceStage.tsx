@@ -17,6 +17,8 @@ import {
   ArrowsInSimple,
   X,
   CornersOut,
+  CornersIn,
+  SquaresFour,
 } from '@phosphor-icons/react';
 import type { Channel, User, VoiceParticipant } from '../../types';
 import { useVoiceStore } from '../../stores/useVoiceStore';
@@ -68,6 +70,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
 
   const [activeVolumeUserId, setActiveVolumeUserId] = useState<string | null>(null);
   const [focusedUserId, setFocusedUserId] = useState<string | null>(null);
+  const [forceGridMode, setForceGridMode] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isControlsHidden, setIsControlsHidden] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -236,10 +239,20 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
       ? 'grid-cols-2 sm:grid-cols-3 max-w-3xl sm:max-w-5xl'
       : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-6xl';
 
-  const spotlightUser =
-    stageParticipants.find((p) => sameId(p.userId, focusedUserId)) ||
-    stageParticipants.find((p) => p.isScreenSharing || p.isCameraActive) ||
-    null;
+  const hasActiveMedia = stageParticipants.some((p) => p.isScreenSharing || p.isCameraActive);
+
+  // Reset forceGridMode when all media streams stop so next screen share automatically spotlights
+  useEffect(() => {
+    if (!hasActiveMedia) {
+      setForceGridMode(false);
+    }
+  }, [hasActiveMedia]);
+
+  const spotlightUser = forceGridMode
+    ? null
+    : stageParticipants.find((p) => sameId(p.userId, focusedUserId)) ||
+      stageParticipants.find((p) => p.isScreenSharing || p.isCameraActive) ||
+      null;
 
   const spotlightStream = spotlightUser ? getParticipantStream(spotlightUser) : null;
 
@@ -257,7 +270,9 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
     >
       {/* 1. Header: Voice Room Title, Fullscreen, Member List & Chat Actions */}
       <div
-        className={`h-[52px] sm:h-[54px] border-b border-border px-3 sm:px-5 flex items-center justify-between bg-sidebar/85 backdrop-blur-xl shrink-0 z-20 transition-all duration-300 ease-in-out ${
+        className={`h-[52px] sm:h-[54px] border-b border-border px-3 sm:px-5 flex items-center justify-between bg-sidebar/90 backdrop-blur-xl z-30 transition-all duration-300 ease-in-out ${
+          isFullscreen ? 'absolute top-0 inset-x-0' : 'shrink-0'
+        } ${
           isControlsHidden
             ? 'opacity-0 -translate-y-full pointer-events-none'
             : 'opacity-100 translate-y-0 pointer-events-auto'
@@ -346,7 +361,13 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
       </div>
 
       {/* 2. Main Voice Stage Viewport with Subtle Radial Glow */}
-      <div className="flex-1 flex flex-col min-h-0 p-2.5 sm:p-5 md:p-6 justify-between overflow-y-auto no-scrollbar relative z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface/20 via-chat to-chat">
+      <div
+        className={`flex-1 flex flex-col min-h-0 justify-between overflow-hidden relative z-10 ${
+          isFullscreen
+            ? 'p-0 bg-rail'
+            : 'p-2.5 sm:p-4 md:p-5 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface/20 via-chat to-chat'
+        }`}
+      >
         {stageParticipants.length === 0 && !isConnectedHere ? (
           /* Empty Lobby State when disconnected and room is empty */
           <div className="w-full flex-1 flex flex-col items-center justify-center text-center max-w-sm sm:max-w-md mx-auto my-auto gap-4 p-4">
@@ -372,20 +393,28 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
           </div>
         ) : spotlightUser ? (
           /* Spotlight Mode: Prioritizing Screen Sharing or Camera with Participant Filmstrip */
-          <div className="w-full flex-1 flex flex-col items-center justify-center gap-2.5 sm:gap-4 my-auto max-h-full">
+          <div
+            className={`w-full flex-1 min-h-0 flex flex-col items-center justify-center max-h-full ${
+              isFullscreen ? 'gap-0 p-0' : 'gap-2 sm:gap-3 my-auto'
+            }`}
+          >
             {/* Primary Showcase Viewport */}
             <div
-              className={`w-full max-w-5xl max-h-[50vh] sm:max-h-[64vh] aspect-video bg-surface rounded-card border shadow-raised overflow-hidden relative flex flex-col items-center justify-center transition-all duration-200 ${
-                spotlightUser.isSpeaking
-                  ? 'border-success ring-2 ring-success/60 shadow-[0_0_24px_rgba(34,197,94,0.22)]'
-                  : 'border-border'
+              className={`w-full flex-1 min-h-0 bg-surface overflow-hidden relative flex flex-col items-center justify-center transition-all duration-200 ${
+                isFullscreen
+                  ? 'max-w-none max-h-none h-full rounded-none border-0'
+                  : `max-w-7xl max-h-full rounded-card border shadow-raised ${
+                      spotlightUser.isSpeaking
+                        ? 'border-success ring-2 ring-success/60 shadow-[0_0_24px_rgba(34,197,94,0.22)]'
+                        : 'border-border'
+                    }`
               }`}
             >
               {spotlightStream ? (
                 <VideoPlayer
                   stream={spotlightStream}
                   className={`w-full h-full ${
-                    spotlightUser.isScreenSharing ? 'object-contain bg-black' : 'object-cover'
+                    spotlightUser.isScreenSharing ? 'object-contain bg-rail' : 'object-cover'
                   }`}
                 />
               ) : (
@@ -415,10 +444,12 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
 
               {/* Tag bottom-left with Speaking Highlight */}
               <div
-                className={`absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-control backdrop-blur-md border text-xs font-semibold flex items-center gap-1.5 z-10 transition-colors ${
+                className={`absolute bottom-3 left-3 px-2.5 py-1 rounded-control backdrop-blur-md border text-xs font-semibold flex items-center gap-1.5 z-10 transition-opacity duration-200 ${
+                  isControlsHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                } ${
                   spotlightUser.isSpeaking
-                    ? 'bg-surface/95 border-success text-success shadow-xs'
-                    : 'bg-surface/90 border-border text-text-primary'
+                    ? 'bg-surface/95 border-success text-success shadow-raised'
+                    : 'bg-surface/90 border-border text-text-primary shadow-raised'
                 }`}
               >
                 <span className="truncate max-w-[130px] sm:max-w-[200px]">
@@ -432,43 +463,71 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                 )}
               </div>
 
-              {/* Top-Right Showcase Controls: Screen Share Fullscreen & Unfocus */}
-              <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
+              {/* Top-Right Showcase Controls: Return to Grid & Fullscreen Toggle */}
+              <div
+                className={`absolute ${
+                  isFullscreen ? 'top-16' : 'top-3'
+                } right-3 flex items-center gap-1.5 z-20 transition-all duration-200 ${
+                  isControlsHidden ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFocusedUserId(null);
+                    setForceGridMode(true);
+                  }}
+                  className="px-2.5 py-1.5 rounded-control bg-surface/90 hover:bg-surface-active backdrop-blur-md border border-border text-text-secondary hover:text-text-primary transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold shadow-raised"
+                  title="Chuyển về bố cục lưới"
+                >
+                  <SquaresFour size={15} weight="bold" />
+                  <span className="hidden sm:inline">Dạng lưới</span>
+                </button>
                 <button
                   type="button"
                   onClick={handleToggleFullscreen}
-                  className="p-1.5 sm:p-2 rounded-control bg-surface/85 backdrop-blur-md border border-border text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-                  title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình luồng phát'}
+                  className="p-1.5 sm:p-2 rounded-control bg-surface/90 hover:bg-surface-active backdrop-blur-md border border-border text-text-secondary hover:text-text-primary transition-colors cursor-pointer shadow-raised"
+                  title={isFullscreen ? 'Thoát toàn màn hình (Esc)' : 'Toàn màn hình luồng phát'}
                 >
-                  <CornersOut size={15} weight="bold" />
+                  {isFullscreen ? (
+                    <CornersIn size={15} weight="bold" />
+                  ) : (
+                    <CornersOut size={15} weight="bold" />
+                  )}
                 </button>
-                {focusedUserId && (
-                  <button
-                    type="button"
-                    onClick={() => setFocusedUserId(null)}
-                    className="p-1.5 sm:p-2 rounded-control bg-surface/85 backdrop-blur-md border border-border text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-                    title="Thu nhỏ về dạng lưới"
-                  >
-                    <ArrowsInSimple size={15} weight="bold" />
-                  </button>
-                )}
               </div>
             </div>
 
-            {/* Compact Participant Filmstrip Under Showcase (Smooth Horizontal Scroll on Mobile) */}
-            <div className="flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto py-1 px-1 max-w-5xl w-full no-scrollbar">
+            {/* Compact Participant Filmstrip Under Showcase (Auto-hides in Fullscreen when idle) */}
+            <div
+              className={`flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto py-1 px-2 max-w-5xl w-full no-scrollbar transition-all duration-200 ${
+                isFullscreen
+                  ? `absolute bottom-16 z-20 justify-center ${
+                      isControlsHidden ? 'opacity-0 pointer-events-none translate-y-2' : 'opacity-100 translate-y-0'
+                    }`
+                  : 'shrink-0'
+              }`}
+            >
               {stageParticipants.map((p) => {
                 const isFocused = sameId(p.userId, spotlightUser.userId);
                 return (
                   <button
                     key={p.userId}
                     type="button"
-                    onClick={() => setFocusedUserId(isFocused ? null : p.userId)}
-                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-full bg-surface/90 backdrop-blur-xs border transition-all cursor-pointer shrink-0 ${
+                    onClick={() => {
+                      if (isFocused) {
+                        setFocusedUserId(null);
+                        setForceGridMode(true);
+                      } else {
+                        setForceGridMode(false);
+                        setFocusedUserId(p.userId);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-full bg-surface/90 backdrop-blur-md border transition-all cursor-pointer shrink-0 shadow-raised ${
                       isFocused
                         ? 'border-accent-primary ring-1 ring-accent-primary/60 bg-surface-active'
                         : p.isSpeaking
-                        ? 'border-success ring-1 ring-success/60 bg-surface-active shadow-xs'
+                        ? 'border-success ring-1 ring-success/60 bg-surface-active'
                         : 'border-border hover:border-border-hover'
                     }`}
                   >
@@ -509,7 +568,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
           </div>
         ) : (
           /* Adaptive Grid Layout with Prominent Green Speaking Rings */
-          <div className="w-full flex-1 flex items-center justify-center my-auto p-1">
+          <div className="w-full flex-1 min-h-0 overflow-y-auto no-scrollbar flex items-center justify-center my-auto p-1">
             <div className={`w-full grid gap-2.5 sm:gap-4 md:gap-5 justify-center ${gridClasses}`}>
               {stageParticipants.map((p) => {
                 const isMe = sameId(p.userId, currentUser?.id);
@@ -520,7 +579,11 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                 return (
                   <div
                     key={p.userId}
-                    className={`relative group flex flex-col items-center justify-center p-3.5 sm:p-5 md:p-6 rounded-card border transition-all duration-200 min-h-[140px] sm:min-h-[180px] md:min-h-[210px] shadow-raised overflow-hidden bg-surface ${
+                    onClick={() => {
+                      setForceGridMode(false);
+                      setFocusedUserId(p.userId);
+                    }}
+                    className={`relative group flex flex-col items-center justify-center p-3.5 sm:p-5 md:p-6 rounded-card border transition-all duration-200 min-h-[140px] sm:min-h-[180px] md:min-h-[210px] shadow-raised overflow-hidden bg-surface cursor-pointer ${
                       p.isSpeaking
                         ? 'border-success/80 ring-2 ring-success/30 shadow-[0_0_24px_rgba(34,197,94,0.22)] bg-surface-active/50'
                         : 'border-border hover:border-border-hover'
@@ -589,11 +652,15 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
                       )}
                       <button
                         type="button"
-                        onClick={() => setFocusedUserId(p.userId)}
-                        className="opacity-0 group-hover:opacity-100 p-1 sm:p-1.5 rounded-full bg-surface/90 text-text-muted hover:text-text-primary border border-border transition-opacity cursor-pointer shadow-xs"
-                        title="Phóng to trên sân khấu"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setForceGridMode(false);
+                          setFocusedUserId(p.userId);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 sm:p-1.5 rounded-control bg-surface/90 text-text-muted hover:text-text-primary border border-border transition-opacity cursor-pointer shadow-raised"
+                        title="Phóng to ô này lên sân khấu"
                       >
-                        <ArrowsOutSimple size={13} weight="bold" />
+                        <CornersOut size={13} weight="bold" />
                       </button>
                     </div>
 
@@ -669,14 +736,16 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
 
         {/* 3. Floating Bottom Controls Dock with Safe-Area Inset Support */}
         <div
-          className={`shrink-0 flex justify-center pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2 z-30 px-2 max-w-full transition-all duration-300 ease-in-out ${
+          className={`flex justify-center pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2 z-30 px-2 max-w-full transition-all duration-300 ease-in-out ${
+            isFullscreen ? 'absolute bottom-0 inset-x-0 pointer-events-none' : 'shrink-0'
+          } ${
             isControlsHidden
               ? 'opacity-0 translate-y-full pointer-events-none'
-              : 'opacity-100 translate-y-0 pointer-events-auto'
+              : 'opacity-100 translate-y-0'
           }`}
         >
           {isConnectedHere ? (
-            <div className="h-11 sm:h-[52px] px-2.5 sm:px-4 rounded-full bg-surface/95 backdrop-blur-xl border border-border shadow-floating inline-flex items-center gap-1.5 sm:gap-2 max-w-full overflow-x-auto no-scrollbar">
+            <div className="pointer-events-auto h-11 sm:h-[52px] px-2.5 sm:px-4 rounded-full bg-surface/95 backdrop-blur-xl border border-border shadow-floating inline-flex items-center gap-1.5 sm:gap-2 max-w-full overflow-x-auto no-scrollbar">
               {/* Mic Toggle */}
               <button
                 type="button"
@@ -779,7 +848,7 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
             <button
               type="button"
               onClick={handleJoinCurrentChannel}
-              className="h-9 sm:h-10 px-5 rounded-full bg-accent-primary text-white hover:bg-accent-hover transition-all font-bold text-xs flex items-center gap-2 cursor-pointer shadow-floating active:scale-95"
+              className="pointer-events-auto h-9 sm:h-10 px-5 rounded-full bg-accent-primary text-white hover:bg-accent-hover transition-all font-bold text-xs flex items-center gap-2 cursor-pointer shadow-floating active:scale-95"
             >
               <PhoneCall size={17} weight="bold" />
               <span>Tham gia kênh thoại</span>
