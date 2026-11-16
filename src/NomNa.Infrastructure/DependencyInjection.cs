@@ -14,8 +14,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection") 
+        var rawConnection = configuration.GetConnectionString("DefaultConnection") 
+            ?? configuration["DefaultConnection"]
             ?? "Host=localhost;Port=5432;Database=NomNa;Username=postgres;Password=postgrespassword";
+
+        var connectionString = NormalizePostgresConnectionString(rawConnection);
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
@@ -63,5 +66,34 @@ public static class DependencyInjection
         .AddDefaultTokenProviders();
 
         return services;
+    }
+
+    private static string NormalizePostgresConnectionString(string raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return raw;
+        raw = raw.Trim().Trim('"').Trim('\'');
+
+        if (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || 
+            raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var uri = new Uri(raw);
+                var userInfo = uri.UserInfo.Split(':');
+                var username = Uri.UnescapeDataString(userInfo[0]);
+                var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+                var port = uri.Port > 0 ? uri.Port : 5432;
+                var database = uri.AbsolutePath.TrimStart('/');
+                if (string.IsNullOrEmpty(database)) database = "postgres";
+
+                return $"Host={uri.Host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true;";
+            }
+            catch
+            {
+                return raw;
+            }
+        }
+
+        return raw;
     }
 }
