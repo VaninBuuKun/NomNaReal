@@ -19,9 +19,9 @@ import {
   NotificationDetailPane,
 } from "../components/notifications";
 import { type UserProfileData } from "../components/profile";
-import { Toast } from "../components/ui";
 import { FriendsDashboard } from "../components/friends/FriendsDashboard";
 import { formatMessageTime } from "../utils/formatDate";
+import { resolveApiError } from "../utils/errorMapper";
 import {
   authApi,
   workspaceApi,
@@ -50,7 +50,9 @@ import {
   useDmStore,
   useUiStore,
   useFriendStore,
+  toast,
 } from "../stores";
+import { useVoiceStore } from "../stores/useVoiceStore";
 
 export const ChatPage: React.FC = () => {
   const navigate = useNavigate();
@@ -199,13 +201,17 @@ export const ChatPage: React.FC = () => {
   );
   const [selectedNotification, setSelectedNotification] =
     useState<AppNotification | null>(null);
-  const [toast, setToast] = useState<{
-    id: string;
-    title: string;
-    description?: string;
-    actionLabel?: string;
-    onAction?: () => void;
-  } | null>(null);
+  const setToast = useCallback((t: any) => {
+    if (!t) return;
+    toast.show({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      actionLabel: t.actionLabel,
+      onAction: t.onAction,
+      variant: t.variant ?? 'info',
+    });
+  }, []);
   const [channelMemberIdsMap, setChannelMemberIdsMap] = useState<
     Record<string, string[]>
   >({});
@@ -422,9 +428,28 @@ export const ChatPage: React.FC = () => {
     markChannelRead(targetChannelId);
     channelApi.markAsRead(targetChannelId);
 
-    const targetCh = channels.find((c) => c.id === targetChannelId);
+    const latestChannels =
+      channels.length > 0 ? channels : useChatStore.getState().channels;
+    const targetCh = latestChannels.find((c) => c.id === targetChannelId);
     if (targetCh?.isPrivate) {
       fetchChannelMembers(targetChannelId);
+    }
+
+    if (
+      targetCh &&
+      (targetCh.type === ChannelType.Voice || Number(targetCh.type) === 1) &&
+      currentUser
+    ) {
+      void useVoiceStore.getState().joinVoice(
+        targetChannelId,
+        targetCh.name || "Kênh thoại",
+        targetWsId || "",
+        {
+          id: currentUser.id,
+          displayName: currentUser.displayName,
+          avatarUrl: currentUser.avatarUrl,
+        }
+      );
     }
 
     // Instant cache restore to prevent flicker and old channel messages
@@ -560,18 +585,13 @@ export const ChatPage: React.FC = () => {
         if (prev.some((p) => p.messageId === messageId)) return prev;
         return [...prev, pinned];
       });
-      setToast({
-        id: Date.now().toString(),
-        title: "Đã ghim tin nhắn",
-        description: "Tin nhắn đã được ghim lên đầu kênh thành công.",
-      });
-    } catch (err) {
+      toast.success("Đã ghim tin nhắn", "Tin nhắn đã được ghim lên đầu kênh thành công.");
+    } catch (err: any) {
       console.error("Failed to pin message:", err);
-      setToast({
-        id: Date.now().toString(),
-        title: "Lỗi ghim tin nhắn",
-        description: "Không thể ghim tin nhắn này. Vui lòng thử lại!",
-      });
+      if (!err?._toastHandled) {
+        const { title, description } = resolveApiError(err);
+        toast.error(title, description);
+      }
     }
   };
 
@@ -581,18 +601,13 @@ export const ChatPage: React.FC = () => {
       setPinnedMessages((prev) =>
         prev.filter((p) => p.messageId !== messageId),
       );
-      setToast({
-        id: Date.now().toString(),
-        title: "Đã bỏ ghim",
-        description: "Tin nhắn đã được gỡ khỏi danh sách ghim.",
-      });
-    } catch (err) {
+      toast.success("Đã bỏ ghim", "Tin nhắn đã được gỡ khỏi danh sách ghim.");
+    } catch (err: any) {
       console.error("Failed to unpin message:", err);
-      setToast({
-        id: Date.now().toString(),
-        title: "Lỗi bỏ ghim",
-        description: "Không thể bỏ ghim tin nhắn. Vui lòng thử lại!",
-      });
+      if (!err?._toastHandled) {
+        const { title, description } = resolveApiError(err);
+        toast.error(title, description);
+      }
     }
   };
 
@@ -701,7 +716,8 @@ export const ChatPage: React.FC = () => {
   const handleIncomingMessage = useCallback(
     (msg: Message) => {
       setMessages((prev) => {
-        if (msg.channelId !== activeChannelIdRef.current) return prev;
+        const targetChan = activeChannelIdRef.current;
+        if (!targetChan || msg.channelId.toLowerCase() !== targetChan.toLowerCase()) return prev;
         if (prev.some((m) => m.id === msg.id)) return prev;
 
         const tempIndex = prev.findIndex(
@@ -719,18 +735,60 @@ export const ChatPage: React.FC = () => {
         return [...prev, msg];
       });
 
-      const isCurrent = msg.channelId === activeChannelIdRef.current;
+      const isCurrent =
+        Boolean(activeChannelIdRef.current) &&
+        msg.channelId.toLowerCase() === activeChannelIdRef.current?.toLowerCase();
       setChannelUnread(
         msg.channelId,
         msg.createdAt,
         !isCurrent,
       );
 
+      const smartPreview = (() => {
+        const text = (msg.content || "").trim();
+        if (text) {
+          if (
+            /^https?:\/\/\S+$/i.test(text) &&
+            (text.includes("tenor.com") ||
+              text.includes("giphy.com") ||
+              /\.gif(\?.*)?$/i.test(text))
+          ) {
+            return "🎬 Đã gửi một ảnh GIF";
+          }
+          if (/^https?:\/\/\S+\.(png|jpe?g|webp|avif)(\?.*)?$/i.test(text)) {
+            return "📷 Đã gửi một hình ảnh";
+          }
+          return text;
+        }
+        const atts = msg.attachments || [];
+        if (atts.length > 0) {
+          const first = atts[0];
+          const ct = (first.contentType || "").toLowerCase();
+          const t = (first.type || "").toLowerCase();
+          if (t === "audio" || ct.startsWith("audio/")) {
+            return "🎤 Tin nhắn thoại";
+          }
+          if (ct === "image/gif" || /\.gif$/i.test(first.fileName || "")) {
+            return "🎬 Đã gửi một ảnh GIF";
+          }
+          if (t === "image" || ct.startsWith("image/")) {
+            return atts.length > 1
+              ? `📷 Đã gửi ${atts.length} hình ảnh`
+              : "📷 Đã gửi một hình ảnh";
+          }
+          if (t === "video" || ct.startsWith("video/")) {
+            return "🎥 Đã gửi một video";
+          }
+          return `📎 ${first.fileName || "Đã gửi một tệp đính kèm"}`;
+        }
+        return "";
+      })();
+
       // Dynamically update or create DM snippet in conversation list
       useDmStore.getState().upsertDmMessage(
         msg.channelId,
         {
-          content: msg.content,
+          content: smartPreview,
           createdAt: msg.createdAt,
           senderId: msg.senderId,
           senderDisplayName: msg.senderDisplayName,
@@ -745,7 +803,7 @@ export const ChatPage: React.FC = () => {
         setToast({
           id: `msg-${msg.id}`,
           title: msg.senderDisplayName || "Tin nhắn mới",
-          description: msg.content.length > 55 ? `${msg.content.slice(0, 55)}...` : msg.content,
+          description: smartPreview.length > 55 ? `${smartPreview.slice(0, 55)}...` : smartPreview,
           actionLabel: "Xem tin nhắn",
           onAction: () => {
             setActiveSidebarView("dms");
@@ -761,6 +819,7 @@ export const ChatPage: React.FC = () => {
   // Hook for all SignalR realtime listeners
   const { setupSignalR } = useChatSignalR({
     currentUser,
+    setCurrentUser,
     activeWorkspaceIdRef,
     activeChannelIdRef,
     activeSidebarViewRef,
@@ -971,7 +1030,7 @@ export const ChatPage: React.FC = () => {
       fileName: string;
       fileSize: number;
       contentType: string;
-      type: "image" | "video" | "file";
+      type: "image" | "video" | "file" | "audio";
     }>,
     replyToMessageId?: string,
   ) => {
@@ -1037,22 +1096,41 @@ export const ChatPage: React.FC = () => {
         navigate(`/channels/@me/${realDm.id}`, { replace: true });
         await signalRService.joinChannel(realDm.id);
 
-        const realSent = await signalRService.sendMessage(
-          realDm.id,
-          msgContent,
-          replyToMessageId || null,
-          attachments,
-        );
+        let realSent: Message | null = null;
+        try {
+          realSent = await signalRService.sendMessage(
+            realDm.id,
+            msgContent,
+            replyToMessageId || null,
+            attachments,
+          );
+        } catch (signalRErr) {
+          console.warn("SignalR sendMessage failed, attempting HTTP fallback:", signalRErr);
+        }
+
+        if (!realSent) {
+          try {
+            realSent = await messageApi.sendMessage(
+              realDm.id,
+              msgContent,
+              replyToMessageId || null,
+              attachments,
+            );
+          } catch (httpErr) {
+            console.error("HTTP fallback sendMessage failed:", httpErr);
+          }
+        }
+
         if (realSent) {
           setMessages((prev) => {
-            if (prev.some((m) => m.id === realSent.id)) {
+            if (prev.some((m) => m.id === realSent!.id)) {
               return prev.filter((m) => m.id !== tempId);
             }
             const foundTemp = prev.some((m) => m.id === tempId);
             if (foundTemp) {
-              return prev.map((m) => (m.id === tempId ? realSent : m));
+              return prev.map((m) => (m.id === tempId ? realSent! : m));
             }
-            return [...prev, realSent];
+            return [...prev, realSent!];
           });
         }
         return;
@@ -1064,27 +1142,42 @@ export const ChatPage: React.FC = () => {
 
     addMessage(buildOptimistic(targetChannelId));
 
+    let realMessage: Message | null = null;
     try {
-      const realMessage = await signalRService.sendMessage(
+      realMessage = await signalRService.sendMessage(
         targetChannelId,
         msgContent,
         replyToMessageId || null,
         attachments,
       );
-      if (realMessage) {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === realMessage.id)) {
-            return prev.filter((m) => m.id !== tempId);
-          }
-          const foundTemp = prev.some((m) => m.id === tempId);
-          if (foundTemp) {
-            return prev.map((m) => (m.id === tempId ? realMessage : m));
-          }
-          return [...prev, realMessage];
-        });
-      }
     } catch (err) {
-      console.error("Failed to send message via SignalR:", err);
+      console.warn("SignalR sendMessage failed, attempting HTTP fallback:", err);
+    }
+
+    if (!realMessage) {
+      try {
+        realMessage = await messageApi.sendMessage(
+          targetChannelId,
+          msgContent,
+          replyToMessageId || null,
+          attachments,
+        );
+      } catch (httpErr) {
+        console.error("HTTP fallback sendMessage failed:", httpErr);
+      }
+    }
+
+    if (realMessage) {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === realMessage!.id)) {
+          return prev.filter((m) => m.id !== tempId);
+        }
+        const foundTemp = prev.some((m) => m.id === tempId);
+        if (foundTemp) {
+          return prev.map((m) => (m.id === tempId ? realMessage! : m));
+        }
+        return [...prev, realMessage!];
+      });
     }
   };
 
@@ -1146,8 +1239,9 @@ export const ChatPage: React.FC = () => {
         [newChannel.id]: [currentUser.id],
       }));
     }
-    // Only select channel if it is a text or voice channel (not a category)
-    if (newChannel.type !== 3 && newChannel.type !== ChannelType.Category) {
+    // Only auto-select text channels upon creation. Never auto-switch into newly created voice channels or categories.
+    const isTextChannel = newChannel.type === ChannelType.Text || Number(newChannel.type) === 0;
+    if (isTextChannel) {
       handleSelectChannel(newChannel.id);
     }
   };
@@ -1318,9 +1412,12 @@ export const ChatPage: React.FC = () => {
         title: "Đã rời máy chủ",
         description: `Bạn đã rời khỏi "${currentWorkspace?.name || "máy chủ"}".`,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to leave workspace:", err);
-      alert("Không thể rời máy chủ. Vui lòng thử lại sau.");
+      if (!err?._toastHandled) {
+        const { title, description } = resolveApiError(err);
+        toast.error(title, description);
+      }
       throw err;
     }
   };
@@ -1330,14 +1427,17 @@ export const ChatPage: React.FC = () => {
     setWorkspaceMembers((prev) => prev.filter((m) => m.id !== member.id));
     try {
       await workspaceApi.kickMember(activeWorkspaceId, member.id);
-    } catch (err: unknown) {
+      toast.success("Đã trục xuất thành viên", `Đã xóa ${member.displayName} khỏi máy chủ.`);
+    } catch (err: any) {
       console.error("Failed to kick member:", err);
       const members = await workspaceApi
         .getMembers(activeWorkspaceId)
         .catch(() => []);
       setWorkspaceMembers(members as any);
-      const errorObj = err as { response?: { data?: { message?: string } } };
-      alert(errorObj?.response?.data?.message || "Không thể đuổi thành viên.");
+      if (!err?._toastHandled) {
+        const { title, description } = resolveApiError(err);
+        toast.error(title, description);
+      }
       throw err;
     }
   };
@@ -1377,6 +1477,9 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     setChannelMemberIdsMap({});
+    if (activeWorkspaceId) {
+      void useVoiceStore.getState().syncServerVoiceParticipants(activeWorkspaceId);
+    }
   }, [activeWorkspaceId]);
 
   useEffect(() => {
@@ -1396,8 +1499,42 @@ export const ChatPage: React.FC = () => {
     fetchChannelMembers,
   ]);
 
+  const {
+    connectedChannelId: voiceConnectedChannelId,
+    participants: voiceParticipants,
+    channelParticipantsMap,
+  } = useVoiceStore();
+
   const displayedMembers = useMemo(() => {
     if (!currentChannel) return workspaceMembers;
+
+    if (currentChannel.type === ChannelType.Voice || Number(currentChannel.type) === 1) {
+      const chKey = currentChannel.id.toLowerCase();
+      const activeVoiceUsers =
+        voiceConnectedChannelId?.toLowerCase() === chKey
+          ? voiceParticipants
+          : channelParticipantsMap[chKey] ||
+            channelParticipantsMap[currentChannel.id] ||
+            [];
+
+      return activeVoiceUsers.map((vp) => {
+        const matched = workspaceMembers.find(
+          (m) => m.id.toLowerCase() === vp.userId.toLowerCase()
+        );
+        if (matched) {
+          return { ...matched, status: "online" as const };
+        }
+        return {
+          id: vp.userId,
+          displayName: vp.displayName,
+          username: vp.displayName.toLowerCase().replace(/\s+/g, ""),
+          email: "",
+          avatarUrl: vp.avatarUrl || undefined,
+          status: "online" as const,
+          role: "Đang tham gia thoại",
+        };
+      });
+    }
 
     if (currentChannel.type === ChannelType.DirectMessage && activeDm) {
       const dmOtherUser =
@@ -1429,6 +1566,9 @@ export const ChatPage: React.FC = () => {
     channelMemberIdsMap,
     currentUser?.id,
     currentUserMember,
+    voiceConnectedChannelId,
+    voiceParticipants,
+    channelParticipantsMap,
   ]);
 
   if (isInitializing && !currentUser) {
@@ -1537,6 +1677,8 @@ export const ChatPage: React.FC = () => {
                     onOpenEditChannel={(ch) => setChannelToEdit(ch)}
                     onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
                     onChannelsReorder={(newChannels) => setChannels(newChannels)}
+                    currentUser={currentUser}
+                    onOpenUserProfile={handleOpenUserProfile}
                   />
                 ) : activeSidebarView === "dms" ? (
                   <DirectMessagesSidebar
@@ -1584,12 +1726,21 @@ export const ChatPage: React.FC = () => {
           </div>
 
           {/* Voice Connection Status Card: directly above UserFooterBar (Image 4 aligned width) */}
-          <VoiceConnectionBar currentWorkspaceName={currentWorkspace?.name} />
+          <VoiceConnectionBar
+            currentWorkspaceName={currentWorkspace?.name}
+            onNavigateToVoiceChannel={(chId, srvId) => {
+              setActiveSidebarView("channels");
+              handleSelectChannel(chId, srvId || undefined);
+            }}
+          />
 
           {/* User Account Footer Bar (pinned directly at bottom, matching width with VoiceConnectionBar) */}
           <UserFooterBar
             currentUser={currentUser}
             onOpenSettings={() => setSettingsOpen(true)}
+            onUpdateStatus={(newPref) => {
+              setCurrentUser((prev) => (prev ? { ...prev, statusPreference: newPref } : null));
+            }}
           />
         </div>
 
@@ -1709,18 +1860,6 @@ export const ChatPage: React.FC = () => {
         channels={channels}
         initialCategoryId={targetCategoryId}
       />
-
-      {/* 6. Floating Toast Notification */}
-      {toast && (
-        <Toast
-          id={toast.id}
-          title={toast.title}
-          description={toast.description}
-          actionLabel={toast.actionLabel}
-          onAction={toast.onAction}
-          onClose={() => setToast(null)}
-        />
-      )}
     </>
   );
 };

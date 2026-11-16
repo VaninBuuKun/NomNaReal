@@ -22,7 +22,22 @@ public static class DependencyInjection
 
         // 2. Framework Services
         services.AddControllers();
-        services.AddSignalR();
+
+        var signalRBuilder = services.AddSignalR();
+        var redisConn = configuration.GetConnectionString("Redis") 
+            ?? configuration["Redis"] 
+            ?? "localhost:6380";
+
+        if (!string.IsNullOrWhiteSpace(redisConn))
+        {
+            signalRBuilder.AddStackExchangeRedis(redisConn, options =>
+            {
+                options.Configuration.AbortOnConnectFail = false;
+                options.Configuration.ConnectTimeout = 5000;
+                options.Configuration.ChannelPrefix = StackExchange.Redis.RedisChannel.Literal("nomna_signalr");
+            });
+        }
+
         services.AddEndpointsApiExplorer();
         services.AddHttpClient();
 
@@ -59,7 +74,19 @@ public static class DependencyInjection
         });
 
         // 5. Configure JWT Authentication & SignalR WebSocket Token Handling
-        var jwtSecret = configuration["Jwt:Secret"] ?? "NomNaSuperSecretKeyForDevelopmentAndDemoPurposes2026!MustBeLongEnough";
+        var jwtSecret = configuration["Jwt:Secret"];
+        const string defaultDevSecret = "NomNaSuperSecretKeyForDevelopmentAndDemoPurposes2026!MustBeLongEnough";
+
+        if (environment.IsProduction())
+        {
+            if (string.IsNullOrWhiteSpace(jwtSecret) || jwtSecret == defaultDevSecret || jwtSecret.Length < 32)
+            {
+                throw new InvalidOperationException(
+                    "Production configuration error: 'Jwt:Secret' must be configured via environment variables and be at least 32 characters long.");
+            }
+        }
+
+        jwtSecret ??= defaultDevSecret;
         var key = Encoding.UTF8.GetBytes(jwtSecret);
 
         services.AddAuthentication(options =>

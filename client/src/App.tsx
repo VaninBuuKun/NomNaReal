@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './services';
 import { AuthPage, ChatPage, JoinPage } from './pages';
+import { ToastContainer } from './components/ui';
 import './styles/globals.css';
 import { useTheme } from './hooks/useTheme';
 
@@ -122,6 +123,7 @@ export const App: React.FC = () => {
           <Route path="/join/:inviteCode" element={<JoinPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <ToastContainer />
       </BrowserRouter>
     </QueryClientProvider>
   );

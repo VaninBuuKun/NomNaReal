@@ -1,4 +1,5 @@
 import { useFriendStore } from "../stores";
+import { useVoiceStore } from "../stores/useVoiceStore";
 import { useCallback } from 'react';
 import { signalRService, messageApi, webrtcService } from '../services';
 import {
@@ -17,6 +18,7 @@ import type { DirectMessageUser } from '../components/dm';
 
 interface UseChatSignalRParams {
   currentUser: User | null;
+  setCurrentUser?: React.Dispatch<React.SetStateAction<User | null>>;
   activeWorkspaceIdRef: React.MutableRefObject<string | null>;
   activeChannelIdRef: React.MutableRefObject<string | null>;
   activeSidebarViewRef: React.MutableRefObject<string>;
@@ -32,6 +34,7 @@ interface UseChatSignalRParams {
 
 export function useChatSignalR({
   currentUser,
+  setCurrentUser,
   activeWorkspaceIdRef,
   activeChannelIdRef,
   activeSidebarViewRef,
@@ -64,8 +67,12 @@ export function useChatSignalR({
       () => setTypingUser(null)
     );
 
-    // Initialize WebRTC 1v1 Call Signaling listeners
+    // Initialize WebRTC 1v1 Call and Multi-User Voice Channel Signaling listeners
     webrtcService.initSignalRListeners();
+    useVoiceStore.getState().initVoiceListeners();
+    if (activeWorkspaceIdRef.current) {
+      void useVoiceStore.getState().syncServerVoiceParticipants(activeWorkspaceIdRef.current);
+    }
 
     // 2. Reactions
     signalRService.onReactionUpdated((update) => {
@@ -94,6 +101,18 @@ export function useChatSignalR({
         | 'dnd';
       updateUserStatus(data.userId, normalized);
       useFriendStore.getState().updateFriendStatus(data.userId, normalized);
+
+      // Multi-device sync: reflect updated presence status on current user
+      if (currentUser?.id && data.userId.toLowerCase() === currentUser.id.toLowerCase()) {
+        const prefMap: Record<string, 0 | 1 | 2 | 3> = {
+          online: 0,
+          away: 1,
+          dnd: 2,
+          offline: 3,
+        };
+        const pref = prefMap[normalized] ?? 0;
+        setCurrentUser?.((prev) => (prev ? { ...prev, statusPreference: pref } : null));
+      }
     });
 
     // 6. Added to Private Channel
@@ -245,6 +264,10 @@ export function useChatSignalR({
 
     // 7. Network Reconnection Catch-Up (Task 3)
     signalRService.onReconnected(async () => {
+      if (activeWorkspaceIdRef.current) {
+        void useVoiceStore.getState().syncServerVoiceParticipants(activeWorkspaceIdRef.current);
+      }
+
       const channelId = activeChannelIdRef.current;
       if (!channelId) return;
 

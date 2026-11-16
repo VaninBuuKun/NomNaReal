@@ -42,11 +42,13 @@ public class AssignRoleCommandHandler : IRequestHandler<AssignRoleCommand, Resul
             return Result.Success(); // Idempotent
         }
 
-        member.MemberRoles.Add(new MemberRole
+        var memberRole = new MemberRole
         {
             ServerMemberId = member.Id,
             RoleId = request.RoleId
-        });
+        };
+
+        _context.MemberRoles.Add(memberRole);
 
         await _context.SaveChangesAsync(cancellationToken);
         _permissionService.InvalidateUser(request.ServerId, member.UserId);

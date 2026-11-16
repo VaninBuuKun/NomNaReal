@@ -49,6 +49,7 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
                 c.Type,
                 c.IsPrivate,
                 c.LastMessageAt,
+                c.LastMessageSenderId,
                 c.CategoryId,
                 c.Position,
                 c.Topic
@@ -63,14 +64,26 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
             cancellationToken
         );
 
+        // Fetch user read markers in a single batch query to accurately calculate unread channel states
+        var readMarkers = await _context.ChannelMembers
+            .AsNoTracking()
+            .Where(cm => cm.UserId == userId.Value && channelIds.Contains(cm.ChannelId))
+            .Select(cm => new { cm.ChannelId, cm.LastReadAt })
+            .ToDictionaryAsync(cm => cm.ChannelId, cm => cm.LastReadAt, cancellationToken);
+
         var result = new List<ChannelDto>();
 
         foreach (var c in channels)
         {
             var perms = permsByChannel.GetValueOrDefault(c.Id, Permissions.None);
-            // Chỉ trả về các kênh mà user có quyền ViewChannel
+            // Only return channels where user holds ViewChannel permission
             if (NomNa.Domain.Services.PermissionCalculator.HasPermission(perms, Permissions.ViewChannel))
             {
+                var lastReadAt = readMarkers.GetValueOrDefault(c.Id);
+                var hasUnread = c.LastMessageAt.HasValue
+                    && c.LastMessageSenderId != userId.Value
+                    && (!lastReadAt.HasValue || c.LastMessageAt.Value > lastReadAt.Value);
+
                 result.Add(new ChannelDto(
                     c.Id,
                     c.ServerId,
@@ -78,7 +91,7 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
                     c.Type,
                     c.IsPrivate,
                     c.LastMessageAt,
-                    false,
+                    hasUnread,
                     (long)perms,
                     c.CategoryId,
                     c.Position,

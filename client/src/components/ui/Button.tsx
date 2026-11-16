@@ -61,7 +61,7 @@ export const Button: React.FC<ButtonProps> = ({
       ) : (
         leftIcon
       )}
-      <span>{children}</span>
+      <span className="inline-flex items-center gap-1.5">{children}</span>
       {!isLoading && rightIcon}
     </button>
   );

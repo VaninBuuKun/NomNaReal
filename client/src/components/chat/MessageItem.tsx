@@ -10,6 +10,7 @@ import { ChannelType, type Channel, type Message, type User } from "../../types"
 import { formatDateDivider, isDifferentDay, formatMessageTime } from "../../utils/formatDate";
 import { MessageContent } from "./MessageContent";
 import { ImageGalleryGrid } from "./ImageGalleryGrid";
+import { AudioMessagePlayer } from "./AudioMessagePlayer";
 import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
 import { UserAvatar } from "../ui/UserAvatar";
 import type { DirectMessageUser } from "../dm";
@@ -448,12 +449,37 @@ export const MessageItem: React.FC<MessageItemProps> = memo(({
                   const imageAttachments = msg.attachments.filter(
                     (a) => a.type === "image" || a.contentType?.startsWith("image/")
                   );
+                  const audioAttachments = msg.attachments.filter(
+                    (a) =>
+                      a.type === "audio" ||
+                      a.contentType?.startsWith("audio/") ||
+                      /\.(webm|ogg|mp3|m4a|wav|opus)$/i.test(a.fileName || "")
+                  );
                   const fileAttachments = msg.attachments.filter(
-                    (a) => a.type !== "image" && !a.contentType?.startsWith("image/")
+                    (a) =>
+                      a.type !== "image" &&
+                      !a.contentType?.startsWith("image/") &&
+                      a.type !== "audio" &&
+                      !a.contentType?.startsWith("audio/") &&
+                      !/\.(webm|ogg|mp3|m4a|wav|opus)$/i.test(a.fileName || "")
                   );
 
                   return (
                     <div className="flex flex-col gap-2 mt-1">
+                      {/* Audio / Voice Messages */}
+                      {audioAttachments.length > 0 && (
+                        <div className="flex flex-col gap-2">
+                          {audioAttachments.map((audio, aIdx) => (
+                            <AudioMessagePlayer
+                              key={aIdx}
+                              src={audio.url}
+                              fileName={audio.fileName}
+                              fileSize={audio.fileSize}
+                            />
+                          ))}
+                        </div>
+                      )}
+
                       {imageAttachments.length > 0 && (
                         <ImageGalleryGrid
                           images={imageAttachments.map((img) => ({

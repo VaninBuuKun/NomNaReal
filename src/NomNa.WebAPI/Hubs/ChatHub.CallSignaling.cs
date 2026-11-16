@@ -2,18 +2,20 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Domain.Enums;
 using NomNa.Shared.Constants;
 using NomNa.Shared.Models;
 
 namespace NomNa.WebAPI.Hubs;
 
 /// <summary>
-/// Partial class phụ trách toàn bộ WebRTC 1v1 Signaling RPC Endpoints.
+/// Partial class handling WebRTC 1v1 call signaling RPC endpoints.
 /// </summary>
 public partial class ChatHub
 {
     /// <summary>
-    /// Bắt đầu cuộc gọi 1-1 tới targetUserId bằng cách gửi SDP Offer qua SignalR
+    /// Initiates a 1-1 WebRTC call to targetUserId by dispatching an SDP offer.
+    /// Performs presence, busy-state, and friendship block verification before ringing.
     /// </summary>
     public async Task StartCall(Guid targetUserId, string offerSdp, bool isVideoCall)
     {
@@ -22,30 +24,35 @@ public partial class ChatHub
             throw new HubException("User is not authenticated.");
         }
 
-
         if (callerId == targetUserId)
         {
             throw new HubException("Cannot call yourself.");
         }
 
-        // Kiểm tra xem đối phương có đang Online không
-        var isTargetOnline = await _presenceTracker.IsUserOnlineAsync(targetUserId);
-        if (!isTargetOnline)
+        // Verify caller is not already engaged in an active call
+        if (_activeCalls.TryGetValue(callerId, out _))
         {
-            var offlinePayload = new CallRejectedPayload(targetUserId, "Người dùng hiện không trực tuyến.");
-            await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, offlinePayload);
+            var busyPayload = new CallRejectedPayload(targetUserId, "You are already in an active call.");
+            await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, busyPayload);
             return;
         }
 
-        // Dọn dẹp bất kỳ trạng thái cuộc gọi cũ nào của caller nếu có
-        if (_activeCalls.TryRemove(callerId, out var oldPartner))
+        // Verify callee is not busy in another call
+        if (_activeCalls.TryGetValue(targetUserId, out _))
         {
-            _activeCalls.TryRemove(oldPartner, out _);
+            var busyPayload = new CallRejectedPayload(targetUserId, "User is currently busy in another call.");
+            await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, busyPayload);
+            return;
         }
 
-        // Lưu intent cuộc gọi active giữa 2 user
-        _activeCalls[callerId] = targetUserId;
-        _activeCalls[targetUserId] = callerId;
+        // Check if target user is online
+        var isTargetOnline = await _presenceTracker.IsUserOnlineAsync(targetUserId);
+        if (!isTargetOnline)
+        {
+            var offlinePayload = new CallRejectedPayload(targetUserId, "User is currently offline.");
+            await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, offlinePayload);
+            return;
+        }
 
         var callerName = Context.User?.FindFirstValue(ClaimTypes.Name) ?? "User";
         string? callerAvatar = null;
@@ -54,6 +61,20 @@ public partial class ChatHub
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            // Verify relationship: block call if either party blocked the other
+            var isBlocked = await db.Friendships.AsNoTracking().AnyAsync(f =>
+                ((f.RequesterId == callerId && f.AddresseeId == targetUserId) ||
+                 (f.RequesterId == targetUserId && f.AddresseeId == callerId)) &&
+                f.Status == FriendshipStatus.Blocked);
+
+            if (isBlocked)
+            {
+                var blockedPayload = new CallRejectedPayload(targetUserId, "Cannot initiate call with this user.");
+                await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, blockedPayload);
+                return;
+            }
+
             var caller = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == callerId);
             if (caller != null)
             {
@@ -66,6 +87,10 @@ public partial class ChatHub
             _logger.LogWarning(ex, "Failed to load caller user info for call signaling");
         }
 
+        // Record active call intent between caller and callee
+        _activeCalls[callerId] = targetUserId;
+        _activeCalls[targetUserId] = callerId;
+
         var payload = new CallOfferPayload(callerId, callerName, callerAvatar, targetUserId, offerSdp, isVideoCall);
 
         _logger.LogInformation("User {CallerId} initiated call to {TargetUserId} (Video: {IsVideo})", callerId, targetUserId, isVideoCall);
@@ -74,7 +99,7 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Chấp nhận cuộc gọi và gửi SDP Answer về cho người gọi
+    /// Accepts an incoming call and relays the SDP answer back to the caller.
     /// </summary>
     public async Task AcceptCall(Guid callerId, string answerSdp)
     {
@@ -83,8 +108,11 @@ public partial class ChatHub
             throw new HubException("User is not authenticated.");
         }
 
-        _activeCalls[callerId] = responderId;
-        _activeCalls[responderId] = callerId;
+        // Verify that callerId has indeed initiated a call to responderId
+        if (!_activeCalls.TryGetValue(callerId, out var pendingTarget) || pendingTarget != responderId)
+        {
+            throw new HubException("No pending call found from this user.");
+        }
 
         var payload = new CallAnswerPayload(responderId, callerId, answerSdp);
 
@@ -94,7 +122,7 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Từ chối cuộc gọi
+    /// Rejects an incoming call request and cleans up call pairing state.
     /// </summary>
     public async Task RejectCall(Guid callerId, string? reason = null)
     {
@@ -113,13 +141,19 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Kết thúc cuộc gọi hiện tại
+    /// Ends an ongoing active call session and dispatches CallEnded to peer.
     /// </summary>
     public async Task EndCall(Guid peerUserId)
     {
         if (!Guid.TryParse(Context.UserIdentifier, out var senderId))
         {
             throw new HubException("User is not authenticated.");
+        }
+
+        // Verify active call pairing before ending
+        if (!_activeCalls.TryGetValue(senderId, out var partnerId) || partnerId != peerUserId)
+        {
+            return;
         }
 
         RemoveCallPair(senderId, peerUserId);
@@ -132,7 +166,7 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Trao đổi ICE candidate giữa hai client
+    /// Forwards WebRTC ICE candidate packets to the verified peer.
     /// </summary>
     public async Task SendIceCandidate(Guid targetUserId, string candidate)
     {
@@ -141,13 +175,20 @@ public partial class ChatHub
             throw new HubException("User is not authenticated.");
         }
 
+        // Verify active call pairing before forwarding candidate
+        if (!_activeCalls.TryGetValue(senderId, out var partnerId) || partnerId != targetUserId)
+        {
+            _logger.LogWarning("Rejected ICE candidate from {SenderId} to {TargetUserId}: not an active call pair", senderId, targetUserId);
+            return;
+        }
+
         var payload = new IceCandidatePayload(senderId, targetUserId, candidate);
 
         await Clients.User(targetUserId.ToString()).SendAsync(SignalRConstants.Events.ReceiveIceCandidate, payload);
     }
 
     /// <summary>
-    /// Gỡ cặp cuộc gọi (a ↔ b) nhưng CHỈ khi mapping thực sự thuộc cặp này, tránh xoá nhầm cuộc gọi khác đang diễn ra.
+    /// Unbinds active call pairing (a <-> b) only when the mapping strictly matches both directions.
     /// </summary>
     private static void RemoveCallPair(Guid a, Guid b)
     {

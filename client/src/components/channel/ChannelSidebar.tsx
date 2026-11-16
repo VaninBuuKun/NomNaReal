@@ -17,12 +17,14 @@ import {
   Headphones,
   Waveform,
 } from '@phosphor-icons/react';
-import { ChannelType, type Channel, type Workspace } from '../../types';
+import { ChannelType, type Channel, type Workspace, type User, type VoiceParticipant } from '../../types';
 import { InviteMemberModal, ServerSettingsModal, LeaveServerModal } from '../server';
 import { Avatar } from '../ui';
 import { channelApi } from '../../services/channelApi';
 import { useVoiceStore } from '../../stores/useVoiceStore';
 import { getMediaUrl } from '../../utils/constants';
+import { VoiceMemberContextMenu } from './VoiceMemberContextMenu';
+import type { UserProfileData } from '../profile';
 
 interface ChannelSidebarProps {
   currentWorkspace: Workspace | null;
@@ -37,6 +39,8 @@ interface ChannelSidebarProps {
   onOpenEditChannel?: (ch: Channel) => void;
   onOpenAddChannelMember?: (ch: Channel) => void;
   onChannelsReorder?: (updatedChannels: Channel[]) => void;
+  currentUser?: User | null;
+  onOpenUserProfile?: (user: UserProfileData, anchorRect?: DOMRect) => void;
 }
 
 export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
@@ -49,6 +53,8 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onLeaveWorkspace,
   onOpenEditChannel,
   onChannelsReorder,
+  currentUser,
+  onOpenUserProfile,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -69,11 +75,54 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   const [dragOverCategoryTargetId, setDragOverCategoryTargetId] = useState<string | null>(null);
   const [categoryDropPosition, setCategoryDropPosition] = useState<'above' | 'below' | null>(null);
 
-  // Voice store state
+  // Voice store state & right-click member context menu
   const {
     connectedChannelId,
     participants,
+    channelParticipantsMap,
+    currentUserId,
+    userVolumes,
+    toggleMute,
+    toggleDeafen,
+    setUserVolume,
+    joinVoice,
+    leaveVoice,
   } = useVoiceStore();
+
+  const [memberContextMenu, setMemberContextMenu] = useState<{
+    x: number;
+    y: number;
+    participant: VoiceParticipant;
+    channel: Channel;
+  } | null>(null);
+
+  const otherVoiceChannels = useMemo(() => {
+    if (!memberContextMenu) return [];
+    return channels.filter(
+      (c) =>
+        (c.type === ChannelType.Voice || Number(c.type) === 1) &&
+        c.id.toLowerCase() !== memberContextMenu.channel.id.toLowerCase()
+    );
+  }, [channels, memberContextMenu]);
+
+  const handleSwitchVoiceChannel = (targetChannelId: string) => {
+    const targetCh = channels.find((c) => c.id === targetChannelId);
+    if (!targetCh) return;
+    onSelectChannel(targetChannelId);
+    const userToJoin = currentUser || (currentUserId ? { id: currentUserId, displayName: 'User', avatarUrl: undefined } : null);
+    if (userToJoin) {
+      void joinVoice(
+        targetCh.id,
+        targetCh.name || 'Kênh thoại',
+        targetCh.serverId || targetCh.workspaceId || '',
+        {
+          id: userToJoin.id,
+          displayName: userToJoin.displayName,
+          avatarUrl: userToJoin.avatarUrl,
+        }
+      );
+    }
+  };
 
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -239,8 +288,14 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
 
   const renderChannelItem = (ch: Channel) => {
     const isActive = activeChannelId === ch.id;
-    const isUnread = !!ch.hasUnread && !isActive;
-    const isVoice = ch.type === ChannelType.Voice;
+    const isVoice = ch.type === ChannelType.Voice || Number(ch.type) === 1;
+    const isUnread = !isVoice && !!ch.hasUnread && !isActive;
+    const chKey = ch.id.toLowerCase();
+    const voiceRoomUsers = isVoice
+      ? connectedChannelId?.toLowerCase() === chKey
+        ? participants
+        : channelParticipantsMap[chKey] || channelParticipantsMap[ch.id] || []
+      : [];
     const isBeingDragged = draggedChannelId === ch.id;
     const isDragTarget = dragOverChannelId === ch.id;
 
@@ -312,25 +367,19 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
               className="opacity-0 group-hover/ch:opacity-60 cursor-grab text-text-muted shrink-0 transition-opacity"
             />
 
-            {isUnread && (
-              <span className="absolute -left-1 w-1 h-2 rounded-r-full bg-accent-primary" />
-            )}
-
             {ch.isPrivate ? (
               <Lock size={15} weight="bold" className="text-text-muted shrink-0" />
             ) : isVoice ? (
               <SpeakerHigh
                 size={15}
                 weight="bold"
-                className={`shrink-0 ${
-                  connectedChannelId === ch.id ? 'text-success' : 'text-text-muted'
-                }`}
+                className="shrink-0 text-text-muted"
               />
             ) : (
               <Hash
                 size={16}
                 weight="bold"
-                className={`shrink-0 ${isUnread ? 'text-accent-primary' : 'text-text-muted'}`}
+                className="shrink-0 text-text-muted"
               />
             )}
             <span className="truncate">{ch.name}</span>
@@ -351,34 +400,45 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
                 <Gear size={13} weight="bold" />
               </button>
             )}
-            {isUnread && (
-              <span className="w-2 h-2 rounded-full bg-accent-primary shrink-0" />
-            )}
           </div>
         </div>
 
-        {/* Indented presence under Voice Channel if connected */}
-        {isVoice && connectedChannelId === ch.id && participants.length > 0 && (
+        {/* Indented presence under Voice Channel for any room with active participants */}
+        {isVoice && voiceRoomUsers.length > 0 && (
           <div className="ml-5 my-0.5 space-y-0.5 border-l border-border/40 pl-1.5 animate-in fade-in duration-150">
-            {participants.map((p) => (
+            {voiceRoomUsers.map((p) => (
               <div
                 key={p.userId}
-                className="flex items-center justify-between px-2 py-1 rounded-control text-xs text-text-secondary hover:bg-surface transition-colors group/p"
+                onClick={() => onSelectChannel(ch.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setMemberContextMenu({
+                    x: e.clientX,
+                    y: e.clientY,
+                    participant: p,
+                    channel: ch,
+                  });
+                }}
+                className={`flex items-center justify-between px-2 py-1 rounded-control text-xs transition-colors cursor-pointer group/p ${
+                  p.isSpeaking ? 'bg-surface/60' : 'text-text-secondary hover:bg-surface'
+                }`}
+                title="Chuột phải để mở tùy chọn thành viên"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="relative">
+                  <div className="relative shrink-0">
                     <Avatar
                       src={getMediaUrl(p.avatarUrl)}
                       fallback={p.displayName}
                       size="sm"
+                      className={`transition-all duration-150 ${
+                        p.isSpeaking ? 'ring-2 ring-success ring-offset-1 ring-offset-sidebar' : ''
+                      }`}
                     />
-                    {p.isSpeaking && (
-                      <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-success ring-1 ring-surface animate-pulse" />
-                    )}
                   </div>
                   <span
-                    className={`truncate text-[12px] ${
-                      p.isSpeaking ? 'text-success font-semibold' : 'text-text-secondary'
+                    className={`truncate text-[12px] transition-colors ${
+                      p.isSpeaking ? 'text-success font-semibold' : 'text-text-secondary group-hover/p:text-text-primary'
                     }`}
                   >
                     {p.displayName}
@@ -788,6 +848,57 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           workspace={currentWorkspace}
           isOwner={isOwner ?? false}
           onWorkspaceDeleted={() => onLeaveWorkspace?.()}
+        />
+      )}
+
+      {/* Voice Member Context Menu (Right Click on Participant) */}
+      {memberContextMenu && (
+        <VoiceMemberContextMenu
+          position={{ x: memberContextMenu.x, y: memberContextMenu.y }}
+          participant={memberContextMenu.participant}
+          currentChannel={memberContextMenu.channel}
+          otherVoiceChannels={otherVoiceChannels}
+          isCurrentUser={
+            (currentUserId && memberContextMenu.participant.userId.toLowerCase() === currentUserId.toLowerCase()) ||
+            (Boolean(currentUser?.id) && memberContextMenu.participant.userId.toLowerCase() === currentUser?.id.toLowerCase())
+          }
+          onClose={() => setMemberContextMenu(null)}
+          onOpenProfile={(p, rect) => {
+            if (onOpenUserProfile) {
+              onOpenUserProfile(
+                {
+                  id: p.userId,
+                  displayName: p.displayName,
+                  username: p.displayName.toLowerCase().replace(/\s+/g, ''),
+                  avatarUrl: p.avatarUrl,
+                },
+                rect
+              );
+            }
+          }}
+          onSwitchChannel={handleSwitchVoiceChannel}
+          onToggleMute={() => {
+            const isMe =
+              (currentUserId && memberContextMenu.participant.userId.toLowerCase() === currentUserId.toLowerCase()) ||
+              (Boolean(currentUser?.id) && memberContextMenu.participant.userId.toLowerCase() === currentUser?.id.toLowerCase());
+            if (isMe) {
+              toggleMute();
+            } else {
+              const currentVol =
+                userVolumes[memberContextMenu.participant.userId] ??
+                userVolumes[memberContextMenu.participant.userId.toLowerCase()] ??
+                100;
+              setUserVolume(memberContextMenu.participant.userId, currentVol === 0 ? 100 : 0);
+            }
+          }}
+          onToggleDeafen={toggleDeafen}
+          volume={
+            userVolumes[memberContextMenu.participant.userId] ??
+            userVolumes[memberContextMenu.participant.userId.toLowerCase()] ??
+            100
+          }
+          onVolumeChange={(vol) => setUserVolume(memberContextMenu.participant.userId, vol)}
+          onDisconnect={leaveVoice}
         />
       )}
     </aside>

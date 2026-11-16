@@ -6,6 +6,7 @@ import {
 } from '@phosphor-icons/react';
 import { Avatar, Badge, Spinner } from '../../ui';
 import { roleApi } from '../../../services/roleApi';
+import { toast } from '../../../stores/useToastStore';
 import type { Role } from '../../../types/role';
 import type { Workspace } from '../../../types';
 import type { ServerMemberItem } from './types';
@@ -33,10 +34,12 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({
     try {
       setMemberActionLoadingId(memberId);
       await roleApi.assignRole(workspace.id, memberId, roleId);
+      const roleName = roles.find((r) => r.id === roleId)?.name || 'vai trò';
+      toast.success('Gán vai trò thành công', `Đã cấp vai trò "${roleName}" cho thành viên.`);
       onRefreshMembers();
     } catch (err) {
       console.error('Failed to assign role to member:', err);
-      alert('Không thể gán vai trò. Vui lòng kiểm tra quyền hạn!');
+      toast.error('Không thể gán vai trò', 'Vui lòng kiểm tra quyền hạn của bạn trong máy chủ!');
     } finally {
       setMemberActionLoadingId(null);
       setMemberRoleDropdownUserId(null);
@@ -47,10 +50,12 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({
     try {
       setMemberActionLoadingId(memberId);
       await roleApi.unassignRole(workspace.id, memberId, roleId);
+      const roleName = roles.find((r) => r.id === roleId)?.name || 'vai trò';
+      toast.info('Đã gỡ vai trò', `Đã thu hồi vai trò "${roleName}" khỏi thành viên.`);
       onRefreshMembers();
     } catch (err) {
       console.error('Failed to unassign role from member:', err);
-      alert('Không thể gỡ vai trò. Vui lòng thử lại!');
+      toast.error('Không thể gỡ vai trò', 'Vui lòng kiểm tra quyền hạn và thử lại!');
     } finally {
       setMemberActionLoadingId(null);
     }
@@ -70,7 +75,7 @@ export const ServerMembersTab: React.FC<ServerMembersTabProps> = ({
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-chat)] overflow-hidden">
       {/* Member Search & Filters */}
-      <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] flex items-center justify-between gap-4 shrink-0">
+      <div className="p-4 pr-16 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] flex items-center justify-between gap-4 shrink-0">
         <div>
           <h3 className="text-sm font-bold text-[var(--text-primary)]">
             Danh sách thành viên máy chủ

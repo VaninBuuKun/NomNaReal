@@ -9,7 +9,9 @@ import {
 } from '@phosphor-icons/react';
 import { Input, UnsavedChangesBar } from '../../ui';
 import { roleApi } from '../../../services/roleApi';
+import { toast } from '../../../stores/useToastStore';
 import {
+  Permissions,
   PERMISSION_DEFINITIONS,
   hasPermission,
 } from '../../../types/permissions';
@@ -84,7 +86,7 @@ export const ServerRolesTab: React.FC<ServerRolesTabProps> = ({
   const handleDeleteRole = async (roleId: string) => {
     const roleToDelete = roles.find((r) => r.id === roleId);
     if (!roleToDelete || roleToDelete.isDefault) {
-      alert('Không thể xóa vai trò mặc định của hệ thống.');
+      toast.warning('Không được phép', 'Không thể xóa vai trò mặc định của hệ thống.');
       return;
     }
     if (!confirm(`Bạn có chắc chắn muốn xóa vai trò "${roleToDelete.name}"?`)) {
@@ -96,6 +98,7 @@ export const ServerRolesTab: React.FC<ServerRolesTabProps> = ({
       await roleApi.deleteRole(workspace.id, roleId);
       const updated = roles.filter((r) => r.id !== roleId);
       onRolesUpdated(updated);
+      toast.success('Đã xóa vai trò', `Đã xóa vai trò "${roleToDelete.name}" khỏi máy chủ.`);
       if (updated.length > 0) {
         setSelectedRoleId(updated[0].id);
         setEditingRole({ ...updated[0] });
@@ -106,7 +109,7 @@ export const ServerRolesTab: React.FC<ServerRolesTabProps> = ({
       }
     } catch (err) {
       console.error('Failed to delete role:', err);
-      setRoleError('Không thể xóa vai trò. Vui lòng kiểm tra quyền hạn của bạn!');
+      toast.error('Không thể xóa vai trò', 'Vui lòng kiểm tra quyền hạn của bạn!');
     }
   };
 
@@ -117,6 +120,45 @@ export const ServerRolesTab: React.FC<ServerRolesTabProps> = ({
     const nextBigInt = has
       ? (currentBigInt & ~flag)
       : (currentBigInt | flag);
+
+    // Contextual permission warning toasts for sensitive operations
+    if (has) {
+      // User is revoking (turning OFF) a critical permission
+      if (flag === Permissions.ManageMessages) {
+        toast.warning(
+          'Cảnh báo phân quyền',
+          'Bạn vừa tắt quyền "Quản lý tin nhắn". Thành viên mang vai trò này sẽ không thể xóa tin vi phạm hoặc ghim tin nhắn.'
+        );
+      } else if (flag === Permissions.Administrator) {
+        toast.warning(
+          'Cảnh báo phân quyền',
+          'Đã tắt quyền "Quản trị viên". Vai trò này sẽ bị giới hạn bởi các thiết lập quyền cụ thể từng kênh.'
+        );
+      } else if (flag === Permissions.ManageRoles) {
+        toast.warning(
+          'Cảnh báo phân quyền',
+          'Tắt quyền "Quản lý vai trò" sẽ khiến vai trò này không thể tạo hoặc chỉnh sửa quyền của vai trò khác.'
+        );
+      } else if (flag === Permissions.ManageChannels) {
+        toast.warning(
+          'Cảnh báo phân quyền',
+          'Tắt quyền "Quản lý kênh" sẽ khiến vai trò này không thể tạo, sửa tên hoặc xóa các kênh.'
+        );
+      } else if (flag === Permissions.BanMembers || flag === Permissions.KickMembers) {
+        toast.warning(
+          'Cảnh báo phân quyền',
+          'Tắt quyền trục xuất/cấm sẽ khiến vai trò này mất khả năng xử lý thành viên vi phạm.'
+        );
+      }
+    } else {
+      // User is granting (turning ON) a high-privilege permission
+      if (flag === Permissions.Administrator) {
+        toast.warning(
+          'Quyền hạn tối cao (Administrator)',
+          'Cảnh báo: Quyền Quản trị viên cấp toàn quyền tối cao trên toàn bộ máy chủ và bỏ qua mọi kiểm tra quyền của kênh.'
+        );
+      }
+    }
 
     setEditingRole({
       ...editingRole,
@@ -142,9 +184,10 @@ export const ServerRolesTab: React.FC<ServerRolesTabProps> = ({
       onRolesUpdated(updated);
       setEditingRole({ ...res });
       setHasRoleChanges(false);
+      toast.success('Đã lưu vai trò', `Cập nhật vai trò "${res.name}" thành công.`);
     } catch (err) {
       console.error('Failed to save role:', err);
-      setRoleError('Không thể lưu thông tin vai trò. Vui lòng thử lại!');
+      toast.error('Lưu vai trò thất bại', 'Không thể lưu thông tin vai trò. Vui lòng kiểm tra quyền hạn!');
     } finally {
       setIsSavingRole(false);
     }
@@ -247,7 +290,7 @@ export const ServerRolesTab: React.FC<ServerRolesTabProps> = ({
         {editingRole ? (
           <>
             {/* Role Header Tabs */}
-            <div className="px-4 py-2 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] flex items-center justify-between">
+            <div className="px-4 py-2 pr-16 border-b border-[var(--border-color)] bg-[var(--bg-sidebar)] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <button
                   type="button"

@@ -49,7 +49,7 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
   if (!channel) return null;
 
   const isCategory = channel.type === ChannelType.Category;
-  const isVoice = channel.type === ChannelType.Voice;
+  const isVoice = channel.type === ChannelType.Voice || Number(channel.type) === 1;
 
   const getChannelPrefix = () => {
     if (isCategory) return <Folder size={14} weight="bold" className="shrink-0 text-[var(--text-muted)]" />;

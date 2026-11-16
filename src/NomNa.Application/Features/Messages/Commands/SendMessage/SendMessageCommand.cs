@@ -11,7 +11,8 @@ public record SendMessageCommand(
     Guid ChannelId,
     string? Content,
     Guid? ReplyToMessageId = null,
-    List<AttachmentInputDto>? Attachments = null
+    List<AttachmentInputDto>? Attachments = null,
+    Guid? ClientMessageId = null
 ) : IRequest<Result<MessageDto>>, IRequireChannelPermission
 {
     public Permissions RequiredPermission => Permissions.SendMessages;

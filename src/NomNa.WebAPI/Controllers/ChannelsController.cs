@@ -91,6 +91,16 @@ public class ChannelsController : ApiControllerBase
         [FromBody] SendMessageRequest request)
     {
         var result = await Mediator.Send(new SendMessageCommand(channelId, request.Content, request.ReplyToMessageId, request.Attachments));
+
+        if (result.IsSuccess && result.Value != null)
+        {
+            var message = result.Value;
+
+            // Multicast to all clients currently connected to the channel group
+            var groupName = channelId.ToString();
+            await _hubContext.Clients.Group(groupName).SendAsync(SignalRConstants.Events.ReceiveMessage, message);
+        }
+
         return HandleResult(result);
     }
 

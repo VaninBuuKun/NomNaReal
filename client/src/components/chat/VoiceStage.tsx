@@ -1,128 +1,343 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   SpeakerHigh,
   Microphone,
   MicrophoneSlash,
   Headphones,
   PhoneDisconnect,
+  PhoneCall,
   Screencast,
   VideoCamera,
   VideoCameraSlash,
   ChatTeardropText,
+  Users,
   Waveform,
-  Robot,
+  Sliders,
+  ArrowsOutSimple,
+  ArrowsInSimple,
+  X,
+  CornersOut,
 } from '@phosphor-icons/react';
-import type { Channel, User } from '../../types';
+import type { Channel, User, VoiceParticipant } from '../../types';
 import { useVoiceStore } from '../../stores/useVoiceStore';
 import { UserAvatar } from '../ui/UserAvatar';
+import { VideoPlayer } from '../call/VideoPlayer';
 
 interface VoiceStageProps {
   currentChannel: Channel;
   currentUser: User | null;
   isChatOpen: boolean;
   onToggleChat: () => void;
+  isMemberListOpen?: boolean;
+  onToggleMemberList?: () => void;
   onLeaveVoice?: () => void;
 }
+
+const sameId = (a?: string | null, b?: string | null): boolean =>
+  Boolean(a && b && a.toLowerCase() === b.toLowerCase());
 
 export const VoiceStage: React.FC<VoiceStageProps> = ({
   currentChannel,
   currentUser,
   isChatOpen,
   onToggleChat,
+  isMemberListOpen = false,
+  onToggleMemberList,
   onLeaveVoice,
 }) => {
   const {
     connectedChannelId,
     isMuted,
     isDeafened,
-    isSpeaking,
     isScreenSharing,
+    isCameraActive,
     participants,
+    channelParticipantsMap,
+    userVolumes,
+    liveAudioLevel,
+    localVideoStream,
+    remoteStreams,
     joinVoice,
     leaveVoice,
     toggleMute,
     toggleDeafen,
-    toggleSpeaking,
     toggleScreenSharing,
+    toggleCamera,
+    setUserVolume,
   } = useVoiceStore();
 
-  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [activeVolumeUserId, setActiveVolumeUserId] = useState<string | null>(null);
+  const [focusedUserId, setFocusedUserId] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isControlsHidden, setIsControlsHidden] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const lastAutoJoinedChannelRef = useRef<string | null>(null);
+  const activityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-connect to voice channel when entering view if not connected yet
-  useEffect(() => {
-    if (connectedChannelId !== currentChannel.id && currentUser) {
-      joinVoice(
-        currentChannel.id,
-        currentChannel.name || 'Kênh thoại',
-        currentChannel.serverId || currentChannel.workspaceId || '',
-        {
-          id: currentUser.id,
-          displayName: currentUser.displayName,
-          avatarUrl: currentUser.avatarUrl,
-        }
-      );
+  const isConnectedHere = sameId(connectedChannelId, currentChannel.id);
+
+  // Auto-hide controls and header when idle in fullscreen
+  const resetActivityTimer = useCallback(() => {
+    setIsControlsHidden(false);
+    if (activityTimeoutRef.current) {
+      clearTimeout(activityTimeoutRef.current);
     }
-  }, [currentChannel.id, connectedChannelId, currentUser, joinVoice]);
+    if (isFullscreen) {
+      activityTimeoutRef.current = setTimeout(() => {
+        // Do not auto-hide if volume adjustment or user input is actively focused
+        if (!activeVolumeUserId) {
+          setIsControlsHidden(true);
+        }
+      }, 2500);
+    }
+  }, [isFullscreen, activeVolumeUserId]);
+
+  useEffect(() => {
+    if (!isFullscreen) {
+      setIsControlsHidden(false);
+      if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
+      return;
+    }
+    resetActivityTimer();
+    return () => {
+      if (activityTimeoutRef.current) clearTimeout(activityTimeoutRef.current);
+    };
+  }, [isFullscreen, resetActivityTimer]);
+
+  // Auto-connect only when navigating into a new voice channel, preventing infinite reconnect after manual disconnect
+  useEffect(() => {
+    if (!currentUser) return;
+    if (lastAutoJoinedChannelRef.current !== currentChannel.id) {
+      lastAutoJoinedChannelRef.current = currentChannel.id;
+      if (!sameId(connectedChannelId, currentChannel.id)) {
+        void joinVoice(
+          currentChannel.id,
+          currentChannel.name || 'Kênh thoại',
+          currentChannel.serverId || currentChannel.workspaceId || '',
+          {
+            id: currentUser.id,
+            displayName: currentUser.displayName,
+            avatarUrl: currentUser.avatarUrl,
+          }
+        );
+      }
+    }
+  }, [
+    currentChannel.id,
+    currentChannel.name,
+    currentChannel.serverId,
+    currentChannel.workspaceId,
+    connectedChannelId,
+    currentUser,
+    joinVoice,
+  ]);
+
+  // Sync fullscreen state with document fullscreen change events
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const active = Boolean(
+        document.fullscreenElement ||
+          (document as any).webkitFullscreenElement ||
+          (document as any).mozFullScreenElement
+      );
+      setIsFullscreen(active);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const handleToggleFullscreen = useCallback(async () => {
+    try {
+      const isCurrentlyFs = Boolean(
+        document.fullscreenElement ||
+          (document as any).webkitFullscreenElement ||
+          (document as any).mozFullScreenElement
+      );
+
+      if (!isCurrentlyFs) {
+        const el = stageRef.current;
+        if (el?.requestFullscreen) {
+          await el.requestFullscreen();
+        } else if ((el as any)?.webkitRequestFullscreen) {
+          await (el as any).webkitRequestFullscreen();
+        } else {
+          // Fallback toggle for browsers/devices without native fullscreen API (e.g. iOS Safari)
+          setIsFullscreen((prev) => !prev);
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any)?.webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else {
+          setIsFullscreen(false);
+        }
+      }
+    } catch (err) {
+      console.warn('Fullscreen toggle failed, falling back to viewport mode:', err);
+      setIsFullscreen((prev) => !prev);
+    }
+  }, []);
+
+  const handleJoinCurrentChannel = () => {
+    if (!currentUser) return;
+    void joinVoice(
+      currentChannel.id,
+      currentChannel.name || 'Kênh thoại',
+      currentChannel.serverId || currentChannel.workspaceId || '',
+      {
+        id: currentUser.id,
+        displayName: currentUser.displayName,
+        avatarUrl: currentUser.avatarUrl,
+      }
+    );
+  };
 
   const handleDisconnect = () => {
     leaveVoice();
     onLeaveVoice?.();
   };
 
+  const chKey = currentChannel.id.toLowerCase();
+  const stageParticipants: VoiceParticipant[] = isConnectedHere
+    ? participants
+    : channelParticipantsMap[chKey] || channelParticipantsMap[currentChannel.id] || [];
+
+  const getParticipantStream = (p: VoiceParticipant): MediaStream | null => {
+    if (!p.isScreenSharing && !p.isCameraActive) return null;
+    if (sameId(p.userId, currentUser?.id)) {
+      return localVideoStream;
+    }
+    const stream = remoteStreams[p.userId.toLowerCase()] ?? remoteStreams[p.userId] ?? null;
+    if (stream && stream.getVideoTracks().length > 0) {
+      return stream;
+    }
+    return null;
+  };
+
+  // Determine grid layout columns dynamically based on participant count
+  const participantCount = Math.max(1, stageParticipants.length);
+  const gridClasses =
+    participantCount === 1
+      ? 'grid-cols-1 max-w-sm sm:max-w-md'
+      : participantCount === 2
+      ? 'grid-cols-1 sm:grid-cols-2 max-w-2xl sm:max-w-3xl'
+      : participantCount <= 4
+      ? 'grid-cols-2 max-w-2xl sm:max-w-4xl'
+      : participantCount <= 6
+      ? 'grid-cols-2 sm:grid-cols-3 max-w-3xl sm:max-w-5xl'
+      : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 max-w-6xl';
+
+  const spotlightUser =
+    stageParticipants.find((p) => sameId(p.userId, focusedUserId)) ||
+    stageParticipants.find((p) => p.isScreenSharing || p.isCameraActive) ||
+    null;
+
+  const spotlightStream = spotlightUser ? getParticipantStream(spotlightUser) : null;
+
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-chat overflow-hidden select-none relative">
-      {/* Caro (Grid) Background Pattern */}
+    <div
+      ref={stageRef}
+      onMouseMove={resetActivityTimer}
+      onTouchStart={resetActivityTimer}
+      onPointerDown={resetActivityTimer}
+      className={`flex flex-col min-h-0 bg-chat select-none relative overflow-hidden transition-all duration-200 ${
+        isFullscreen
+          ? `fixed inset-0 z-50 w-screen h-screen ${isControlsHidden ? 'cursor-none' : 'cursor-default'}`
+          : 'flex-1 w-full h-full'
+      }`}
+    >
+      {/* 1. Header: Voice Room Title, Fullscreen, Member List & Chat Actions */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-20"
-        style={{
-          backgroundImage: `
-            linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255, 255, 255, 0.08) 1px, transparent 1px)
-          `,
-          backgroundSize: '28px 28px',
-          maskImage: 'radial-gradient(ellipse at center, black 65%, transparent 100%)',
-          WebkitMaskImage: 'radial-gradient(ellipse at center, black 65%, transparent 100%)',
-        }}
-      />
-
-      {/* Dynamic Ambient Background Glows for Immersion */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-accent-primary/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-success/8 rounded-full blur-3xl pointer-events-none" />
-
-      {/* 1. Discord-style Compact Voice Room Header */}
-      <div className="h-[54px] border-b border-border px-5 flex items-center justify-between bg-sidebar/90 backdrop-blur-md shrink-0 z-20">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded-control bg-accent-soft flex items-center justify-center text-accent-primary shrink-0">
-            <SpeakerHigh size={19} weight="bold" />
+        className={`h-[52px] sm:h-[54px] border-b border-border px-3 sm:px-5 flex items-center justify-between bg-sidebar/85 backdrop-blur-xl shrink-0 z-20 transition-all duration-300 ease-in-out ${
+          isControlsHidden
+            ? 'opacity-0 -translate-y-full pointer-events-none'
+            : 'opacity-100 translate-y-0 pointer-events-auto'
+        }`}
+      >
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-control bg-surface border border-border flex items-center justify-center text-text-secondary shrink-0 shadow-2xs">
+            <SpeakerHigh size={17} weight="bold" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-bold text-text-primary truncate">
+            <h2 className="text-xs sm:text-sm font-bold text-text-primary truncate">
               {currentChannel.name || 'Kênh thoại'}
             </h2>
-            <div className="flex items-center gap-2 text-[11px] text-text-muted">
-              <span>{participants.length} người đang tham gia</span>
+            <div className="flex items-center gap-2 text-[10px] sm:text-[11px] text-text-muted">
+              <span>{stageParticipants.length} đang tham gia</span>
+              {isConnectedHere && (
+                <span className="flex items-center gap-1 text-success">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                  <span className="hidden xs:inline">Đã kết nối</span>
+                </span>
+              )}
             </div>
-          </div>
-
-          <div className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-success-soft text-success text-[11px] font-semibold border border-success/20 ml-2">
-            <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <span className="font-mono">RTC Đã kết nối • 18ms</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Fullscreen Toggle Button */}
+          <button
+            type="button"
+            onClick={handleToggleFullscreen}
+            className={`px-2 sm:px-2.5 py-1.5 rounded-control transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
+              isFullscreen
+                ? 'bg-surface-active text-text-primary border border-border'
+                : 'text-text-muted hover:text-text-primary hover:bg-surface-active'
+            }`}
+            title={isFullscreen ? 'Thoát toàn màn hình (Esc)' : 'Toàn màn hình'}
+          >
+            {isFullscreen ? (
+              <ArrowsInSimple size={16} weight="bold" />
+            ) : (
+              <ArrowsOutSimple size={16} weight="bold" />
+            )}
+            <span className="hidden md:inline">
+              {isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình'}
+            </span>
+          </button>
+
+          {/* Member List Toggle Button */}
+          {onToggleMemberList && (
+            <button
+              type="button"
+              onClick={onToggleMemberList}
+              className={`px-2 sm:px-2.5 py-1.5 rounded-control transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
+                isMemberListOpen
+                  ? 'bg-surface-active text-text-primary border border-border'
+                  : 'text-text-muted hover:text-text-primary hover:bg-surface-active'
+              }`}
+              title={
+                isMemberListOpen
+                  ? 'Ẩn danh sách thành viên'
+                  : 'Hiển thị danh sách thành viên'
+              }
+            >
+              <Users size={16} weight={isMemberListOpen ? 'bold' : 'regular'} />
+              <span className="hidden sm:inline">Thành viên ({stageParticipants.length})</span>
+            </button>
+          )}
+
           {/* Toggle In-Voice Text Chat Button */}
           <button
             type="button"
             onClick={onToggleChat}
-            className={`px-3 py-1.5 rounded-control transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
+            className={`px-2.5 sm:px-3 py-1.5 rounded-control transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
               isChatOpen
-                ? 'bg-accent-soft text-accent-primary border border-accent-primary/30 shadow-xs'
+                ? 'bg-surface-active text-text-primary border border-border'
                 : 'text-text-muted hover:text-text-primary hover:bg-surface-active'
             }`}
             title={isChatOpen ? 'Đóng trò chuyện văn bản' : 'Mở trò chuyện văn bản'}
           >
-            <ChatTeardropText size={17} weight={isChatOpen ? 'fill' : 'bold'} />
+            <ChatTeardropText size={16} weight={isChatOpen ? 'fill' : 'bold'} />
             <span className="hidden sm:inline">
               {isChatOpen ? 'Đang mở chat' : 'Trò chuyện'}
             </span>
@@ -130,230 +345,446 @@ export const VoiceStage: React.FC<VoiceStageProps> = ({
         </div>
       </div>
 
-      {/* 2. Main Stage Canvas (Centered Horizontally & Vertically, Zero Left-Bias) */}
-      <div className="flex-1 flex flex-col min-h-0 p-4 sm:p-6 justify-between overflow-y-auto no-scrollbar relative z-10">
-        {/* Participant Tiles: flex-wrap centered so cards are always in the middle */}
-        <div className="max-w-4xl w-full mx-auto flex flex-wrap items-center justify-center gap-6 flex-1 my-auto">
-          {participants.map((p) => {
-            const isMe = p.userId === currentUser?.id;
-            const isBot = p.userId === 'simulated-nomna-bot';
-
-            return (
-              <div
-                key={p.userId}
-                className={`relative group flex flex-col items-center justify-center p-6 rounded-card backdrop-blur-xl border transition-all duration-300 min-h-[220px] shadow-raised overflow-hidden w-full sm:w-[280px] md:w-[300px] ${
-                  isMe
-                    ? p.isSpeaking
-                      ? 'bg-emerald-950/40 border-emerald-400 ring-2 ring-emerald-500 shadow-[0_0_35px_rgba(16,185,129,0.5)]'
-                      : 'bg-emerald-950/20 border-emerald-500/60 ring-1 ring-emerald-500/30 hover:border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.2)]'
-                    : p.isSpeaking
-                    ? 'bg-surface/90 border-success/80 shadow-[0_0_30px_rgba(35,165,90,0.35)] ring-1 ring-success/50'
-                    : 'bg-surface/90 border-border/70 hover:border-border hover:shadow-floating'
-                }`}
-              >
-                {/* Active Speaking Ambient Radial Glow */}
-                {p.isSpeaking && (
-                  <div className="absolute inset-0 bg-radial from-success/20 via-transparent to-transparent pointer-events-none animate-pulse" />
-                )}
-
-                {/* Circular Avatar with Speaking Green Halo & Pulse Waves */}
-                <div className="relative mb-3 flex items-center justify-center">
-                  {p.isSpeaking && (
-                    <span className="absolute -inset-2.5 rounded-full border-2 border-success/40 animate-ping pointer-events-none" />
-                  )}
-                  <div
-                    className={`rounded-full transition-all duration-300 ${
-                      p.isSpeaking
-                        ? 'ring-4 ring-emerald-400 ring-offset-4 ring-offset-surface shadow-[0_0_24px_rgba(16,185,129,0.6)] scale-105'
-                        : isMe
-                        ? 'ring-3 ring-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.4)]'
-                        : 'ring-2 ring-border/80'
-                    }`}
-                  >
-                    <UserAvatar
-                      name={p.displayName}
-                      avatarUrl={p.avatarUrl}
-                      size="2xl"
-                      roundedClassName="rounded-full"
-                      className="w-20 h-20 sm:w-24 sm:h-24 shadow-lg"
-                    />
-                  </div>
-                </div>
-
-                {/* Status Badges in Tile Top-Right */}
-                <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
-                  {p.isMuted && (
-                    <span
-                      className="p-1.5 rounded-full bg-danger text-white shadow-xs border border-danger/30"
-                      title="Microphone đang tắt"
-                    >
-                      <MicrophoneSlash size={14} weight="bold" />
-                    </span>
-                  )}
-                  {p.isDeafened && (
-                    <span
-                      className="relative p-1.5 rounded-full bg-danger text-white shadow-xs border border-danger/30 flex items-center justify-center"
-                      title="Đã tắt toàn bộ âm thanh"
-                    >
-                      <Headphones size={14} weight="fill" />
-                      <span
-                        className="absolute w-[15px] h-[2px] bg-white rotate-45 rounded-full pointer-events-none"
-                        aria-hidden="true"
-                      />
-                    </span>
-                  )}
-                  {p.isScreenSharing && (
-                    <span
-                      className="p-1.5 rounded-full bg-accent-primary text-white shadow-xs"
-                      title="Đang chia sẻ màn hình"
-                    >
-                      <Screencast size={14} weight="bold" />
-                    </span>
-                  )}
-                </div>
-
-                {/* Translucent Bottom Tag */}
-                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between px-3 py-2 rounded-control bg-black/65 backdrop-blur-md border border-white/10 z-10">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="text-xs font-bold text-white truncate max-w-[130px]">
-                      {p.displayName}
-                    </span>
-                    {isMe && (
-                      <span className="text-[10px] text-emerald-300 font-bold px-1.5 py-0.2 rounded bg-emerald-500/25 shrink-0 border border-emerald-500/40">
-                        BẠN
-                      </span>
-                    )}
-                    {isBot && (
-                      <span className="text-[10px] text-white font-bold px-1.5 py-0.2 rounded bg-indigo-600 shrink-0 flex items-center gap-0.5">
-                        <Robot size={11} weight="fill" />
-                        <span>BOT</span>
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {p.isSpeaking ? (
-                      <div className="flex items-center gap-0.5">
-                        <span className="w-1 h-3.5 rounded-full bg-success animate-pulse" />
-                        <span className="w-1 h-2 rounded-full bg-success animate-pulse [animation-delay:150ms]" />
-                        <span className="w-1 h-4 rounded-full bg-success animate-pulse [animation-delay:300ms]" />
-                      </div>
-                    ) : (
-                      /* Audio ping quality bars */
-                      <div className="flex items-end gap-0.5 opacity-60">
-                        <span className="w-0.5 h-1.5 rounded-xs bg-success" />
-                        <span className="w-0.5 h-2.5 rounded-xs bg-success" />
-                        <span className="w-0.5 h-3.5 rounded-xs bg-success" />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* 3. Floating Bottom Dock (Aligned with app footer baseline, chat button removed) */}
-        <div className="shrink-0 flex justify-center pb-2.5 pt-1.5 z-30">
-          <div className="h-[52px] px-3.5 rounded-full bg-surface/95 backdrop-blur-2xl border border-border/80 shadow-floating inline-flex items-center gap-2">
-            {/* Mic Toggle: RED with slash when muted */}
+      {/* 2. Main Voice Stage Viewport with Subtle Radial Glow */}
+      <div className="flex-1 flex flex-col min-h-0 p-2.5 sm:p-5 md:p-6 justify-between overflow-y-auto no-scrollbar relative z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-surface/20 via-chat to-chat">
+        {stageParticipants.length === 0 && !isConnectedHere ? (
+          /* Empty Lobby State when disconnected and room is empty */
+          <div className="w-full flex-1 flex flex-col items-center justify-center text-center max-w-sm sm:max-w-md mx-auto my-auto gap-4 p-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-surface border border-border flex items-center justify-center text-text-secondary shadow-raised">
+              <SpeakerHigh size={32} weight="duotone" className="sm:text-4xl" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-text-primary">
+                {currentChannel.name || 'Kênh thoại'}
+              </h3>
+              <p className="text-[11px] sm:text-xs text-text-muted mt-1 leading-relaxed">
+                Chưa có ai trong phòng thoại này. Nhấn nút bên dưới để kết nối và trò chuyện ngay.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={toggleMute}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                isMuted
-                  ? 'bg-danger text-white hover:bg-danger-hover shadow-[0_0_14px_rgba(242,63,67,0.45)]'
-                  : 'bg-surface hover:bg-surface-active text-text-primary'
-              }`}
-              title={isMuted ? 'Bật Mic' : 'Tắt Mic'}
+              onClick={handleJoinCurrentChannel}
+              className="h-9 sm:h-10 px-5 rounded-full bg-accent-primary text-white hover:bg-accent-hover transition-all font-bold text-xs flex items-center gap-2 cursor-pointer shadow-raised active:scale-95"
             >
-              {isMuted ? (
-                <MicrophoneSlash size={18} weight="bold" />
-              ) : (
-                <Microphone size={18} weight="bold" />
-              )}
-            </button>
-
-            {/* Deafen Toggle: RED with diagonal slash when deafened */}
-            <button
-              type="button"
-              onClick={toggleDeafen}
-              className={`relative w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                isDeafened
-                  ? 'bg-danger text-white hover:bg-danger-hover shadow-[0_0_14px_rgba(242,63,67,0.45)]'
-                  : 'bg-surface hover:bg-surface-active text-text-primary'
-              }`}
-              title={isDeafened ? 'Bật âm thanh' : 'Tắt toàn bộ âm thanh'}
-            >
-              <Headphones size={18} weight={isDeafened ? 'fill' : 'bold'} />
-              {isDeafened && (
-                <span
-                  className="absolute w-[18px] h-[2px] bg-white rotate-45 rounded-full pointer-events-none"
-                  aria-hidden="true"
-                />
-              )}
-            </button>
-
-            {/* Video Camera Toggle */}
-            <button
-              type="button"
-              onClick={() => setIsCameraActive((prev) => !prev)}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                isCameraActive
-                  ? 'bg-accent-primary text-white shadow-sm'
-                  : 'bg-surface hover:bg-surface-active text-text-primary'
-              }`}
-              title={isCameraActive ? 'Tắt Camera' : 'Bật Camera'}
-            >
-              {isCameraActive ? (
-                <VideoCamera size={18} weight="bold" />
-              ) : (
-                <VideoCameraSlash size={18} weight="bold" />
-              )}
-            </button>
-
-            {/* Screen Share Toggle */}
-            <button
-              type="button"
-              onClick={toggleScreenSharing}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                isScreenSharing
-                  ? 'bg-accent-primary text-white shadow-sm'
-                  : 'bg-surface hover:bg-surface-active text-text-primary'
-              }`}
-              title="Chia sẻ màn hình"
-            >
-              <Screencast size={18} weight="bold" />
-            </button>
-
-            {/* Test Speaking Simulation Toggle (Quick mic test feedback) */}
-            <button
-              type="button"
-              onClick={toggleSpeaking}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all cursor-pointer ${
-                isSpeaking
-                  ? 'bg-success text-white shadow-[0_0_14px_rgba(35,165,90,0.45)]'
-                  : 'bg-surface hover:bg-surface-active text-text-primary'
-              }`}
-              title={isSpeaking ? 'Dừng kiểm tra giọng nói' : 'Nói thử (kiểm tra vòng xanh)'}
-            >
-              <Waveform size={18} weight="bold" />
-            </button>
-
-            {/* Divider */}
-            <div className="w-px h-5 bg-border mx-0.5" />
-
-            {/* RED Disconnect Button (Discord End Call Red) */}
-            <button
-              type="button"
-              onClick={handleDisconnect}
-              className="h-9 px-4 rounded-full bg-danger text-white hover:bg-danger-hover transition-all font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-md shadow-danger/25 active:scale-95"
-              title="Ngắt kết nối phòng thoại"
-            >
-              <PhoneDisconnect size={18} weight="bold" />
-              <span>Ngắt kết nối</span>
+              <PhoneCall size={17} weight="bold" />
+              <span>Tham gia kênh thoại</span>
             </button>
           </div>
+        ) : spotlightUser ? (
+          /* Spotlight Mode: Prioritizing Screen Sharing or Camera with Participant Filmstrip */
+          <div className="w-full flex-1 flex flex-col items-center justify-center gap-2.5 sm:gap-4 my-auto max-h-full">
+            {/* Primary Showcase Viewport */}
+            <div
+              className={`w-full max-w-5xl max-h-[50vh] sm:max-h-[64vh] aspect-video bg-surface rounded-card border shadow-raised overflow-hidden relative flex flex-col items-center justify-center transition-all duration-200 ${
+                spotlightUser.isSpeaking
+                  ? 'border-success ring-2 ring-success/60 shadow-[0_0_24px_rgba(34,197,94,0.22)]'
+                  : 'border-border'
+              }`}
+            >
+              {spotlightStream ? (
+                <VideoPlayer
+                  stream={spotlightStream}
+                  className={`w-full h-full ${
+                    spotlightUser.isScreenSharing ? 'object-contain bg-black' : 'object-cover'
+                  }`}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center p-4 text-center">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-surface-active text-text-secondary flex items-center justify-center mb-2.5">
+                    {spotlightUser.isScreenSharing ? (
+                      <Screencast size={28} weight="bold" />
+                    ) : (
+                      <VideoCamera size={28} weight="bold" />
+                    )}
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-text-primary">
+                    {spotlightUser.displayName}{' '}
+                    {spotlightUser.isScreenSharing
+                      ? 'đang chia sẻ màn hình'
+                      : spotlightUser.isCameraActive
+                      ? 'đang bật camera'
+                      : 'đang trên sân khấu'}
+                  </p>
+                  <p className="text-[10px] sm:text-xs text-text-muted mt-0.5">
+                    {isConnectedHere
+                      ? 'Đang đồng bộ luồng video trực tiếp...'
+                      : 'Tham gia kênh thoại để xem phát trực tiếp'}
+                  </p>
+                </div>
+              )}
+
+              {/* Tag bottom-left with Speaking Highlight */}
+              <div
+                className={`absolute bottom-2.5 left-2.5 px-2.5 py-1 rounded-control backdrop-blur-md border text-xs font-semibold flex items-center gap-1.5 z-10 transition-colors ${
+                  spotlightUser.isSpeaking
+                    ? 'bg-surface/95 border-success text-success shadow-xs'
+                    : 'bg-surface/90 border-border text-text-primary'
+                }`}
+              >
+                <span className="truncate max-w-[130px] sm:max-w-[200px]">
+                  {spotlightUser.displayName}
+                </span>
+                {spotlightUser.isSpeaking && (
+                  <Waveform size={13} weight="bold" className="text-success animate-pulse" />
+                )}
+                {spotlightUser.isMuted && (
+                  <MicrophoneSlash size={12} weight="bold" className="text-danger" />
+                )}
+              </div>
+
+              {/* Top-Right Showcase Controls: Screen Share Fullscreen & Unfocus */}
+              <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 z-10">
+                <button
+                  type="button"
+                  onClick={handleToggleFullscreen}
+                  className="p-1.5 sm:p-2 rounded-control bg-surface/85 backdrop-blur-md border border-border text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                  title={isFullscreen ? 'Thu nhỏ' : 'Toàn màn hình luồng phát'}
+                >
+                  <CornersOut size={15} weight="bold" />
+                </button>
+                {focusedUserId && (
+                  <button
+                    type="button"
+                    onClick={() => setFocusedUserId(null)}
+                    className="p-1.5 sm:p-2 rounded-control bg-surface/85 backdrop-blur-md border border-border text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+                    title="Thu nhỏ về dạng lưới"
+                  >
+                    <ArrowsInSimple size={15} weight="bold" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Compact Participant Filmstrip Under Showcase (Smooth Horizontal Scroll on Mobile) */}
+            <div className="flex items-center justify-start sm:justify-center gap-1.5 sm:gap-2 overflow-x-auto py-1 px-1 max-w-5xl w-full no-scrollbar">
+              {stageParticipants.map((p) => {
+                const isFocused = sameId(p.userId, spotlightUser.userId);
+                return (
+                  <button
+                    key={p.userId}
+                    type="button"
+                    onClick={() => setFocusedUserId(isFocused ? null : p.userId)}
+                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 rounded-full bg-surface/90 backdrop-blur-xs border transition-all cursor-pointer shrink-0 ${
+                      isFocused
+                        ? 'border-accent-primary ring-1 ring-accent-primary/60 bg-surface-active'
+                        : p.isSpeaking
+                        ? 'border-success ring-1 ring-success/60 bg-surface-active shadow-xs'
+                        : 'border-border hover:border-border-hover'
+                    }`}
+                  >
+                    <div className="relative shrink-0">
+                      <UserAvatar
+                        name={p.displayName}
+                        avatarUrl={p.avatarUrl}
+                        size="sm"
+                        roundedClassName="rounded-full"
+                        className={
+                          p.isSpeaking
+                            ? 'ring-2 ring-success ring-offset-1 ring-offset-surface'
+                            : ''
+                        }
+                      />
+                    </div>
+                    <span
+                      className={`text-[11px] sm:text-xs font-semibold truncate max-w-[70px] sm:max-w-[110px] ${
+                        p.isSpeaking ? 'text-success' : 'text-text-primary'
+                      }`}
+                    >
+                      {p.displayName}
+                    </span>
+                    {p.isSpeaking && (
+                      <Waveform
+                        size={12}
+                        weight="bold"
+                        className="text-success animate-pulse shrink-0"
+                      />
+                    )}
+                    {p.isMuted && (
+                      <MicrophoneSlash size={11} weight="bold" className="text-danger shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Adaptive Grid Layout with Prominent Green Speaking Rings */
+          <div className="w-full flex-1 flex items-center justify-center my-auto p-1">
+            <div className={`w-full grid gap-2.5 sm:gap-4 md:gap-5 justify-center ${gridClasses}`}>
+              {stageParticipants.map((p) => {
+                const isMe = sameId(p.userId, currentUser?.id);
+                const volume = userVolumes[p.userId] ?? userVolumes[p.userId.toLowerCase()] ?? 100;
+                const isVolumeOpen = activeVolumeUserId === p.userId;
+                const tileStream = getParticipantStream(p);
+
+                return (
+                  <div
+                    key={p.userId}
+                    className={`relative group flex flex-col items-center justify-center p-3.5 sm:p-5 md:p-6 rounded-card border transition-all duration-200 min-h-[140px] sm:min-h-[180px] md:min-h-[210px] shadow-raised overflow-hidden bg-surface ${
+                      p.isSpeaking
+                        ? 'border-success/80 ring-2 ring-success/30 shadow-[0_0_24px_rgba(34,197,94,0.22)] bg-surface-active/50'
+                        : 'border-border hover:border-border-hover'
+                    }`}
+                  >
+                    {/* Live Video Stream inside Tile if active */}
+                    {tileStream && (
+                      <div className="absolute inset-0 z-0">
+                        <VideoPlayer stream={tileStream} className="w-full h-full object-cover" />
+                      </div>
+                    )}
+
+                    {/* Participant Avatar with Green Speaking Glow Ring */}
+                    {!tileStream && (
+                      <div className="relative mb-2 sm:mb-3 flex items-center justify-center z-10">
+                        <div
+                          className={`rounded-full transition-all duration-200 p-1 ${
+                            p.isSpeaking
+                              ? 'ring-3 ring-success ring-offset-2 ring-offset-surface shadow-[0_0_16px_rgba(34,197,94,0.4)]'
+                              : 'ring-1 ring-border'
+                          }`}
+                        >
+                          <UserAvatar
+                            name={p.displayName}
+                            avatarUrl={p.avatarUrl}
+                            size="2xl"
+                            roundedClassName="rounded-full"
+                            className="w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 shadow-raised transition-transform duration-200"
+                          />
+                        </div>
+
+                        {/* Live microphone level wave indicator (Self only) */}
+                        {isMe && !isMuted && liveAudioLevel > 0.05 && (
+                          <div className="absolute -bottom-1.5 flex items-center gap-0.5 bg-surface px-1.5 py-0.5 rounded-full border border-border text-success text-[10px] shadow-xs">
+                            <Waveform size={12} weight="bold" className="animate-pulse" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Status Badges in Tile Top-Right */}
+                    <div className="absolute top-2.5 right-2.5 flex items-center gap-1 sm:gap-1.5 z-10">
+                      {p.isMuted && (
+                        <span
+                          className="p-1 sm:p-1.5 rounded-full bg-danger-soft text-danger border border-danger/20 shadow-raised"
+                          title="Microphone đang tắt"
+                        >
+                          <MicrophoneSlash size={13} weight="bold" />
+                        </span>
+                      )}
+                      {p.isDeafened && (
+                        <span
+                          className="p-1 sm:p-1.5 rounded-full bg-danger-soft text-danger border border-danger/20 shadow-raised"
+                          title="Đã tắt âm thanh"
+                        >
+                          <Headphones size={13} weight="fill" />
+                        </span>
+                      )}
+                      {p.isScreenSharing && (
+                        <span
+                          className="p-1 sm:p-1.5 rounded-full bg-surface-active text-text-primary border border-border shadow-raised"
+                          title="Đang chia sẻ màn hình"
+                        >
+                          <Screencast size={13} weight="bold" />
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setFocusedUserId(p.userId)}
+                        className="opacity-0 group-hover:opacity-100 p-1 sm:p-1.5 rounded-full bg-surface/90 text-text-muted hover:text-text-primary border border-border transition-opacity cursor-pointer shadow-xs"
+                        title="Phóng to trên sân khấu"
+                      >
+                        <ArrowsOutSimple size={13} weight="bold" />
+                      </button>
+                    </div>
+
+                    {/* Translucent Bottom Tag with Green Speaking Pill */}
+                    <div className="w-full mt-auto px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-control bg-chat/90 backdrop-blur-md border border-border flex items-center justify-between text-xs font-semibold z-10">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-text-primary truncate font-bold max-w-[110px] sm:max-w-[160px]">
+                          {p.displayName}
+                        </span>
+                        {isMe && (
+                          <span className="text-[10px] text-text-muted font-normal shrink-0">
+                            (bạn)
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {p.isSpeaking && (
+                          <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-success bg-success/15 px-1.5 sm:px-2 py-0.5 rounded-full border border-success/30 animate-pulse">
+                            <Waveform size={12} weight="bold" />
+                            <span className="hidden sm:inline">Đang nói</span>
+                          </span>
+                        )}
+
+                        {/* Volume Adjuster Button for Remote Participants */}
+                        {!isMe && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setActiveVolumeUserId(isVolumeOpen ? null : p.userId)
+                            }
+                            className="p-1 rounded-control text-text-muted hover:text-text-primary hover:bg-surface-active transition-colors cursor-pointer"
+                            title="Điều chỉnh âm lượng người này"
+                          >
+                            <Sliders size={13} weight="bold" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Popover slider to tune per-user volume */}
+                    {isVolumeOpen && !isMe && (
+                      <div className="absolute inset-x-2.5 bottom-11 sm:bottom-12 p-3 rounded-card bg-surface/98 backdrop-blur-md border border-border shadow-floating z-30 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-text-primary">Âm lượng</span>
+                          <span className="font-mono text-text-secondary font-bold">{volume}%</span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveVolumeUserId(null)}
+                            className="p-0.5 text-text-muted hover:text-text-primary"
+                          >
+                            <X size={12} weight="bold" />
+                          </button>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={200}
+                          value={volume}
+                          onChange={(e) =>
+                            setUserVolume(p.userId, Number(e.target.value))
+                          }
+                          className="w-full accent-accent-primary cursor-pointer h-1.5 bg-surface-active rounded-control"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 3. Floating Bottom Controls Dock with Safe-Area Inset Support */}
+        <div
+          className={`shrink-0 flex justify-center pb-[max(0.6rem,env(safe-area-inset-bottom))] pt-2 z-30 px-2 max-w-full transition-all duration-300 ease-in-out ${
+            isControlsHidden
+              ? 'opacity-0 translate-y-full pointer-events-none'
+              : 'opacity-100 translate-y-0 pointer-events-auto'
+          }`}
+        >
+          {isConnectedHere ? (
+            <div className="h-11 sm:h-[52px] px-2.5 sm:px-4 rounded-full bg-surface/95 backdrop-blur-xl border border-border shadow-floating inline-flex items-center gap-1.5 sm:gap-2 max-w-full overflow-x-auto no-scrollbar">
+              {/* Mic Toggle */}
+              <button
+                type="button"
+                onClick={toggleMute}
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                  isMuted
+                    ? 'bg-danger text-white hover:bg-danger-hover shadow-raised'
+                    : 'bg-surface hover:bg-surface-active text-text-primary border border-border'
+                }`}
+                title={isMuted ? 'Bật Mic' : 'Tắt Mic'}
+              >
+                {isMuted ? (
+                  <MicrophoneSlash size={16} weight="bold" className="sm:text-lg" />
+                ) : (
+                  <Microphone size={16} weight="bold" className="sm:text-lg" />
+                )}
+              </button>
+
+              {/* Deafen Toggle */}
+              <button
+                type="button"
+                onClick={toggleDeafen}
+                className={`relative w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                  isDeafened
+                    ? 'bg-danger text-white hover:bg-danger-hover shadow-raised'
+                    : 'bg-surface hover:bg-surface-active text-text-primary border border-border'
+                }`}
+                title={isDeafened ? 'Bật âm thanh' : 'Tắt toàn bộ âm thanh'}
+              >
+                <Headphones size={16} weight={isDeafened ? 'fill' : 'bold'} className="sm:text-lg" />
+                {isDeafened && (
+                  <span
+                    className="absolute w-4 sm:w-[18px] h-[2px] bg-white rotate-45 rounded-full pointer-events-none"
+                    aria-hidden="true"
+                  />
+                )}
+              </button>
+
+              {/* Video Camera Toggle */}
+              <button
+                type="button"
+                onClick={toggleCamera}
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                  isCameraActive
+                    ? 'bg-surface-active text-text-primary border border-border-hover shadow-raised'
+                    : 'bg-surface hover:bg-surface-active text-text-primary border border-border'
+                }`}
+                title={isCameraActive ? 'Tắt Camera' : 'Bật Camera'}
+              >
+                {isCameraActive ? (
+                  <VideoCamera size={16} weight="bold" className="sm:text-lg" />
+                ) : (
+                  <VideoCameraSlash size={16} weight="bold" className="sm:text-lg" />
+                )}
+              </button>
+
+              {/* Screen Share Toggle */}
+              <button
+                type="button"
+                onClick={toggleScreenSharing}
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 ${
+                  isScreenSharing
+                    ? 'bg-surface-active text-text-primary border border-border-hover shadow-raised'
+                    : 'bg-surface hover:bg-surface-active text-text-primary border border-border'
+                }`}
+                title={isScreenSharing ? 'Dừng chia sẻ' : 'Chia sẻ màn hình'}
+              >
+                <Screencast size={16} weight="bold" className="sm:text-lg" />
+              </button>
+
+              {/* Fullscreen Quick Toggle */}
+              <button
+                type="button"
+                onClick={handleToggleFullscreen}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center bg-surface hover:bg-surface-active text-text-primary border border-border transition-all cursor-pointer shrink-0"
+                title={isFullscreen ? 'Thoát toàn màn hình' : 'Toàn màn hình'}
+              >
+                {isFullscreen ? (
+                  <ArrowsInSimple size={16} weight="bold" />
+                ) : (
+                  <ArrowsOutSimple size={16} weight="bold" />
+                )}
+              </button>
+
+              {/* Divider */}
+              <div className="w-px h-4 sm:h-5 bg-border mx-0.5 shrink-0" />
+
+              {/* RED Disconnect Button */}
+              <button
+                type="button"
+                onClick={handleDisconnect}
+                className="h-8 px-3 sm:h-9 sm:px-4 rounded-full bg-danger text-white hover:bg-danger-hover transition-all font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-raised active:scale-95 shrink-0"
+                title="Ngắt kết nối phòng thoại"
+              >
+                <PhoneDisconnect size={16} weight="bold" className="sm:text-lg" />
+                <span className="hidden xs:inline">Ngắt kết nối</span>
+              </button>
+            </div>
+          ) : stageParticipants.length > 0 ? (
+            <button
+              type="button"
+              onClick={handleJoinCurrentChannel}
+              className="h-9 sm:h-10 px-5 rounded-full bg-accent-primary text-white hover:bg-accent-hover transition-all font-bold text-xs flex items-center gap-2 cursor-pointer shadow-floating active:scale-95"
+            >
+              <PhoneCall size={17} weight="bold" />
+              <span>Tham gia kênh thoại</span>
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

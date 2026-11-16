@@ -27,10 +27,12 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResu
 
     public async Task<Result<AuthResultDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var input = request.EmailOrUsername.Trim().ToLowerInvariant();
+        var input = request.EmailOrUsername.Trim();
+        var normalized = input.ToUpperInvariant();
 
+        // Query indexed normalized columns (EmailIndex & UserNameIndex) to prevent full table Sequential Scans
         var user = await _userManager.Users
-            .FirstOrDefaultAsync(u => u.Email == input || u.UserName == input, cancellationToken: cancellationToken);
+            .FirstOrDefaultAsync(u => u.NormalizedEmail == normalized || u.NormalizedUserName == normalized, cancellationToken: cancellationToken);
 
         if (user == null)
         {
@@ -50,7 +52,11 @@ public class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResu
             return Error.Unauthorized("Auth.InvalidCredentials", "Invalid email/username or password.");
         }
 
-        await _userManager.ResetAccessFailedCountAsync(user);
+        // Only issue database reset if access failures were previously recorded
+        if (user.AccessFailedCount > 0)
+        {
+            await _userManager.ResetAccessFailedCountAsync(user);
+        }
 
         var (accessToken, expiresAt) = _jwtService.GenerateAccessToken(user.Id, user.Email ?? string.Empty, user.UserName ?? string.Empty);
         var rawRefreshToken = _jwtService.GenerateRefreshToken();

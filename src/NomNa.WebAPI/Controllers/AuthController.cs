@@ -1,13 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNa.Application.Features.Auth.Commands.ChangePassword;
 using NomNa.Application.Features.Auth.Commands.ForgotPassword;
 using NomNa.Application.Features.Auth.Commands.GoogleLogin;
 using NomNa.Application.Features.Auth.Commands.Login;
+using NomNa.Application.Features.Auth.Commands.Logout;
 using NomNa.Application.Features.Auth.Commands.RefreshToken;
 using NomNa.Application.Features.Auth.Commands.Register;
 using NomNa.Application.Features.Auth.Commands.ResendVerification;
 using NomNa.Application.Features.Auth.Commands.ResetPassword;
 using NomNa.Application.Features.Auth.Commands.UpdateProfile;
+using NomNa.Application.Features.Auth.Commands.UpdateStatusPreference;
 using NomNa.Application.Features.Auth.Commands.VerifyEmail;
 using NomNa.Application.Features.Auth.Queries.GetCurrentUser;
 
@@ -92,10 +95,26 @@ public class AuthController : ApiControllerBase
     }
 
     [HttpPost("logout")]
-    public IActionResult Logout()
+    public async Task<IActionResult> Logout([FromBody] LogoutCommand? command)
     {
+        var tokenFromCookie = Request.Cookies["refresh_token"];
+        var refreshToken = !string.IsNullOrEmpty(command?.RefreshToken) ? command.RefreshToken : tokenFromCookie;
+
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            await Mediator.Send(new LogoutCommand(refreshToken, command?.RevokeAllDevices ?? false));
+        }
+
         ClearAuthCookies();
         return Ok(new { message = "Logged out successfully" });
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
     }
 
     [HttpPost("forgot-password")]
@@ -137,6 +156,14 @@ public class AuthController : ApiControllerBase
     [Authorize]
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommand command)
+    {
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [Authorize]
+    [HttpPut("status-preference")]
+    public async Task<IActionResult> UpdateStatusPreference([FromBody] UpdateStatusPreferenceCommand command)
     {
         var result = await Mediator.Send(command);
         return HandleResult(result);

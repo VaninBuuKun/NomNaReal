@@ -346,6 +346,19 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       },
     }));
 
+    const isDm = Boolean(
+      currentChannel &&
+        (currentChannel.type === 2 ||
+          currentChannel.type === ChannelType.DirectMessage ||
+          !currentChannel.serverId)
+    );
+    const dmPartner = isDm
+      ? workspaceMembers.find((m) => m.id !== currentUser?.id)
+      : null;
+    const channelDisplayName = isDm
+      ? (dmPartner?.displayName || dmPartner?.username || (currentChannel?.name !== 'Direct Message' ? currentChannel?.name : 'người dùng'))
+      : currentChannel?.name;
+
     if (showSkeleton && messages.length === 0) {
       return (
         <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col relative bg-chat animate-in fade-in duration-300">
@@ -364,16 +377,14 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                 <HandWaving size={26} weight="fill" className="text-white" />
               </div>
               <h3 className="text-xl font-bold text-text-primary tracking-tight">
-                {currentChannel.type === 2 ||
-                currentChannel.type === ChannelType.DirectMessage
-                  ? `Đoạn chat riêng với ${currentChannel.name}`
-                  : `Chào mừng bạn đến với kênh #${currentChannel.name}!`}
+                {isDm
+                  ? `Đoạn chat riêng với ${channelDisplayName}`
+                  : `Chào mừng bạn đến với kênh #${channelDisplayName}!`}
               </h3>
               <p className="text-xs text-text-muted leading-relaxed max-w-xl">
-                {currentChannel.type === 2 ||
-                currentChannel.type === ChannelType.DirectMessage
-                  ? `Đây là sự bắt đầu của lịch sử trò chuyện trực tiếp giữa bạn và ${currentChannel.name}. Tin nhắn được bảo mật riêng tư.`
-                  : `Điểm bắt đầu cho kênh #${currentChannel.name}. Hãy gửi tin nhắn đầu tiên để khuấy động phòng chat nhé~ (≧◡≦)`}
+                {isDm
+                  ? `Đây là sự bắt đầu của lịch sử trò chuyện trực tiếp giữa bạn và ${channelDisplayName}. Tin nhắn được bảo mật riêng tư.`
+                  : `Điểm bắt đầu cho kênh #${channelDisplayName}. Hãy gửi tin nhắn đầu tiên để khuấy động phòng chat nhé~ (≧◡≦)`}
               </p>
             </div>
           ) : (
@@ -387,13 +398,6 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
 
     return (
       <div className="flex-1 min-h-0 w-full overflow-hidden flex flex-col relative bg-chat">
-        {/* Sleek top loading line indicator for non-intrusive feedback */}
-        {isLoadingMessages && (
-          <div className="absolute top-0 left-0 right-0 h-0.5 bg-accent-soft overflow-hidden z-20 pointer-events-none">
-            <div className="h-full bg-accent-primary animate-pulse w-full" />
-          </div>
-        )}
-
         {/* Jump to first unread (shown only while the divider is scrolled above the viewport) */}
         {firstUnreadId && isUnreadAbove && !unreadPillDismissed && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 animate-in fade-in slide-in-from-top-2 duration-150">
@@ -422,6 +426,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
         <Virtuoso
           key={currentChannel?.id || "empty-channel"}
           ref={virtuosoRef}
+          alignToBottom={true}
           firstItemIndex={firstItemIndex}
           initialTopMostItemIndex={(() => {
             const saved = currentChannel?.id ? channelScrollMemory.get(currentChannel.id) : undefined;
@@ -430,9 +435,6 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               if (targetIdx !== -1) {
                 return { index: firstItemIndex + targetIdx, align: "start" };
               }
-            }
-            if (!hasMoreMessages && messages.length <= 15) {
-              return { index: firstItemIndex, align: "start" };
             }
             return messages.length > 0
               ? { index: firstItemIndex + messages.length - 1, align: "end" }
@@ -555,16 +557,14 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                       <HandWaving size={26} weight="fill" className="text-white" />
                     </div>
                     <h3 className="text-xl font-bold text-text-primary tracking-tight">
-                      {currentChannel.type === 2 ||
-                      currentChannel.type === ChannelType.DirectMessage
-                        ? `Đoạn chat riêng với ${currentChannel.name}`
-                        : `Chào mừng bạn đến với kênh #${currentChannel.name}!`}
+                      {isDm
+                        ? `Đoạn chat riêng với ${channelDisplayName}`
+                        : `Chào mừng bạn đến với kênh #${channelDisplayName}!`}
                     </h3>
                     <p className="text-xs text-text-muted leading-relaxed max-w-xl">
-                      {currentChannel.type === 2 ||
-                      currentChannel.type === ChannelType.DirectMessage
-                        ? `Đây là sự bắt đầu của lịch sử trò chuyện trực tiếp giữa bạn và ${currentChannel.name}. Tin nhắn được bảo mật riêng tư.`
-                        : `Điểm bắt đầu cho kênh #${currentChannel.name}. Hãy gửi tin nhắn đầu tiên để khuấy động phòng chat nhé~ (≧◡≦)`}
+                      {isDm
+                        ? `Đây là sự bắt đầu của lịch sử trò chuyện trực tiếp giữa bạn và ${channelDisplayName}. Tin nhắn được bảo mật riêng tư.`
+                        : `Điểm bắt đầu cho kênh #${channelDisplayName}. Hãy gửi tin nhắn đầu tiên để khuấy động phòng chat nhé~ (≧◡≦)`}
                     </p>
                   </div>
                 )}

@@ -34,6 +34,16 @@ using (var scope = app.Services.CreateScope())
 
 // 6. Middleware Pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// Security Headers (OWASP recommendations)
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    await next();
+});
+
 app.UseCors("CorsPolicy");
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -43,13 +53,16 @@ app.UseAuthorization();
 
 // Health Check Endpoints (for Docker & Load Balancers)
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
-app.MapGet("/health/ready", async (ApplicationDbContext db) =>
+app.MapGet("/health/ready", async (ApplicationDbContext db, IServiceProvider sp) =>
 {
     try
     {
-        var canConnect = await db.Database.CanConnectAsync();
-        return canConnect 
-            ? Results.Ok(new { status = "ready", database = "connected" }) 
+        var canConnectDb = await db.Database.CanConnectAsync();
+        var redis = sp.GetService<StackExchange.Redis.IConnectionMultiplexer>();
+        var isRedisConnected = redis?.IsConnected ?? true;
+
+        return (canConnectDb && isRedisConnected)
+            ? Results.Ok(new { status = "ready", database = "connected", redis = isRedisConnected ? "connected" : "disconnected" }) 
             : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
     }
     catch
@@ -63,3 +76,5 @@ app.MapHub<ChatHub>(SignalRConstants.HubUrl);
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+public partial class Program { }

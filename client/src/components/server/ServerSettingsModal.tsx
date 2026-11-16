@@ -98,7 +98,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title=""
+      showCloseButton={false}
       size="xl"
       className="max-w-4xl h-[620px] p-0 overflow-hidden flex flex-col"
     >
@@ -195,7 +195,16 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
         </div>
 
         {/* 2. Right Main Tab Content */}
-        <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-chat)] overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-chat)] overflow-hidden relative">
+          {/* Top-right floating close button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer border border-[var(--border-color)] bg-[var(--bg-surface)] shadow-xs"
+            title="Đóng (ESC)"
+          >
+            <X size={16} />
+          </button>
           {activeTab === 'overview' && (
             <ServerOverviewTab
               workspace={workspace}

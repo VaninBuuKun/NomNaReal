@@ -39,7 +39,7 @@ interface ChatAreaProps {
       fileName: string;
       fileSize: number;
       contentType: string;
-      type: "image" | "video" | "file";
+      type: "image" | "video" | "file" | "audio";
     }>,
     replyToMessageId?: string
   ) => Promise<void>;
@@ -307,7 +307,10 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         (currentChannel.type === 2 || currentChannel.type === ChannelType.DirectMessage))
   );
   const dmUser = activeDm?.user;
-  const isVoice = Boolean(currentChannel && currentChannel.type === ChannelType.Voice);
+  const isVoice = Boolean(
+    currentChannel &&
+      (currentChannel.type === ChannelType.Voice || Number(currentChannel.type) === 1)
+  );
 
   const handleStartCall = (isVideo: boolean) => {
     const target = dmUser || workspaceMembers?.find((m) => m.id !== currentUser?.id);
@@ -562,6 +565,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             currentUser={currentUser}
             isChatOpen={isTextChatOpen}
             onToggleChat={toggleTextChat}
+            isMemberListOpen={isMemberListOpen}
+            onToggleMemberList={onToggleMemberList}
             onLeaveVoice={leaveVoice}
           />
         </div>

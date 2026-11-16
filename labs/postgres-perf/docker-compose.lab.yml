@@ -1,0 +1,30 @@
+services:
+  postgres-lab:
+    image: postgres:16-alpine
+    container_name: nomna_postgres_lab
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: NomNaLab
+      POSTGRES_USER: lab_user
+      POSTGRES_PASSWORD: lab_password
+    ports:
+      - "5436:5432"
+    volumes:
+      - pg_lab_data:/var/lib/postgresql/data
+      - ./01_init_raw_schema.sql:/docker-entrypoint-initdb.d/01_init_raw_schema.sql:ro
+    # Cấu hình tài nguyên để đo đạc thực tế
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c work_mem=16MB
+      -c maintenance_work_mem=64MB
+      -c track_io_timing=on
+    deploy:
+      resources:
+        limits:
+          cpus: "2.00"
+          memory: 1024M
+
+volumes:
+  pg_lab_data:
+

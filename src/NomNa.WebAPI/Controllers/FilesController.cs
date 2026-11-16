@@ -18,7 +18,7 @@ public class FilesController : ApiControllerBase
         // Videos (extensible for high-definition streaming & storage up to 100MB)
         ".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v",
         // Audio
-        ".mp3", ".wav", ".ogg", ".m4a",
+        ".mp3", ".wav", ".ogg", ".m4a", ".opus",
         // Documents & Archives
         ".pdf", ".txt", ".md", ".json", ".doc", ".docx", ".xls", ".xlsx", ".zip", ".tar", ".gz", ".7z"
     };

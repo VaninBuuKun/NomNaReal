@@ -27,6 +27,10 @@ export const authApi = {
     return res.data;
   },
 
+  updateStatusPreference: async (preference: number): Promise<void> => {
+    await httpClient.put('/auth/status-preference', { preference });
+  },
+
   refresh: async (userId?: string): Promise<AuthResponse> => {
     const res = await httpClient.post<AuthResponse>('/auth/refresh', { userId });
     return res.data;

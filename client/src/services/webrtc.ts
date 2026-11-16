@@ -1,6 +1,7 @@
 import { signalRService } from "./signalr";
 import { callSound } from "./callSound";
 import { useCallStore } from "../stores/useCallStore";
+import { useVoiceStore } from "../stores/useVoiceStore";
 import type {
   CallPeer,
   CallOfferPayload,
@@ -313,6 +314,10 @@ class WebRtcService {
       return;
     }
 
+    if (useVoiceStore.getState().connectedChannelId) {
+      useVoiceStore.getState().leaveVoice();
+    }
+
     this.cleanup();
     const sid = this.sessionId;
     this.activePeerId = peer.id;
@@ -381,6 +386,10 @@ class WebRtcService {
   public async acceptCall(): Promise<void> {
     const { incomingOffer, callStatus } = useCallStore.getState();
     if (!incomingOffer || callStatus !== "incoming") return;
+
+    if (useVoiceStore.getState().connectedChannelId) {
+      useVoiceStore.getState().leaveVoice();
+    }
 
     this.clearTimers();
     callSound.stop();
