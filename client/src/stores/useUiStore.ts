@@ -71,7 +71,7 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  activeSidebarView: 'channels',
+  activeSidebarView: 'dms',
   isMemberListOpen: localStorage.getItem('nomna_member_list_open') !== 'false',
   isSearchOpen: false,
   isMobileSidebarOpen: false,

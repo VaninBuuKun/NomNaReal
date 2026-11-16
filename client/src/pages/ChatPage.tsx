@@ -1006,6 +1006,17 @@ export const ChatPage: React.FC = () => {
         }
       }
     } else if (serverId) {
+      // If server does not exist in user's workspace list, redirect to /channels/@me
+      if (!workspaces.some((w) => w.id === serverId)) {
+        setActiveSidebarView("dms");
+        setActiveWorkspaceId(null);
+        setActiveDmId(null);
+        setActiveChannelId(null);
+        activeChannelIdRef.current = null;
+        navigate("/channels/@me", { replace: true });
+        return;
+      }
+
       if (activeSidebarView !== "channels") {
         setActiveSidebarView("channels");
       }
