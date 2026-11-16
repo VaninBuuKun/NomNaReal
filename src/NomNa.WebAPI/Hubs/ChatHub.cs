@@ -146,6 +146,9 @@ public partial class ChatHub : Hub
 
         if (Guid.TryParse(userIdStr, out var userId))
         {
+            // Clean up any voice channel room the user was connected to
+            await CleanupUserVoiceChannelsAsync(userId);
+
             // If user disconnects during an active call, notify partner with CallEnded
             if (_activeCalls.TryRemove(userId, out var partnerId))
             {

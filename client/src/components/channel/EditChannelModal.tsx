@@ -26,7 +26,7 @@ export const EditChannelModal: React.FC<EditChannelModalProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const isGeneralChannel = channel?.name?.toLowerCase() === "general";
-  const isVoice = channel?.type === ChannelType.Voice;
+  const isVoice = channel?.type === ChannelType.Voice || Number(channel?.type) === 1;
 
   useEffect(() => {
     if (channel) {

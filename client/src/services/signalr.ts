@@ -11,6 +11,10 @@ import type {
   IceCandidatePayload,
   CallRejectedPayload,
   CallEndedPayload,
+  VoiceParticipant,
+  VoiceStateChangedPayload,
+  VoiceUserLeftPayload,
+  VoiceSignalPayload,
 } from "../types";
 
 export type ConnectionStatus = "connected" | "reconnecting" | "disconnected";
@@ -18,6 +22,18 @@ export type ConnectionStatus = "connected" | "reconnecting" | "disconnected";
 export class SignalRService {
   private connection: signalR.HubConnection | null = null;
   private currentChannelId: string | null = null;
+  private activeVoiceJoin: {
+    channelId: string;
+    isMuted: boolean;
+    isDeafened: boolean;
+  } | null = null;
+  private voiceCallbacks: {
+    currentParticipants?: (participants: VoiceParticipant[]) => void;
+    userJoined?: (participant: VoiceParticipant) => void;
+    userLeft?: (payload: VoiceUserLeftPayload) => void;
+    stateChanged?: (payload: VoiceStateChangedPayload) => void;
+    signalReceived?: (payload: VoiceSignalPayload) => void;
+  } = {};
   private reconnectedCallbacks: Array<(connectionId?: string) => void> = [];
   private statusListeners: Array<(status: ConnectionStatus) => void> = [];
   private status: ConnectionStatus = "connected";
@@ -126,6 +142,19 @@ export class SignalRService {
           console.error("Failed to rejoin channel after reconnect:", err);
         }
       }
+      // Automatically rejoin active voice channel after reconnect
+      if (this.activeVoiceJoin) {
+        try {
+          await this.connection?.invoke(
+            "JoinVoiceChannel",
+            this.activeVoiceJoin.channelId,
+            this.activeVoiceJoin.isMuted,
+            this.activeVoiceJoin.isDeafened,
+          );
+        } catch (err) {
+          console.error("Failed to rejoin voice channel after reconnect:", err);
+        }
+      }
       // Notify listeners to perform gap-fill sync
       for (const cb of this.reconnectedCallbacks) {
         try {
@@ -135,6 +164,8 @@ export class SignalRService {
         }
       }
     });
+
+    this.bindVoiceCallbacks();
 
     this.connection.on("ReceiveMessage", (message: Message) => {
       onMessageReceived(message);
@@ -160,6 +191,19 @@ export class SignalRService {
             await this.connection.invoke("JoinChannel", this.currentChannelId);
           } catch (joinErr) {
             console.error("Failed to join channel on initial connect:", joinErr);
+          }
+        }
+
+        if (this.activeVoiceJoin) {
+          try {
+            await this.connection.invoke(
+              "JoinVoiceChannel",
+              this.activeVoiceJoin.channelId,
+              this.activeVoiceJoin.isMuted,
+              this.activeVoiceJoin.isDeafened,
+            );
+          } catch (voiceErr) {
+            console.error("Failed to join voice channel on initial connect:", voiceErr);
           }
         }
       }
@@ -705,6 +749,257 @@ export class SignalRService {
     if (this.connection) {
       if (callback) this.connection.off("ReceiveIceCandidate", callback);
       else this.connection.off("ReceiveIceCandidate");
+    }
+  }
+
+  // ==========================================
+  // Multi-user Voice Channel Signaling Methods
+  // ==========================================
+
+  private bindVoiceCallbacks(): void {
+    if (!this.connection) return;
+    if (this.voiceCallbacks.currentParticipants) {
+      this.connection.off("CurrentVoiceParticipants");
+      this.connection.on(
+        "CurrentVoiceParticipants",
+        this.voiceCallbacks.currentParticipants,
+      );
+    }
+    if (this.voiceCallbacks.userJoined) {
+      this.connection.off("UserJoinedVoice");
+      this.connection.on("UserJoinedVoice", this.voiceCallbacks.userJoined);
+    }
+    if (this.voiceCallbacks.userLeft) {
+      this.connection.off("UserLeftVoice");
+      this.connection.on("UserLeftVoice", this.voiceCallbacks.userLeft);
+    }
+    if (this.voiceCallbacks.stateChanged) {
+      this.connection.off("VoiceStateChanged");
+      this.connection.on("VoiceStateChanged", this.voiceCallbacks.stateChanged);
+    }
+    if (this.voiceCallbacks.signalReceived) {
+      this.connection.off("VoiceSignalReceived");
+      this.connection.on(
+        "VoiceSignalReceived",
+        this.voiceCallbacks.signalReceived,
+      );
+    }
+  }
+
+  public async getServerVoiceParticipants(
+    serverId: string,
+  ): Promise<VoiceParticipant[]> {
+    if (!serverId) return [];
+    if (
+      this.connection &&
+      this.connection.state === signalR.HubConnectionState.Connected
+    ) {
+      try {
+        return await this.connection.invoke<VoiceParticipant[]>(
+          "GetServerVoiceParticipants",
+          serverId,
+        );
+      } catch (err) {
+        console.warn("Failed to invoke GetServerVoiceParticipants:", err);
+      }
+    }
+    return [];
+  }
+
+  public async joinVoiceChannel(
+    channelId: string,
+    isMuted = false,
+    isDeafened = false,
+  ): Promise<void> {
+    if (!channelId) return;
+    this.activeVoiceJoin = { channelId, isMuted, isDeafened };
+    if (
+      this.connection &&
+      this.connection.state === signalR.HubConnectionState.Connected
+    ) {
+      try {
+        await this.connection.invoke(
+          "JoinVoiceChannel",
+          channelId,
+          isMuted,
+          isDeafened,
+        );
+      } catch (err) {
+        console.error("Failed to invoke JoinVoiceChannel:", err);
+        throw err;
+      }
+    }
+  }
+
+  public async leaveVoiceChannel(channelId: string): Promise<void> {
+    if (!channelId) return;
+    if (this.activeVoiceJoin?.channelId === channelId) {
+      this.activeVoiceJoin = null;
+    }
+    if (
+      this.connection &&
+      this.connection.state === signalR.HubConnectionState.Connected
+    ) {
+      try {
+        await this.connection.invoke("LeaveVoiceChannel", channelId);
+      } catch (err) {
+        console.warn("Failed to invoke LeaveVoiceChannel:", err);
+      }
+    }
+  }
+
+  public async updateVoiceState(
+    channelId: string,
+    isMuted: boolean,
+    isDeafened: boolean,
+    isSpeaking: boolean,
+    isScreenSharing: boolean,
+    isCameraActive: boolean,
+  ): Promise<void> {
+    if (!channelId) return;
+    if (this.activeVoiceJoin?.channelId === channelId) {
+      this.activeVoiceJoin = { channelId, isMuted, isDeafened };
+    }
+    if (
+      this.connection &&
+      this.connection.state === signalR.HubConnectionState.Connected
+    ) {
+      try {
+        await this.connection.invoke(
+          "UpdateVoiceState",
+          channelId,
+          isMuted,
+          isDeafened,
+          isSpeaking,
+          isScreenSharing,
+          isCameraActive,
+        );
+      } catch (err) {
+        console.warn("Failed to invoke UpdateVoiceState:", err);
+      }
+    }
+  }
+
+  public async sendVoiceSignal(
+    channelId: string,
+    targetUserId: string,
+    signalData: string,
+  ): Promise<void> {
+    if (!channelId || !targetUserId) return;
+    if (
+      this.connection &&
+      this.connection.state === signalR.HubConnectionState.Connected
+    ) {
+      try {
+        await this.connection.invoke(
+          "SendVoiceSignal",
+          channelId,
+          targetUserId,
+          signalData,
+        );
+      } catch (err) {
+        console.error("Failed to invoke SendVoiceSignal:", err);
+      }
+    }
+  }
+
+  public onCurrentVoiceParticipants(
+    callback: (participants: VoiceParticipant[]) => void,
+  ): void {
+    this.voiceCallbacks.currentParticipants = callback;
+    if (this.connection) {
+      this.connection.off("CurrentVoiceParticipants");
+      this.connection.on("CurrentVoiceParticipants", callback);
+    }
+  }
+
+  public offCurrentVoiceParticipants(
+    callback?: (participants: VoiceParticipant[]) => void,
+  ): void {
+    this.voiceCallbacks.currentParticipants = undefined;
+    if (this.connection) {
+      if (callback) this.connection.off("CurrentVoiceParticipants", callback);
+      else this.connection.off("CurrentVoiceParticipants");
+    }
+  }
+
+  public onUserJoinedVoice(
+    callback: (participant: VoiceParticipant) => void,
+  ): void {
+    this.voiceCallbacks.userJoined = callback;
+    if (this.connection) {
+      this.connection.off("UserJoinedVoice");
+      this.connection.on("UserJoinedVoice", callback);
+    }
+  }
+
+  public offUserJoinedVoice(
+    callback?: (participant: VoiceParticipant) => void,
+  ): void {
+    this.voiceCallbacks.userJoined = undefined;
+    if (this.connection) {
+      if (callback) this.connection.off("UserJoinedVoice", callback);
+      else this.connection.off("UserJoinedVoice");
+    }
+  }
+
+  public onUserLeftVoice(
+    callback: (payload: VoiceUserLeftPayload) => void,
+  ): void {
+    this.voiceCallbacks.userLeft = callback;
+    if (this.connection) {
+      this.connection.off("UserLeftVoice");
+      this.connection.on("UserLeftVoice", callback);
+    }
+  }
+
+  public offUserLeftVoice(
+    callback?: (payload: VoiceUserLeftPayload) => void,
+  ): void {
+    this.voiceCallbacks.userLeft = undefined;
+    if (this.connection) {
+      if (callback) this.connection.off("UserLeftVoice", callback);
+      else this.connection.off("UserLeftVoice");
+    }
+  }
+
+  public onVoiceStateChanged(
+    callback: (payload: VoiceStateChangedPayload) => void,
+  ): void {
+    this.voiceCallbacks.stateChanged = callback;
+    if (this.connection) {
+      this.connection.off("VoiceStateChanged");
+      this.connection.on("VoiceStateChanged", callback);
+    }
+  }
+
+  public offVoiceStateChanged(
+    callback?: (payload: VoiceStateChangedPayload) => void,
+  ): void {
+    this.voiceCallbacks.stateChanged = undefined;
+    if (this.connection) {
+      if (callback) this.connection.off("VoiceStateChanged", callback);
+      else this.connection.off("VoiceStateChanged");
+    }
+  }
+
+  public onVoiceSignalReceived(
+    callback: (payload: VoiceSignalPayload) => void,
+  ): void {
+    this.voiceCallbacks.signalReceived = callback;
+    if (this.connection) {
+      this.connection.off("VoiceSignalReceived");
+      this.connection.on("VoiceSignalReceived", callback);
+    }
+  }
+
+  public offVoiceSignalReceived(
+    callback?: (payload: VoiceSignalPayload) => void,
+  ): void {
+    this.voiceCallbacks.signalReceived = undefined;
+    if (this.connection) {
+      if (callback) this.connection.off("VoiceSignalReceived", callback);
+      else this.connection.off("VoiceSignalReceived");
     }
   }
 

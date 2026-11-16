@@ -32,6 +32,13 @@ public static class SignalRConstants
         public const string CallEnded = "CallEnded";
         public const string ReceiveIceCandidate = "ReceiveIceCandidate";
         public const string UserBusy = "UserBusy";
+
+        // Multi-user Voice Channel Signaling Events
+        public const string UserJoinedVoice = "UserJoinedVoice";
+        public const string UserLeftVoice = "UserLeftVoice";
+        public const string VoiceStateChanged = "VoiceStateChanged";
+        public const string CurrentVoiceParticipants = "CurrentVoiceParticipants";
+        public const string VoiceSignalReceived = "VoiceSignalReceived";
     }
 
     public static class Methods
@@ -55,5 +62,12 @@ public static class SignalRConstants
         public const string RejectCall = "RejectCall";
         public const string EndCall = "EndCall";
         public const string SendIceCandidate = "SendIceCandidate";
+
+        // Multi-user Voice Channel Signaling Methods
+        public const string JoinVoiceChannel = "JoinVoiceChannel";
+        public const string LeaveVoiceChannel = "LeaveVoiceChannel";
+        public const string UpdateVoiceState = "UpdateVoiceState";
+        public const string SendVoiceSignal = "SendVoiceSignal";
+        public const string GetServerVoiceParticipants = "GetServerVoiceParticipants";
     }
 }

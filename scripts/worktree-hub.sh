@@ -129,6 +129,15 @@ case "${1:-status}" in
         echo ""
         show_status
         ;;
+    init-testing)
+        echo "==> Initializing 4 Parallel Testing Worktrees (Unit+Arch, Testcontainers Integration, FE Vitest, Perf Lab)..."
+        create_worktree "NomNaReal-test-unit"        "test/unit-and-arch-suite"
+        create_worktree "NomNaReal-test-integration" "test/integration-testcontainers"
+        create_worktree "NomNaReal-test-fe"          "test/frontend-vitest-suite"
+        create_worktree "NomNaReal-test-perf"        "perf/system-benchmarking"
+        echo ""
+        show_status
+        ;;
     remove)
         if [ -z "${2:-}" ]; then
             echo "Usage: $0 remove <worktree_folder_name>"
@@ -140,7 +149,7 @@ case "${1:-status}" in
         show_status
         ;;
     *)
-        echo "Usage: $0 {status|init-wave1|init-wave2|init-wave3|remove <folder_name>} [base_branch]"
+        echo "Usage: $0 {status|audit-commits|init-dual|init-testing|init-wave1|init-wave2|init-wave3|init-wave4|remove <folder_name>} [base_branch]"
         exit 1
         ;;
 esac

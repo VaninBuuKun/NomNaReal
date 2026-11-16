@@ -7,3 +7,4 @@ export * from './notification';
 export * from './permissions';
 export * from './role';
 export * from './call';
+export * from './voice';

@@ -52,6 +52,7 @@ import {
   useFriendStore,
   toast,
 } from "../stores";
+import { useVoiceStore } from "../stores/useVoiceStore";
 
 export const ChatPage: React.FC = () => {
   const navigate = useNavigate();
@@ -427,9 +428,28 @@ export const ChatPage: React.FC = () => {
     markChannelRead(targetChannelId);
     channelApi.markAsRead(targetChannelId);
 
-    const targetCh = channels.find((c) => c.id === targetChannelId);
+    const latestChannels =
+      channels.length > 0 ? channels : useChatStore.getState().channels;
+    const targetCh = latestChannels.find((c) => c.id === targetChannelId);
     if (targetCh?.isPrivate) {
       fetchChannelMembers(targetChannelId);
+    }
+
+    if (
+      targetCh &&
+      (targetCh.type === ChannelType.Voice || Number(targetCh.type) === 1) &&
+      currentUser
+    ) {
+      void useVoiceStore.getState().joinVoice(
+        targetChannelId,
+        targetCh.name || "Kênh thoại",
+        targetWsId || "",
+        {
+          id: currentUser.id,
+          displayName: currentUser.displayName,
+          avatarUrl: currentUser.avatarUrl,
+        }
+      );
     }
 
     // Instant cache restore to prevent flicker and old channel messages
@@ -1010,7 +1030,7 @@ export const ChatPage: React.FC = () => {
       fileName: string;
       fileSize: number;
       contentType: string;
-      type: "image" | "video" | "file";
+      type: "image" | "video" | "file" | "audio";
     }>,
     replyToMessageId?: string,
   ) => {
@@ -1219,8 +1239,9 @@ export const ChatPage: React.FC = () => {
         [newChannel.id]: [currentUser.id],
       }));
     }
-    // Only select channel if it is a text or voice channel (not a category)
-    if (newChannel.type !== 3 && newChannel.type !== ChannelType.Category) {
+    // Only auto-select text channels upon creation. Never auto-switch into newly created voice channels or categories.
+    const isTextChannel = newChannel.type === ChannelType.Text || Number(newChannel.type) === 0;
+    if (isTextChannel) {
       handleSelectChannel(newChannel.id);
     }
   };
@@ -1456,6 +1477,9 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     setChannelMemberIdsMap({});
+    if (activeWorkspaceId) {
+      void useVoiceStore.getState().syncServerVoiceParticipants(activeWorkspaceId);
+    }
   }, [activeWorkspaceId]);
 
   useEffect(() => {
@@ -1475,8 +1499,42 @@ export const ChatPage: React.FC = () => {
     fetchChannelMembers,
   ]);
 
+  const {
+    connectedChannelId: voiceConnectedChannelId,
+    participants: voiceParticipants,
+    channelParticipantsMap,
+  } = useVoiceStore();
+
   const displayedMembers = useMemo(() => {
     if (!currentChannel) return workspaceMembers;
+
+    if (currentChannel.type === ChannelType.Voice || Number(currentChannel.type) === 1) {
+      const chKey = currentChannel.id.toLowerCase();
+      const activeVoiceUsers =
+        voiceConnectedChannelId?.toLowerCase() === chKey
+          ? voiceParticipants
+          : channelParticipantsMap[chKey] ||
+            channelParticipantsMap[currentChannel.id] ||
+            [];
+
+      return activeVoiceUsers.map((vp) => {
+        const matched = workspaceMembers.find(
+          (m) => m.id.toLowerCase() === vp.userId.toLowerCase()
+        );
+        if (matched) {
+          return { ...matched, status: "online" as const };
+        }
+        return {
+          id: vp.userId,
+          displayName: vp.displayName,
+          username: vp.displayName.toLowerCase().replace(/\s+/g, ""),
+          email: "",
+          avatarUrl: vp.avatarUrl || undefined,
+          status: "online" as const,
+          role: "Đang tham gia thoại",
+        };
+      });
+    }
 
     if (currentChannel.type === ChannelType.DirectMessage && activeDm) {
       const dmOtherUser =
@@ -1508,6 +1566,9 @@ export const ChatPage: React.FC = () => {
     channelMemberIdsMap,
     currentUser?.id,
     currentUserMember,
+    voiceConnectedChannelId,
+    voiceParticipants,
+    channelParticipantsMap,
   ]);
 
   if (isInitializing && !currentUser) {
@@ -1616,6 +1677,8 @@ export const ChatPage: React.FC = () => {
                     onOpenEditChannel={(ch) => setChannelToEdit(ch)}
                     onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
                     onChannelsReorder={(newChannels) => setChannels(newChannels)}
+                    currentUser={currentUser}
+                    onOpenUserProfile={handleOpenUserProfile}
                   />
                 ) : activeSidebarView === "dms" ? (
                   <DirectMessagesSidebar
@@ -1663,7 +1726,13 @@ export const ChatPage: React.FC = () => {
           </div>
 
           {/* Voice Connection Status Card: directly above UserFooterBar (Image 4 aligned width) */}
-          <VoiceConnectionBar currentWorkspaceName={currentWorkspace?.name} />
+          <VoiceConnectionBar
+            currentWorkspaceName={currentWorkspace?.name}
+            onNavigateToVoiceChannel={(chId, srvId) => {
+              setActiveSidebarView("channels");
+              handleSelectChannel(chId, srvId || undefined);
+            }}
+          />
 
           {/* User Account Footer Bar (pinned directly at bottom, matching width with VoiceConnectionBar) */}
           <UserFooterBar

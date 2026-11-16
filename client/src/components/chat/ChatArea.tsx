@@ -565,6 +565,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
             currentUser={currentUser}
             isChatOpen={isTextChatOpen}
             onToggleChat={toggleTextChat}
+            isMemberListOpen={isMemberListOpen}
+            onToggleMemberList={onToggleMemberList}
             onLeaveVoice={leaveVoice}
           />
         </div>

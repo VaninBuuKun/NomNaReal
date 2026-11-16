@@ -1,4 +1,5 @@
 import { useFriendStore } from "../stores";
+import { useVoiceStore } from "../stores/useVoiceStore";
 import { useCallback } from 'react';
 import { signalRService, messageApi, webrtcService } from '../services';
 import {
@@ -66,8 +67,12 @@ export function useChatSignalR({
       () => setTypingUser(null)
     );
 
-    // Initialize WebRTC 1v1 Call Signaling listeners
+    // Initialize WebRTC 1v1 Call and Multi-User Voice Channel Signaling listeners
     webrtcService.initSignalRListeners();
+    useVoiceStore.getState().initVoiceListeners();
+    if (activeWorkspaceIdRef.current) {
+      void useVoiceStore.getState().syncServerVoiceParticipants(activeWorkspaceIdRef.current);
+    }
 
     // 2. Reactions
     signalRService.onReactionUpdated((update) => {
@@ -259,6 +264,10 @@ export function useChatSignalR({
 
     // 7. Network Reconnection Catch-Up (Task 3)
     signalRService.onReconnected(async () => {
+      if (activeWorkspaceIdRef.current) {
+        void useVoiceStore.getState().syncServerVoiceParticipants(activeWorkspaceIdRef.current);
+      }
+
       const channelId = activeChannelIdRef.current;
       if (!channelId) return;
 
