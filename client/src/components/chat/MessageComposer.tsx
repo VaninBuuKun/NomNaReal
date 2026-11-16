@@ -15,6 +15,7 @@ import {
   Plus,
   Play,
   FileText,
+  Microphone,
   Image as ImageIcon,
 } from "@phosphor-icons/react";
 import { ChannelType, type Message } from "../../types";
@@ -23,7 +24,8 @@ import { EmojiPickerPopover } from "./EmojiPickerPopover";
 import { GifPicker } from "./GifPicker";
 import { MentionAutocompletePopover } from "./MentionAutocompletePopover";
 import { InputLinkPreviewStrip } from "./InputLinkPreviewStrip";
-import { useChatStore } from "../../stores";
+import { VoiceRecorder } from "./VoiceRecorder";
+import { useChatStore, toast } from "../../stores";
 import type { DirectMessageUser } from "../dm";
 
 export interface PendingAttachment {
@@ -59,7 +61,7 @@ export interface MessageComposerProps {
       fileName: string;
       fileSize: number;
       contentType: string;
-      type: "image" | "video" | "file";
+      type: "image" | "video" | "file" | "audio";
     }>,
     replyToMessageId?: string
   ) => Promise<void>;
@@ -104,6 +106,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const [confirmedMentions, setConfirmedMentions] = useState<Set<string>>(new Set());
   const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false);
   const [dismissedInputUrl, setDismissedInputUrl] = useState<string | null>(null);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
 
   const plusMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -473,6 +476,39 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
     }
   };
 
+  const handleSendVoiceRecording = async (audioFile: File, duration: number, _waveform: number[]) => {
+    if (!canSendMessages || sending) return;
+    setSending(true);
+    try {
+      const res = await fileApi.uploadFile(audioFile, "attachments");
+      const validDuration = Math.max(1, Math.round(duration));
+      const urlWithDuration = `${res.url}${res.url.includes("?") ? "&" : "?"}duration=${validDuration}`;
+
+      await onSendMessage(
+        "",
+        [
+          {
+            url: urlWithDuration,
+            fileName: audioFile.name,
+            fileSize: audioFile.size,
+            contentType: audioFile.type || "audio/webm",
+            type: "audio",
+          },
+        ],
+        replyingToMessage?.id
+      );
+      setIsRecordingVoice(false);
+      onCancelReply();
+      onStopTyping();
+      onSendSuccess?.();
+    } catch (err) {
+      console.error("Failed to upload voice message:", err);
+      toast.error("Gửi tin nhắn thoại thất bại", "Không thể tải lên tệp âm thanh. Vui lòng thử lại!");
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.defaultPrevented) return;
 
@@ -661,183 +697,204 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
         )}
 
         {/* Discord-style Unified Single Row Chat Input Bar */}
-        <div className="flex items-center gap-3 w-full min-h-[40px]">
-          {/* Hidden file picker */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*,video/mp4,video/webm,video/quicktime,video/x-matroska,application/pdf,.doc,.docx,.zip"
-            className="hidden"
-            onChange={handleFileUpload}
+        {isRecordingVoice ? (
+          <VoiceRecorder
+            onCancel={() => setIsRecordingVoice(false)}
+            onSend={handleSendVoiceRecording}
+            disabled={!canSendMessages}
           />
+        ) : (
+          <div className="flex items-center gap-3 w-full min-h-[40px]">
+            {/* Hidden file picker */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,video/mp4,video/webm,video/quicktime,video/x-matroska,application/pdf,.doc,.docx,.zip"
+              className="hidden"
+              onChange={handleFileUpload}
+            />
 
-          {/* Left Circular [+] Button */}
-          {!isSidebar && (
-            <div className="relative shrink-0" ref={plusMenuRef}>
-              <button
-                type="button"
-                onClick={() => setIsPlusMenuOpen((prev) => !prev)}
-                className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                  isPlusMenuOpen
-                    ? "bg-accent-primary text-white"
-                    : "bg-text-muted/20 hover:bg-text-muted/35 text-text-muted hover:text-text-primary"
-                }`}
-                title="Đính kèm tệp tin hoặc ảnh"
-                disabled={!canSendMessages}
-              >
-                <Plus size={15} weight="bold" />
-              </button>
+            {/* Left Circular [+] Button */}
+            {!isSidebar && (
+              <div className="relative shrink-0" ref={plusMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsPlusMenuOpen((prev) => !prev)}
+                  className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                    isPlusMenuOpen
+                      ? "bg-accent-primary text-white"
+                      : "bg-text-muted/20 hover:bg-text-muted/35 text-text-muted hover:text-text-primary"
+                  }`}
+                  title="Đính kèm tệp tin hoặc ảnh"
+                  disabled={!canSendMessages}
+                >
+                  <Plus size={15} weight="bold" />
+                </button>
 
-              {/* Plus Menu Popover */}
-              {isPlusMenuOpen && (
-                <div className="absolute bottom-full left-0 mb-2 w-48 rounded-card bg-surface border border-border shadow-floating p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-2 duration-100">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsPlusMenuOpen(false);
-                      fileInputRef.current?.click();
-                    }}
-                    disabled={!canAttachFiles}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-control text-xs font-semibold text-text-primary hover:bg-surface-active transition-colors cursor-pointer text-left disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <ImageIcon size={16} weight="bold" className="text-accent-primary" />
-                    <span>Tải tệp tin lên</span>
-                  </button>
+                {/* Plus Menu Popover */}
+                {isPlusMenuOpen && (
+                  <div className="absolute bottom-full left-0 mb-2 w-48 rounded-card bg-surface border border-border shadow-floating p-1.5 z-50 flex flex-col gap-0.5 animate-in fade-in slide-in-from-bottom-2 duration-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPlusMenuOpen(false);
+                        fileInputRef.current?.click();
+                      }}
+                      disabled={!canAttachFiles}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-control text-xs font-semibold text-text-primary hover:bg-surface-active transition-colors cursor-pointer text-left disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <ImageIcon size={16} weight="bold" className="text-accent-primary" />
+                      <span>Tải tệp tin lên</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsPlusMenuOpen(false);
-                      setShowGifPicker(true);
-                      setShowEmojiPicker(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-control text-xs font-semibold text-text-primary hover:bg-surface-active transition-colors cursor-pointer text-left"
-                  >
-                    <span className="font-bold text-[10px] border border-current px-1 rounded leading-tight text-accent-primary">
-                      GIF
-                    </span>
-                    <span>Thư viện ảnh GIF</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Direct Input Area with Mention Highlight Overlay */}
-          <div className="relative flex-1 min-w-0 flex items-stretch">
-            {/* Synchronized Backdrop for Mention Highlighting (@all, @everyone, etc.) */}
-            {Boolean(content) && (
-              <div
-                ref={backdropRef}
-                aria-hidden="true"
-                className={`absolute inset-0 pointer-events-none whitespace-pre-wrap break-words leading-relaxed py-1 overflow-hidden select-none font-normal text-text-primary no-scrollbar ${
-                  isSidebar ? "text-[0.88rem]" : "text-[0.93rem]"
-                }`}
-                style={{
-                  fontFamily: "inherit",
-                  letterSpacing: "inherit",
-                  wordBreak: "break-word",
-                }}
-              >
-                {renderHighlightedBackdrop(content)}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsPlusMenuOpen(false);
+                        setShowGifPicker(true);
+                        setShowEmojiPicker(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-control text-xs font-semibold text-text-primary hover:bg-surface-active transition-colors cursor-pointer text-left"
+                    >
+                      <span className="font-bold text-[10px] border border-current px-1 rounded leading-tight text-accent-primary">
+                        GIF
+                      </span>
+                      <span>Thư viện ảnh GIF</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            <textarea
-              ref={textareaRef}
-              className={`w-full bg-transparent border-none outline-none caret-accent-primary placeholder:text-text-muted resize-none leading-relaxed disabled:opacity-50 py-1 max-h-36 no-scrollbar font-normal ${
-                isSidebar ? "text-[0.88rem]" : "text-[0.93rem]"
-              } ${
-                content
-                  ? "text-transparent selection:text-transparent selection:bg-accent-primary/30"
-                  : "text-text-primary"
-              }`}
-              rows={1}
-              value={content}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onPaste={handlePaste}
-              onScroll={() => {
-                if (backdropRef.current && textareaRef.current) {
-                  backdropRef.current.scrollTop = textareaRef.current.scrollTop;
-                }
-              }}
-              disabled={!channelId || !canSendMessages}
-              placeholder={
-                !channelId
-                  ? "Chọn một kênh để nhắn tin..."
-                  : !canSendMessages
-                  ? `Bạn không có quyền gửi tin nhắn trong kênh #${channelName || "này"}.`
-                  : isDm
-                  ? `Nhắn @${channelName || "người dùng"}`
-                  : `Nhắn #${channelName || "kênh"}`
-              }
-            />
-          </div>
+            {/* Direct Input Area with Mention Highlight Overlay */}
+            <div className="relative flex-1 min-w-0 flex items-stretch">
+              {/* Synchronized Backdrop for Mention Highlighting (@all, @everyone, etc.) */}
+              {Boolean(content) && (
+                <div
+                  ref={backdropRef}
+                  aria-hidden="true"
+                  className={`absolute inset-0 pointer-events-none whitespace-pre-wrap break-words leading-relaxed py-1 overflow-hidden select-none font-normal text-text-primary no-scrollbar ${
+                    isSidebar ? "text-[0.88rem]" : "text-[0.93rem]"
+                  }`}
+                  style={{
+                    fontFamily: "inherit",
+                    letterSpacing: "inherit",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {renderHighlightedBackdrop(content)}
+                </div>
+              )}
 
-          {/* Right Action Icons Row */}
-          <div className="flex items-center gap-1.5 shrink-0 text-text-muted">
-            {/* Main chat only: GIF Picker button */}
-            {!isSidebar && (
+              <textarea
+                ref={textareaRef}
+                className={`w-full bg-transparent border-none outline-none caret-accent-primary placeholder:text-text-muted resize-none leading-relaxed disabled:opacity-50 py-1 max-h-36 no-scrollbar font-normal ${
+                  isSidebar ? "text-[0.88rem]" : "text-[0.93rem]"
+                } ${
+                  content
+                    ? "text-transparent selection:text-transparent selection:bg-accent-primary/30"
+                    : "text-text-primary"
+                }`}
+                rows={1}
+                value={content}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                onScroll={() => {
+                  if (backdropRef.current && textareaRef.current) {
+                    backdropRef.current.scrollTop = textareaRef.current.scrollTop;
+                  }
+                }}
+                disabled={!channelId || !canSendMessages}
+                placeholder={
+                  !channelId
+                    ? "Chọn một kênh để nhắn tin..."
+                    : !canSendMessages
+                    ? `Bạn không có quyền gửi tin nhắn trong kênh #${channelName || "này"}.`
+                    : isDm
+                    ? `Nhắn @${channelName || "người dùng"}`
+                    : `Nhắn #${channelName || "kênh"}`
+                }
+              />
+            </div>
+
+            {/* Right Action Icons Row */}
+            <div className="flex items-center gap-1.5 shrink-0 text-text-muted">
+              {/* Main chat only: GIF Picker button */}
+              {!isSidebar && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    setShowGifPicker((prev) => !prev);
+                    setShowEmojiPicker(false);
+                  }}
+                  className={`hidden sm:flex hover:text-text-primary transition-colors cursor-pointer p-1 rounded-control hover:bg-surface-active items-center justify-center ${
+                    showGifPicker ? "text-accent-primary" : ""
+                  }`}
+                  title="Mở thư viện ảnh GIF"
+                  disabled={!canSendMessages}
+                >
+                  <span className="font-extrabold text-[10px] border border-current px-1 py-0.5 rounded-[4px] leading-none tracking-tight">
+                    GIF
+                  </span>
+                </button>
+              )}
+
+              {/* Emoji button */}
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  setShowGifPicker((prev) => !prev);
-                  setShowEmojiPicker(false);
+                  setShowEmojiPicker((prev) => !prev);
+                  if (!isSidebar) setShowGifPicker(false);
                 }}
-                className={`hidden sm:flex hover:text-text-primary transition-colors cursor-pointer p-1 rounded-control hover:bg-surface-active items-center justify-center ${
-                  showGifPicker ? "text-accent-primary" : ""
+                className={`hover:text-text-primary transition-colors cursor-pointer p-1 rounded-control hover:bg-surface-active ${
+                  showEmojiPicker ? "text-accent-primary" : ""
                 }`}
-                title="Mở thư viện ảnh GIF"
+                title="Biểu cảm Emoji"
                 disabled={!canSendMessages}
               >
-                <span className="font-extrabold text-[10px] border border-current px-1 py-0.5 rounded-[4px] leading-none tracking-tight">
-                  GIF
-                </span>
+                <Smiley size={20} weight="bold" />
               </button>
-            )}
 
-            {/* Emoji button */}
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                setShowEmojiPicker((prev) => !prev);
-                if (!isSidebar) setShowGifPicker(false);
-              }}
-              className={`hover:text-text-primary transition-colors cursor-pointer p-1 rounded-control hover:bg-surface-active ${
-                showEmojiPicker ? "text-accent-primary" : ""
-              }`}
-              title="Biểu cảm Emoji"
-              disabled={!canSendMessages}
-            >
-              <Smiley size={20} weight="bold" />
-            </button>
+              {/* Microphone Voice Button (Shown when no text or pending attachments) */}
+              {!content.trim() && pendingAttachments.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => setIsRecordingVoice(true)}
+                  disabled={!channelId || !canSendMessages}
+                  className="hover:text-text-primary transition-colors cursor-pointer p-1 rounded-control hover:bg-surface-active text-text-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Gửi tin nhắn thoại"
+                >
+                  <Microphone size={20} weight="bold" />
+                </button>
+              )}
 
-            {/* Send Button (Visible on both main chat and sidebar when text/attachment exists) */}
-            {(content.trim() || pendingAttachments.length > 0) && (
-              <button
-                type="button"
-                onClick={handleSend}
-                disabled={
-                  !canSendMessages ||
-                  sending ||
-                  pendingAttachments.some((a) => a.status === "uploading")
-                }
-                className="w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-accent-primary text-white hover:bg-accent-hover transition-all flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-50 shrink-0 ml-0.5"
-                title="Gửi tin nhắn (Enter)"
-              >
-                {sending ? (
-                  <CircleNotch size={14} className="animate-spin" />
-                ) : (
-                  <PaperPlaneRight size={14} weight="fill" />
-                )}
-              </button>
-            )}
+              {/* Send Button (Visible on both main chat and sidebar when text/attachment exists) */}
+              {(content.trim() || pendingAttachments.length > 0) && (
+                <button
+                  type="button"
+                  onClick={handleSend}
+                  disabled={
+                    !canSendMessages ||
+                    sending ||
+                    pendingAttachments.some((a) => a.status === "uploading")
+                  }
+                  className="w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-accent-primary text-white hover:bg-accent-hover transition-all flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-50 shrink-0 ml-0.5"
+                  title="Gửi tin nhắn (Enter)"
+                >
+                  {sending ? (
+                    <CircleNotch size={14} className="animate-spin" />
+                  ) : (
+                    <PaperPlaneRight size={14} weight="fill" />
+                  )}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

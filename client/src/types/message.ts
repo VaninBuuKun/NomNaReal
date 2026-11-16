@@ -36,7 +36,7 @@ export interface MessageAttachment {
   fileName: string;
   fileSize: number;
   contentType: string;
-  type: 'image' | 'video' | 'file';
+  type: 'image' | 'video' | 'file' | 'audio';
 }
 
 export interface DeletedMessage {
