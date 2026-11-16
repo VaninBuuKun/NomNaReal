@@ -920,9 +920,8 @@ export const ChatPage: React.FC = () => {
           setActiveChannelId(null);
           activeChannelIdRef.current = null;
         }
-      } else if (wsList.length > 0) {
-        const targetWs =
-          wsList.find((w) => w.id === targetWsId) || wsList[0];
+      } else if (wsList.length > 0 && wsList.some((w) => w.id === targetWsId)) {
+        const targetWs = wsList.find((w) => w.id === targetWsId)!;
         setActiveWorkspaceId(targetWs.id);
         setActiveSidebarView("channels");
 
@@ -939,6 +938,16 @@ export const ChatPage: React.FC = () => {
             selectableChannels[0] ||
             chList[0];
           await handleSelectChannel(defaultCh.id, targetWs.id);
+        }
+      } else {
+        // Fallback to Friends / DMs if target server not found or user has no servers
+        setActiveSidebarView("dms");
+        setActiveWorkspaceId(null);
+        setActiveDmId(null);
+        setActiveChannelId(null);
+        activeChannelIdRef.current = null;
+        if (location.pathname !== "/channels/@me") {
+          navigate("/channels/@me", { replace: true });
         }
       }
 

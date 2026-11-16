@@ -72,10 +72,10 @@ graph TD
 - **Trung tâm thông báo (Notification Center)**: Nhận thông báo mời vào server, kết bạn, tag `@mention` kèm bộ đếm badge chưa đọc.
 
 ### 6. 🛡️ Quản Trị Máy Chủ & Phân Quyền Bitmask (Server Management & RBAC)
-- **Cấu trúc không gian**: Máy chủ (Workspaces) $\to$ Danh mục $\to$ Kênh văn bản & Kênh thoại (Kéo thả sắp xếp thứ tự).
+- **Cấu trúc không gian**: Máy chủ $\to$ Danh mục $\to$ Kênh văn bản & Kênh thoại (Kéo thả sắp xếp thứ tự).
 - **Kênh riêng tư (Private Channels)**: Giới hạn quyền truy cập theo danh sách thành viên được chỉ định.
 - **Liên kết lời mời**: Tạo mã mời tham gia Server có tùy chọn thời hạn và giới hạn lượt sử dụng.
-- **Phân quyền nhị phân 64-bit (Bitmask RBAC)**: Tạo vai trò (Roles) với màu sắc riêng, thiết lập quyền hạn chi tiết và thu hồi quyền tức thì (*Realtime Access Revocation*).
+- **Phân quyền nhị phân 64-bit (Bitmask RBAC)**: Tạo vai trò với màu sắc riêng, thiết lập quyền hạn chi tiết và thu hồi quyền tức thì (*Realtime Access Revocation*).
 
 ### 7. 🎨 Giao Diện Đa Chủ Đề & Tối Ưu Hiệu Năng
 - **Multi-Theme Engine**: Chuyển đổi linh hoạt giữa giao diện Sáng (Light), Tối (Dark), và Midnight (OLED) dựa trên hệ thống Semantic Color Tokens.
@@ -145,6 +145,15 @@ npm --prefix client run build
 # Chạy toàn bộ Unit Tests
 dotnet test NomNa.sln
 ```
+
+---
+
+## 📚 Tài Liệu Kỹ Thuật Tham Khảo
+
+- [Kiến trúc WebRTC & Đàm thoại đa người dùng](docs/architecture/webrtc-multiuser-mesh-and-sfu-guide.md)
+- [Cẩm nang triển khai Production 100% Miễn Phí](plans/production-free-deployment-guide.md)
+- [Tổng quan kỹ thuật & Yêu cầu phi chức năng](docs/architecture/system-requirements-and-technical-overview.md)
+
 
 ---
 

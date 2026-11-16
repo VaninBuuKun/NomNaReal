@@ -62,10 +62,6 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
       setError('Vui lòng nhập tên Server.');
       return;
     }
-    if (!iconUrl.trim()) {
-      setError('Vui lòng tải lên ảnh đại diện cho Server.');
-      return;
-    }
 
     try {
       setIsSubmitting(true);
@@ -182,7 +178,7 @@ export const CreateServerModal: React.FC<CreateServerModalProps> = ({
             variant="primary"
             size="sm"
             isLoading={isSubmitting}
-            disabled={!name.trim() || !iconUrl.trim() || isUploading}
+            disabled={!name.trim() || isUploading}
           >
             Tạo Server
           </Button>

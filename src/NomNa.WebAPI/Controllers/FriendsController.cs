@@ -48,6 +48,7 @@ public class FriendsController : ApiControllerBase
         var result = await Mediator.Send(new AcceptFriendRequestCommand(friendshipId));
         if (result.IsSuccess && result.Value != null)
         {
+            // Real-time notify the requester that their request was accepted
             await _hubContext.Clients.User(result.Value.UserId.ToString())
                 .SendAsync(SignalRConstants.Events.FriendRequestAccepted, result.Value);
         }
@@ -65,6 +66,12 @@ public class FriendsController : ApiControllerBase
     public async Task<IActionResult> RemoveFriend([FromRoute] Guid friendshipId)
     {
         var result = await Mediator.Send(new RemoveFriendCommand(friendshipId));
+        if (result.IsSuccess && result.Value != null)
+        {
+            // Real-time notify the target user that friendship was removed
+            await _hubContext.Clients.User(result.Value.TargetUserId.ToString())
+                .SendAsync(SignalRConstants.Events.FriendshipRemoved, new { friendshipId });
+        }
         return HandleResult(result);
     }
 

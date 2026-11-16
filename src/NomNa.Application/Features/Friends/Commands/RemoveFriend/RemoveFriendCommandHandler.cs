@@ -5,7 +5,7 @@ using NomNa.Application.Common.Models;
 
 namespace NomNa.Application.Features.Friends.Commands.RemoveFriend;
 
-public class RemoveFriendCommandHandler : IRequestHandler<RemoveFriendCommand, Result>
+public class RemoveFriendCommandHandler : IRequestHandler<RemoveFriendCommand, Result<RemoveFriendResult>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -16,7 +16,7 @@ public class RemoveFriendCommandHandler : IRequestHandler<RemoveFriendCommand, R
         _currentUserService = currentUserService;
     }
 
-    public async Task<Result> Handle(RemoveFriendCommand request, CancellationToken cancellationToken)
+    public async Task<Result<RemoveFriendResult>> Handle(RemoveFriendCommand request, CancellationToken cancellationToken)
     {
         var currentUserId = _currentUserService.UserId;
         if (!currentUserId.HasValue)
@@ -33,9 +33,11 @@ public class RemoveFriendCommandHandler : IRequestHandler<RemoveFriendCommand, R
         if (friendship.RequesterId != uid && friendship.AddresseeId != uid)
             return Error.Forbidden("Friendship.Forbidden", "Bạn không có quyền hủy kết bạn này.");
 
+        var targetUserId = friendship.RequesterId == uid ? friendship.AddresseeId : friendship.RequesterId;
+
         _context.Friendships.Remove(friendship);
         await _context.SaveChangesAsync(cancellationToken);
 
-        return Result.Success();
+        return new RemoveFriendResult(targetUserId);
     }
 }

@@ -61,6 +61,8 @@ public class AcceptFriendRequestCommandHandler : IRequestHandler<AcceptFriendReq
         };
         _context.Notifications.Add(notif);
 
+        await _context.SaveChangesAsync(cancellationToken);
+
         var isOnline = await _presenceTracker.IsUserOnlineAsync(friendship.Requester.Id);
         var resolvedStatus = UserPresenceResolver.Resolve(isOnline, friendship.Requester.StatusPreference);
 

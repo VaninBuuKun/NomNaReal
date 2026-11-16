@@ -11,6 +11,6 @@ public class CreateServerCommandValidator : AbstractValidator<CreateServerComman
             .MaximumLength(100).WithMessage("Server name cannot exceed 100 characters.");
 
         RuleFor(x => x.IconUrl)
-            .NotEmpty().WithMessage("Server avatar / icon is required.");
+            .MaximumLength(2048).WithMessage("Icon URL cannot exceed 2048 characters.");
     }
 }

@@ -61,6 +61,10 @@ COPY --from=backend-build /app .
 # Copy compiled frontend dist into wwwroot (ASP.NET Core static files)
 COPY --from=frontend-build /client/dist ./wwwroot
 
+# Ensure writable upload directories exist and assign ownership to appuser
+RUN mkdir -p /app/wwwroot/uploads /app/wwwroot/servers /app/wwwroot/avatars /app/wwwroot/attachments /app/wwwroot/videos \
+    && chown -R appuser:appuser /app
+
 USER appuser
 
 ENV ASPNETCORE_URLS=http://+:8080

@@ -388,7 +388,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
               </p>
             </div>
           ) : (
-            <div className="p-8 text-center text-xs text-text-muted">
+            <div className="flex-1 min-h-[300px] flex items-center justify-center p-8 text-center text-xs text-text-muted select-none">
               Chọn một kênh để bắt đầu trò chuyện.
             </div>
           )}

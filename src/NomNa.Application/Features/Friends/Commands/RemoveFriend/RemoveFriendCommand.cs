@@ -3,4 +3,6 @@ using NomNa.Application.Common.Models;
 
 namespace NomNa.Application.Features.Friends.Commands.RemoveFriend;
 
-public record RemoveFriendCommand(Guid FriendshipId) : IRequest<Result>;
+public record RemoveFriendResult(Guid TargetUserId);
+
+public record RemoveFriendCommand(Guid FriendshipId) : IRequest<Result<RemoveFriendResult>>;
