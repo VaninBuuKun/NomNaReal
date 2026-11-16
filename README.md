@@ -42,18 +42,45 @@ graph TD
 
 ## ✨ Tính Năng Nổi Bật
 
-- **💬 Nhắn tin thời gian thực (SignalR)**: Trò chuyện tức thì, chỉ báo đang gõ (Typing), thả cảm xúc (Reactions), trả lời tin nhắn (Reply), ghim tin nhắn và tìm kiếm.
-- **🎙️ Tin nhắn thoại (Voice Note)**: Ghi âm trực tiếp, hiển thị biểu đồ sóng âm (Waveform), giải mã qua Web Audio API cho phép tua âm thanh mượt mà không lỗi.
-- **🔊 Kênh thoại & Video đa người dùng (WebRTC Mesh)**:
-  - Gọi nhóm không qua media server trung gian, độ trễ cực thấp.
-  - Nhận diện giọng nói thời gian thực (VAD) với viền xanh phát sáng khi đang nói.
-  - Chia sẻ màn hình & Camera với chế độ Spotlight linh hoạt, chuyển đổi luồng tức thì (`replaceTrack`).
-  - Đường ống âm thanh độc lập (Web Audio Pipeline) cho phép kéo chỉnh âm lượng riêng của từng thành viên (0% – 200%).
-  - Chế độ Toàn màn hình (Fullscreen) tự động ẩn thanh công cụ khi không tương tác.
-  - Menu chuột phải thành viên hỗ trợ chuyển kênh, xem hồ sơ, tắt/bật tiếng nhanh.
-- **📞 Cuộc gọi trực tiếp 1-1**: Đàm thoại âm thanh & video P2P riêng tư với chu trình đổ chuông, bắt máy và hủy gọi.
-- **🛡️ Phân quyền Bitmask & Quản trị máy chủ**: Phân tầng Server $\to$ Danh mục $\to$ Kênh thoại/chat; phân quyền 64-bit theo Vai trò (Roles) với cơ chế thu hồi quyền tức thì.
-- **🎨 Thiết kế Semantic Design System**: Giao diện tối giản, thanh lịch, chuẩn hóa semantic color tokens, đáp ứng tốt cả Desktop và Mobile.
+### 1. 💬 Trải Nghiệm Nhắn Tin Đỉnh Cao (Real-Time Messaging)
+- **Tương tác tức thì (SignalR WebSockets)**: Nhắn tin sub-50ms, hiển thị trạng thái gõ phím (*Typing Indicator*), đồng bộ tức thời đa thiết bị.
+- **Biểu cảm & Đa phương tiện**: Thả cảm xúc (*Reactions*), bộ chọn Emoji & GIF Picker (Tenor/Giphy), đính kèm ảnh, video và tệp tin lên đến 100MB.
+- **Soạn thảo thông minh**: Tự động hoàn thành `@mention`, khối mã tô màu cú pháp (*Syntax Highlighting CodeBlock*), tự động nhận diện và tạo thẻ xem trước liên kết (*Link OpenGraph Preview*).
+- **Quản lý ngữ cảnh**: Trả lời trích dẫn (*Reply*), ghim tin nhắn quan trọng (*Sticky Pin Bar*), xem ảnh dạng Lightbox phóng to, tìm kiếm tin nhắn theo kênh.
+- **Điều hướng mượt mà**: Thanh *Nhảy về hiện tại (Jump to Present)* khi đang cuộn xem lịch sử tin nhắn cũ.
+
+### 2. 🎙️ Tin Nhắn Thoại Cao Cấp (Voice Note & Waveform)
+- **Ghi âm trực tiếp**: Chuẩn nén nhẹ `audio/webm;codecs=opus` tối ưu băng thông.
+- **Biểu đồ sóng âm (Waveform)**: Thuật toán trích xuất biên độ âm thanh trực quan theo thời gian thực trên bong bóng chat.
+- **Giải mã Web Audio API độc quyền**: Khắc phục triệt để lỗi không tua được file WebM trên Chromium/WebKit bằng cách giải mã trực tiếp thành `AudioBuffer`, cho phép tua âm thanh mượt mà chính xác từng mili-giây.
+
+### 3. 🔊 Kênh Thoại & Sân Khấu Video Nhóm (WebRTC P2P Mesh)
+- **Đàm thoại độ trễ thấp (< 100ms)**: Kết nối trực tiếp giữa các trình duyệt không qua media server trung gian, tiết kiệm 100% chi phí máy chủ.
+- **Nhận diện giọng nói (VAD)**: Tự động đo năng lượng sóng âm (RMS) ở 60 FPS để kích hoạt viền xanh phát sáng khi phát biểu.
+- **Sân khấu trình chiếu (Spotlight & Grid)**: Hỗ trợ Chia sẻ màn hình & Camera; tráo luồng tức thì (`replaceTrack`) không cần đàm phán lại SDP.
+- **Bộ điều âm độc lập (Per-Peer GainNode)**: Tùy chỉnh âm lượng riêng biệt cho từng người trong phòng (0% – 200%).
+- **Toàn màn hình thông minh (Fullscreen)**: Tự động ẩn thanh công cụ sau 2.5 giây không tương tác để tối đa diện tích hiển thị video.
+- **Menu chuột phải thành viên**: Chuyển kênh voice nhanh, xem hồ sơ cá nhân, tắt/bật mic và âm thanh tiện lợi.
+
+### 4. 📞 Cuộc Gọi Trực Tiếp 1-1 (Direct Audio & Video Call)
+- Đàm thoại âm thanh & video P2P riêng tư giữa 2 người bạn với đầy đủ chu trình đổ chuông, đếm ngược 35s, chấp nhận, từ chối hoặc hủy gọi.
+
+### 5. 👥 Bạn Bè, DMs & Trạng Thái Hiện Diện (Presence Hub)
+- **Trung tâm bạn bè**: Quản lý danh sách Online, Tất cả bạn bè, Yêu cầu kết bạn (Gửi/Nhận/Hủy) và Danh sách chặn.
+- **Hiện diện thời gian thực (Redis Presence Lease)**: Theo dõi trạng thái Online, Vắng mặt (Idle), Đừng làm phiền (DND), Ẩn danh (Invisible) qua cơ chế nhịp tim (Heartbeat) và kịch bản Redis Lua.
+- **Trạng thái tùy chỉnh (Custom Status)**: Đặt câu trạng thái kèm icon emoji cá nhân hiển thị trên thẻ hồ sơ.
+- **Trung tâm thông báo (Notification Center)**: Nhận thông báo mời vào server, kết bạn, tag `@mention` kèm bộ đếm badge chưa đọc.
+
+### 6. 🛡️ Quản Trị Máy Chủ & Phân Quyền Bitmask (Server Management & RBAC)
+- **Cấu trúc không gian**: Máy chủ (Workspaces) $\to$ Danh mục $\to$ Kênh văn bản & Kênh thoại (Kéo thả sắp xếp thứ tự).
+- **Kênh riêng tư (Private Channels)**: Giới hạn quyền truy cập theo danh sách thành viên được chỉ định.
+- **Liên kết lời mời**: Tạo mã mời tham gia Server có tùy chọn thời hạn và giới hạn lượt sử dụng.
+- **Phân quyền nhị phân 64-bit (Bitmask RBAC)**: Tạo vai trò (Roles) với màu sắc riêng, thiết lập quyền hạn chi tiết và thu hồi quyền tức thì (*Realtime Access Revocation*).
+
+### 7. 🎨 Giao Diện Đa Chủ Đề & Tối Ưu Hiệu Năng
+- **Multi-Theme Engine**: Chuyển đổi linh hoạt giữa giao diện Sáng (Light), Tối (Dark), và Midnight (OLED) dựa trên hệ thống Semantic Color Tokens.
+- **Phân trang con trỏ hai chiều (Bi-directional Keyset Pagination)**: Đọc tin nhắn siêu nhanh, không bị chậm khi dữ liệu lớn như phương pháp OFFSET truyền thống.
+- **Thiết kế thích ứng (Responsive)**: Tối ưu hoàn hảo cho cả máy tính để bàn, laptop và thiết bị di động.
 
 ---
 
