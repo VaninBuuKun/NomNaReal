@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Caching.Memory;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Messages.DTOs;
 
 namespace NomNa.Infrastructure.Services;
@@ -7,12 +8,14 @@ namespace NomNa.Infrastructure.Services;
 public class PinnedMessageCache : IPinnedMessageCache
 {
     private readonly IMemoryCache _cache;
+    private readonly ICacheInvalidationBus _invalidationBus;
     private static readonly TimeSpan DefaultCacheExpiration = TimeSpan.FromMinutes(10);
     private static readonly TimeSpan DefaultSlidingExpiration = TimeSpan.FromMinutes(3);
 
-    public PinnedMessageCache(IMemoryCache cache)
+    public PinnedMessageCache(IMemoryCache cache, ICacheInvalidationBus invalidationBus)
     {
         _cache = cache;
+        _invalidationBus = invalidationBus;
     }
 
     public List<PinnedMessageDto>? Get(Guid channelId)
@@ -33,6 +36,12 @@ public class PinnedMessageCache : IPinnedMessageCache
     }
 
     public void Invalidate(Guid channelId)
+    {
+        InvalidateLocal(channelId);
+        _ = _invalidationBus.PublishInvalidationAsync(new CacheInvalidationMessage(CacheInvalidationScope.PinnedMessages, channelId));
+    }
+
+    public void InvalidateLocal(Guid channelId)
     {
         _cache.Remove(GetCacheKey(channelId));
     }

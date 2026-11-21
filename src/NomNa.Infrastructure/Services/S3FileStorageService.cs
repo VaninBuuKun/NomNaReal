@@ -94,9 +94,14 @@ public class S3FileStorageService : IFileStorageService
         await fileStream.CopyToAsync(memStream, cancellationToken);
         memStream.Position = 0;
 
-        // If S3 client or bucket is not active -> use local storage directly!
+        // If S3 client or bucket is not active -> fail fast in production, use local storage in dev
         if (_s3Client == null || string.IsNullOrWhiteSpace(_bucketName))
         {
+            if (_environment.IsProduction())
+            {
+                _logger.LogError("Production Error: S3 client is unconfigured. Rejecting file upload to prevent multi-instance storage divergence.");
+                throw new InvalidOperationException("File storage service is unavailable. S3 must be configured in production.");
+            }
             return await _fallbackLocalStorage.SaveFileAsync(memStream, fileName, folder, contentType, cancellationToken);
         }
 
@@ -137,8 +142,13 @@ public class S3FileStorageService : IFileStorageService
         {
             _logger.LogError(ex, "Error uploading file '{FileName}' to AWS S3.", fileName);
 
-            // Fallback to local storage
-            _logger.LogWarning("Falling back to local file storage.");
+            if (_environment.IsProduction())
+            {
+                throw new InvalidOperationException($"Failed to upload file to S3: {ex.Message}", ex);
+            }
+
+            // Fallback to local storage (Development environment only)
+            _logger.LogWarning("Falling back to local file storage (Development environment only).");
             memStream.Position = 0;
             return await _fallbackLocalStorage.SaveFileAsync(memStream, fileName, folder, contentType, cancellationToken);
         }
@@ -151,6 +161,12 @@ public class S3FileStorageService : IFileStorageService
 
         if (_s3Client == null || string.IsNullOrWhiteSpace(_bucketName))
         {
+            if (_environment.IsProduction())
+            {
+                _logger.LogWarning("Production Warning: S3 client unconfigured during file deletion.");
+                return;
+            }
+
             await _fallbackLocalStorage.DeleteFileAsync(fileUrl, cancellationToken);
             return;
         }

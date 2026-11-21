@@ -109,3 +109,4 @@ public class FileSignatureValidatorTests
         result.Should().BeTrue();
     }
 }
+

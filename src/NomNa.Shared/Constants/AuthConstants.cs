@@ -21,3 +21,4 @@ public static class AuthConstants
     /// </summary>
     public const int RefreshTokenExpirationDays = 7;
 }
+

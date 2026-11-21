@@ -1,23 +1,25 @@
-using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
+using NomNa.Application.Common.Interfaces;
 
 namespace NomNa.WebAPI.Hubs;
 
 /// <summary>
-/// Hub invocation filter enforcing sliding-window rate limits across SignalR WebSocket connections
-/// to prevent message flooding, WebRTC signaling denial-of-service, and server exhaustion.
+/// Hub invocation filter enforcing distributed sliding-window rate limits across SignalR WebSocket connections
+/// to prevent message flooding, WebRTC signaling denial-of-service, and cluster-wide server exhaustion.
 /// </summary>
 public class SignalRRateLimitingHubFilter : IHubFilter
 {
+    private readonly IDistributedRateLimiter _rateLimiter;
     private readonly ILogger<SignalRRateLimitingHubFilter> _logger;
 
-    // Sliding window tracker: ConnectionId -> (Count, WindowStartTimestampMs)
-    private static readonly ConcurrentDictionary<string, (int Count, long WindowStartMs)> _rateLimits = new();
     private const int MaxCallsPerSecond = 25; // 25 RPC invocations per 1-second window
-    private const long WindowDurationMs = 1000;
+    private static readonly TimeSpan WindowDuration = TimeSpan.FromSeconds(1);
 
-    public SignalRRateLimitingHubFilter(ILogger<SignalRRateLimitingHubFilter> logger)
+    public SignalRRateLimitingHubFilter(
+        IDistributedRateLimiter rateLimiter,
+        ILogger<SignalRRateLimitingHubFilter> logger)
     {
+        _rateLimiter = rateLimiter;
         _logger = logger;
     }
 
@@ -26,50 +28,26 @@ public class SignalRRateLimitingHubFilter : IHubFilter
         Func<HubInvocationContext, ValueTask<object?>> next)
     {
         var connectionId = invocationContext.Context.ConnectionId;
-        var now = Environment.TickCount64;
+        var userId = invocationContext.Context.UserIdentifier;
 
-        var isRateExceeded = false;
+        // Partition by user ID if authenticated, otherwise by connection ID
+        var partitionKey = !string.IsNullOrEmpty(userId) ? $"ws:user:{userId}" : $"ws:conn:{connectionId}";
 
-        _rateLimits.AddOrUpdate(
-            connectionId,
-            _ => (1, now),
-            (_, current) =>
-            {
-                if (now - current.WindowStartMs > WindowDurationMs)
-                {
-                    // New window
-                    return (1, now);
-                }
-
-                if (current.Count >= MaxCallsPerSecond)
-                {
-                    isRateExceeded = true;
-                    return current;
-                }
-
-                return (current.Count + 1, current.WindowStartMs);
-            });
+        var isRateExceeded = await _rateLimiter.IsRateLimitExceededAsync(
+            partitionKey,
+            MaxCallsPerSecond,
+            WindowDuration);
 
         if (isRateExceeded)
         {
             _logger.LogWarning(
-                "SignalR rate limit exceeded by Connection {ConnectionId} (User {UserId}) calling method {Method}",
-                connectionId,
-                invocationContext.Context.UserIdentifier,
+                "SignalR rate limit exceeded by {PartitionKey} calling method {Method}",
+                partitionKey,
                 invocationContext.HubMethodName);
 
             throw new HubException("SignalR rate limit exceeded. Please throttle your requests.");
         }
 
         return await next(invocationContext);
-    }
-
-    public async Task OnDisconnectedAsync(
-        HubLifetimeContext context,
-        Exception? exception,
-        Func<HubLifetimeContext, Exception?, Task> next)
-    {
-        _rateLimits.TryRemove(context.Context.ConnectionId, out _);
-        await next(context, exception);
     }
 }

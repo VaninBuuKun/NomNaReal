@@ -27,20 +27,23 @@ public partial class ChatHub : Hub
     private readonly ISender _mediator;
     private readonly ILogger<ChatHub> _logger;
     private readonly IUserPresenceTracker _presenceTracker;
+    private readonly IVoiceRoomManager _voiceRoomManager;
+    private readonly ICallSignalingManager _callSignalingManager;
     private readonly IServiceScopeFactory _scopeFactory;
-
-    // Track active 1v1 call pairings (UserId <-> PeerUserId) across connections
-    private static readonly ConcurrentDictionary<Guid, Guid> _activeCalls = new();
 
     public ChatHub(
         ISender mediator,
         ILogger<ChatHub> logger,
         IUserPresenceTracker presenceTracker,
+        IVoiceRoomManager voiceRoomManager,
+        ICallSignalingManager callSignalingManager,
         IServiceScopeFactory scopeFactory)
     {
         _mediator = mediator;
         _logger = logger;
         _presenceTracker = presenceTracker;
+        _voiceRoomManager = voiceRoomManager;
+        _callSignalingManager = callSignalingManager;
         _scopeFactory = scopeFactory;
     }
 
@@ -150,19 +153,19 @@ public partial class ChatHub : Hub
             await CleanupUserVoiceChannelsAsync(userId);
 
             // If user disconnects during an active call, notify partner with CallEnded
-            if (_activeCalls.TryRemove(userId, out var partnerId))
+            var partnerId = await _callSignalingManager.CleanupCallForUserAsync(userId);
+            if (partnerId.HasValue)
             {
-                _activeCalls.TryRemove(partnerId, out _);
                 try
                 {
-                    await Clients.User(partnerId.ToString()).SendAsync(
+                    await Clients.User(partnerId.Value.ToString()).SendAsync(
                         SignalRConstants.Events.CallEnded,
                         new CallEndedPayload(userId));
-                    _logger.LogInformation("Disconnected user {UserId} had active call with {PartnerId}, dispatched CallEnded", userId, partnerId);
+                    _logger.LogInformation("Disconnected user {UserId} had active call with {PartnerId}, dispatched CallEnded", userId, partnerId.Value);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to dispatch CallEnded on disconnect to partner {PartnerId}", partnerId);
+                    _logger.LogWarning(ex, "Failed to dispatch CallEnded on disconnect to partner {PartnerId}", partnerId.Value);
                 }
             }
 

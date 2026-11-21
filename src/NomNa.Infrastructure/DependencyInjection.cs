@@ -43,6 +43,15 @@ public static class DependencyInjection
         });
 
         services.AddSingleton<IUserPresenceTracker, RedisUserPresenceTracker>();
+        services.AddSingleton<IVoiceRoomManager, RedisVoiceRoomManager>();
+        services.AddSingleton<ICallSignalingManager, RedisCallSignalingManager>();
+        services.AddSingleton<IDistributedRateLimiter, RedisDistributedRateLimiter>();
+
+        // Distributed Cache Invalidation Bus (Registers as both ICacheInvalidationBus and IHostedService)
+        services.AddSingleton<RedisCacheInvalidationBus>();
+        services.AddSingleton<ICacheInvalidationBus>(sp => sp.GetRequiredService<RedisCacheInvalidationBus>());
+        services.AddHostedService<RedisCacheInvalidationBus>(sp => sp.GetRequiredService<RedisCacheInvalidationBus>());
+
         services.AddMemoryCache();
         services.AddSingleton<IUserProfileCache, UserProfileCache>();
         services.AddSingleton<IPinnedMessageCache, PinnedMessageCache>();

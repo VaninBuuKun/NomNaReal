@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Primitives;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Application.Common.Models;
 using NomNa.Domain.Entities;
 using NomNa.Domain.Enums;
 using NomNa.Domain.Services;
@@ -12,12 +13,13 @@ namespace NomNa.Infrastructure.Services;
 /// <summary>
 /// Service resolving and caching user permissions across Servers and Channels.
 /// Employs a Cache-Aside pattern (IMemoryCache) coupled with CancellationChangeTokens
-/// for instant and deterministic cache invalidation upon role or overwrite updates.
+/// and Redis Pub/Sub invalidation bus for instant cluster-wide cache invalidation.
 /// </summary>
 public class PermissionService : IPermissionService
 {
     private readonly IApplicationDbContext _context;
     private readonly IMemoryCache _cache;
+    private readonly ICacheInvalidationBus _invalidationBus;
     private static readonly TimeSpan DefaultCacheExpiration = TimeSpan.FromMinutes(2);
 
     // Static token registries shared across scoped PermissionService instances to guarantee reliable cache invalidation
@@ -25,10 +27,14 @@ public class PermissionService : IPermissionService
     private static readonly ConcurrentDictionary<Guid, CancellationTokenSource> _channelTokens = new();
     private static readonly ConcurrentDictionary<(Guid ServerId, Guid UserId), CancellationTokenSource> _userTokens = new();
 
-    public PermissionService(IApplicationDbContext context, IMemoryCache cache)
+    public PermissionService(
+        IApplicationDbContext context,
+        IMemoryCache cache,
+        ICacheInvalidationBus invalidationBus)
     {
         _context = context;
         _cache = cache;
+        _invalidationBus = invalidationBus;
     }
 
     private MemoryCacheEntryOptions CreateServerCacheOptions(Guid serverId, Guid userId)
@@ -401,6 +407,24 @@ public class PermissionService : IPermissionService
 
     public void InvalidateServer(Guid serverId)
     {
+        InvalidateLocalServer(serverId);
+        _ = _invalidationBus.PublishInvalidationAsync(new CacheInvalidationMessage(CacheInvalidationScope.ServerPermissions, serverId));
+    }
+
+    public void InvalidateChannel(Guid channelId)
+    {
+        InvalidateLocalChannel(channelId);
+        _ = _invalidationBus.PublishInvalidationAsync(new CacheInvalidationMessage(CacheInvalidationScope.ChannelPermissions, channelId));
+    }
+
+    public void InvalidateUser(Guid serverId, Guid userId)
+    {
+        InvalidateLocalUser(serverId, userId);
+        _ = _invalidationBus.PublishInvalidationAsync(new CacheInvalidationMessage(CacheInvalidationScope.UserPermissions, serverId, userId));
+    }
+
+    public void InvalidateLocalServer(Guid serverId)
+    {
         if (_serverTokens.TryRemove(serverId, out var cts))
         {
             try
@@ -415,7 +439,7 @@ public class PermissionService : IPermissionService
         }
     }
 
-    public void InvalidateChannel(Guid channelId)
+    public void InvalidateLocalChannel(Guid channelId)
     {
         if (_channelTokens.TryRemove(channelId, out var cts))
         {
@@ -431,7 +455,7 @@ public class PermissionService : IPermissionService
         }
     }
 
-    public void InvalidateUser(Guid serverId, Guid userId)
+    public void InvalidateLocalUser(Guid serverId, Guid userId)
     {
         if (_userTokens.TryRemove((serverId, userId), out var cts))
         {

@@ -180,3 +180,4 @@ public static class FileSignatureValidator
         return false;
     }
 }
+

@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using NomNa.Application.Common.Interfaces;
 using StackExchange.Redis;
@@ -7,9 +6,9 @@ namespace NomNa.Infrastructure.Services;
 
 /// <summary>
 /// Real-time user presence tracker backed by Redis.
-/// Employs a connection lease model with heartbeat renewal (ZSET Unix timestamps).
-/// Reduces round-trips via precompiled Lua scripts, pipelined batch queries,
-/// and probabilistic self-healing cleanup without requiring active background workers.
+/// Employs a distributed connection lease model with heartbeat renewal (ZSET Unix timestamps).
+/// Operates under strict Single Source of Truth: if Redis is disconnected, fails fast rather than
+/// polluting local in-memory dictionaries that cause split-brain presence discrepancies.
 /// </summary>
 public class RedisUserPresenceTracker : IUserPresenceTracker
 {
@@ -22,9 +21,6 @@ public class RedisUserPresenceTracker : IUserPresenceTracker
 
     // Connection lease duration (60 seconds). SignalR client pings every 25 seconds.
     private static readonly TimeSpan ConnectionLeaseTtl = TimeSpan.FromSeconds(60);
-
-    // Fallback in-memory presence dictionary in case Redis becomes unreachable
-    private static readonly ConcurrentDictionary<Guid, HashSet<string>> _fallbackOnlineUsers = new();
 
     #region Precompiled Lua Scripts (Atomic 1-RTT execution)
 
@@ -73,179 +69,138 @@ public class RedisUserPresenceTracker : IUserPresenceTracker
 
     public async Task<bool> UserConnectedAsync(Guid userId, string connectionId)
     {
-        if (_redis.IsConnected)
+        if (!_redis.IsConnected)
         {
-            try
-            {
-                var db = _redis.GetDatabase();
-                var userKey = $"{UserConnectionsKeyPrefix}{userId}";
-                var connKey = $"{ConnectionKeyPrefix}{connectionId}";
-                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                var expiresAt = now + (long)ConnectionLeaseTtl.TotalSeconds;
-
-                // Execute connect pipeline in a single atomic Lua script (1 round-trip)
-                var result = await db.ScriptEvaluateAsync(ConnectScript, new
-                {
-                    connKey = (RedisKey)connKey,
-                    userKey = (RedisKey)userKey,
-                    zsetKey = (RedisKey)OnlineUsersZSetKey,
-                    userId = (RedisValue)userId.ToString(),
-                    connId = (RedisValue)connectionId,
-                    ttl = (RedisValue)(long)ConnectionLeaseTtl.TotalSeconds,
-                    expiresAt = (RedisValue)expiresAt,
-                    now = (RedisValue)now
-                });
-
-                return (int)result == 1;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Redis error during UserConnectedAsync for {UserId}, falling back to in-memory", userId);
-            }
+            _logger.LogError("Distributed Presence Error: Redis is disconnected on UserConnectedAsync for {UserId}", userId);
+            return false;
         }
 
-        // Fallback in-memory
-        var isFirst = false;
-        _fallbackOnlineUsers.AddOrUpdate(
-            userId,
-            _ =>
+        try
+        {
+            var db = _redis.GetDatabase();
+            var userKey = $"{UserConnectionsKeyPrefix}{userId}";
+            var connKey = $"{ConnectionKeyPrefix}{connectionId}";
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var expiresAt = now + (long)ConnectionLeaseTtl.TotalSeconds;
+
+            // Execute connect pipeline in a single atomic Lua script (1 round-trip)
+            var result = await db.ScriptEvaluateAsync(ConnectScript, new
             {
-                isFirst = true;
-                return new HashSet<string> { connectionId };
-            },
-            (_, connections) =>
-            {
-                lock (connections)
-                {
-                    if (connections.Count == 0) isFirst = true;
-                    connections.Add(connectionId);
-                }
-                return connections;
+                connKey = (RedisKey)connKey,
+                userKey = (RedisKey)userKey,
+                zsetKey = (RedisKey)OnlineUsersZSetKey,
+                userId = (RedisValue)userId.ToString(),
+                connId = (RedisValue)connectionId,
+                ttl = (RedisValue)(long)ConnectionLeaseTtl.TotalSeconds,
+                now = (RedisValue)now,
+                expiresAt = (RedisValue)expiresAt
             });
 
-        return isFirst;
+            return (int)result == 1;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to register connection {ConnectionId} in Redis for {UserId}", connectionId, userId);
+            return false;
+        }
     }
 
     public async Task<bool> UserDisconnectedAsync(Guid userId, string connectionId)
     {
-        if (_redis.IsConnected)
+        if (!_redis.IsConnected)
         {
-            try
-            {
-                var db = _redis.GetDatabase();
-                var userKey = $"{UserConnectionsKeyPrefix}{userId}";
-                var connKey = $"{ConnectionKeyPrefix}{connectionId}";
-
-                // Execute disconnect pipeline in a single atomic Lua script (1 round-trip)
-                var result = await db.ScriptEvaluateAsync(DisconnectScript, new
-                {
-                    connKey = (RedisKey)connKey,
-                    userKey = (RedisKey)userKey,
-                    zsetKey = (RedisKey)OnlineUsersZSetKey,
-                    userId = (RedisValue)userId.ToString(),
-                    connId = (RedisValue)connectionId
-                });
-
-                return (int)result == 1;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Redis error during UserDisconnectedAsync for {UserId}, falling back to in-memory", userId);
-            }
+            _logger.LogError("Distributed Presence Error: Redis is disconnected on UserDisconnectedAsync for {UserId}", userId);
+            return false;
         }
 
-        // Fallback in-memory
-        var isLast = false;
-        if (_fallbackOnlineUsers.TryGetValue(userId, out var connections))
+        try
         {
-            lock (connections)
-            {
-                connections.Remove(connectionId);
-                if (connections.Count == 0)
-                {
-                    isLast = true;
-                }
-            }
+            var db = _redis.GetDatabase();
+            var userKey = $"{UserConnectionsKeyPrefix}{userId}";
+            var connKey = $"{ConnectionKeyPrefix}{connectionId}";
 
-            if (isLast)
+            // Execute disconnect pipeline in a single atomic Lua script (1 round-trip)
+            var result = await db.ScriptEvaluateAsync(DisconnectScript, new
             {
-                _fallbackOnlineUsers.TryRemove(userId, out _);
-            }
+                connKey = (RedisKey)connKey,
+                userKey = (RedisKey)userKey,
+                zsetKey = (RedisKey)OnlineUsersZSetKey,
+                userId = (RedisValue)userId.ToString(),
+                connId = (RedisValue)connectionId
+            });
+
+            return (int)result == 1;
         }
-
-        return isLast;
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to remove connection {ConnectionId} in Redis for {UserId}", connectionId, userId);
+            return false;
+        }
     }
 
     public async Task HeartbeatAsync(Guid userId, string connectionId)
     {
-        if (_redis.IsConnected)
+        if (!_redis.IsConnected)
         {
-            try
-            {
-                var db = _redis.GetDatabase();
-                var userKey = $"{UserConnectionsKeyPrefix}{userId}";
-                var connKey = $"{ConnectionKeyPrefix}{connectionId}";
-                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                var expiresAt = now + (long)ConnectionLeaseTtl.TotalSeconds;
-
-                // Execute heartbeat in a single atomic Lua script (1 round-trip)
-                await db.ScriptEvaluateAsync(HeartbeatScript, new
-                {
-                    connKey = (RedisKey)connKey,
-                    userKey = (RedisKey)userKey,
-                    zsetKey = (RedisKey)OnlineUsersZSetKey,
-                    userId = (RedisValue)userId.ToString(),
-                    ttl = (RedisValue)(long)ConnectionLeaseTtl.TotalSeconds,
-                    expiresAt = (RedisValue)expiresAt
-                });
-
-                // Phase 3: Probabilistic self-healing cleanup (~2% probability)
-                // Purges expired leases without spawning redundant background workers across multi-node clusters
-                if (Random.Shared.Next(0, 50) == 0)
-                {
-                    _ = db.SortedSetRemoveRangeByScoreAsync(OnlineUsersZSetKey, double.NegativeInfinity, now);
-                }
-
-                return;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Redis error during HeartbeatAsync for {UserId}", userId);
-            }
+            _logger.LogWarning("Redis is disconnected during HeartbeatAsync for {UserId}", userId);
+            return;
         }
 
-        // Fallback in-memory heartbeat
-        if (_fallbackOnlineUsers.TryGetValue(userId, out var conns))
+        try
         {
-            lock (conns)
+            var db = _redis.GetDatabase();
+            var userKey = $"{UserConnectionsKeyPrefix}{userId}";
+            var connKey = $"{ConnectionKeyPrefix}{connectionId}";
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var expiresAt = now + (long)ConnectionLeaseTtl.TotalSeconds;
+
+            // Execute heartbeat in a single atomic Lua script (1 round-trip)
+            await db.ScriptEvaluateAsync(HeartbeatScript, new
             {
-                conns.Add(connectionId);
+                connKey = (RedisKey)connKey,
+                userKey = (RedisKey)userKey,
+                zsetKey = (RedisKey)OnlineUsersZSetKey,
+                userId = (RedisValue)userId.ToString(),
+                ttl = (RedisValue)(long)ConnectionLeaseTtl.TotalSeconds,
+                expiresAt = (RedisValue)expiresAt
+            });
+
+            // Probabilistic self-healing cleanup (~2% probability)
+            // Purges expired leases without spawning redundant background workers across multi-node clusters
+            if (Random.Shared.Next(0, 50) == 0)
+            {
+                _ = db.SortedSetRemoveRangeByScoreAsync(OnlineUsersZSetKey, double.NegativeInfinity, now);
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis error during HeartbeatAsync for {UserId}", userId);
         }
     }
 
     public async Task<bool> IsUserOnlineAsync(Guid userId)
     {
-        if (_redis.IsConnected)
+        if (!_redis.IsConnected)
         {
-            try
-            {
-                var db = _redis.GetDatabase();
-                var score = await db.SortedSetScoreAsync(OnlineUsersZSetKey, userId.ToString());
-                if (score.HasValue)
-                {
-                    var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                    return score.Value > now;
-                }
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Redis error during IsUserOnlineAsync for {UserId}", userId);
-            }
+            return false;
         }
 
-        return _fallbackOnlineUsers.TryGetValue(userId, out var conns) && conns.Count > 0;
+        try
+        {
+            var db = _redis.GetDatabase();
+            var score = await db.SortedSetScoreAsync(OnlineUsersZSetKey, userId.ToString());
+            if (score.HasValue)
+            {
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                return score.Value > now;
+            }
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis error during IsUserOnlineAsync for {UserId}", userId);
+            return false;
+        }
     }
 
     /// <summary>
@@ -255,132 +210,120 @@ public class RedisUserPresenceTracker : IUserPresenceTracker
     public async Task<IReadOnlyDictionary<Guid, bool>> AreUsersOnlineAsync(IReadOnlyCollection<Guid> userIds)
     {
         if (userIds.Count == 0)
-        {
             return new Dictionary<Guid, bool>();
-        }
 
-        if (_redis.IsConnected)
+        if (!_redis.IsConnected)
         {
-            try
-            {
-                var db = _redis.GetDatabase();
-                var batch = db.CreateBatch();
-                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                var tasks = new Dictionary<Guid, Task<double?>>(userIds.Count);
-
-                foreach (var id in userIds)
-                {
-                    tasks[id] = batch.SortedSetScoreAsync(OnlineUsersZSetKey, id.ToString());
-                }
-
-                batch.Execute(); // Dispatches all score checks in a single TCP payload
-                await Task.WhenAll(tasks.Values);
-
-                return tasks.ToDictionary(
-                    kv => kv.Key,
-                    kv => kv.Value.Result.HasValue && kv.Value.Result.Value > now
-                );
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Redis error during AreUsersOnlineAsync, falling back to in-memory");
-            }
+            return userIds.ToDictionary(id => id, _ => false);
         }
 
-        // Fallback in-memory resolution
-        return userIds.ToDictionary(
-            id => id,
-            id => _fallbackOnlineUsers.TryGetValue(id, out var conns) && conns.Count > 0
-        );
+        try
+        {
+            var db = _redis.GetDatabase();
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            // Pipelined batch query
+            var batch = db.CreateBatch();
+            var scoreTasks = userIds
+                .Distinct()
+                .ToDictionary(id => id, id => batch.SortedSetScoreAsync(OnlineUsersZSetKey, id.ToString()));
+
+            batch.Execute();
+            await Task.WhenAll(scoreTasks.Values);
+
+            return scoreTasks.ToDictionary(
+                kv => kv.Key,
+                kv => kv.Value.Result.HasValue && kv.Value.Result.Value > now
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis error during AreUsersOnlineAsync");
+            return userIds.ToDictionary(id => id, _ => false);
+        }
     }
 
     public async Task<IReadOnlyCollection<Guid>> GetOnlineUsersAsync()
     {
-        if (_redis.IsConnected)
+        if (!_redis.IsConnected)
         {
-            try
-            {
-                var db = _redis.GetDatabase();
-                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-                // Retrieve active online members whose lease has not expired (score > now)
-                var members = await db.SortedSetRangeByScoreAsync(OnlineUsersZSetKey, now, double.PositiveInfinity);
-                var result = new List<Guid>(members.Length);
-
-                foreach (var m in members)
-                {
-                    if (Guid.TryParse(m.ToString(), out var id))
-                    {
-                        result.Add(id);
-                    }
-                }
-
-                return result.AsReadOnly();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Redis error during GetOnlineUsersAsync");
-            }
+            return Array.Empty<Guid>();
         }
 
-        return _fallbackOnlineUsers.Keys.ToList().AsReadOnly();
+        try
+        {
+            var db = _redis.GetDatabase();
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+            // Retrieve active online members whose lease has not expired (score > now)
+            var members = await db.SortedSetRangeByScoreAsync(OnlineUsersZSetKey, now, double.PositiveInfinity);
+            var result = new List<Guid>(members.Length);
+
+            foreach (var m in members)
+            {
+                if (Guid.TryParse(m.ToString(), out var id))
+                {
+                    result.Add(id);
+                }
+            }
+
+            return result.AsReadOnly();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis error during GetOnlineUsersAsync");
+            return Array.Empty<Guid>();
+        }
     }
 
     public async Task<IReadOnlyCollection<string>> GetConnectionsForUserAsync(Guid userId)
     {
-        if (_redis.IsConnected)
+        if (!_redis.IsConnected)
         {
-            try
-            {
-                var db = _redis.GetDatabase();
-                var userKey = $"{UserConnectionsKeyPrefix}{userId}";
-                var members = await db.SetMembersAsync(userKey);
-                if (members.Length == 0) return Array.Empty<string>();
-
-                // Pipeline existence checks for all connections to eliminate N+1 round-trips
-                var batch = db.CreateBatch();
-                var checkTasks = new List<(string ConnId, Task<bool> ExistsTask)>(members.Length);
-
-                foreach (var m in members)
-                {
-                    var connId = m.ToString();
-                    var connKey = $"{ConnectionKeyPrefix}{connId}";
-                    checkTasks.Add((connId, batch.KeyExistsAsync(connKey)));
-                }
-
-                batch.Execute();
-                await Task.WhenAll(checkTasks.Select(t => t.ExistsTask));
-
-                var validConnections = new List<string>(members.Length);
-                foreach (var (connId, existsTask) in checkTasks)
-                {
-                    if (existsTask.Result)
-                    {
-                        validConnections.Add(connId);
-                    }
-                    else
-                    {
-                        // Clean up orphaned connection asynchronously
-                        _ = db.SetRemoveAsync(userKey, connId);
-                    }
-                }
-
-                return validConnections.AsReadOnly();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Redis error during GetConnectionsForUserAsync for {UserId}", userId);
-            }
+            return Array.Empty<string>();
         }
 
-        if (_fallbackOnlineUsers.TryGetValue(userId, out var connections))
+        try
         {
-            lock (connections)
-            {
-                return connections.ToList().AsReadOnly();
-            }
-        }
+            var db = _redis.GetDatabase();
+            var userKey = $"{UserConnectionsKeyPrefix}{userId}";
+            var members = await db.SetMembersAsync(userKey);
+            if (members.Length == 0) return Array.Empty<string>();
 
-        return Array.Empty<string>();
+            // Pipeline existence checks for all connections to eliminate N+1 round-trips
+            var batch = db.CreateBatch();
+            var checkTasks = new List<(string ConnId, Task<bool> ExistsTask)>(members.Length);
+
+            foreach (var m in members)
+            {
+                var connId = m.ToString();
+                var connKey = $"{ConnectionKeyPrefix}{connId}";
+                checkTasks.Add((connId, batch.KeyExistsAsync(connKey)));
+            }
+
+            batch.Execute();
+            await Task.WhenAll(checkTasks.Select(t => t.ExistsTask));
+
+            var validConnections = new List<string>(members.Length);
+            foreach (var (connId, existsTask) in checkTasks)
+            {
+                if (existsTask.Result)
+                {
+                    validConnections.Add(connId);
+                }
+                else
+                {
+                    // Clean up orphaned connection asynchronously
+                    _ = db.SetRemoveAsync(userKey, connId);
+                }
+            }
+
+            return validConnections.AsReadOnly();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redis error during GetConnectionsForUserAsync for {UserId}", userId);
+            return Array.Empty<string>();
+        }
     }
 }

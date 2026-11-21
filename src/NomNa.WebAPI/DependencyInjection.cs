@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<INotificationDispatcher, SignalRNotificationDispatcher>();
         services.AddScoped<IRealtimeAccessRevoker, RealtimeAccessRevoker>();
+        services.AddSingleton<SignalRRateLimitingHubFilter>();
 
         // 2. Framework Services
         services.AddControllers();

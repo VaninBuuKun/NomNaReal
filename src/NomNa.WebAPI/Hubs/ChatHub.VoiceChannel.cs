@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -11,20 +10,13 @@ namespace NomNa.WebAPI.Hubs;
 
 /// <summary>
 /// Partial class handling multi-user Voice Channel room presence, state transitions, and WebRTC signaling.
+/// Utilizes the distributed IVoiceRoomManager (Redis-backed) to prevent split-brain state across cluster nodes.
 /// </summary>
 public partial class ChatHub
 {
-    // Thread-safe dictionary tracking voice rooms: ChannelId -> (UserId -> VoiceParticipantPayload)
-    private static readonly ConcurrentDictionary<Guid, ConcurrentDictionary<Guid, VoiceParticipantPayload>> _voiceRooms = new();
-
-    // Fast reverse index mapping UserId -> ChannelId for instantaneous disconnect cleanup
-    private static readonly ConcurrentDictionary<Guid, Guid> _userVoiceChannels = new();
-
-    // Fast lookup mapping Voice ChannelId -> ServerId for server-wide sidebar presence sync
-    private static readonly ConcurrentDictionary<Guid, Guid> _channelServers = new();
-
     /// <summary>
     /// Retrieves all active voice channel participants across a server so the sidebar can display live voice rosters.
+    /// Queries the distributed Redis store to support multi-node clusters.
     /// </summary>
     public async Task<IReadOnlyCollection<VoiceParticipantPayload>> GetServerVoiceParticipants(Guid serverId)
     {
@@ -33,36 +25,22 @@ public partial class ChatHub
             return Array.Empty<VoiceParticipantPayload>();
         }
 
-        // Resolve voice channels belonging to this server if not yet cached in _channelServers
+        var voiceChannelIds = new List<Guid>();
         try
         {
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-            var voiceChannelIds = await db.Channels.AsNoTracking()
+            voiceChannelIds = await db.Channels.AsNoTracking()
                 .Where(c => c.ServerId == serverId && c.Type == ChannelType.Voice)
                 .Select(c => c.Id)
                 .ToListAsync();
-
-            foreach (var chId in voiceChannelIds)
-            {
-                _channelServers[chId] = serverId;
-            }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to query voice channels for server {ServerId}", serverId);
         }
 
-        var result = new List<VoiceParticipantPayload>();
-        foreach (var (channelId, room) in _voiceRooms)
-        {
-            if (_channelServers.TryGetValue(channelId, out var mappedServerId) && mappedServerId == serverId)
-            {
-                result.AddRange(room.Values);
-            }
-        }
-
-        return result;
+        return await _voiceRoomManager.GetServerParticipantsAsync(serverId, voiceChannelIds);
     }
 
     /// <summary>
@@ -76,9 +54,10 @@ public partial class ChatHub
         }
 
         // Leave previous voice channel if user was already connected elsewhere
-        if (_userVoiceChannels.TryGetValue(userId, out var previousChannelId) && previousChannelId != channelId)
+        var previousChannelId = await _voiceRoomManager.GetUserVoiceChannelAsync(userId);
+        if (previousChannelId.HasValue && previousChannelId.Value != channelId)
         {
-            await LeaveVoiceChannel(previousChannelId);
+            await LeaveVoiceChannel(previousChannelId.Value);
         }
 
         // Fetch user profile info and verify channel permissions from DbContext
@@ -95,10 +74,6 @@ public partial class ChatHub
             if (channel != null)
             {
                 serverId = channel.ServerId;
-                if (serverId.HasValue)
-                {
-                    _channelServers[channelId] = serverId.Value;
-                }
 
                 var permService = scope.ServiceProvider.GetService<IPermissionService>();
                 if (permService != null)
@@ -152,27 +127,27 @@ public partial class ChatHub
             IsScreenSharing: false,
             IsCameraActive: false);
 
-        var room = _voiceRooms.GetOrAdd(channelId, _ => new ConcurrentDictionary<Guid, VoiceParticipantPayload>());
-        room[userId] = participant;
-        _userVoiceChannels[userId] = channelId;
+        await _voiceRoomManager.SetUserVoiceAsync(channelId, serverId ?? Guid.Empty, participant);
+
+        var roomParticipants = await _voiceRoomManager.GetParticipantsAsync(channelId);
 
         _logger.LogInformation("User {UserId} ({DisplayName}) joined voice channel {ChannelId}. Room size: {Count}",
-            userId, displayName, channelId, room.Count);
+            userId, displayName, channelId, roomParticipants.Count);
 
         // 1. Send currently connected room participants list to the joining user
-        await Clients.Caller.SendAsync(SignalRConstants.Events.CurrentVoiceParticipants, room.Values.ToList());
+        await Clients.Caller.SendAsync(SignalRConstants.Events.CurrentVoiceParticipants, roomParticipants);
 
         // 2. Broadcast to all other participants in the voice room and server group that a peer joined
         await Clients.OthersInGroup(groupName).SendAsync(SignalRConstants.Events.UserJoinedVoice, participant);
-        if (serverId.HasValue || (_channelServers.TryGetValue(channelId, out var cachedServerId) && (serverId = cachedServerId).HasValue))
+        if (serverId.HasValue)
         {
             await Clients.Group($"server_{serverId.Value}").SendAsync(SignalRConstants.Events.UserJoinedVoice, participant);
         }
 
         // Also send direct notification to all remaining participants in the room by UserId for guaranteed delivery
-        var otherParticipantIds = room.Keys
-            .Where(id => id != userId)
-            .Select(id => id.ToString())
+        var otherParticipantIds = roomParticipants
+            .Where(p => p.UserId != userId)
+            .Select(p => p.UserId.ToString())
             .ToList();
         if (otherParticipantIds.Count > 0)
         {
@@ -193,21 +168,7 @@ public partial class ChatHub
         var groupName = $"voice_{channelId}";
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
 
-        var remainingUserIds = new List<string>();
-        if (_voiceRooms.TryGetValue(channelId, out var room))
-        {
-            room.TryRemove(userId, out _);
-            remainingUserIds = room.Keys.Select(id => id.ToString()).ToList();
-            if (room.IsEmpty)
-            {
-                _voiceRooms.TryRemove(channelId, out _);
-            }
-        }
-
-        if (_userVoiceChannels.TryGetValue(userId, out var currentCh) && currentCh == channelId)
-        {
-            _userVoiceChannels.TryRemove(userId, out _);
-        }
+        var (exitedChId, serverId, remainingUserIds) = await _voiceRoomManager.RemoveUserVoiceAsync(userId, channelId);
 
         _logger.LogInformation("User {UserId} left voice channel {ChannelId}", userId, channelId);
 
@@ -216,34 +177,13 @@ public partial class ChatHub
 
         if (remainingUserIds.Count > 0)
         {
-            await Clients.Users(remainingUserIds).SendAsync(SignalRConstants.Events.UserLeftVoice, leftPayload);
+            var userIdsString = remainingUserIds.Select(id => id.ToString()).ToList();
+            await Clients.Users(userIdsString).SendAsync(SignalRConstants.Events.UserLeftVoice, leftPayload);
         }
 
-        if (!_channelServers.TryGetValue(channelId, out var serverId))
+        if (serverId.HasValue && serverId.Value != Guid.Empty)
         {
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-                var resolvedServerId = await db.Channels.AsNoTracking()
-                    .Where(c => c.Id == channelId)
-                    .Select(c => c.ServerId)
-                    .FirstOrDefaultAsync();
-                if (resolvedServerId.HasValue)
-                {
-                    serverId = resolvedServerId.Value;
-                    _channelServers[channelId] = serverId;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to resolve serverId for voice channel {ChannelId} on leave", channelId);
-            }
-        }
-
-        if (serverId != Guid.Empty)
-        {
-            await Clients.Group($"server_{serverId}").SendAsync(SignalRConstants.Events.UserLeftVoice, leftPayload);
+            await Clients.Group($"server_{serverId.Value}").SendAsync(SignalRConstants.Events.UserLeftVoice, leftPayload);
         }
     }
 
@@ -263,18 +203,17 @@ public partial class ChatHub
             return;
         }
 
-        if (_voiceRooms.TryGetValue(channelId, out var room) && room.TryGetValue(userId, out var existing))
-        {
-            var updated = existing with
-            {
-                IsMuted = isMuted,
-                IsDeafened = isDeafened,
-                IsSpeaking = isSpeaking,
-                IsScreenSharing = isScreenSharing,
-                IsCameraActive = isCameraActive
-            };
-            room[userId] = updated;
+        var updated = await _voiceRoomManager.UpdateVoiceStateAsync(
+            channelId,
+            userId,
+            isMuted,
+            isDeafened,
+            isSpeaking,
+            isScreenSharing,
+            isCameraActive);
 
+        if (updated != null)
+        {
             var payload = new VoiceStateChangedPayload(
                 channelId,
                 userId,
@@ -288,10 +227,10 @@ public partial class ChatHub
                 SignalRConstants.Events.VoiceStateChanged,
                 payload);
 
-            // Also notify server group so sidebar indicators (mute/deafen/speaking/screen) stay synchronized
-            if (_channelServers.TryGetValue(channelId, out var serverId))
+            var serverId = await _voiceRoomManager.GetChannelServerIdAsync(channelId);
+            if (serverId.HasValue && serverId.Value != Guid.Empty)
             {
-                await Clients.OthersInGroup($"server_{serverId}").SendAsync(
+                await Clients.OthersInGroup($"server_{serverId.Value}").SendAsync(
                     SignalRConstants.Events.VoiceStateChanged,
                     payload);
             }
@@ -313,10 +252,9 @@ public partial class ChatHub
             return;
         }
 
-        // Security guard: verify both sender and target are actively in the same voice room
-        if (!_voiceRooms.TryGetValue(channelId, out var room) ||
-            !room.ContainsKey(senderUserId) ||
-            !room.ContainsKey(targetUserId))
+        // Distributed security guard: verify both sender and target are actively in the same voice room
+        var areCoLocated = await _voiceRoomManager.AreUsersInSameVoiceChannelAsync(channelId, senderUserId, targetUserId);
+        if (!areCoLocated)
         {
             _logger.LogWarning(
                 "Rejected voice signal in channel {ChannelId} from {SenderId} to {TargetId}: not co-located in room",
@@ -336,41 +274,33 @@ public partial class ChatHub
     /// </summary>
     private async Task CleanupUserVoiceChannelsAsync(Guid userId)
     {
-        if (_userVoiceChannels.TryRemove(userId, out var channelId))
+        var (channelId, serverId, remainingUserIds) = await _voiceRoomManager.RemoveUserVoiceAsync(userId);
+        if (channelId.HasValue)
         {
-            var remainingUserIds = new List<string>();
-            if (_voiceRooms.TryGetValue(channelId, out var room))
-            {
-                room.TryRemove(userId, out _);
-                remainingUserIds = room.Keys.Select(id => id.ToString()).ToList();
-                if (room.IsEmpty)
-                {
-                    _voiceRooms.TryRemove(channelId, out _);
-                }
-            }
-
+            var chId = channelId.Value;
             try
             {
-                var leftPayload = new VoiceUserLeftPayload(channelId, userId);
-                await Clients.Group($"voice_{channelId}").SendAsync(
+                var leftPayload = new VoiceUserLeftPayload(chId, userId);
+                await Clients.Group($"voice_{chId}").SendAsync(
                     SignalRConstants.Events.UserLeftVoice,
                     leftPayload);
 
                 if (remainingUserIds.Count > 0)
                 {
-                    await Clients.Users(remainingUserIds).SendAsync(
+                    var userIdsString = remainingUserIds.Select(id => id.ToString()).ToList();
+                    await Clients.Users(userIdsString).SendAsync(
                         SignalRConstants.Events.UserLeftVoice,
                         leftPayload);
                 }
 
-                if (_channelServers.TryGetValue(channelId, out var serverId))
+                if (serverId.HasValue && serverId.Value != Guid.Empty)
                 {
-                    await Clients.Group($"server_{serverId}").SendAsync(
+                    await Clients.Group($"server_{serverId.Value}").SendAsync(
                         SignalRConstants.Events.UserLeftVoice,
                         leftPayload);
                 }
 
-                _logger.LogInformation("Cleaned up voice room on disconnect for user {UserId} in channel {ChannelId}", userId, channelId);
+                _logger.LogInformation("Cleaned up voice room on disconnect for user {UserId} in channel {ChannelId}", userId, chId);
             }
             catch (Exception ex)
             {

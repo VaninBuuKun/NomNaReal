@@ -12,4 +12,9 @@ public interface IPermissionService
     void InvalidateServer(Guid serverId);
     void InvalidateChannel(Guid channelId);
     void InvalidateUser(Guid serverId, Guid userId);
+
+    // Local node invalidation (called by RedisCacheInvalidationBus subscriber)
+    void InvalidateLocalServer(Guid serverId);
+    void InvalidateLocalChannel(Guid channelId);
+    void InvalidateLocalUser(Guid serverId, Guid userId);
 }

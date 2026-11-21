@@ -10,6 +10,7 @@ namespace NomNa.WebAPI.Hubs;
 
 /// <summary>
 /// Partial class handling WebRTC 1v1 call signaling RPC endpoints.
+/// Synchronized cluster-wide using Redis-backed ICallSignalingManager.
 /// </summary>
 public partial class ChatHub
 {
@@ -30,7 +31,7 @@ public partial class ChatHub
         }
 
         // Verify caller is not already engaged in an active call
-        if (_activeCalls.TryGetValue(callerId, out _))
+        if (await _callSignalingManager.HasActiveCallAsync(callerId))
         {
             var busyPayload = new CallRejectedPayload(targetUserId, "You are already in an active call.");
             await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, busyPayload);
@@ -38,7 +39,7 @@ public partial class ChatHub
         }
 
         // Verify callee is not busy in another call
-        if (_activeCalls.TryGetValue(targetUserId, out _))
+        if (await _callSignalingManager.HasActiveCallAsync(targetUserId))
         {
             var busyPayload = new CallRejectedPayload(targetUserId, "User is currently busy in another call.");
             await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, busyPayload);
@@ -87,9 +88,14 @@ public partial class ChatHub
             _logger.LogWarning(ex, "Failed to load caller user info for call signaling");
         }
 
-        // Record active call intent between caller and callee
-        _activeCalls[callerId] = targetUserId;
-        _activeCalls[targetUserId] = callerId;
+        // Record active call intent between caller and callee atomically in Redis (60-second ring timeout)
+        var initiated = await _callSignalingManager.TryInitiateCallAsync(callerId, targetUserId, TimeSpan.FromSeconds(60));
+        if (!initiated)
+        {
+            var busyPayload = new CallRejectedPayload(targetUserId, "User or caller became busy.");
+            await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, busyPayload);
+            return;
+        }
 
         var payload = new CallOfferPayload(callerId, callerName, callerAvatar, targetUserId, offerSdp, isVideoCall);
 
@@ -108,8 +114,9 @@ public partial class ChatHub
             throw new HubException("User is not authenticated.");
         }
 
-        // Verify that callerId has indeed initiated a call to responderId
-        if (!_activeCalls.TryGetValue(callerId, out var pendingTarget) || pendingTarget != responderId)
+        // Verify that callerId has indeed initiated a call to responderId in Redis
+        var isPending = await _callSignalingManager.VerifyPendingCallAsync(callerId, responderId);
+        if (!isPending)
         {
             throw new HubException("No pending call found from this user.");
         }
@@ -122,7 +129,7 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Rejects an incoming call request and cleans up call pairing state.
+    /// Rejects an incoming call request and cleans up call pairing state in Redis.
     /// </summary>
     public async Task RejectCall(Guid callerId, string? reason = null)
     {
@@ -131,7 +138,7 @@ public partial class ChatHub
             throw new HubException("User is not authenticated.");
         }
 
-        RemoveCallPair(callerId, responderId);
+        await _callSignalingManager.EndCallAsync(callerId, responderId);
 
         var payload = new CallRejectedPayload(responderId, reason);
 
@@ -151,12 +158,13 @@ public partial class ChatHub
         }
 
         // Verify active call pairing before ending
-        if (!_activeCalls.TryGetValue(senderId, out var partnerId) || partnerId != peerUserId)
+        var partnerId = await _callSignalingManager.GetCallPartnerAsync(senderId);
+        if (partnerId != peerUserId)
         {
             return;
         }
 
-        RemoveCallPair(senderId, peerUserId);
+        await _callSignalingManager.EndCallAsync(senderId, peerUserId);
 
         var payload = new CallEndedPayload(senderId);
 
@@ -176,7 +184,8 @@ public partial class ChatHub
         }
 
         // Verify active call pairing before forwarding candidate
-        if (!_activeCalls.TryGetValue(senderId, out var partnerId) || partnerId != targetUserId)
+        var partnerId = await _callSignalingManager.GetCallPartnerAsync(senderId);
+        if (partnerId != targetUserId)
         {
             _logger.LogWarning("Rejected ICE candidate from {SenderId} to {TargetUserId}: not an active call pair", senderId, targetUserId);
             return;
@@ -185,21 +194,5 @@ public partial class ChatHub
         var payload = new IceCandidatePayload(senderId, targetUserId, candidate);
 
         await Clients.User(targetUserId.ToString()).SendAsync(SignalRConstants.Events.ReceiveIceCandidate, payload);
-    }
-
-    /// <summary>
-    /// Unbinds active call pairing (a <-> b) only when the mapping strictly matches both directions.
-    /// </summary>
-    private static void RemoveCallPair(Guid a, Guid b)
-    {
-        if (_activeCalls.TryGetValue(a, out var aPartner) && aPartner == b)
-        {
-            _activeCalls.TryRemove(a, out _);
-        }
-
-        if (_activeCalls.TryGetValue(b, out var bPartner) && bPartner == a)
-        {
-            _activeCalls.TryRemove(b, out _);
-        }
     }
 }
