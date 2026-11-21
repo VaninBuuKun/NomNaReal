@@ -1,8 +1,12 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
 using NomNa.Application.Common.Interfaces;
+using NomNa.WebAPI.Hubs;
 using NomNa.WebAPI.Services;
 
 namespace NomNa.WebAPI;
@@ -24,6 +28,11 @@ public static class DependencyInjection
         services.AddControllers();
 
         var signalRBuilder = services.AddSignalR();
+        signalRBuilder.AddHubOptions<ChatHub>(options =>
+        {
+            options.AddFilter<SignalRRateLimitingHubFilter>();
+        });
+
         var redisConn = configuration.GetConnectionString("Redis") 
             ?? configuration["Redis"] 
             ?? "localhost:6380";
@@ -39,7 +48,47 @@ public static class DependencyInjection
         }
 
         services.AddEndpointsApiExplorer();
+
+        // Safe HTTP client registration
         services.AddHttpClient();
+        services.AddHttpClient("LinkPreviewClient")
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                AllowAutoRedirect = false,
+                ConnectTimeout = TimeSpan.FromSeconds(3)
+            });
+
+        // SEC-04: Centralized Rate Limiting & CPU Bulkhead
+        services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            // Strict sliding window for authentication to prevent brute force & PBKDF2 exhaustion
+            options.AddPolicy("auth", httpContext =>
+            {
+                var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                return RateLimitPartition.GetSlidingWindowLimiter(ip, _ => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit = 15,
+                    Window = TimeSpan.FromMinutes(1),
+                    SegmentsPerWindow = 6,
+                    QueueLimit = 0
+                });
+            });
+
+            // Token bucket policy for general API endpoints
+            options.AddPolicy("api", httpContext =>
+            {
+                var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                return RateLimitPartition.GetTokenBucketLimiter(ip, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 120,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(1),
+                    TokensPerPeriod = 2,
+                    QueueLimit = 0
+                });
+            });
+        });
 
         // 3. Configure Upload Limits (up to 105MB)
         services.Configure<FormOptions>(options =>
@@ -75,7 +124,7 @@ public static class DependencyInjection
 
         // 5. Configure JWT Authentication & SignalR WebSocket Token Handling
         var jwtSecret = configuration["Jwt:Secret"];
-        const string defaultDevSecret = "NomNaSuperSecretKeyForDevelopmentAndDemoPurposes2026!MustBeLongEnough";
+        var defaultDevSecret = NomNa.Shared.Constants.AuthConstants.DefaultDevSecret;
 
         if (environment.IsProduction())
         {

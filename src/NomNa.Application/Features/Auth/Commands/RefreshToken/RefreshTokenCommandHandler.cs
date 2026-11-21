@@ -30,6 +30,25 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
             .Include(t => t.User)
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
 
+        // OAuth 2.0 BCP (RFC 6819): Detect reuse of already revoked refresh token.
+        // If an attacker attempts to replay an old token, revoke the entire token family immediately.
+        if (matchingToken != null && matchingToken.RevokedAt != null && matchingToken.User != null)
+        {
+            var compromisedUserId = matchingToken.UserId;
+            var activeTokens = await _context.RefreshTokens
+                .Where(t => t.UserId == compromisedUserId && t.RevokedAt == null)
+                .ToListAsync(cancellationToken);
+
+            var nowUtc = DateTime.UtcNow;
+            foreach (var activeToken in activeTokens)
+            {
+                activeToken.RevokedAt = nowUtc;
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return Error.Unauthorized("Auth.TokenCompromised", "Security violation: Reused refresh token detected. All active sessions have been terminated.");
+        }
 
         if (matchingToken == null || !matchingToken.IsActive || matchingToken.User == null)
             return Error.Unauthorized("Auth.InvalidToken", "Invalid or expired refresh token.");
@@ -47,7 +66,7 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
         {
             UserId = user.Id,
             TokenHash = _jwtService.HashToken(newRawRefreshToken),
-            ExpiresAt = DateTime.UtcNow.AddDays(7)
+            ExpiresAt = DateTime.UtcNow.AddDays(NomNa.Shared.Constants.AuthConstants.RefreshTokenExpirationDays)
         };
 
         _context.RefreshTokens.Add(newRefreshTokenEntity);

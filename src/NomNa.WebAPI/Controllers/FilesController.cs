@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NomNa.Application.Common.Helpers;
 using NomNa.Application.Common.Interfaces;
 
 namespace NomNa.WebAPI.Controllers;
@@ -13,8 +14,8 @@ public class FilesController : ApiControllerBase
 
     private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Images
-        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg",
+        // Images (SVG is explicitly omitted to prevent stored XSS via embedded script tags)
+        ".jpg", ".jpeg", ".png", ".gif", ".webp",
         // Videos (extensible for high-definition streaming & storage up to 100MB)
         ".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v",
         // Audio
@@ -42,10 +43,19 @@ public class FilesController : ApiControllerBase
             return BadRequest(new { code = "File.TooLarge", message = "File size exceeds 100MB limit." });
         }
 
-        var extension = Path.GetExtension(file.FileName);
+        // Sanitize file name to avoid directory traversal attacks
+        var sanitizedFileName = Path.GetFileName(file.FileName);
+        var extension = Path.GetExtension(sanitizedFileName);
         if (string.IsNullOrEmpty(extension) || !AllowedExtensions.Contains(extension))
         {
             return BadRequest(new { code = "File.InvalidType", message = $"File type {extension} is not supported." });
+        }
+
+        // SEC-02: Binary signature verification to detect extension spoofing and malicious executables
+        using var stream = file.OpenReadStream();
+        if (!FileSignatureValidator.IsValidSignature(stream, extension))
+        {
+            return BadRequest(new { code = "File.SignatureMismatch", message = "File content signature does not match the claimed file extension." });
         }
 
         // Sanitize folder name
@@ -58,13 +68,12 @@ public class FilesController : ApiControllerBase
             _ => "uploads"
         };
 
-        using var stream = file.OpenReadStream();
-        var fileUrl = await _fileStorageService.SaveFileAsync(stream, file.FileName, safeFolder, file.ContentType, HttpContext.RequestAborted);
+        var fileUrl = await _fileStorageService.SaveFileAsync(stream, sanitizedFileName, safeFolder, file.ContentType, HttpContext.RequestAborted);
 
         return Ok(new
         {
             url = fileUrl,
-            fileName = file.FileName,
+            fileName = sanitizedFileName,
             fileSize = file.Length,
             contentType = file.ContentType
         });

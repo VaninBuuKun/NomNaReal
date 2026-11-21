@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNa.Application.Features.Auth.Commands.ChangePassword;
 using NomNa.Application.Features.Auth.Commands.ForgotPassword;
 using NomNa.Application.Features.Auth.Commands.GoogleLogin;
@@ -16,6 +17,7 @@ using NomNa.Application.Features.Auth.Queries.GetCurrentUser;
 
 namespace NomNa.WebAPI.Controllers;
 
+[EnableRateLimiting("auth")]
 public class AuthController : ApiControllerBase
 {
     [HttpPost("register")]

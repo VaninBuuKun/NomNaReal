@@ -92,11 +92,24 @@ public class PermissionService : IPermissionService
             return Permissions.All;
         }
 
-        var memberRoles = await _context.MemberRoles
+        // SEC-01: Verify server membership before evaluating roles or default permissions.
+        // Non-members receive Permissions.None to prevent unauthorized access.
+        var member = await _context.ServerMembers
             .AsNoTracking()
-            .Where(mr => mr.ServerMember.ServerId == serverId && mr.ServerMember.UserId == userId)
-            .Select(mr => mr.Role)
-            .ToListAsync(cancellationToken);
+            .Where(m => m.ServerId == serverId && m.UserId == userId)
+            .Select(m => new
+            {
+                Roles = m.MemberRoles.Select(mr => mr.Role).ToList()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (member == null)
+        {
+            _cache.Set(cacheKey, Permissions.None, CreateServerCacheOptions(serverId, userId));
+            return Permissions.None;
+        }
+
+        var memberRoles = member.Roles;
 
         var everyone = server.EveryoneRole ?? new Role
         {
@@ -132,6 +145,7 @@ public class PermissionService : IPermissionService
                 c.Type,
                 c.CreatedById,
                 c.ServerId,
+                c.IsPrivate,
                 OwnerId = c.Server != null ? c.Server.OwnerId : Guid.Empty,
                 EveryoneRole = c.Server != null ? c.Server.Roles.FirstOrDefault(r => r.IsDefault) : null,
                 Overwrites = c.Overwrites.ToList(),
@@ -160,11 +174,23 @@ public class PermissionService : IPermissionService
             return Permissions.All;
         }
 
-        var memberRoles = await _context.MemberRoles
+        // SEC-01: Verify server membership before evaluating channel permissions.
+        var serverMember = await _context.ServerMembers
             .AsNoTracking()
-            .Where(mr => mr.ServerMember.ServerId == channelInfo.ServerId && mr.ServerMember.UserId == userId)
-            .Select(mr => mr.Role)
-            .ToListAsync(cancellationToken);
+            .Where(m => m.ServerId == channelInfo.ServerId.Value && m.UserId == userId)
+            .Select(m => new
+            {
+                Roles = m.MemberRoles.Select(mr => mr.Role).ToList()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (serverMember == null)
+        {
+            _cache.Set(cacheKey, Permissions.None, CreateChannelCacheOptions(channelInfo.ServerId, channelId, userId));
+            return Permissions.None;
+        }
+
+        var memberRoles = serverMember.Roles;
 
         var everyone = channelInfo.EveryoneRole ?? new Role
         {
@@ -173,12 +199,41 @@ public class PermissionService : IPermissionService
             Permissions = Permissions.Default
         };
 
+        var overwrites = channelInfo.Overwrites.ToList();
+
+        // SEC-01: For private channels, remove ViewChannel from @everyone base role.
+        // Grant ViewChannel only if member is explicitly enrolled or has an explicit allow overwrite.
+        var effectiveEveryone = channelInfo.IsPrivate
+            ? new Role
+            {
+                Id = everyone.Id,
+                Name = everyone.Name,
+                IsDefault = true,
+                Permissions = everyone.Permissions & ~Permissions.ViewChannel
+            }
+            : everyone;
+
+        if (channelInfo.IsPrivate && channelInfo.IsMember)
+        {
+            if (!overwrites.Any(o => o.TargetType == OverwriteType.Member && o.TargetId == userId))
+            {
+                overwrites.Add(new ChannelPermissionOverwrite
+                {
+                    ChannelId = channelId,
+                    TargetType = OverwriteType.Member,
+                    TargetId = userId,
+                    Allow = Permissions.ViewChannel | Permissions.SendMessages | Permissions.ReadMessageHistory | Permissions.AttachFiles | Permissions.AddReactions,
+                    Deny = Permissions.None
+                });
+            }
+        }
+
         var permissions = PermissionCalculator.CalculateChannelPermissions(
             userId,
             channelInfo.OwnerId,
-            everyone,
+            effectiveEveryone,
             memberRoles,
-            channelInfo.Overwrites
+            overwrites
         );
 
         _cache.Set(cacheKey, permissions, CreateChannelCacheOptions(channelInfo.ServerId, channelId, userId));
@@ -220,12 +275,27 @@ public class PermissionService : IPermissionService
             return result;
         }
 
-        // Fetch user's member roles in this server
-        var memberRoles = await _context.MemberRoles
+        // SEC-01: Verify server membership before returning any channel permissions
+        var serverMember = await _context.ServerMembers
             .AsNoTracking()
-            .Where(mr => mr.ServerMember.ServerId == serverId && mr.ServerMember.UserId == userId)
-            .Select(mr => mr.Role)
-            .ToListAsync(cancellationToken);
+            .Where(m => m.ServerId == serverId && m.UserId == userId)
+            .Select(m => new
+            {
+                Roles = m.MemberRoles.Select(mr => mr.Role).ToList()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (serverMember == null)
+        {
+            foreach (var id in channelIdList)
+            {
+                result[id] = Permissions.None;
+                _cache.Set($"perm_chn_{id}_{userId}", Permissions.None, CreateChannelCacheOptions(serverId, id, userId));
+            }
+            return result;
+        }
+
+        var memberRoles = serverMember.Roles;
 
         var everyone = server.EveryoneRole ?? new Role
         {
@@ -250,6 +320,20 @@ public class PermissionService : IPermissionService
             return result;
         }
 
+        // Fetch channel metadata to enforce privacy rules
+        var channelMetaList = await _context.Channels
+            .AsNoTracking()
+            .Where(c => channelIdList.Contains(c.Id))
+            .Select(c => new
+            {
+                c.Id,
+                c.IsPrivate,
+                IsMember = c.Members.Any(m => m.UserId == userId) || c.CreatedById == userId
+            })
+            .ToListAsync(cancellationToken);
+
+        var channelMetaMap = channelMetaList.ToDictionary(c => c.Id);
+
         // Fetch all overwrites for these channels in 1 query
         var allOverwrites = await _context.ChannelPermissionOverwrites
             .AsNoTracking()
@@ -262,11 +346,37 @@ public class PermissionService : IPermissionService
 
         foreach (var id in channelIdList)
         {
-            var overwrites = overwritesByChannel.GetValueOrDefault(id) ?? new List<ChannelPermissionOverwrite>();
+            var overwrites = (overwritesByChannel.GetValueOrDefault(id) ?? new List<ChannelPermissionOverwrite>()).ToList();
+            var meta = channelMetaMap.GetValueOrDefault(id);
+            var isPrivate = meta?.IsPrivate ?? false;
+            var isMember = meta?.IsMember ?? false;
+
+            var effectiveEveryone = isPrivate
+                ? new Role
+                {
+                    Id = everyone.Id,
+                    Name = everyone.Name,
+                    IsDefault = true,
+                    Permissions = everyone.Permissions & ~Permissions.ViewChannel
+                }
+                : everyone;
+
+            if (isPrivate && isMember && !overwrites.Any(o => o.TargetType == OverwriteType.Member && o.TargetId == userId))
+            {
+                overwrites.Add(new ChannelPermissionOverwrite
+                {
+                    ChannelId = id,
+                    TargetType = OverwriteType.Member,
+                    TargetId = userId,
+                    Allow = Permissions.ViewChannel | Permissions.SendMessages | Permissions.ReadMessageHistory | Permissions.AttachFiles | Permissions.AddReactions,
+                    Deny = Permissions.None
+                });
+            }
+
             var perms = PermissionCalculator.CalculateChannelPermissions(
                 userId,
                 server.OwnerId,
-                everyone,
+                effectiveEveryone,
                 memberRoles,
                 overwrites
             );
