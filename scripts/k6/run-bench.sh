@@ -22,14 +22,17 @@ elif [ "$SCENARIO" == "http" ]; then
 elif [ "$SCENARIO" == "ws" ] || [ "$SCENARIO" == "signalr" ]; then
     TARGET_SCRIPT="/scripts/02_signalr_realtime.js"
     RESULT_FILE="/results/baseline_signalr_$(date +%s).json"
+elif [ "$SCENARIO" == "fanout" ]; then
+    TARGET_SCRIPT="/scripts/03_signalr_fanout_matrix.js"
+    RESULT_FILE="/results/fanout_matrix_$(date +%s).json"
 else
-    echo "Unknown scenario: $SCENARIO. Use 'realistic', 'http', or 'ws'."
+    echo "Unknown scenario: $SCENARIO. Use 'realistic', 'http', 'ws', or 'fanout'."
     exit 1
 fi
 
-# 2. Spin up backend cluster (Postgres, WebAPI, Nginx)
+# 2. Spin up backend cluster (Postgres, Redis, WebAPI, Nginx)
 echo "==> Ensuring Backend Cluster is healthy and ready..."
-docker compose -f "$COMPOSE_FILE" up -d postgres webapi-1 nginx
+docker compose -f "$COMPOSE_FILE" up -d postgres redis webapi-1 nginx
 
 # Wait for Nginx to respond on port 5050
 echo "==> Waiting for Nginx gateway on http://localhost:5050/health..."
