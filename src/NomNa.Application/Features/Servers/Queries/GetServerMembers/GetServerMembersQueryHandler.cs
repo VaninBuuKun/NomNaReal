@@ -35,13 +35,35 @@ public class GetServerMembersQueryHandler : IRequestHandler<GetServerMembersQuer
         if (!isMember)
             return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
 
+        // PERF-04: Use direct projection to select only required member and user columns,
+        // avoiding SELECT * on users (loading PasswordHash, SecurityStamp, etc.) and Cartesian explosion.
         var members = await _context.ServerMembers
             .AsNoTracking()
             .Where(m => m.ServerId == request.ServerId)
-            .Include(m => m.User)
-            .Include(m => m.MemberRoles)
-                .ThenInclude(mr => mr.Role)
             .OrderBy(m => m.User.DisplayName)
+            .Select(m => new
+            {
+                m.Id,
+                m.UserId,
+                DisplayName = m.User.DisplayName,
+                UserName = m.User.UserName ?? string.Empty,
+                AvatarUrl = m.User.AvatarUrl,
+                Email = m.User.Email,
+                Role = m.Role.ToString(),
+                StatusPreference = m.User.StatusPreference,
+                Roles = m.MemberRoles.Select(mr => new NomNa.Application.Features.Roles.DTOs.RoleDto(
+                    mr.Role.Id,
+                    mr.Role.ServerId,
+                    mr.Role.Name,
+                    (long)mr.Role.Permissions,
+                    mr.Role.Position,
+                    mr.Role.ColorHex,
+                    mr.Role.IsHoisted,
+                    mr.Role.IsMentionable,
+                    mr.Role.IsDefault,
+                    0
+                )).ToList()
+            })
             .ToListAsync(cancellationToken);
 
         var memberUserIds = members.Select(m => m.UserId).ToList();
@@ -50,23 +72,13 @@ public class GetServerMembersQueryHandler : IRequestHandler<GetServerMembersQuer
         return members.Select(m => new ServerMemberDto(
             m.Id,
             m.UserId,
-            m.User.DisplayName,
-            m.User.UserName ?? string.Empty,
-            m.User.AvatarUrl,
-            m.User.Email,
-            m.Role.ToString(),
-            UserPresenceResolver.Resolve(onlinePresenceMap.GetValueOrDefault(m.UserId), m.User.StatusPreference),
-            m.MemberRoles.Select(mr => new NomNa.Application.Features.Roles.DTOs.RoleDto(
-                mr.Role.Id,
-                mr.Role.ServerId,
-                mr.Role.Name,
-                (long)mr.Role.Permissions,
-                mr.Role.Position,
-                mr.Role.ColorHex,
-                mr.Role.IsHoisted,
-                mr.Role.IsMentionable,
-                mr.Role.IsDefault
-            )).ToList()
+            m.DisplayName,
+            m.UserName,
+            m.AvatarUrl,
+            m.Email,
+            m.Role,
+            UserPresenceResolver.Resolve(onlinePresenceMap.GetValueOrDefault(m.UserId), m.StatusPreference),
+            m.Roles
         )).ToList();
     }
 }

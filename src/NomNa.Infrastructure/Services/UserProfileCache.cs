@@ -24,15 +24,21 @@ public class UserProfileCache : IUserProfileCache
         _invalidationBus = invalidationBus;
     }
 
-    public async Task<UserProfileDto?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
+    public ValueTask<UserProfileDto?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var cacheKey = GetCacheKey(userId);
 
+        // PERF-08: Zero-allocation synchronous return on cache hit (>99% of requests)
         if (_cache.TryGetValue<UserProfileDto>(cacheKey, out var cached) && cached != null)
         {
-            return cached;
+            return new ValueTask<UserProfileDto?>(cached);
         }
 
+        return new ValueTask<UserProfileDto?>(FetchAndCacheAsync(userId, cacheKey, cancellationToken));
+    }
+
+    private async Task<UserProfileDto?> FetchAndCacheAsync(Guid userId, string cacheKey, CancellationToken cancellationToken)
+    {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 

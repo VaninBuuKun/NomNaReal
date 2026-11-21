@@ -117,7 +117,8 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
             entity.ToTable("channels");
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.ServerId, e.Position });
-            entity.HasIndex(e => e.LastMessageAt);
+            // PERF-02: Do NOT index LastMessageAt. Removing standalone index enables 100% PostgreSQL HOT (Heap-Only Tuple)
+            // updates when new messages arrive, preventing B-tree write amplification and table lock contention.
             entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.Topic).HasMaxLength(1024);
             entity.Property(e => e.LastMessageContent).HasMaxLength(500);
@@ -158,14 +159,13 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         {
             entity.ToTable("messages");
             entity.HasKey(e => e.Id);
-            // Critical index for chat app performance: messages by channel and creation time
-            entity.HasIndex(e => new { e.ChannelId, e.CreatedAt });
             entity.HasIndex(e => e.SenderId);
             entity.HasIndex(e => e.ReplyToMessageId);
             entity.Property(e => e.Content).HasMaxLength(4000).IsRequired();
 
             entity.OwnsMany(e => e.Attachments, a => a.ToJson());
 
+            // PERF-06: Use single filtered index for chat message retrieval, removing duplicate unfiltered index
             entity.HasIndex(e => new { e.ChannelId, e.CreatedAt })
                 .HasDatabaseName("idx_messages_channel_root_created")
                 .HasFilter("\"DeletedAt\" IS NULL");

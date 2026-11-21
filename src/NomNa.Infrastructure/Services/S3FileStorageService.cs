@@ -89,68 +89,103 @@ public class S3FileStorageService : IFileStorageService
         string? contentType = null,
         CancellationToken cancellationToken = default)
     {
-        // Read file stream into seekable memory stream
-        using var memStream = new MemoryStream();
-        await fileStream.CopyToAsync(memStream, cancellationToken);
-        memStream.Position = 0;
+        // PERF-01: Avoid Large Object Heap (LOH) exhaustion caused by MemoryStream buffer doubling for files up to 100MB.
+        // If stream is already seekable, use it directly. Otherwise, buffer to a temporary file on disk with an 80KB buffer.
+        Stream uploadStream;
+        string? tempFilePath = null;
 
-        // If S3 client or bucket is not active -> fail fast in production, use local storage in dev
-        if (_s3Client == null || string.IsNullOrWhiteSpace(_bucketName))
+        if (fileStream.CanSeek)
         {
-            if (_environment.IsProduction())
-            {
-                _logger.LogError("Production Error: S3 client is unconfigured. Rejecting file upload to prevent multi-instance storage divergence.");
-                throw new InvalidOperationException("File storage service is unavailable. S3 must be configured in production.");
-            }
-            return await _fallbackLocalStorage.SaveFileAsync(memStream, fileName, folder, contentType, cancellationToken);
+            uploadStream = fileStream;
+            uploadStream.Position = 0;
         }
-
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
-        var uniqueFileName = $"{Guid.CreateVersion7():N}{extension}";
-        var cleanFolder = folder.Trim().Trim('/');
-        var s3Key = string.IsNullOrEmpty(cleanFolder) ? uniqueFileName : $"{cleanFolder}/{uniqueFileName}";
-
-        var resolvedContentType = contentType ?? GetContentType(extension);
-
-        var putRequest = new PutObjectRequest
+        else
         {
-            BucketName = _bucketName,
-            Key = s3Key,
-            InputStream = memStream,
-            ContentType = resolvedContentType,
-            AutoCloseStream = false
-        };
+            tempFilePath = Path.Combine(Path.GetTempPath(), $"nomna_up_{Guid.CreateVersion7():N}.tmp");
+            var tempFs = new FileStream(tempFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 81920, FileOptions.Asynchronous);
+            await fileStream.CopyToAsync(tempFs, cancellationToken);
+            tempFs.Position = 0;
+            uploadStream = tempFs;
+        }
 
         try
         {
-            await _s3Client.PutObjectAsync(putRequest, cancellationToken);
-
-            // Construct public access URL
-            if (!string.IsNullOrWhiteSpace(_publicBaseUrl))
+            // If S3 client or bucket is not active -> fail fast in production, use local storage in dev
+            if (_s3Client == null || string.IsNullOrWhiteSpace(_bucketName))
             {
-                return $"{_publicBaseUrl.TrimEnd('/')}/{s3Key}";
+                if (_environment.IsProduction())
+                {
+                    _logger.LogError("Production Error: S3 client is unconfigured. Rejecting file upload to prevent multi-instance storage divergence.");
+                    throw new InvalidOperationException("File storage service is unavailable. S3 must be configured in production.");
+                }
+                return await _fallbackLocalStorage.SaveFileAsync(uploadStream, fileName, folder, contentType, cancellationToken);
             }
 
-            if (!string.IsNullOrWhiteSpace(_serviceUrl))
-            {
-                return $"{_serviceUrl.TrimEnd('/')}/{_bucketName}/{s3Key}";
-            }
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            var uniqueFileName = $"{Guid.CreateVersion7():N}{extension}";
+            var cleanFolder = folder.Trim().Trim('/');
+            var s3Key = string.IsNullOrEmpty(cleanFolder) ? uniqueFileName : $"{cleanFolder}/{uniqueFileName}";
 
-            return $"https://{_bucketName}.s3.{_region}.amazonaws.com/{s3Key}";
+            var resolvedContentType = contentType ?? GetContentType(extension);
+
+            var putRequest = new PutObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = s3Key,
+                InputStream = uploadStream,
+                ContentType = resolvedContentType,
+                AutoCloseStream = false
+            };
+
+            try
+            {
+                await _s3Client.PutObjectAsync(putRequest, cancellationToken);
+
+                // Construct public access URL
+                if (!string.IsNullOrWhiteSpace(_publicBaseUrl))
+                {
+                    return $"{_publicBaseUrl.TrimEnd('/')}/{s3Key}";
+                }
+
+                if (!string.IsNullOrWhiteSpace(_serviceUrl))
+                {
+                    return $"{_serviceUrl.TrimEnd('/')}/{_bucketName}/{s3Key}";
+                }
+
+                return $"https://{_bucketName}.s3.{_region}.amazonaws.com/{s3Key}";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading file '{FileName}' to AWS S3.", fileName);
+
+                if (_environment.IsProduction())
+                {
+                    throw new InvalidOperationException($"Failed to upload file to S3: {ex.Message}", ex);
+                }
+
+                // Fallback to local storage (Development environment only)
+                _logger.LogWarning("Falling back to local file storage (Development environment only).");
+                uploadStream.Position = 0;
+                return await _fallbackLocalStorage.SaveFileAsync(uploadStream, fileName, folder, contentType, cancellationToken);
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            _logger.LogError(ex, "Error uploading file '{FileName}' to AWS S3.", fileName);
-
-            if (_environment.IsProduction())
+            if (tempFilePath != null)
             {
-                throw new InvalidOperationException($"Failed to upload file to S3: {ex.Message}", ex);
+                await uploadStream.DisposeAsync();
+                try
+                {
+                    if (File.Exists(tempFilePath))
+                    {
+                        File.Delete(tempFilePath);
+                    }
+                }
+                catch (Exception cleanupEx)
+                {
+                    _logger.LogDebug(cleanupEx, "Failed to delete temp upload file {TempFile}", tempFilePath);
+                }
             }
-
-            // Fallback to local storage (Development environment only)
-            _logger.LogWarning("Falling back to local file storage (Development environment only).");
-            memStream.Position = 0;
-            return await _fallbackLocalStorage.SaveFileAsync(memStream, fileName, folder, contentType, cancellationToken);
         }
     }
 

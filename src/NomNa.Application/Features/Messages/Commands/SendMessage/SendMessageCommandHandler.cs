@@ -45,21 +45,8 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
         if (channel.Type == Domain.Enums.ChannelType.Category)
             return Error.Validation("Channel.InvalidType", "Cannot send messages into a category channel.");
 
-        // Rule: Private channels and DMs verify ChannelMember; public server channels verify ServerMember.
-        if (channel.IsPrivate || channel.Type == Domain.Enums.ChannelType.DirectMessage)
-        {
-            var isMember = await _context.ChannelMembers
-                .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId.Value, cancellationToken);
-            if (!isMember && channel.CreatedById != userId.Value)
-                return Error.Forbidden("Channel.Forbidden", "You do not have permission to send messages in this channel.");
-        }
-        else
-        {
-            var isMember = await _context.ServerMembers
-                .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId.Value, cancellationToken);
-            if (!isMember)
-                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
-        }
+        // PERF-05: Channel permissions and server/private channel membership are already verified
+        // in AuthorizationBehavior via IRequireChannelPermission and L1-cached. No redundant DB query needed.
 
         // Fast In-Memory Cache Lookup (0 DB queries)
         var user = await _userProfileCache.GetAsync(userId.Value, cancellationToken);

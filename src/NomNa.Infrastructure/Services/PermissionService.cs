@@ -71,14 +71,19 @@ public class PermissionService : IPermissionService
         return options;
     }
 
-    public async Task<Permissions> GetServerPermissionsAsync(Guid userId, Guid serverId, CancellationToken cancellationToken = default)
+    public ValueTask<Permissions> GetServerPermissionsAsync(Guid userId, Guid serverId, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"perm_srv_{serverId}_{userId}";
         if (_cache.TryGetValue<Permissions>(cacheKey, out var cached))
         {
-            return cached;
+            return new ValueTask<Permissions>(cached);
         }
 
+        return new ValueTask<Permissions>(FetchServerPermissionsAsync(userId, serverId, cacheKey, cancellationToken));
+    }
+
+    private async Task<Permissions> FetchServerPermissionsAsync(Guid userId, Guid serverId, string cacheKey, CancellationToken cancellationToken)
+    {
         var server = await _context.Servers
             .AsNoTracking()
             .Where(s => s.Id == serverId)
@@ -135,14 +140,19 @@ public class PermissionService : IPermissionService
         return permissions;
     }
 
-    public async Task<Permissions> GetChannelPermissionsAsync(Guid userId, Guid channelId, CancellationToken cancellationToken = default)
+    public ValueTask<Permissions> GetChannelPermissionsAsync(Guid userId, Guid channelId, CancellationToken cancellationToken = default)
     {
         var cacheKey = $"perm_chn_{channelId}_{userId}";
         if (_cache.TryGetValue<Permissions>(cacheKey, out var cached))
         {
-            return cached;
+            return new ValueTask<Permissions>(cached);
         }
 
+        return new ValueTask<Permissions>(FetchChannelPermissionsAsync(userId, channelId, cacheKey, cancellationToken));
+    }
+
+    private async Task<Permissions> FetchChannelPermissionsAsync(Guid userId, Guid channelId, string cacheKey, CancellationToken cancellationToken)
+    {
         var channelInfo = await _context.Channels
             .AsNoTracking()
             .Where(c => c.Id == channelId)
@@ -393,13 +403,13 @@ public class PermissionService : IPermissionService
         return result;
     }
 
-    public async Task<bool> HasServerPermissionAsync(Guid userId, Guid serverId, Permissions requiredPermission, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> HasServerPermissionAsync(Guid userId, Guid serverId, Permissions requiredPermission, CancellationToken cancellationToken = default)
     {
         var permissions = await GetServerPermissionsAsync(userId, serverId, cancellationToken);
         return PermissionCalculator.HasPermission(permissions, requiredPermission);
     }
 
-    public async Task<bool> HasChannelPermissionAsync(Guid userId, Guid channelId, Permissions requiredPermission, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> HasChannelPermissionAsync(Guid userId, Guid channelId, Permissions requiredPermission, CancellationToken cancellationToken = default)
     {
         var permissions = await GetChannelPermissionsAsync(userId, channelId, cancellationToken);
         return PermissionCalculator.HasPermission(permissions, requiredPermission);
