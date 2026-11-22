@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using MediatR;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using NomNa.Application.Common.Helpers;
 using NomNa.Application.Common.Models;
 using NomNa.Application.Features.Messages.DTOs;
 
@@ -34,7 +35,7 @@ public class GetLinkPreviewQueryHandler : IRequestHandler<GetLinkPreviewQuery, R
         }
 
         // SEC-03: Pre-flight SSRF check with full DNS resolution
-        if (await IsPrivateOrForbiddenHostAsync(uri.DnsSafeHost, cancellationToken))
+        if (await NetworkSecurityGuard.IsPrivateOrForbiddenHostAsync(uri.DnsSafeHost, cancellationToken))
         {
             return Result<LinkPreviewDto>.Failure(Error.Forbidden("LinkPreview.ForbiddenHost", "Không được phép xem trước URL nội bộ hoặc mạng riêng tư."));
         }
@@ -60,7 +61,7 @@ public class GetLinkPreviewQueryHandler : IRequestHandler<GetLinkPreviewQuery, R
             while (redirectHops <= maxRedirectHops)
             {
                 // Validate destination host on every redirect hop to avoid SSRF redirect bypass
-                if (await IsPrivateOrForbiddenHostAsync(currentUri.DnsSafeHost, cts.Token))
+                if (await NetworkSecurityGuard.IsPrivateOrForbiddenHostAsync(currentUri.DnsSafeHost, cts.Token))
                 {
                     response?.Dispose();
                     return Result<LinkPreviewDto>.Failure(Error.Forbidden("LinkPreview.ForbiddenHost", "Không được phép xem trước URL chuyển hướng đến mạng nội bộ."));
@@ -129,84 +130,6 @@ public class GetLinkPreviewQueryHandler : IRequestHandler<GetLinkPreviewQuery, R
             _memoryCache.Set(cacheKey, fallback, TimeSpan.FromMinutes(5));
             return Result<LinkPreviewDto>.Success(fallback);
         }
-    }
-
-    private static async Task<bool> IsPrivateOrForbiddenHostAsync(string host, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(host))
-            return true;
-
-        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(host, "::1", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        try
-        {
-            IPAddress[] addresses;
-            if (IPAddress.TryParse(host, out var parsedIp))
-            {
-                addresses = new[] { parsedIp };
-            }
-            else
-            {
-                addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
-            }
-
-            if (addresses.Length == 0)
-                return true;
-
-            foreach (var rawIp in addresses)
-            {
-                var ip = rawIp.IsIPv4MappedToIPv6 ? rawIp.MapToIPv4() : rawIp;
-
-                if (IPAddress.IsLoopback(ip))
-                    return true;
-
-                if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                {
-                    var bytes = ip.GetAddressBytes();
-                    // 0.0.0.0/8
-                    if (bytes[0] == 0) return true;
-                    // 10.0.0.0/8
-                    if (bytes[0] == 10) return true;
-                    // 100.64.0.0/10 (Carrier-grade NAT)
-                    if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127) return true;
-                    // 127.0.0.0/8
-                    if (bytes[0] == 127) return true;
-                    // 169.254.0.0/16 (Link-local & AWS/GCP/Azure instance metadata 169.254.169.254)
-                    if (bytes[0] == 169 && bytes[1] == 254) return true;
-                    // 172.16.0.0/12
-                    if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
-                    // 192.168.0.0/16
-                    if (bytes[0] == 192 && bytes[1] == 168) return true;
-                    // 198.18.0.0/15
-                    if (bytes[0] == 198 && (bytes[1] == 18 || bytes[1] == 19)) return true;
-                    // 224.0.0.0/4 (Multicast) & 240.0.0.0/4 (Reserved)
-                    if (bytes[0] >= 224) return true;
-                }
-                else if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
-                {
-                    if (ip.IsIPv6LinkLocal || ip.IsIPv6Multicast || ip.IsIPv6SiteLocal)
-                        return true;
-
-                    var bytes = ip.GetAddressBytes();
-                    // fc00::/7 (Unique Local Address)
-                    if ((bytes[0] & 0xFE) == 0xFC) return true;
-                    // ::/128 or ::1/128
-                    if (ip.Equals(IPAddress.IPv6Loopback) || ip.Equals(IPAddress.IPv6None) || ip.Equals(IPAddress.IPv6Any)) return true;
-                }
-            }
-        }
-        catch
-        {
-            // If DNS resolution fails, reject defensively
-            return true;
-        }
-
-        return false;
     }
 
     private static LinkPreviewDto BuildFallbackDto(Uri uri)

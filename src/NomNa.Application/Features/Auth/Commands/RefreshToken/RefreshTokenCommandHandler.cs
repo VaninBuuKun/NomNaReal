@@ -31,23 +31,31 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
             .FirstOrDefaultAsync(t => t.TokenHash == tokenHash, cancellationToken);
 
         // OAuth 2.0 BCP (RFC 6819): Detect reuse of already revoked refresh token.
-        // If an attacker attempts to replay an old token, revoke the entire token family immediately.
         if (matchingToken != null && matchingToken.RevokedAt != null && matchingToken.User != null)
         {
-            var compromisedUserId = matchingToken.UserId;
-            var activeTokens = await _context.RefreshTokens
-                .Where(t => t.UserId == compromisedUserId && t.RevokedAt == null)
-                .ToListAsync(cancellationToken);
+            var elapsedSeconds = (DateTime.UtcNow - matchingToken.RevokedAt.Value).TotalSeconds;
 
-            var nowUtc = DateTime.UtcNow;
-            foreach (var activeToken in activeTokens)
+            // Grace period (<= 10 seconds): Tolerates multi-tab concurrency or network retry/jitter
+            // without terminating active sessions across other devices.
+            if (elapsedSeconds <= 10)
             {
-                activeToken.RevokedAt = nowUtc;
+                return Error.Unauthorized(
+                    "Auth.TokenAlreadyRotated",
+                    "Refresh token has already been rotated recently. Please use your latest session credentials.");
             }
 
-            await _context.SaveChangesAsync(cancellationToken);
+            // Outside grace period (> 10 seconds): Definite Token Replay / Theft Attack.
+            // Terminate the entire token family immediately using high-performance atomic update.
+            var compromisedUserId = matchingToken.UserId;
+            var nowUtc = DateTime.UtcNow;
 
-            return Error.Unauthorized("Auth.TokenCompromised", "Security violation: Reused refresh token detected. All active sessions have been terminated.");
+            await _context.RefreshTokens
+                .Where(t => t.UserId == compromisedUserId && t.RevokedAt == null)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, nowUtc), cancellationToken);
+
+            return Error.Unauthorized(
+                "Auth.TokenCompromised",
+                "Security violation: Reused refresh token detected outside grace period. All active sessions have been terminated.");
         }
 
         if (matchingToken == null || !matchingToken.IsActive || matchingToken.User == null)
@@ -70,6 +78,13 @@ public class RefreshTokenCommandHandler : IRequestHandler<RefreshTokenCommand, R
         };
 
         _context.RefreshTokens.Add(newRefreshTokenEntity);
+
+        // SEC-03: Cleanup expired tokens older than 14 days to prevent table bloat
+        var purgeThreshold = DateTime.UtcNow.AddDays(-14);
+        await _context.RefreshTokens
+            .Where(t => t.UserId == user.Id && t.ExpiresAt < purgeThreshold)
+            .ExecuteDeleteAsync(cancellationToken);
+
         await _context.SaveChangesAsync(cancellationToken);
 
         var userDto = new UserDto(user.Id, user.Email ?? string.Empty, user.UserName ?? string.Empty, user.DisplayName, user.AvatarUrl, user.Bio, user.StatusPreference);

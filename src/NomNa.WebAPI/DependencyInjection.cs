@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -5,6 +7,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.IdentityModel.Tokens;
+using NomNa.Application.Common.Helpers;
 using NomNa.Application.Common.Interfaces;
 using NomNa.WebAPI.Hubs;
 using NomNa.WebAPI.Services;
@@ -50,21 +53,92 @@ public static class DependencyInjection
 
         services.AddEndpointsApiExplorer();
 
-        // Safe HTTP client registration
+        // Safe HTTP client registration with socket-level SSRF and DNS Rebinding defense
         services.AddHttpClient();
         services.AddHttpClient("LinkPreviewClient")
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
                 AllowAutoRedirect = false,
-                ConnectTimeout = TimeSpan.FromSeconds(3)
+                ConnectTimeout = TimeSpan.FromSeconds(3),
+                ConnectCallback = async (context, cancellationToken) =>
+                {
+                    // Resolve DNS and inspect every IP before connecting to defeat TOCTOU DNS Rebinding attacks
+                    var entry = await Dns.GetHostEntryAsync(context.DnsEndPoint.Host, cancellationToken);
+                    if (entry.AddressList.Length == 0)
+                    {
+                        throw new SocketException((int)SocketError.HostNotFound);
+                    }
+
+                    foreach (var rawIp in entry.AddressList)
+                    {
+                        if (NetworkSecurityGuard.IsPrivateOrForbiddenIp(rawIp))
+                        {
+                            throw new InvalidOperationException($"SSRF Guard blocked connection attempt to forbidden IP: {rawIp}");
+                        }
+                    }
+
+                    var socket = new Socket(SocketType.Stream, ProtocolType.Tcp)
+                    {
+                        NoDelay = true
+                    };
+
+                    try
+                    {
+                        await socket.ConnectAsync(entry.AddressList, context.DnsEndPoint.Port, cancellationToken);
+                        return new NetworkStream(socket, ownsSocket: true);
+                    }
+                    catch
+                    {
+                        socket.Dispose();
+                        throw;
+                    }
+                }
             });
 
-        // SEC-04: Centralized Rate Limiting & CPU Bulkhead
+        // SEC-04: Centralized Multi-Layer Rate Limiting & PBKDF2 Concurrency Bulkhead
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            // Strict sliding window for authentication to prevent brute force & PBKDF2 exhaustion
+            options.OnRejected = async (context, token) =>
+            {
+                context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter = Math.Max(1, (int)retryAfter.TotalSeconds).ToString();
+                }
+                await context.HttpContext.Response.WriteAsJsonAsync(new
+                {
+                    code = "RateLimit.Exceeded",
+                    message = "Too many requests. Please wait before trying again."
+                }, cancellationToken: token);
+            };
+
+            // Global Concurrency Bulkhead: Protects .NET ThreadPool against CPU starvation
+            // caused by parallel PBKDF2 password hashing floods on auth endpoints.
+            options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+            {
+                var path = httpContext.Request.Path.Value ?? string.Empty;
+                var isPasswordHashingEndpoint =
+                    path.Contains("/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
+                    path.Contains("/api/auth/register", StringComparison.OrdinalIgnoreCase) ||
+                    path.Contains("/api/auth/change-password", StringComparison.OrdinalIgnoreCase) ||
+                    path.Contains("/api/auth/reset-password", StringComparison.OrdinalIgnoreCase);
+
+                if (isPasswordHashingEndpoint)
+                {
+                    return RateLimitPartition.GetConcurrencyLimiter("global_pbkdf2_bulkhead", _ => new ConcurrencyLimiterOptions
+                    {
+                        PermitLimit = Math.Max(2, Environment.ProcessorCount * 2),
+                        QueueLimit = 20,
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst
+                    });
+                }
+
+                return RateLimitPartition.GetNoLimiter("no_bulkhead_limit");
+            });
+
+            // Strict sliding window for authentication to prevent credential brute force
             options.AddPolicy("auth", httpContext =>
             {
                 var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -75,6 +149,14 @@ public static class DependencyInjection
                     SegmentsPerWindow = 6,
                     QueueLimit = 0
                 });
+            });
+
+            // Standalone CPU Bulkhead policy for explicit endpoint tagging
+            options.AddConcurrencyLimiter("pbkdf2-bulkhead", opt =>
+            {
+                opt.PermitLimit = Math.Max(2, Environment.ProcessorCount * 2);
+                opt.QueueLimit = 20;
+                opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
             });
 
             // Token bucket policy for general API endpoints
