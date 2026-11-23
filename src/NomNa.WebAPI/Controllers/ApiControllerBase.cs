@@ -1,11 +1,13 @@
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNa.Application.Common.Models;
 
 namespace NomNa.WebAPI.Controllers;
 
 [ApiController]
+[EnableRateLimiting("api")]
 [Route("api/[controller]")]
 public abstract class ApiControllerBase : ControllerBase
 {

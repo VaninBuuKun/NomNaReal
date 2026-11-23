@@ -88,8 +88,8 @@ public partial class ChatHub
                     var canSpeak = await permService.HasChannelPermissionAsync(userId, channelId, Permissions.Speak);
                     if (!canSpeak)
                     {
-                        isMuted = true;
-                    }
+                        isMuted = true; 
+                    }   
                 }
             }
 
@@ -137,21 +137,16 @@ public partial class ChatHub
         // 1. Send currently connected room participants list to the joining user
         await Clients.Caller.SendAsync(SignalRConstants.Events.CurrentVoiceParticipants, roomParticipants);
 
-        // 2. Broadcast to all other participants in the voice room and server group that a peer joined
-        await Clients.OthersInGroup(groupName).SendAsync(SignalRConstants.Events.UserJoinedVoice, participant);
-        if (serverId.HasValue)
+        // 2. Broadcast that a peer joined:
+        // - If inside a server: broadcasting to `server_{serverId}` reaches both active room peers and sidebar listeners in 1 broadcast.
+        // - If independent/no server: fall back to broadcasting directly to `voice_{channelId}`.
+        if (serverId.HasValue && serverId.Value != Guid.Empty)
         {
-            await Clients.Group($"server_{serverId.Value}").SendAsync(SignalRConstants.Events.UserJoinedVoice, participant);
+            await Clients.OthersInGroup($"server_{serverId.Value}").SendAsync(SignalRConstants.Events.UserJoinedVoice, participant);
         }
-
-        // Also send direct notification to all remaining participants in the room by UserId for guaranteed delivery
-        var otherParticipantIds = roomParticipants
-            .Where(p => p.UserId != userId)
-            .Select(p => p.UserId.ToString())
-            .ToList();
-        if (otherParticipantIds.Count > 0)
+        else
         {
-            await Clients.Users(otherParticipantIds).SendAsync(SignalRConstants.Events.UserJoinedVoice, participant);
+            await Clients.OthersInGroup(groupName).SendAsync(SignalRConstants.Events.UserJoinedVoice, participant);
         }
     }
 
@@ -173,17 +168,17 @@ public partial class ChatHub
         _logger.LogInformation("User {UserId} left voice channel {ChannelId}", userId, channelId);
 
         var leftPayload = new VoiceUserLeftPayload(channelId, userId);
-        await Clients.Group(groupName).SendAsync(SignalRConstants.Events.UserLeftVoice, leftPayload);
 
-        if (remainingUserIds.Count > 0)
-        {
-            var userIdsString = remainingUserIds.Select(id => id.ToString()).ToList();
-            await Clients.Users(userIdsString).SendAsync(SignalRConstants.Events.UserLeftVoice, leftPayload);
-        }
-
+        // Broadcast user left:
+        // - If serverId exists: single broadcast to `server_{serverId}` notifies all peers and sidebar listeners without duplicates.
+        // - Fallback to `voice_{channelId}` for channels without a server.
         if (serverId.HasValue && serverId.Value != Guid.Empty)
         {
             await Clients.Group($"server_{serverId.Value}").SendAsync(SignalRConstants.Events.UserLeftVoice, leftPayload);
+        }
+        else
+        {
+            await Clients.Group(groupName).SendAsync(SignalRConstants.Events.UserLeftVoice, leftPayload);
         }
     }
 
@@ -223,14 +218,16 @@ public partial class ChatHub
                 isScreenSharing,
                 isCameraActive);
 
-            await Clients.OthersInGroup($"voice_{channelId}").SendAsync(
-                SignalRConstants.Events.VoiceStateChanged,
-                payload);
-
             var serverId = await _voiceRoomManager.GetChannelServerIdAsync(channelId);
             if (serverId.HasValue && serverId.Value != Guid.Empty)
             {
                 await Clients.OthersInGroup($"server_{serverId.Value}").SendAsync(
+                    SignalRConstants.Events.VoiceStateChanged,
+                    payload);
+            }
+            else
+            {
+                await Clients.OthersInGroup($"voice_{channelId}").SendAsync(
                     SignalRConstants.Events.VoiceStateChanged,
                     payload);
             }
@@ -281,21 +278,17 @@ public partial class ChatHub
             try
             {
                 var leftPayload = new VoiceUserLeftPayload(chId, userId);
-                await Clients.Group($"voice_{chId}").SendAsync(
-                    SignalRConstants.Events.UserLeftVoice,
-                    leftPayload);
 
-                if (remainingUserIds.Count > 0)
-                {
-                    var userIdsString = remainingUserIds.Select(id => id.ToString()).ToList();
-                    await Clients.Users(userIdsString).SendAsync(
-                        SignalRConstants.Events.UserLeftVoice,
-                        leftPayload);
-                }
-
+                // Single broadcast: server group covers all peers and listeners
                 if (serverId.HasValue && serverId.Value != Guid.Empty)
                 {
                     await Clients.Group($"server_{serverId.Value}").SendAsync(
+                        SignalRConstants.Events.UserLeftVoice,
+                        leftPayload);
+                }
+                else
+                {
+                    await Clients.Group($"voice_{chId}").SendAsync(
                         SignalRConstants.Events.UserLeftVoice,
                         leftPayload);
                 }

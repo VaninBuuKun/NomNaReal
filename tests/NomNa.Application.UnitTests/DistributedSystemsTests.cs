@@ -89,7 +89,7 @@ public class DistributedSystemsTests
         var targetId = Guid.NewGuid();
 
         // Act & Assert: Failing fast prevents ghost calls across desynchronized cluster nodes
-        var actInitiate = () => manager.TryInitiateCallAsync(callerId, targetId, TimeSpan.FromSeconds(30));
+        var actInitiate = () => manager.TryInitiateCallAsync(callerId, targetId, isVideo: false, TimeSpan.FromSeconds(30));
         var actHasActive = () => manager.HasActiveCallAsync(callerId);
         var actGetPartner = () => manager.GetCallPartnerAsync(callerId);
         var actVerify = () => manager.VerifyPendingCallAsync(callerId, targetId);
@@ -163,8 +163,11 @@ public class DistributedSystemsTests
         var targetId = Guid.NewGuid();
 
         databaseMock
-            .Setup(db => db.StringGetAsync((RedisKey)$"nomna:call:user:{callerId}", It.IsAny<CommandFlags>()))
+            .Setup(db => db.HashGetAsync((RedisKey)$"nomna:call:user:{callerId}", (RedisValue)"partnerId", It.IsAny<CommandFlags>()))
             .ReturnsAsync((RedisValue)targetId.ToString());
+        databaseMock
+            .Setup(db => db.HashGetAsync((RedisKey)$"nomna:call:user:{callerId}", (RedisValue)"status", It.IsAny<CommandFlags>()))
+            .ReturnsAsync((RedisValue)"ringing");
 
         var manager = new RedisCallSignalingManager(connectedRedisMock.Object, _callLoggerMock.Object);
 

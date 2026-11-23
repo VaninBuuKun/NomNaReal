@@ -1,3 +1,5 @@
+using NomNa.Application.Common.Models;
+
 namespace NomNa.Application.Common.Interfaces;
 
 /// <summary>
@@ -13,7 +15,16 @@ public interface ICallSignalingManager
     Task<bool> TryInitiateCallAsync(
         Guid callerId,
         Guid targetUserId,
+        bool isVideo,
         TimeSpan ringTimeout,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Accepts a ringing call from callerId to responderId, transitioning the session to connected.
+    /// </summary>
+    Task<bool> TryAcceptCallAsync(
+        Guid callerId,
+        Guid responderId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -39,7 +50,15 @@ public interface ICallSignalingManager
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Cleans up active call pairing for both participants.
+    /// Terminates an active or pending call session atomically, returning call duration and metadata.
+    /// </summary>
+    Task<CallTerminationResult> TerminateCallAsync(
+        Guid userId,
+        Guid? expectedPartnerId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Cleans up active call pairing for both participants (backward compatibility wrapper).
     /// </summary>
     Task EndCallAsync(
         Guid userA,
@@ -47,9 +66,9 @@ public interface ICallSignalingManager
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Cleans up any call association for a disconnecting user and returns their call partner ID if they were in a call.
+    /// Cleans up any call association for a disconnecting user and returns their call termination result if active.
     /// </summary>
-    Task<Guid?> CleanupCallForUserAsync(
+    Task<CallTerminationResult> CleanupCallForUserAsync(
         Guid userId,
         CancellationToken cancellationToken = default);
 }

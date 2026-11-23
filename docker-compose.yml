@@ -26,6 +26,27 @@ services:
     volumes:
       - NomNa_redis:/data
 
+  coturn:
+    image: coturn/coturn:4.6.3-alpine
+    container_name: nomna_coturn
+    restart: unless-stopped
+    ports:
+      - "3478:3478/tcp"
+      - "3478:3478/udp"
+      - "49152-49160:49152-49160/udp"
+    command:
+      - "-n"
+      - "--log-file=stdout"
+      - "--listening-port=3478"
+      - "--fingerprint"
+      - "--lt-cred-mech"
+      - "--use-auth-secret"
+      - "--static-auth-secret=NomNaSuperSecretTurnKey2026"
+      - "--realm=nomna.app"
+      - "--min-port=49152"
+      - "--max-port=49160"
+      - "--verbose"
+
 volumes:
   NomNa_db:
   NomNa_redis:

@@ -152,20 +152,23 @@ public partial class ChatHub : Hub
             // Clean up any voice channel room the user was connected to
             await CleanupUserVoiceChannelsAsync(userId);
 
-            // If user disconnects during an active call, notify partner with CallEnded
-            var partnerId = await _callSignalingManager.CleanupCallForUserAsync(userId);
-            if (partnerId.HasValue)
+            // If user disconnects during an active call, notify partner with CallEnded and persist call log
+            var term = await _callSignalingManager.CleanupCallForUserAsync(userId);
+            if (term.WasActive)
             {
+                var partnerId = term.CallerId == userId ? term.CalleeId : term.CallerId;
                 try
                 {
-                    await Clients.User(partnerId.Value.ToString()).SendAsync(
+                    await Clients.User(partnerId.ToString()).SendAsync(
                         SignalRConstants.Events.CallEnded,
                         new CallEndedPayload(userId));
-                    _logger.LogInformation("Disconnected user {UserId} had active call with {PartnerId}, dispatched CallEnded", userId, partnerId.Value);
+                    _logger.LogInformation("Disconnected user {UserId} had active call with {PartnerId}, dispatched CallEnded", userId, partnerId);
+
+                    _ = RecordCallLogAsync(term.CallerId, term.CalleeId, term.WasConnected, term.IsVideo, term.DurationSeconds);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to dispatch CallEnded on disconnect to partner {PartnerId}", partnerId.Value);
+                    _logger.LogWarning(ex, "Failed to dispatch CallEnded on disconnect to partner {PartnerId}", partnerId);
                 }
             }
 

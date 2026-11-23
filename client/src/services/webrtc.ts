@@ -1,3 +1,4 @@
+import { httpClient } from "./httpClient";
 import { signalRService } from "./signalr";
 import { callSound } from "./callSound";
 import { useCallStore } from "../stores/useCallStore";
@@ -70,33 +71,55 @@ const CONNECT_TIMEOUT_MS = 30_000; // Đã bắt máy nhưng quá 30s không n�
 const DISCONNECT_GRACE_MS = 8_000; // Cho phép mạng chập chờn tối đa 8s trước khi dập máy
 const NOTICE_MS = 5_000; // Thời gian hiển thị thông báo lỗi (5 giây)
 
+// Default static fallback STUN servers
+const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+];
+
+let cachedIceServers: RTCIceServer[] = DEFAULT_ICE_SERVERS;
+let lastIceServersFetchTime = 0;
+const ICE_SERVERS_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours cache
+
+/**
+ * Lấy danh sách ICE servers động từ backend (kèm RFC 5766 Ephemeral TURN credentials).
+ * Tự động cache 6 tiếng để tối ưu hiệu năng không gọi lại liên tục.
+ */
+async function fetchIceServers(): Promise<RTCIceServer[]> {
+  const now = Date.now();
+  if (cachedIceServers.length > 2 && now - lastIceServersFetchTime < ICE_SERVERS_CACHE_TTL_MS) {
+    return cachedIceServers;
+  }
+
+  try {
+    const res = await httpClient.get<{ iceServers: RTCIceServer[] }>("/webrtc/ice-servers");
+    if (res.data?.iceServers && Array.isArray(res.data.iceServers)) {
+      cachedIceServers = res.data.iceServers;
+      lastIceServersFetchTime = now;
+      logWebrtc("signaling", "IceServersFetched", { count: cachedIceServers.length });
+      return cachedIceServers;
+    }
+  } catch (err) {
+    logWebrtc("warn", "IceServersFetchFailed", err);
+  }
+
+  return cachedIceServers;
+}
+
 /**
  * Xây dựng danh sách STUN/TURN server để tìm đường kết nối xuyên qua NAT/Router
  */
 function buildIceServers(): RTCIceServer[] {
-  const servers: RTCIceServer[] = [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ];
-  // TURN relay dự phòng (cần thiết khi cả 2 máy đều ở sau mạng Symmetric NAT / tường lửa doanh nghiệp)
-  const turnUrl = (import.meta.env.VITE_TURN_URL as string | undefined)?.trim();
-  if (turnUrl) {
-    servers.push({
-      urls: turnUrl.split(",").map((u) => u.trim()),
-      username:
-        (import.meta.env.VITE_TURN_USERNAME as string | undefined) ?? "",
-      credential:
-        (import.meta.env.VITE_TURN_CREDENTIAL as string | undefined) ?? "",
-    });
-  }
-  return servers;
+  return cachedIceServers;
 }
 
-const RTC_CONFIG: RTCConfiguration = {
-  iceServers: buildIceServers(),
-  bundlePolicy: "max-bundle",
-  rtcpMuxPolicy: "require",
-};
+function getRtcConfig(): RTCConfiguration {
+  return {
+    iceServers: buildIceServers(),
+    bundlePolicy: "max-bundle",
+    rtcpMuxPolicy: "require",
+  };
+}
 
 // Cấu hình lọc âm thanh: chống hú, khử ồn, tự cân chỉnh âm lượng
 const AUDIO_CONSTRAINTS: MediaTrackConstraints = {
@@ -333,6 +356,10 @@ class WebRtcService {
     }, RING_TIMEOUT_MS);
 
     try {
+      // 0. Nạp ICE servers động (RFC 5766 TURN) trước khi khởi tạo PeerConnection
+      await fetchIceServers();
+      if (this.isStale(sid)) return;
+
       // 1. Mở micro và camera của máy mình
       const stream = await this.acquireMedia(isVideo);
       if (this.isStale(sid)) return this.discardStream(stream);
@@ -403,6 +430,10 @@ class WebRtcService {
     });
 
     try {
+      // 0. Nạp ICE servers động (RFC 5766 TURN)
+      await fetchIceServers();
+      if (this.isStale(sid)) return;
+
       // 1. Mở camera/micro của người nhận
       const stream = await this.acquireMedia(incomingOffer.isVideoCall);
       if (this.isStale(sid)) return this.discardStream(stream);
@@ -799,9 +830,10 @@ class WebRtcService {
    * Khởi tạo đối tượng RTCPeerConnection và đăng ký các sự kiện mạng
    */
   private createPeerConnection(targetUserId: string): RTCPeerConnection {
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+    const config = getRtcConfig();
+    const pc = new RTCPeerConnection(config);
     logWebrtc("state", "CreatePeerConnection", {
-      iceServers: RTC_CONFIG.iceServers?.map((s) => s.urls),
+      iceServers: config.iceServers?.map((s) => s.urls),
     });
 
     // Kênh truyền dữ liệu trạng thái nhanh (RTCDataChannel)
