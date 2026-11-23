@@ -154,8 +154,77 @@ public class ServersController : ApiControllerBase
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
+
+    [HttpPost("{serverId}/bans")]
+    public async Task<IActionResult> BanMember(
+        [FromRoute] Guid serverId,
+        [FromBody] BanMemberRequest request)
+    {
+        var command = new NomNa.Application.Features.Servers.Commands.BanServerMember.BanServerMemberCommand(
+            serverId, request.MemberUserId, request.Reason);
+        var result = await Mediator.Send(command);
+        if (result.IsSuccess)
+        {
+            await _hubContext.Clients.Group($"server_{serverId}").SendAsync(
+                SignalRConstants.Events.ServerMemberBanned,
+                new { serverId, memberUserId = request.MemberUserId, reason = request.Reason });
+        }
+        return HandleResult(result);
+    }
+
+    [HttpDelete("{serverId}/bans/{userId}")]
+    public async Task<IActionResult> UnbanMember(
+        [FromRoute] Guid serverId,
+        [FromRoute] Guid userId,
+        [FromQuery] string? reason = null)
+    {
+        var command = new NomNa.Application.Features.Servers.Commands.UnbanServerMember.UnbanServerMemberCommand(
+            serverId, userId, reason);
+        var result = await Mediator.Send(command);
+        return HandleResult(result);
+    }
+
+    [HttpGet("{serverId}/bans")]
+    public async Task<IActionResult> GetBans([FromRoute] Guid serverId)
+    {
+        var query = new NomNa.Application.Features.Servers.Queries.GetServerBans.GetServerBansQuery(serverId);
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
+    }
+
+    [HttpPost("{serverId}/members/{memberUserId}/timeout")]
+    public async Task<IActionResult> TimeoutMember(
+        [FromRoute] Guid serverId,
+        [FromRoute] Guid memberUserId,
+        [FromBody] TimeoutMemberRequest request)
+    {
+        var command = new NomNa.Application.Features.Servers.Commands.TimeoutServerMember.TimeoutServerMemberCommand(
+            serverId, memberUserId, request.DurationMinutes, request.Reason);
+        var result = await Mediator.Send(command);
+        if (result.IsSuccess)
+        {
+            await _hubContext.Clients.Group($"server_{serverId}").SendAsync(
+                SignalRConstants.Events.ServerMemberTimedOut,
+                new { serverId, memberUserId, durationMinutes = request.DurationMinutes });
+        }
+        return HandleResult(result);
+    }
+
+    [HttpGet("{serverId}/audit-logs")]
+    public async Task<IActionResult> GetAuditLogs(
+        [FromRoute] Guid serverId,
+        [FromQuery] int limit = 50,
+        [FromQuery] Guid? beforeId = null)
+    {
+        var query = new NomNa.Application.Features.Servers.Queries.GetServerAuditLogs.GetServerAuditLogsQuery(
+            serverId, limit, beforeId);
+        var result = await Mediator.Send(query);
+        return HandleResult(result);
+    }
 }
 
+public record BanMemberRequest(Guid MemberUserId, string? Reason = null);
+public record TimeoutMemberRequest(int DurationMinutes, string? Reason = null);
 public record CreateChannelRequest(string Name, Domain.Enums.ChannelType Type = Domain.Enums.ChannelType.Text, bool IsPrivate = false, Guid? CategoryId = null);
 public record CreateDmRequest(Guid TargetUserId);
 public record SendServerInvitesRequest(List<string> Emails);

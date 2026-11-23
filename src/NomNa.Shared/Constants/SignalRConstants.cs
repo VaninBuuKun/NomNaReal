@@ -24,6 +24,9 @@ public static class SignalRConstants
         public const string FriendRequestAccepted = "FriendRequestAccepted";
         public const string FriendshipRemoved = "FriendshipRemoved";
         public const string RemovedFromServer = "RemovedFromServer";
+        public const string ServerMemberBanned = "ServerMemberBanned";
+        public const string ServerMemberTimedOut = "ServerMemberTimedOut";
+        public const string ChannelSlowmodeUpdated = "ChannelSlowmodeUpdated";
 
         // WebRTC 1v1 Call Signaling Events
         public const string CallIncoming = "CallIncoming";

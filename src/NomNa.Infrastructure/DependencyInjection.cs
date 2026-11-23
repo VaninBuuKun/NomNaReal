@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddSingleton<IVoiceRoomManager, RedisVoiceRoomManager>();
         services.AddSingleton<ICallSignalingManager, RedisCallSignalingManager>();
         services.AddSingleton<IDistributedRateLimiter, RedisDistributedRateLimiter>();
+        services.AddSingleton<IChannelSlowmodeService, RedisChannelSlowmodeService>();
 
         // Distributed Cache Invalidation Bus (Registers as both ICacheInvalidationBus and IHostedService)
         services.AddSingleton<RedisCacheInvalidationBus>();

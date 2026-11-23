@@ -24,6 +24,8 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public new DbSet<Role> Roles => Set<Role>();
     public DbSet<MemberRole> MemberRoles => Set<MemberRole>();
     public DbSet<ChannelPermissionOverwrite> ChannelPermissionOverwrites => Set<ChannelPermissionOverwrite>();
+    public DbSet<ServerBan> ServerBans => Set<ServerBan>();
+    public DbSet<ServerAuditLog> ServerAuditLogs => Set<ServerAuditLog>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -109,6 +111,52 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .WithMany(u => u.ServerMembers)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ServerBan Configuration
+        builder.Entity<ServerBan>(entity =>
+        {
+            entity.ToTable("server_bans");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ServerId, e.UserId }).IsUnique();
+            entity.Property(e => e.Reason).HasMaxLength(500);
+
+            entity.HasOne(e => e.Server)
+                .WithMany(s => s.Bans)
+                .HasForeignKey(e => e.ServerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.BannedBy)
+                .WithMany()
+                .HasForeignKey(e => e.BannedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ServerAuditLog Configuration
+        builder.Entity<ServerAuditLog>(entity =>
+        {
+            entity.ToTable("server_audit_logs");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ServerId, e.CreatedAt });
+            entity.Property(e => e.ActionType).HasConversion<string>().HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TargetName).HasMaxLength(150);
+            entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.ChangesJson).HasColumnType("jsonb");
+
+            entity.HasOne(e => e.Server)
+                .WithMany(s => s.AuditLogs)
+                .HasForeignKey(e => e.ServerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Actor)
+                .WithMany()
+                .HasForeignKey(e => e.ActorId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Channel Configuration

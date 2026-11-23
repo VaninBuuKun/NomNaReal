@@ -155,8 +155,26 @@ public class ChannelsController : ApiControllerBase
         var result = await Mediator.Send(command);
         return HandleResult(result);
     }
+
+    [HttpPut("{channelId}/slowmode")]
+    public async Task<IActionResult> UpdateSlowmode(
+        [FromRoute] Guid channelId,
+        [FromBody] UpdateSlowmodeRequest request)
+    {
+        var command = new NomNa.Application.Features.Channels.Commands.UpdateChannelSlowmode.UpdateChannelSlowmodeCommand(
+            channelId, request.SlowmodeSeconds);
+        var result = await Mediator.Send(command);
+        if (result.IsSuccess)
+        {
+            await _hubContext.Clients.Group(channelId.ToString()).SendAsync(
+                SignalRConstants.Events.ChannelSlowmodeUpdated,
+                new { channelId, slowmodeSeconds = request.SlowmodeSeconds });
+        }
+        return HandleResult(result);
+    }
 }
 
+public record UpdateSlowmodeRequest(int SlowmodeSeconds);
 public record CreateDmChannelRequest(Guid TargetUserId, Guid? ServerId = null);
 public record SendMessageRequest(string? Content, Guid? ReplyToMessageId = null, List<NomNa.Application.Features.Messages.DTOs.AttachmentInputDto>? Attachments = null);
 public record UpdateChannelRequest(string? Name = null, string? Topic = null, Guid? CategoryId = null, int? Position = null, bool? IsPrivate = null);

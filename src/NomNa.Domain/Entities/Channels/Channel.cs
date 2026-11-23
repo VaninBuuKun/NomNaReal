@@ -15,6 +15,11 @@ public class Channel : BaseEntity
     public int Position { get; set; } = 0;
     public Guid CreatedById { get; set; }
 
+    /// <summary>
+    /// Slowmode delay in seconds (0 = disabled). Non-moderators can only post once per interval.
+    /// </summary>
+    public int SlowmodeSeconds { get; set; } = 0;
+
     public Guid? CategoryId { get; set; }
     public Channel? Category { get; set; }
     public ICollection<Channel> ChildChannels { get; set; } = new List<Channel>();

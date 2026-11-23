@@ -44,6 +44,15 @@ public class JoinServerCommandHandler : IRequestHandler<JoinServerCommand, Resul
             return Error.NotFound("Server.NotFound", "Mã mời không chính xác hoặc Server không tồn tại.");
         }
 
+        // SEC-06: Check if user is banned from this server
+        var isBanned = await _context.ServerBans
+            .AnyAsync(b => b.ServerId == server.Id && b.UserId == userId.Value, cancellationToken);
+
+        if (isBanned)
+        {
+            return Error.Forbidden("Server.Banned", "You are permanently banned from this server.");
+        }
+
         var isAlreadyMember = server.Members.Any(m => m.UserId == userId.Value);
         if (isAlreadyMember)
         {

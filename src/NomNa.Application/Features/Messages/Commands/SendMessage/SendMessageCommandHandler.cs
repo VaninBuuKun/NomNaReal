@@ -14,6 +14,8 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserProfileCache _userProfileCache;
     private readonly INotificationDispatcher _notificationDispatcher;
+    private readonly IChannelSlowmodeService _slowmodeService;
+    private readonly IPermissionService _permissionService;
 
     [GeneratedRegex(@"@([a-zA-Z0-9_\.]+)", RegexOptions.Compiled, 200)]
     private static partial Regex MentionRegex();
@@ -22,12 +24,16 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
         IUserProfileCache userProfileCache,
-        INotificationDispatcher notificationDispatcher)
+        INotificationDispatcher notificationDispatcher,
+        IChannelSlowmodeService slowmodeService,
+        IPermissionService permissionService)
     {
         _context = context;
         _currentUserService = currentUserService;
         _userProfileCache = userProfileCache;
         _notificationDispatcher = notificationDispatcher;
+        _slowmodeService = slowmodeService;
+        _permissionService = permissionService;
     }
 
     public async Task<Result<MessageDto>> Handle(SendMessageCommand request, CancellationToken cancellationToken)
@@ -44,6 +50,31 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
 
         if (channel.Type == Domain.Enums.ChannelType.Category)
             return Error.Validation("Channel.InvalidType", "Cannot send messages into a category channel.");
+
+        // SEC-06: Channel Slowmode Enforcement
+        if (channel.SlowmodeSeconds > 0 && channel.ServerId.HasValue)
+        {
+            var canBypassSlowmode = await _permissionService.HasChannelPermissionAsync(
+                userId.Value,
+                channel.Id,
+                Domain.Enums.Permissions.ManageMessages | Domain.Enums.Permissions.ManageChannels,
+                cancellationToken);
+
+            if (!canBypassSlowmode)
+            {
+                var (allowed, remainingSeconds) = await _slowmodeService.TryAcquireSlowmodeLeaseAsync(
+                    channel.Id,
+                    userId.Value,
+                    channel.SlowmodeSeconds);
+
+                if (!allowed)
+                {
+                    return Error.Forbidden(
+                        "Channel.SlowmodeActive",
+                        $"Slowmode is enabled. Please wait {remainingSeconds}s before sending another message.");
+                }
+            }
+        }
 
         // PERF-05: Channel permissions and server/private channel membership are already verified
         // in AuthorizationBehavior via IRequireChannelPermission and L1-cached. No redundant DB query needed.

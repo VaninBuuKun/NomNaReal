@@ -110,6 +110,7 @@ public class PermissionService : IPermissionService
             .Where(m => m.ServerId == serverId && m.UserId == userId)
             .Select(m => new
             {
+                m.CommunicationDisabledUntil,
                 Roles = m.MemberRoles.Select(mr => mr.Role).ToList()
             })
             .FirstOrDefaultAsync(cancellationToken);
@@ -135,6 +136,15 @@ public class PermissionService : IPermissionService
             everyone,
             memberRoles
         );
+
+        // SEC-06: Member Timeout enforcement.
+        // If timed out, revoke interactive voice/text capabilities.
+        if (member.CommunicationDisabledUntil.HasValue && member.CommunicationDisabledUntil.Value > DateTime.UtcNow)
+        {
+            permissions &= ~(Permissions.SendMessages | Permissions.SendMessagesInThreads |
+                             Permissions.AddReactions | Permissions.AttachFiles |
+                             Permissions.Connect | Permissions.Speak);
+        }
 
         _cache.Set(cacheKey, permissions, CreateServerCacheOptions(serverId, userId));
         return permissions;
@@ -196,6 +206,7 @@ public class PermissionService : IPermissionService
             .Where(m => m.ServerId == channelInfo.ServerId.Value && m.UserId == userId)
             .Select(m => new
             {
+                m.CommunicationDisabledUntil,
                 Roles = m.MemberRoles.Select(mr => mr.Role).ToList()
             })
             .FirstOrDefaultAsync(cancellationToken);
@@ -251,6 +262,15 @@ public class PermissionService : IPermissionService
             memberRoles,
             overwrites
         );
+
+        // SEC-06: Member Timeout enforcement.
+        // If timed out, revoke interactive voice/text capabilities.
+        if (serverMember.CommunicationDisabledUntil.HasValue && serverMember.CommunicationDisabledUntil.Value > DateTime.UtcNow)
+        {
+            permissions &= ~(Permissions.SendMessages | Permissions.SendMessagesInThreads |
+                             Permissions.AddReactions | Permissions.AttachFiles |
+                             Permissions.Connect | Permissions.Speak);
+        }
 
         _cache.Set(cacheKey, permissions, CreateChannelCacheOptions(channelInfo.ServerId, channelId, userId));
         return permissions;
