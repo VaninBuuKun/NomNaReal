@@ -16,5 +16,6 @@ public record ServerMemberDto(
     string? Email,
     string Role,
     string Status,
-    List<RoleDto>? Roles = null
+    List<RoleDto>? Roles = null,
+    DateTime? CommunicationDisabledUntil = null
 );

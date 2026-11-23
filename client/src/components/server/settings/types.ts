@@ -1,6 +1,6 @@
 import type { Role } from '../../../types/role';
 
-export type SettingsTab = 'overview' | 'roles' | 'members' | 'delete';
+export type SettingsTab = 'overview' | 'roles' | 'members' | 'bans' | 'audit-logs' | 'delete';
 
 export interface ServerMemberItem {
   id: string;

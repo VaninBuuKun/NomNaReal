@@ -467,6 +467,54 @@ export class SignalRService {
     }
   }
 
+  public onServerMemberBanned(
+    callback: (data: { serverId: string; memberUserId: string; reason?: string }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.on("ServerMemberBanned", callback);
+    }
+  }
+
+  public offServerMemberBanned(
+    callback: (data: { serverId: string; memberUserId: string; reason?: string }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.off("ServerMemberBanned", callback);
+    }
+  }
+
+  public onServerMemberTimedOut(
+    callback: (data: { serverId: string; memberUserId: string; durationMinutes: number }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.on("ServerMemberTimedOut", callback);
+    }
+  }
+
+  public offServerMemberTimedOut(
+    callback: (data: { serverId: string; memberUserId: string; durationMinutes: number }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.off("ServerMemberTimedOut", callback);
+    }
+  }
+
+  public onChannelSlowmodeUpdated(
+    callback: (data: { channelId: string; slowmodeSeconds: number }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.on("ChannelSlowmodeUpdated", callback);
+    }
+  }
+
+  public offChannelSlowmodeUpdated(
+    callback: (data: { channelId: string; slowmodeSeconds: number }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.off("ChannelSlowmodeUpdated", callback);
+    }
+  }
+
   public onFriendRequestReceived(callback: (data: any) => void): void {
     if (this.connection) {
       this.connection.on("FriendRequestReceived", callback);

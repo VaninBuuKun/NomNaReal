@@ -25,6 +25,7 @@ import { resolveApiError } from "../utils/errorMapper";
 import {
   authApi,
   workspaceApi,
+  serverApi,
   channelApi,
   messageApi,
   notificationApi,
@@ -1462,6 +1463,68 @@ export const ChatPage: React.FC = () => {
     }
   };
 
+  const handleBanMember = async (member: DirectMessageUser, reason?: string) => {
+    if (!activeWorkspaceId) return;
+    setWorkspaceMembers((prev) => prev.filter((m) => m.id !== member.id));
+    try {
+      await serverApi.banMember(activeWorkspaceId, member.id, reason);
+      toast.success("Đã cấm thành viên", `Đã cấm vĩnh viễn ${member.displayName} khỏi máy chủ.`);
+    } catch (err: any) {
+      console.error("Failed to ban member:", err);
+      const members = await workspaceApi
+        .getMembers(activeWorkspaceId)
+        .catch(() => []);
+      setWorkspaceMembers(members as any);
+      if (!err?._toastHandled) {
+        const { title, description } = resolveApiError(err);
+        toast.error(title, description);
+      }
+      throw err;
+    }
+  };
+
+  const handleTimeoutMember = async (
+    member: DirectMessageUser,
+    durationMinutes: number,
+    reason?: string
+  ) => {
+    if (!activeWorkspaceId) return;
+    try {
+      await serverApi.timeoutMember(activeWorkspaceId, member.id, durationMinutes, reason);
+      const timeoutUntil =
+        durationMinutes > 0
+          ? new Date(Date.now() + durationMinutes * 60000).toISOString()
+          : null;
+
+      setWorkspaceMembers((prev) =>
+        prev.map((m) =>
+          m.id === member.id
+            ? { ...m, communicationDisabledUntil: timeoutUntil }
+            : m
+        )
+      );
+
+      if (durationMinutes > 0) {
+        toast.success(
+          "Đã tạm khóa chat",
+          `Đã đặt timeout cho ${member.displayName} (${durationMinutes} phút).`
+        );
+      } else {
+        toast.success(
+          "Đã gỡ timeout",
+          `Đã gỡ tạm khóa chat cho ${member.displayName}.`
+        );
+      }
+    } catch (err: any) {
+      console.error("Failed to timeout member:", err);
+      if (!err?._toastHandled) {
+        const { title, description } = resolveApiError(err);
+        toast.error(title, description);
+      }
+      throw err;
+    }
+  };
+
   const handleChannelUpdated = (updated: Channel) => {
     setChannels((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
   };
@@ -1870,6 +1933,8 @@ export const ChatPage: React.FC = () => {
         handleChannelUpdated={handleChannelUpdated}
         handleChannelDeleted={handleChannelDeleted}
         handleKickMember={handleKickMember}
+        handleBanMember={handleBanMember}
+        handleTimeoutMember={handleTimeoutMember}
         handleStartDm={handleStartDm}
         handleStartDmWithUser={handleStartDmWithUser}
         inspectingUser={inspectingUser}

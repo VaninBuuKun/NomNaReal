@@ -17,6 +17,7 @@ export interface DirectMessageUser {
   status: "online" | "away" | "dnd" | "offline";
   role?: string;
   customStatus?: string;
+  communicationDisabledUntil?: string | null;
 }
 
 interface NewDirectMessageModalProps {

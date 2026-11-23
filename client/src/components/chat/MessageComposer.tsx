@@ -70,6 +70,7 @@ export interface MessageComposerProps {
   workspaceMembers?: DirectMessageUser[];
   isSidebar?: boolean;
   onSendSuccess?: () => void;
+  slowmodeSeconds?: number;
 }
 
 export interface MessageComposerHandle {
@@ -91,6 +92,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   workspaceMembers = [],
   isSidebar = false,
   onSendSuccess,
+  slowmodeSeconds = 0,
 }, ref) => {
   const drafts = useChatStore((state) => state.drafts);
   const setDraft = useChatStore((state) => state.setDraft);
@@ -98,6 +100,16 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
 
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [slowmodeRemaining, setSlowmodeRemaining] = useState<number>(0);
+
+  // Slowmode timer countdown
+  useEffect(() => {
+    if (slowmodeRemaining <= 0) return;
+    const interval = setInterval(() => {
+      setSlowmodeRemaining((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [slowmodeRemaining]);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
@@ -150,8 +162,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             key={match.index}
             className={`rounded-[3px] font-medium ${
               isHere
-                ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-[var(--accent-soft,#5865f226)] text-[var(--accent-primary,#5865f2)]"
+                ? "bg-[var(--status-online)]/20 text-[var(--status-online)]"
+                : "bg-[var(--accent-soft)] text-[var(--accent-primary)]"
             }`}
             style={{
               boxDecorationBreak: "clone",
@@ -451,10 +463,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       }));
 
     if (!text && readyAttachments.length === 0) return;
+    if (slowmodeRemaining > 0) return;
 
     setSending(true);
     try {
       await onSendMessage(text, readyAttachments, replyingToMessage?.id);
+      if (slowmodeSeconds > 0) {
+        setSlowmodeRemaining(slowmodeSeconds);
+      }
       setContent("");
       setConfirmedMentions(new Set());
       onCancelReply();
@@ -806,12 +822,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                     backdropRef.current.scrollTop = textareaRef.current.scrollTop;
                   }
                 }}
-                disabled={!channelId || !canSendMessages}
+                disabled={!channelId || !canSendMessages || slowmodeRemaining > 0}
                 placeholder={
                   !channelId
                     ? "Chọn một kênh để nhắn tin..."
                     : !canSendMessages
                     ? `Bạn không có quyền gửi tin nhắn trong kênh #${channelName || "này"}.`
+                    : slowmodeRemaining > 0
+                    ? `Chế độ chậm đang bật. Vui lòng chờ ${slowmodeRemaining}s...`
                     : isDm
                     ? `Nhắn @${channelName || "người dùng"}`
                     : `Nhắn #${channelName || "kênh"}`

@@ -14,7 +14,8 @@ public record ChannelDto(
     long Permissions = (long)NomNa.Domain.Enums.Permissions.Default,
     Guid? CategoryId = null,
     int Position = 0,
-    string? Topic = null
+    string? Topic = null,
+    int SlowmodeSeconds = 0
 );
 
 public record ChannelMemberDto(

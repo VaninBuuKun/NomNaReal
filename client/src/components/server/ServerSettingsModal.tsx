@@ -5,6 +5,8 @@ import {
   Users,
   Trash,
   X,
+  Prohibit,
+  ClockCounterClockwise,
 } from '@phosphor-icons/react';
 import { Modal } from '../ui';
 import { roleApi } from '../../services/roleApi';
@@ -15,6 +17,8 @@ import {
   ServerOverviewTab,
   ServerRolesTab,
   ServerMembersTab,
+  ServerBansTab,
+  ServerAuditLogsTab,
   ServerDangerZoneTab,
   type SettingsTab,
   type ServerMemberItem,
@@ -162,6 +166,36 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
               </span>
             </button>
 
+            <button
+              type="button"
+              onClick={() => setActiveTab('bans')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-xs font-medium cursor-pointer transition-colors ${
+                activeTab === 'bans'
+                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Prohibit size={16} weight={activeTab === 'bans' ? 'bold' : 'regular'} />
+                <span>Danh sách cấm</span>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('audit-logs')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-xs font-medium cursor-pointer transition-colors ${
+                activeTab === 'audit-logs'
+                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <ClockCounterClockwise size={16} weight={activeTab === 'audit-logs' ? 'bold' : 'regular'} />
+                <span>Nhật ký hoạt động</span>
+              </div>
+            </button>
+
             {isOwner && (
               <>
                 <div className="h-px bg-[var(--border-color)]/60 my-2" />
@@ -229,6 +263,18 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
               isLoadingMembers={isLoadingMembers}
               onRefreshMembers={loadMembers}
             />
+          )}
+
+          {activeTab === 'bans' && (
+            <div className="flex-1 p-6 overflow-y-auto">
+              <ServerBansTab serverId={workspace.id} />
+            </div>
+          )}
+
+          {activeTab === 'audit-logs' && (
+            <div className="flex-1 p-6 overflow-y-auto">
+              <ServerAuditLogsTab serverId={workspace.id} />
+            </div>
           )}
 
           {activeTab === 'delete' && isOwner && (

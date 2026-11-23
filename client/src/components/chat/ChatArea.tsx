@@ -541,6 +541,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         onStopTyping={onStopTyping}
         workspaceMembers={workspaceMembers}
         isSidebar={isSidebar}
+        slowmodeSeconds={currentChannel?.slowmodeSeconds ?? 0}
         onSendSuccess={() => {
           const targetRef = isSidebar ? sidebarMessageListRef : messageListRef;
           targetRef.current?.scrollToBottom("smooth");

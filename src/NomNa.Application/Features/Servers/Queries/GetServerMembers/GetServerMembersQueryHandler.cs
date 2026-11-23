@@ -45,6 +45,7 @@ public class GetServerMembersQueryHandler : IRequestHandler<GetServerMembersQuer
             {
                 m.Id,
                 m.UserId,
+                m.CommunicationDisabledUntil,
                 DisplayName = m.User.DisplayName,
                 UserName = m.User.UserName ?? string.Empty,
                 AvatarUrl = m.User.AvatarUrl,
@@ -78,7 +79,8 @@ public class GetServerMembersQueryHandler : IRequestHandler<GetServerMembersQuer
             m.Email,
             m.Role,
             UserPresenceResolver.Resolve(onlinePresenceMap.GetValueOrDefault(m.UserId), m.StatusPreference),
-            m.Roles
+            m.Roles,
+            m.CommunicationDisabledUntil
         )).ToList();
     }
 }

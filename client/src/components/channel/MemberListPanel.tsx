@@ -9,9 +9,12 @@ import {
   UserMinus,
   Lock,
   UserPlus,
+  Clock,
+  Prohibit,
 } from "@phosphor-icons/react";
 import { Spinner } from "../ui";
 import { UserAvatar } from "../ui/UserAvatar";
+import { useUiStore } from "../../stores";
 import type { DirectMessageUser } from "../dm";
 import type { User } from "../../types";
 import type { UserProfileData } from "../profile";
@@ -61,6 +64,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
   onRequestKickMember,
   onKickMember,
 }) => {
+  const { setMemberToKick, setMemberToBan, setMemberToTimeout } = useUiStore();
   const [search, setSearch] = useState("");
   const [selectedUserPopover, setSelectedUserPopover] = useState<ActivePopoverUser | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -158,7 +162,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
     const r = (role || "").toLowerCase();
     if (r === "owner") {
       return (
-        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30">
+        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-warning-soft text-warning border border-warning/30">
           <Crown size={10} weight="fill" />
           <span>CHỦ</span>
         </span>
@@ -166,7 +170,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
     }
     if (r === "admin") {
       return (
-        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+        <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.2 rounded font-bold bg-accent-soft text-accent border border-accent/30">
           <ShieldCheck size={10} weight="bold" />
           <span>ADMIN</span>
         </span>
@@ -186,7 +190,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
       <div className="h-[54px] border-b border-[var(--border-color)] px-3.5 flex items-center justify-between shrink-0 bg-[var(--bg-sidebar)]">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {isPrivateChannel && (
-            <Lock size={15} weight="bold" className="text-amber-500 shrink-0" />
+            <Lock size={15} weight="bold" className="text-warning shrink-0" />
           )}
           <span className="font-bold text-sm text-[var(--text-primary)] truncate">
             {isPrivateChannel && channelName ? `#${channelName}` : 'Thành viên'}
@@ -269,6 +273,11 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
                           </span>
                         )}
                         {renderRoleBadge(m.role)}
+                        {Boolean(m.communicationDisabledUntil && new Date(m.communicationDisabledUntil) > new Date()) && (
+                          <span title="Thành viên đang bị tạm khóa chat (Timeout)" className="text-warning shrink-0">
+                            <Clock size={12} weight="bold" />
+                          </span>
+                        )}
                       </div>
                       <div className="text-[0.7rem] text-[var(--text-muted)] truncate">
                         @{m.username}
@@ -314,6 +323,11 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
                           </span>
                         )}
                         {renderRoleBadge(m.role)}
+                        {Boolean(m.communicationDisabledUntil && new Date(m.communicationDisabledUntil) > new Date()) && (
+                          <span title="Thành viên đang bị tạm khóa chat (Timeout)" className="text-warning shrink-0">
+                            <Clock size={12} weight="bold" />
+                          </span>
+                        )}
                       </div>
                       <div className="text-[0.7rem] text-[var(--text-muted)] truncate">
                         @{m.username}
@@ -423,34 +437,65 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
               </button>
             )}
 
-            {/* Kick Member button for Owner / Admin */}
+            {/* Moderation actions for Owner / Admin */}
             {(() => {
               const target = selectedUserPopover.user;
               const isSelf = currentUser && (target.id === currentUser.id || target.username === currentUser.username);
               const callerRole = (currentUserRole || "").toLowerCase();
               const targetRole = (target.role || "").toLowerCase();
-              const canKick = !isSelf && (onRequestKickMember || onKickMember) && (
+              const canModerate = !isSelf && (
                 callerRole === "owner" || (callerRole === "admin" && targetRole !== "owner" && targetRole !== "admin")
               );
 
-              if (!canKick) return null;
+              if (!canModerate) return null;
 
               return (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedUserPopover(null);
-                    if (onRequestKickMember) {
-                      onRequestKickMember(target);
-                    } else if (onKickMember) {
-                      onKickMember(target);
-                    }
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-1.75 px-3 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-semibold transition-all border border-red-500/25 cursor-pointer active:scale-98"
-                >
-                  <UserMinus size={15} weight="bold" />
-                  <span>Đuổi khỏi nhóm (Kick)</span>
-                </button>
+                <div className="flex flex-col gap-1.5 pt-1 border-t border-[var(--border-color)]">
+                  {/* Timeout */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedUserPopover(null);
+                      setMemberToTimeout(target);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-control bg-warning-soft hover:bg-warning/20 text-warning text-xs font-semibold transition-all border border-warning/30 cursor-pointer active:scale-98"
+                  >
+                    <Clock size={15} weight="bold" />
+                    <span>Tạm khóa chat (Timeout)</span>
+                  </button>
+
+                  {/* Kick */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedUserPopover(null);
+                      if (onRequestKickMember) {
+                        onRequestKickMember(target);
+                      } else if (onKickMember) {
+                        onKickMember(target);
+                      } else {
+                        setMemberToKick(target);
+                      }
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-control bg-danger-soft hover:bg-danger/20 text-danger text-xs font-semibold transition-all border border-danger/30 cursor-pointer active:scale-98"
+                  >
+                    <UserMinus size={15} weight="bold" />
+                    <span>Đuổi khỏi nhóm (Kick)</span>
+                  </button>
+
+                  {/* Ban */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedUserPopover(null);
+                      setMemberToBan(target);
+                    }}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-control bg-danger-soft hover:bg-danger/20 text-danger text-xs font-semibold transition-all border border-danger/30 cursor-pointer active:scale-98"
+                  >
+                    <Prohibit size={15} weight="bold" />
+                    <span>Cấm vĩnh viễn (Ban)</span>
+                  </button>
+                </div>
               );
             })()}
           </div>

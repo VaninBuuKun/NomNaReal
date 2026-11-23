@@ -10,6 +10,8 @@ import {
   EnvelopeSimple,
   Circle,
   UserMinus,
+  Clock,
+  Prohibit,
 } from '@phosphor-icons/react';
 import { UserAvatar } from '../ui/UserAvatar';
 
@@ -35,6 +37,8 @@ export interface UserProfileModalProps {
   onOpenSettings?: () => void;
   canKick?: boolean;
   onKickMember?: (user: UserProfileData) => void;
+  onTimeoutMember?: (user: UserProfileData) => void;
+  onBanMember?: (user: UserProfileData) => void;
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
@@ -48,6 +52,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onOpenSettings,
   canKick,
   onKickMember,
+  onTimeoutMember,
+  onBanMember,
 }) => {
   // ESC key handler
   useEffect(() => {
@@ -105,7 +111,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     const r = (user.role || '').toLowerCase();
     if (r === 'owner') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-warning-soft text-warning border border-warning/30">
           <Crown size={12} weight="fill" />
           <span>Chủ sở hữu</span>
         </span>
@@ -113,7 +119,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
     if (r === 'admin') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-accent-soft text-accent border border-accent/30">
           <ShieldCheck size={12} weight="fill" />
           <span>Quản trị viên</span>
         </span>
@@ -132,29 +138,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     switch (s) {
       case 'online':
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500 font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+          <span className="inline-flex items-center gap-1.5 text-xs text-status-online font-medium">
+            <span className="w-2 h-2 rounded-full bg-status-online shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
             <span>Đang trực tuyến</span>
           </span>
         );
       case 'away':
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs text-amber-500 font-medium">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
+          <span className="inline-flex items-center gap-1.5 text-xs text-status-idle font-medium">
+            <span className="w-2 h-2 rounded-full bg-status-idle" />
             <span>Vắng mặt</span>
           </span>
         );
       case 'dnd':
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs text-rose-500 font-medium">
-            <span className="w-2 h-2 rounded-full bg-rose-500" />
+          <span className="inline-flex items-center gap-1.5 text-xs text-status-dnd font-medium">
+            <span className="w-2 h-2 rounded-full bg-status-dnd" />
             <span>Không làm phiền</span>
           </span>
         );
       default:
         return (
           <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-            <Circle size={8} weight="fill" className="text-zinc-500" />
+            <Circle size={8} weight="fill" className="text-status-offline" />
             <span>Ngoại tuyến</span>
           </span>
         );
@@ -283,19 +289,47 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             )}
           </div>
 
-          {!isMe && canKick && onKickMember && (
-            <div className="mt-2 pt-2 border-t border-[var(--border-color)]/60">
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onKickMember(user);
-                }}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-xs font-semibold transition-all border border-red-500/25 cursor-pointer active:scale-98"
-              >
-                <UserMinus size={14} weight="bold" />
-                <span>Đuổi khỏi nhóm (Kick)</span>
-              </button>
+          {!isMe && canKick && (
+            <div className="mt-2 pt-2 border-t border-[var(--border-color)]/60 flex flex-col gap-1.5">
+              {onTimeoutMember && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onTimeoutMember(user);
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-control bg-warning-soft hover:bg-warning/20 text-warning text-xs font-semibold transition-all border border-warning/30 cursor-pointer active:scale-98"
+                >
+                  <Clock size={14} weight="bold" />
+                  <span>Tạm khóa chat (Timeout)</span>
+                </button>
+              )}
+              {onKickMember && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onKickMember(user);
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-control bg-danger-soft hover:bg-danger/20 text-danger text-xs font-semibold transition-all border border-danger/30 cursor-pointer active:scale-98"
+                >
+                  <UserMinus size={14} weight="bold" />
+                  <span>Đuổi khỏi nhóm (Kick)</span>
+                </button>
+              )}
+              {onBanMember && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onBanMember(user);
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-control bg-danger-soft hover:bg-danger/20 text-danger text-xs font-semibold transition-all border border-danger/30 cursor-pointer active:scale-98"
+                >
+                  <Prohibit size={14} weight="bold" />
+                  <span>Cấm vĩnh viễn (Ban)</span>
+                </button>
+              )}
             </div>
           )}
         </div>

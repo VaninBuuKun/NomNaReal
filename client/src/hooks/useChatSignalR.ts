@@ -236,6 +236,66 @@ export function useChatSignalR({
       }
     });
 
+    // Moderation Suite Real-time Events
+    signalRService.onServerMemberBanned((data) => {
+      if (data.memberUserId === currentUser?.id) {
+        useWorkspaceStore.getState().removeWorkspace(data.serverId);
+        if (data.serverId === activeWorkspaceIdRef.current) {
+          setActiveWorkspaceId('');
+          setToast({
+            id: `banned-${Date.now()}`,
+            title: 'Bị cấm khỏi máy chủ',
+            description: data.reason
+              ? `Bạn đã bị cấm khỏi máy chủ: "${data.reason}"`
+              : 'Bạn đã bị cấm vĩnh viễn khỏi máy chủ này.',
+          });
+        }
+      } else {
+        setWorkspaceMembers((prev) => prev.filter((m) => m.id !== data.memberUserId));
+      }
+    });
+
+    signalRService.onServerMemberTimedOut((data) => {
+      const until =
+        data.durationMinutes > 0
+          ? new Date(Date.now() + data.durationMinutes * 60000).toISOString()
+          : null;
+
+      if (data.memberUserId === currentUser?.id) {
+        if (data.durationMinutes > 0) {
+          setToast({
+            id: `timeout-${Date.now()}`,
+            title: 'Tạm khóa chat (Timeout)',
+            description: `Bạn đã bị tạm khóa chat trong ${data.durationMinutes} phút. Bạn không thể gửi tin nhắn hoặc phát biểu.`,
+          });
+        } else {
+          setToast({
+            id: `untimeout-${Date.now()}`,
+            title: 'Đã gỡ tạm khóa',
+            description: 'Bạn đã có thể nhắn tin và giao tiếp lại bình thường trong máy chủ.',
+          });
+        }
+      }
+
+      setWorkspaceMembers((prev) =>
+        prev.map((m) =>
+          m.id === data.memberUserId
+            ? { ...m, communicationDisabledUntil: until }
+            : m
+        )
+      );
+    });
+
+    signalRService.onChannelSlowmodeUpdated((data) => {
+      setChannels((prev) =>
+        prev.map((c) =>
+          c.id === data.channelId
+            ? { ...c, slowmodeSeconds: data.slowmodeSeconds }
+            : c
+        )
+      );
+    });
+
     signalRService.onReceiveNotification((notif) => {
       setNotifications((prev) => [
         notif,

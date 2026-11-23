@@ -70,4 +70,8 @@ export const channelApi = {
   addMember: async (channelId: string, userId: string): Promise<void> => {
     await httpClient.post(`/channels/${channelId}/members`, { userId });
   },
+
+  updateSlowmode: async (channelId: string, slowmodeSeconds: number): Promise<void> => {
+    await httpClient.put(`/channels/${channelId}/slowmode`, { slowmodeSeconds });
+  },
 };
