@@ -45,6 +45,7 @@ app.Use(async (context, next) =>
 });
 
 app.UseCors("CorsPolicy");
+app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 

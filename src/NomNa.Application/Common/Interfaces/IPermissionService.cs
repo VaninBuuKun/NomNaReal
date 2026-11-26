@@ -4,12 +4,17 @@ namespace NomNa.Application.Common.Interfaces;
 
 public interface IPermissionService
 {
-    Task<Permissions> GetChannelPermissionsAsync(Guid userId, Guid channelId, CancellationToken cancellationToken = default);
+    ValueTask<Permissions> GetChannelPermissionsAsync(Guid userId, Guid channelId, CancellationToken cancellationToken = default);
     Task<Dictionary<Guid, Permissions>> GetChannelsPermissionsAsync(Guid userId, Guid serverId, IEnumerable<Guid> channelIds, CancellationToken cancellationToken = default);
-    Task<Permissions> GetServerPermissionsAsync(Guid userId, Guid serverId, CancellationToken cancellationToken = default);
-    Task<bool> HasChannelPermissionAsync(Guid userId, Guid channelId, Permissions requiredPermission, CancellationToken cancellationToken = default);
-    Task<bool> HasServerPermissionAsync(Guid userId, Guid serverId, Permissions requiredPermission, CancellationToken cancellationToken = default);
+    ValueTask<Permissions> GetServerPermissionsAsync(Guid userId, Guid serverId, CancellationToken cancellationToken = default);
+    ValueTask<bool> HasChannelPermissionAsync(Guid userId, Guid channelId, Permissions requiredPermission, CancellationToken cancellationToken = default);
+    ValueTask<bool> HasServerPermissionAsync(Guid userId, Guid serverId, Permissions requiredPermission, CancellationToken cancellationToken = default);
     void InvalidateServer(Guid serverId);
     void InvalidateChannel(Guid channelId);
     void InvalidateUser(Guid serverId, Guid userId);
+
+    // Local node invalidation (called by RedisCacheInvalidationBus subscriber)
+    void InvalidateLocalServer(Guid serverId);
+    void InvalidateLocalChannel(Guid channelId);
+    void InvalidateLocalUser(Guid serverId, Guid userId);
 }

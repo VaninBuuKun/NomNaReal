@@ -17,7 +17,7 @@ namespace NomNa.Infrastructure.Persistence.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.22")
+                .HasAnnotation("ProductVersion", "9.0.23")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -190,6 +190,9 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ServerId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("SlowmodeSeconds")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Topic")
                         .HasMaxLength(1024)
                         .HasColumnType("character varying(1024)");
@@ -203,8 +206,6 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
-
-                    b.HasIndex("LastMessageAt");
 
                     b.HasIndex("ServerId", "Position");
 
@@ -225,6 +226,9 @@ namespace NomNa.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("LastReadAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastReadMessageId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -649,11 +653,97 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.ToTable("servers", (string)null);
                 });
 
+            modelBuilder.Entity("NomNa.Domain.Entities.ServerAuditLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChangesJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("ServerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("TargetId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TargetName")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("ServerId", "CreatedAt");
+
+                    b.ToTable("server_audit_logs", (string)null);
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.ServerBan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BannedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("ServerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BannedById");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("ServerId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("server_bans", (string)null);
+                });
+
             modelBuilder.Entity("NomNa.Domain.Entities.ServerMember", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CommunicationDisabledUntil")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1095,6 +1185,52 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.Navigation("Owner");
                 });
 
+            modelBuilder.Entity("NomNa.Domain.Entities.ServerAuditLog", b =>
+                {
+                    b.HasOne("NomNa.Domain.Entities.User", "Actor")
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NomNa.Domain.Entities.Server", "Server")
+                        .WithMany("AuditLogs")
+                        .HasForeignKey("ServerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Actor");
+
+                    b.Navigation("Server");
+                });
+
+            modelBuilder.Entity("NomNa.Domain.Entities.ServerBan", b =>
+                {
+                    b.HasOne("NomNa.Domain.Entities.User", "BannedBy")
+                        .WithMany()
+                        .HasForeignKey("BannedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("NomNa.Domain.Entities.Server", "Server")
+                        .WithMany("Bans")
+                        .HasForeignKey("ServerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NomNa.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BannedBy");
+
+                    b.Navigation("Server");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("NomNa.Domain.Entities.ServerMember", b =>
                 {
                     b.HasOne("NomNa.Domain.Entities.Server", "Server")
@@ -1137,6 +1273,10 @@ namespace NomNa.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("NomNa.Domain.Entities.Server", b =>
                 {
+                    b.Navigation("AuditLogs");
+
+                    b.Navigation("Bans");
+
                     b.Navigation("Channels");
 
                     b.Navigation("Members");

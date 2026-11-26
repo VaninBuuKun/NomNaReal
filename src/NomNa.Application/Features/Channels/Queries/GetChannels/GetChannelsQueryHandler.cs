@@ -52,7 +52,8 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
                 c.LastMessageSenderId,
                 c.CategoryId,
                 c.Position,
-                c.Topic
+                c.Topic,
+                c.SlowmodeSeconds
             })
             .ToListAsync(cancellationToken);
 
@@ -95,7 +96,8 @@ public class GetChannelsQueryHandler : IRequestHandler<GetChannelsQuery, Result<
                     (long)perms,
                     c.CategoryId,
                     c.Position,
-                    c.Topic
+                    c.Topic,
+                    c.SlowmodeSeconds
                 ));
             }
         }

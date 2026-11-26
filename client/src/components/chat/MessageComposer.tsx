@@ -11,6 +11,7 @@ import {
   PaperPlaneRight,
   ArrowUUpLeft,
   CircleNotch,
+  Clock,
   X,
   Plus,
   Play,
@@ -70,6 +71,8 @@ export interface MessageComposerProps {
   workspaceMembers?: DirectMessageUser[];
   isSidebar?: boolean;
   onSendSuccess?: () => void;
+  slowmodeSeconds?: number;
+  isTimedOut?: boolean;
 }
 
 export interface MessageComposerHandle {
@@ -91,6 +94,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   workspaceMembers = [],
   isSidebar = false,
   onSendSuccess,
+  slowmodeSeconds = 0,
+  isTimedOut = false,
 }, ref) => {
   const drafts = useChatStore((state) => state.drafts);
   const setDraft = useChatStore((state) => state.setDraft);
@@ -98,6 +103,16 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
 
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [slowmodeRemaining, setSlowmodeRemaining] = useState<number>(0);
+
+  // Slowmode timer countdown
+  useEffect(() => {
+    if (slowmodeRemaining <= 0) return;
+    const interval = setInterval(() => {
+      setSlowmodeRemaining((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [slowmodeRemaining]);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showGifPicker, setShowGifPicker] = useState(false);
@@ -150,8 +165,8 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
             key={match.index}
             className={`rounded-[3px] font-medium ${
               isHere
-                ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-[var(--accent-soft,#5865f226)] text-[var(--accent-primary,#5865f2)]"
+                ? "bg-[var(--status-online)]/20 text-[var(--status-online)]"
+                : "bg-[var(--accent-soft)] text-[var(--accent-primary)]"
             }`}
             style={{
               boxDecorationBreak: "clone",
@@ -432,7 +447,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
   const handleSend = async () => {
     const text = content.trim();
     const hasAttachments = pendingAttachments.length > 0;
-    if ((!text && !hasAttachments) || sending) return;
+    if ((!text && !hasAttachments) || sending || isTimedOut || !canSendMessages) return;
 
     const stillUploading = pendingAttachments.some((a) => a.status === "uploading");
     if (stillUploading) {
@@ -451,10 +466,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       }));
 
     if (!text && readyAttachments.length === 0) return;
+    if (slowmodeRemaining > 0) return;
 
     setSending(true);
     try {
       await onSendMessage(text, readyAttachments, replyingToMessage?.id);
+      if (slowmodeSeconds > 0) {
+        setSlowmodeRemaining(slowmodeSeconds);
+      }
       setContent("");
       setConfirmedMentions(new Set());
       onCancelReply();
@@ -553,7 +572,9 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
 
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      if (!isTimedOut) {
+        handleSend();
+      }
     }
   };
 
@@ -589,6 +610,14 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
       />
 
       <div className="bg-surface border border-border rounded-control py-1.5 px-3 flex flex-col gap-1.5 min-h-[52px] justify-center transition-all duration-200 focus-within:border-accent-primary focus-within:bg-chat focus-within:ring-1 focus-within:ring-accent-primary focus-within:shadow-[0_2px_12px_var(--accent-glow)]">
+        {/* Timed-out Member Warning Banner */}
+        {isTimedOut && (
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-warning-soft/70 border-b border-warning/20 -mx-3 -mt-1.5 mb-0.5 rounded-t-control text-xs text-warning select-none font-medium">
+            <Clock size={15} weight="bold" className="shrink-0" />
+            <span>Bạn đang bị tạm khóa chat trong máy chủ này và không thể gửi tin nhắn.</span>
+          </div>
+        )}
+
         {/* Quote Reply Banner */}
         {replyingToMessage && (
           <div className="flex items-center justify-between px-2.5 py-1.5 bg-chat border-b border-border -mx-3 -mt-1.5 mb-0.5 rounded-t-control text-xs text-text-secondary select-none animate-in fade-in slide-in-from-bottom-1 duration-100">
@@ -806,12 +835,16 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                     backdropRef.current.scrollTop = textareaRef.current.scrollTop;
                   }
                 }}
-                disabled={!channelId || !canSendMessages}
+                disabled={!channelId || !canSendMessages || slowmodeRemaining > 0 || isTimedOut}
                 placeholder={
                   !channelId
                     ? "Chọn một kênh để nhắn tin..."
+                    : isTimedOut
+                    ? "Bạn đang bị tạm khóa chat trong máy chủ này."
                     : !canSendMessages
                     ? `Bạn không có quyền gửi tin nhắn trong kênh #${channelName || "này"}.`
+                    : slowmodeRemaining > 0
+                    ? `Chế độ chậm đang bật. Vui lòng chờ ${slowmodeRemaining}s...`
                     : isDm
                     ? `Nhắn @${channelName || "người dùng"}`
                     : `Nhắn #${channelName || "kênh"}`
@@ -880,6 +913,7 @@ export const MessageComposer = forwardRef<MessageComposerHandle, MessageComposer
                   disabled={
                     !canSendMessages ||
                     sending ||
+                    isTimedOut ||
                     pendingAttachments.some((a) => a.status === "uploading")
                   }
                   className="w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-accent-primary text-white hover:bg-accent-hover transition-all flex items-center justify-center cursor-pointer shadow-xs disabled:opacity-50 shrink-0 ml-0.5"

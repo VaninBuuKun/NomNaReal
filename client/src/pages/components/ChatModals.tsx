@@ -3,6 +3,8 @@ import {
   CreateWorkspaceModal,
   EditWorkspaceModal,
   KickMemberModal,
+  BanMemberModal,
+  TimeoutMemberModal,
 } from '../../components/server';
 import {
   CreateChannelModal,
@@ -31,6 +33,8 @@ interface ChatModalsProps {
   handleChannelUpdated: (ch: Channel) => void;
   handleChannelDeleted: (id: string) => void;
   handleKickMember: (member: DirectMessageUser) => Promise<void>;
+  handleBanMember: (member: DirectMessageUser, reason?: string) => Promise<void>;
+  handleTimeoutMember: (member: DirectMessageUser, durationMinutes: number, reason?: string) => Promise<void>;
   handleStartDm: (user: DirectMessageUser) => void;
   handleStartDmWithUser: (user: { id: string; displayName: string; username: string; avatarUrl?: string }) => void;
   inspectingUser: UserProfileData | null;
@@ -58,6 +62,8 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
   handleChannelUpdated,
   handleChannelDeleted,
   handleKickMember,
+  handleBanMember,
+  handleTimeoutMember,
   handleStartDm,
   handleStartDmWithUser,
   inspectingUser,
@@ -78,6 +84,8 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
     channelToAddMember,
     isNewDmOpen,
     memberToKick,
+    memberToBan,
+    memberToTimeout,
     isSettingsOpen,
     setCreateWorkspaceOpen,
     setEditWorkspaceOpen,
@@ -86,6 +94,8 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
     setChannelToAddMember,
     setNewDmOpen,
     setMemberToKick,
+    setMemberToBan,
+    setMemberToTimeout,
     setSettingsOpen,
   } = useUiStore();
 
@@ -124,6 +134,22 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
         member={memberToKick}
         workspaceName={currentWorkspace?.name}
         onConfirmKick={handleKickMember}
+      />
+
+      <BanMemberModal
+        isOpen={Boolean(memberToBan)}
+        onClose={() => setMemberToBan(null)}
+        member={memberToBan}
+        serverName={currentWorkspace?.name}
+        onConfirmBan={handleBanMember}
+      />
+
+      <TimeoutMemberModal
+        isOpen={Boolean(memberToTimeout)}
+        onClose={() => setMemberToTimeout(null)}
+        member={memberToTimeout}
+        serverName={currentWorkspace?.name}
+        onConfirmTimeout={handleTimeoutMember}
       />
 
       <CreateWorkspaceModal
@@ -239,6 +265,14 @@ export const ChatModals: React.FC<ChatModalsProps> = ({
         onKickMember={(u) => {
           const found = workspaceMembers.find((m) => m.id === u.id);
           if (found) setMemberToKick(found);
+        }}
+        onTimeoutMember={(u) => {
+          const found = workspaceMembers.find((m) => m.id === u.id);
+          if (found) setMemberToTimeout(found);
+        }}
+        onBanMember={(u) => {
+          const found = workspaceMembers.find((m) => m.id === u.id);
+          if (found) setMemberToBan(found);
         }}
       />
 

@@ -14,6 +14,9 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserProfileCache _userProfileCache;
     private readonly INotificationDispatcher _notificationDispatcher;
+    private readonly IChannelSlowmodeService _slowmodeService;
+    private readonly IPermissionService _permissionService;
+    private readonly IChannelLastMessageCoalescer _lastMessageCoalescer;
 
     [GeneratedRegex(@"@([a-zA-Z0-9_\.]+)", RegexOptions.Compiled, 200)]
     private static partial Regex MentionRegex();
@@ -22,12 +25,18 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
         IApplicationDbContext context,
         ICurrentUserService currentUserService,
         IUserProfileCache userProfileCache,
-        INotificationDispatcher notificationDispatcher)
+        INotificationDispatcher notificationDispatcher,
+        IChannelSlowmodeService slowmodeService,
+        IPermissionService permissionService,
+        IChannelLastMessageCoalescer lastMessageCoalescer)
     {
         _context = context;
         _currentUserService = currentUserService;
         _userProfileCache = userProfileCache;
         _notificationDispatcher = notificationDispatcher;
+        _slowmodeService = slowmodeService;
+        _permissionService = permissionService;
+        _lastMessageCoalescer = lastMessageCoalescer;
     }
 
     public async Task<Result<MessageDto>> Handle(SendMessageCommand request, CancellationToken cancellationToken)
@@ -37,6 +46,7 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         var channel = await _context.Channels
+            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.ChannelId, cancellationToken);
 
         if (channel == null)
@@ -45,21 +55,33 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
         if (channel.Type == Domain.Enums.ChannelType.Category)
             return Error.Validation("Channel.InvalidType", "Cannot send messages into a category channel.");
 
-        // Rule: Private channels and DMs verify ChannelMember; public server channels verify ServerMember.
-        if (channel.IsPrivate || channel.Type == Domain.Enums.ChannelType.DirectMessage)
+        // SEC-06: Channel Slowmode Enforcement
+        if (channel.SlowmodeSeconds > 0 && channel.ServerId.HasValue)
         {
-            var isMember = await _context.ChannelMembers
-                .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId.Value, cancellationToken);
-            if (!isMember && channel.CreatedById != userId.Value)
-                return Error.Forbidden("Channel.Forbidden", "You do not have permission to send messages in this channel.");
+            var canBypassSlowmode = await _permissionService.HasChannelPermissionAsync(
+                userId.Value,
+                channel.Id,
+                Domain.Enums.Permissions.ManageMessages | Domain.Enums.Permissions.ManageChannels,
+                cancellationToken);
+
+            if (!canBypassSlowmode)
+            {
+                var (allowed, remainingSeconds) = await _slowmodeService.TryAcquireSlowmodeLeaseAsync(
+                    channel.Id,
+                    userId.Value,
+                    channel.SlowmodeSeconds);
+
+                if (!allowed)
+                {
+                    return Error.Forbidden(
+                        "Channel.SlowmodeActive",
+                        $"Slowmode is enabled. Please wait {remainingSeconds}s before sending another message.");
+                }
+            }
         }
-        else
-        {
-            var isMember = await _context.ServerMembers
-                .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId.Value, cancellationToken);
-            if (!isMember)
-                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
-        }
+
+        // PERF-05: Channel permissions and server/private channel membership are already verified
+        // in AuthorizationBehavior via IRequireChannelPermission and L1-cached. No redundant DB query needed.
 
         // Fast In-Memory Cache Lookup (0 DB queries)
         var user = await _userProfileCache.GetAsync(userId.Value, cancellationToken);
@@ -96,8 +118,7 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
                 : new List<MessageAttachmentItem>()
         };
 
-        channel.LastMessageAt = DateTime.UtcNow;
-        channel.LastMessageSenderId = userId.Value;
+        var lastMessageAt = DateTime.UtcNow;
 
         // Compute smart snippet for sidebar and notifications
         var smartSnippet = string.Empty;
@@ -151,9 +172,8 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
             }
         }
 
-        channel.LastMessageContent = smartSnippet;
-
         _context.Messages.Add(message);
+        _lastMessageCoalescer.Enqueue(channel.Id, lastMessageAt, smartSnippet, userId.Value);
 
         // 5. Parse Mentions and Prepare Notifications (Only for Server channels, never for DMs)
         var hasContent = !string.IsNullOrWhiteSpace(content);

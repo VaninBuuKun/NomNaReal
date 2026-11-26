@@ -3,7 +3,7 @@ import {
   Gear,
   ShieldCheck,
   Trash,
-  X,
+  ArrowLeft,
   Hash,
   SpeakerHigh,
   Folder,
@@ -68,7 +68,17 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
       <div className="flex flex-1 min-h-0 h-full overflow-hidden">
         {/* 1. Left Navigation Sidebar */}
         <div className="w-56 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] flex flex-col shrink-0 p-3 select-none">
-          <div className="flex items-center gap-1.5 pb-3 mb-2 border-b border-[var(--border-color)]/60 min-w-0">
+          {/* Back button at top of settings sidebar */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex items-center gap-2 mb-2 px-2.5 py-1.5 rounded-[4px] text-xs font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer group"
+          >
+            <ArrowLeft size={16} weight="bold" className="group-hover:-translate-x-0.5 transition-transform text-[var(--text-muted)] group-hover:text-[var(--text-primary)]" />
+            <span>Quay lại</span>
+          </button>
+
+          <div className="flex items-center gap-1.5 pb-2.5 mb-2 border-b border-[var(--border-color)]/60 min-w-0">
             {getChannelPrefix()}
             <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)] truncate">
               {channel.name}
@@ -120,14 +130,17 @@ export const ChannelSettingsModal: React.FC<ChannelSettingsModalProps> = ({
             </div>
           </nav>
 
-          <div className="pt-3 border-t border-[var(--border-color)]/60 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-            <span>ESC để thoát</span>
+          <div className="pt-3 border-t border-[var(--border-color)]/60">
             <button
               type="button"
               onClick={onClose}
-              className="p-1 rounded hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-[4px] text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
             >
-              <X size={14} weight="bold" />
+              <span className="flex items-center gap-1.5">
+                <ArrowLeft size={14} weight="bold" />
+                <span>Quay lại</span>
+              </span>
+              <span className="text-[10px] text-[var(--text-muted)]">ESC</span>
             </button>
           </div>
         </div>

@@ -51,6 +51,7 @@ public enum Permissions : long
     MuteMembers            = 1L << 24, // Tắt mic người khác
     DeafenMembers          = 1L << 25, // Tắt tai nghe người khác
     MoveMembers            = 1L << 26, // Chuyển người khác sang kênh voice khác
+    ModerateMembers        = 1L << 27, // Cấm chat / timeout thành viên (60s đến 28 ngày)
 
     // ==========================================
     // Presets thông dụng

@@ -19,6 +19,8 @@ public interface IApplicationDbContext
     DbSet<Role> Roles { get; }
     DbSet<MemberRole> MemberRoles { get; }
     DbSet<ChannelPermissionOverwrite> ChannelPermissionOverwrites { get; }
+    DbSet<ServerBan> ServerBans { get; }
+    DbSet<ServerAuditLog> ServerAuditLogs { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

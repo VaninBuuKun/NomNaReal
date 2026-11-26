@@ -1,3 +1,6 @@
+# Documentation (Private to local development, never pushed to git)
+docs/
+
 # Agents & AI (Private to local development)
 .agents/
 

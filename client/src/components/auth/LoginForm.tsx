@@ -35,10 +35,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
   });
 
   const onSubmit = async (data: LoginFormData) => {
-    setLocalError(null);
     setLoading(true);
     try {
       const user = await authApi.login(data.emailOrUsername, data.password);
+      setLocalError(null);
       localStorage.setItem('nomna_logged_in', 'true');
       onSuccess(user);
     } catch (err: any) {
@@ -53,7 +53,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onError }) => {
   return (
     <form onSubmit={loginForm.handleSubmit(onSubmit)} className="flex flex-col gap-3.5">
       {localError && (
-        <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs rounded-xl font-medium animate-in fade-in duration-150">
+        <div className="p-3 bg-danger-soft border border-danger/20 text-danger text-xs rounded-xl font-medium">
           {localError}
         </div>
       )}

@@ -71,7 +71,7 @@ export const useDmStore = create<DmState>((set) => ({
   updateDmSnippet: (channelId, lastMessage, lastMessageTime) =>
     set((state) => ({
       dmConversations: state.dmConversations.map((c) =>
-        c.id === channelId
+        c.id.toLowerCase() === channelId.toLowerCase()
           ? {
               ...c,
               lastMessage,

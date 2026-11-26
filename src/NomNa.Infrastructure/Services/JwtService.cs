@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Shared.Constants;
 
 namespace NomNa.Infrastructure.Services;
 
@@ -19,10 +20,10 @@ public class JwtService : IJwtService
 
     public (string Token, DateTime ExpiresAt) GenerateAccessToken(Guid userId, string email, string username)
     {
-        var secret = _configuration["Jwt:Secret"] ?? "SuperSecretKeyForNomNaHighPerformanceApp2026!";
+        var secret = _configuration["Jwt:Secret"] ?? AuthConstants.DefaultDevSecret;
         var issuer = _configuration["Jwt:Issuer"] ?? "NomNa";
         var audience = _configuration["Jwt:Audience"] ?? "NomNaClient";
-        var expirationMinutes = int.TryParse(_configuration["Jwt:ExpirationMinutes"], out var mins) ? mins : 1440; // 24 hours default
+        var expirationMinutes = int.TryParse(_configuration["Jwt:ExpirationMinutes"], out var mins) ? mins : AuthConstants.DefaultAccessTokenExpirationMinutes;
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

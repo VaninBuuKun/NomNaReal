@@ -10,24 +10,35 @@ public class UserProfileCache : IUserProfileCache
 {
     private readonly IMemoryCache _cache;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ICacheInvalidationBus _invalidationBus;
     private static readonly TimeSpan DefaultSlidingExpiration = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan DefaultAbsoluteExpiration = TimeSpan.FromHours(1);
 
-    public UserProfileCache(IMemoryCache cache, IServiceScopeFactory scopeFactory)
+    public UserProfileCache(
+        IMemoryCache cache,
+        IServiceScopeFactory scopeFactory,
+        ICacheInvalidationBus invalidationBus)
     {
         _cache = cache;
         _scopeFactory = scopeFactory;
+        _invalidationBus = invalidationBus;
     }
 
-    public async Task<UserProfileDto?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
+    public ValueTask<UserProfileDto?> GetAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var cacheKey = GetCacheKey(userId);
 
+        // PERF-08: Zero-allocation synchronous return on cache hit (>99% of requests)
         if (_cache.TryGetValue<UserProfileDto>(cacheKey, out var cached) && cached != null)
         {
-            return cached;
+            return new ValueTask<UserProfileDto?>(cached);
         }
 
+        return new ValueTask<UserProfileDto?>(FetchAndCacheAsync(userId, cacheKey, cancellationToken));
+    }
+
+    private async Task<UserProfileDto?> FetchAndCacheAsync(Guid userId, string cacheKey, CancellationToken cancellationToken)
+    {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
@@ -51,6 +62,12 @@ public class UserProfileCache : IUserProfileCache
     }
 
     public void Invalidate(Guid userId)
+    {
+        InvalidateLocal(userId);
+        _ = _invalidationBus.PublishInvalidationAsync(new CacheInvalidationMessage(CacheInvalidationScope.UserProfile, userId));
+    }
+
+    public void InvalidateLocal(Guid userId)
     {
         _cache.Remove(GetCacheKey(userId));
     }

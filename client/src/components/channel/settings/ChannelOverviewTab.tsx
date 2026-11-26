@@ -10,6 +10,23 @@ interface ChannelOverviewTabProps {
   onChannelUpdated: (channel: Channel) => void;
 }
 
+const SLOWMODE_OPTIONS = [
+  { label: 'Tắt (Không giới hạn)', value: 0 },
+  { label: '5 giây', value: 5 },
+  { label: '10 giây', value: 10 },
+  { label: '15 giây', value: 15 },
+  { label: '30 giây', value: 30 },
+  { label: '1 phút', value: 60 },
+  { label: '2 phút', value: 120 },
+  { label: '5 phút', value: 300 },
+  { label: '10 phút', value: 600 },
+  { label: '15 phút', value: 900 },
+  { label: '30 phút', value: 1800 },
+  { label: '1 giờ', value: 3600 },
+  { label: '2 giờ', value: 7200 },
+  { label: '6 giờ', value: 21600 },
+];
+
 export const ChannelOverviewTab: React.FC<ChannelOverviewTabProps> = ({
   channel,
   categories = [],
@@ -22,6 +39,7 @@ export const ChannelOverviewTab: React.FC<ChannelOverviewTabProps> = ({
   const [topic, setTopic] = useState(channel.topic || '');
   const [categoryId, setCategoryId] = useState<string>(channel.categoryId || '');
   const [isPrivate, setIsPrivate] = useState<boolean>(channel.isPrivate || false);
+  const [slowmodeSeconds, setSlowmodeSeconds] = useState<number>(channel.slowmodeSeconds || 0);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +48,7 @@ export const ChannelOverviewTab: React.FC<ChannelOverviewTabProps> = ({
     setTopic(channel.topic || '');
     setCategoryId(channel.categoryId || '');
     setIsPrivate(channel.isPrivate || false);
+    setSlowmodeSeconds(channel.slowmodeSeconds || 0);
     setError(null);
   }, [channel]);
 
@@ -38,12 +57,14 @@ export const ChannelOverviewTab: React.FC<ChannelOverviewTabProps> = ({
     const origTopic = channel.topic || '';
     const origCategory = channel.categoryId || '';
     const origPrivate = channel.isPrivate || false;
+    const origSlowmode = channel.slowmodeSeconds || 0;
 
     return (
       name !== origName ||
       topic !== origTopic ||
       categoryId !== origCategory ||
-      isPrivate !== origPrivate
+      isPrivate !== origPrivate ||
+      slowmodeSeconds !== origSlowmode
     );
   }, [name, topic, categoryId, isPrivate, channel]);
 
@@ -52,6 +73,7 @@ export const ChannelOverviewTab: React.FC<ChannelOverviewTabProps> = ({
     setTopic(channel.topic || '');
     setCategoryId(channel.categoryId || '');
     setIsPrivate(channel.isPrivate || false);
+    setSlowmodeSeconds(channel.slowmodeSeconds || 0);
     setError(null);
   };
 
@@ -66,12 +88,17 @@ export const ChannelOverviewTab: React.FC<ChannelOverviewTabProps> = ({
       setIsSaving(true);
       setError(null);
 
-      const updated = await channelApi.updateChannel(channel.id, {
+      let updated = await channelApi.updateChannel(channel.id, {
         name: name.trim(),
         topic: topic.trim() || null,
         categoryId: categoryId ? categoryId : '00000000-0000-0000-0000-000000000000', // Empty GUID unsets category
         isPrivate,
       });
+
+      if (slowmodeSeconds !== (channel.slowmodeSeconds || 0)) {
+        await channelApi.updateSlowmode(channel.id, slowmodeSeconds);
+        updated = { ...updated, slowmodeSeconds };
+      }
 
       onChannelUpdated(updated);
     } catch (err: unknown) {
@@ -168,6 +195,29 @@ export const ChannelOverviewTab: React.FC<ChannelOverviewTabProps> = ({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Slowmode (Non-category channels) */}
+          {!isCategory && (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5">
+                Chế độ chậm (Slowmode)
+              </label>
+              <select
+                value={slowmodeSeconds}
+                onChange={(e) => setSlowmodeSeconds(Number(e.target.value))}
+                className="w-full px-3 py-2 bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-control text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--accent-primary)] cursor-pointer"
+              >
+                {SLOWMODE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                Các thành viên sẽ bị giới hạn gửi tin nhắn theo khoảng thời gian được chọn trừ khi họ có quyền quản lý kênh.
+              </p>
             </div>
           )}
 

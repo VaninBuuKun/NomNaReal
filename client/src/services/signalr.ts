@@ -49,6 +49,24 @@ export class SignalRService {
     return this.status;
   }
 
+  public isConnected(): boolean {
+    return this.connection?.state === signalR.HubConnectionState.Connected;
+  }
+
+  public onReadReceiptUpdated(
+    callback: (payload: {
+      channelId: string;
+      userId: string;
+      lastReadMessageId: string;
+      lastReadAt: string;
+    }) => void
+  ): () => void {
+    this.connection?.on("ChannelReadReceiptUpdated", callback);
+    return () => {
+      this.connection?.off("ChannelReadReceiptUpdated", callback);
+    };
+  }
+
   public subscribeStatus(
     listener: (status: ConnectionStatus) => void,
   ): () => void {
@@ -464,6 +482,54 @@ export class SignalRService {
   ): void {
     if (this.connection) {
       this.connection.off("RemovedFromServer", callback);
+    }
+  }
+
+  public onServerMemberBanned(
+    callback: (data: { serverId: string; memberUserId: string; reason?: string }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.on("ServerMemberBanned", callback);
+    }
+  }
+
+  public offServerMemberBanned(
+    callback: (data: { serverId: string; memberUserId: string; reason?: string }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.off("ServerMemberBanned", callback);
+    }
+  }
+
+  public onServerMemberTimedOut(
+    callback: (data: { serverId: string; memberUserId: string; durationMinutes: number }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.on("ServerMemberTimedOut", callback);
+    }
+  }
+
+  public offServerMemberTimedOut(
+    callback: (data: { serverId: string; memberUserId: string; durationMinutes: number }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.off("ServerMemberTimedOut", callback);
+    }
+  }
+
+  public onChannelSlowmodeUpdated(
+    callback: (data: { channelId: string; slowmodeSeconds: number }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.on("ChannelSlowmodeUpdated", callback);
+    }
+  }
+
+  public offChannelSlowmodeUpdated(
+    callback: (data: { channelId: string; slowmodeSeconds: number }) => void,
+  ): void {
+    if (this.connection) {
+      this.connection.off("ChannelSlowmodeUpdated", callback);
     }
   }
 

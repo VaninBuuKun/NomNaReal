@@ -34,6 +34,8 @@ interface UiState {
   channelToAddMember: Channel | null;
   isNewDmOpen: boolean;
   memberToKick: DirectMessageUser | null;
+  memberToBan: DirectMessageUser | null;
+  memberToTimeout: DirectMessageUser | null;
 
   // Sidebar Widths
   channelWidth: number;
@@ -64,6 +66,8 @@ interface UiState {
   setChannelToAddMember: (channel: Channel | null) => void;
   setNewDmOpen: (open: boolean) => void;
   setMemberToKick: (member: DirectMessageUser | null) => void;
+  setMemberToBan: (member: DirectMessageUser | null) => void;
+  setMemberToTimeout: (member: DirectMessageUser | null) => void;
 
   setChannelWidth: (width: number) => void;
   setMemberWidth: (width: number) => void;
@@ -71,7 +75,14 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  activeSidebarView: 'dms',
+  activeSidebarView: (() => {
+    if (typeof window !== 'undefined') {
+      const p = window.location.pathname;
+      if (p.startsWith('/channels/@me')) return 'dms';
+      if (p.startsWith('/channels/')) return 'channels';
+    }
+    return 'channels';
+  })(),
   isMemberListOpen: localStorage.getItem('nomna_member_list_open') !== 'false',
   isSearchOpen: false,
   isMobileSidebarOpen: false,
@@ -85,6 +96,8 @@ export const useUiStore = create<UiState>((set) => ({
   channelToAddMember: null,
   isNewDmOpen: false,
   memberToKick: null,
+  memberToBan: null,
+  memberToTimeout: null,
 
   channelWidth: (() => {
     const saved = localStorage.getItem('nomna_channel_width');
@@ -205,6 +218,8 @@ export const useUiStore = create<UiState>((set) => ({
   setChannelToAddMember: (channel) => set({ channelToAddMember: channel }),
   setNewDmOpen: (open) => set({ isNewDmOpen: open }),
   setMemberToKick: (member) => set({ memberToKick: member }),
+  setMemberToBan: (member) => set({ memberToBan: member }),
+  setMemberToTimeout: (member) => set({ memberToTimeout: member }),
 
   setChannelWidth: (width) => {
     localStorage.setItem('nomna_channel_width', width.toString());
@@ -232,5 +247,7 @@ export const useUiStore = create<UiState>((set) => ({
       channelToAddMember: null,
       isNewDmOpen: false,
       memberToKick: null,
+      memberToBan: null,
+      memberToTimeout: null,
     }),
 }));

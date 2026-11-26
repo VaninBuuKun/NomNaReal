@@ -69,4 +69,15 @@ public class FileStorageService : IFileStorageService
 
         return Task.CompletedTask;
     }
+
+    public Task<PresignedUploadResult?> GeneratePresignedUploadUrlAsync(
+        string fileName,
+        string folder,
+        string contentType,
+        long fileSize,
+        CancellationToken cancellationToken = default)
+    {
+        // Local disk storage does not support direct client-side presigned PUT uploads.
+        return Task.FromResult<PresignedUploadResult?>(null);
+    }
 }

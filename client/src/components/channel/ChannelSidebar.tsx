@@ -40,6 +40,7 @@ interface ChannelSidebarProps {
   onOpenAddChannelMember?: (ch: Channel) => void;
   onChannelsReorder?: (updatedChannels: Channel[]) => void;
   currentUser?: User | null;
+  currentUserRole?: string;
   onOpenUserProfile?: (user: UserProfileData, anchorRect?: DOMRect) => void;
 }
 
@@ -54,6 +55,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   onOpenEditChannel,
   onChannelsReorder,
   currentUser,
+  currentUserRole,
   onOpenUserProfile,
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -847,6 +849,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
           onClose={() => setIsServerSettingsOpen(false)}
           workspace={currentWorkspace}
           isOwner={isOwner ?? false}
+          currentUserRole={currentUserRole}
           onWorkspaceDeleted={() => onLeaveWorkspace?.()}
         />
       )}

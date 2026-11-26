@@ -723,6 +723,17 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
     syncServerVoiceParticipants: async (serverId: string) => {
       if (!serverId) return;
       get().initVoiceListeners();
+
+      // Ensure SignalR connection is active before requesting rosters
+      let attempts = 0;
+      while (
+        !signalRService.isConnected() &&
+        attempts < 6
+      ) {
+        await new Promise((r) => setTimeout(r, 400));
+        attempts++;
+      }
+
       const allParticipants = await signalRService.getServerVoiceParticipants(serverId);
       const grouped: Record<string, VoiceParticipant[]> = {};
 
@@ -739,6 +750,7 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
         const nextMap = { ...state.channelParticipantsMap };
         for (const [k, v] of Object.entries(grouped)) {
           nextMap[k] = v;
+          nextMap[normId(k)] = v;
         }
 
         // Always preserve current user's active room participants if connected
@@ -984,6 +996,7 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
     leaveVoice: () => {
       const channelId = get().connectedChannelId;
       const selfId = get().currentUserId;
+      const serverId = get().connectedServerId || get().connectedWorkspaceId;
 
       if (channelId) {
         signalRService.leaveVoiceChannel(channelId);
@@ -996,10 +1009,10 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
         const nextMap = { ...state.channelParticipantsMap };
         if (channelId) {
           const chKey = normId(channelId);
-          if (nextMap[chKey]) {
-            nextMap[chKey] = nextMap[chKey].filter((p) => !sameId(p.userId, selfId));
-          }
-          delete nextMap[channelId];
+          const currentList = nextMap[chKey] || nextMap[channelId] || state.participants || [];
+          const remaining = currentList.filter((p) => !sameId(p.userId, selfId));
+          nextMap[chKey] = remaining;
+          nextMap[channelId] = remaining;
         }
 
         return {
@@ -1017,6 +1030,11 @@ export const useVoiceStore = create<VoiceStoreState>((set, get) => {
           channelParticipantsMap: nextMap,
         };
       });
+
+      // Synchronize fresh roster from server after leaving
+      if (serverId) {
+        void get().syncServerVoiceParticipants(serverId);
+      }
     },
 
     toggleMute: () => {

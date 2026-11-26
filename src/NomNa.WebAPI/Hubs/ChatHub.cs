@@ -27,20 +27,23 @@ public partial class ChatHub : Hub
     private readonly ISender _mediator;
     private readonly ILogger<ChatHub> _logger;
     private readonly IUserPresenceTracker _presenceTracker;
+    private readonly IVoiceRoomManager _voiceRoomManager;
+    private readonly ICallSignalingManager _callSignalingManager;
     private readonly IServiceScopeFactory _scopeFactory;
-
-    // Track active 1v1 call pairings (UserId <-> PeerUserId) across connections
-    private static readonly ConcurrentDictionary<Guid, Guid> _activeCalls = new();
 
     public ChatHub(
         ISender mediator,
         ILogger<ChatHub> logger,
         IUserPresenceTracker presenceTracker,
+        IVoiceRoomManager voiceRoomManager,
+        ICallSignalingManager callSignalingManager,
         IServiceScopeFactory scopeFactory)
     {
         _mediator = mediator;
         _logger = logger;
         _presenceTracker = presenceTracker;
+        _voiceRoomManager = voiceRoomManager;
+        _callSignalingManager = callSignalingManager;
         _scopeFactory = scopeFactory;
     }
 
@@ -149,16 +152,19 @@ public partial class ChatHub : Hub
             // Clean up any voice channel room the user was connected to
             await CleanupUserVoiceChannelsAsync(userId);
 
-            // If user disconnects during an active call, notify partner with CallEnded
-            if (_activeCalls.TryRemove(userId, out var partnerId))
+            // If user disconnects during an active call, notify partner with CallEnded and persist call log
+            var term = await _callSignalingManager.CleanupCallForUserAsync(userId);
+            if (term.WasActive)
             {
-                _activeCalls.TryRemove(partnerId, out _);
+                var partnerId = term.CallerId == userId ? term.CalleeId : term.CallerId;
                 try
                 {
                     await Clients.User(partnerId.ToString()).SendAsync(
                         SignalRConstants.Events.CallEnded,
                         new CallEndedPayload(userId));
                     _logger.LogInformation("Disconnected user {UserId} had active call with {PartnerId}, dispatched CallEnded", userId, partnerId);
+
+                    _ = RecordCallLogAsync(term.CallerId, term.CalleeId, term.WasConnected, term.IsVideo, term.DurationSeconds);
                 }
                 catch (Exception ex)
                 {

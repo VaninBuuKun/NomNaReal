@@ -20,5 +20,6 @@ export interface Channel {
   categoryId?: string | null;
   position?: number;
   topic?: string | null;
+  slowmodeSeconds?: number;
 }
 

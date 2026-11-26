@@ -15,4 +15,6 @@ public class Server : BaseEntity
     public ICollection<ServerMember> Members { get; set; } = new List<ServerMember>();
     public ICollection<Channel> Channels { get; set; } = new List<Channel>();
     public ICollection<Role> Roles { get; set; } = new List<Role>();
+    public ICollection<ServerBan> Bans { get; set; } = new List<ServerBan>();
+    public ICollection<ServerAuditLog> AuditLogs { get; set; } = new List<ServerAuditLog>();
 }

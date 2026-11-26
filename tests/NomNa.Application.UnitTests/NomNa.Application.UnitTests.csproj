@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\NomNa.Application\NomNa.Application.csproj" />
+    <ProjectReference Include="..\..\src\NomNa.Infrastructure\NomNa.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

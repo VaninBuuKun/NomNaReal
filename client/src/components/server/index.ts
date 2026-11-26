@@ -4,6 +4,8 @@ export { JoinServerModal } from './JoinServerModal';
 export { EditServerModal } from './EditServerModal';
 export { InviteMemberModal } from './InviteMemberModal';
 export { KickMemberModal } from './KickMemberModal';
+export { BanMemberModal } from './BanMemberModal';
+export { TimeoutMemberModal } from './TimeoutMemberModal';
 export { RoleManagementModal } from './RoleManagementModal';
 export { ServerSettingsModal } from './ServerSettingsModal';
 export { LeaveServerModal } from './LeaveServerModal';

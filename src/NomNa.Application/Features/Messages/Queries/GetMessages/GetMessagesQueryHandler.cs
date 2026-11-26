@@ -24,29 +24,15 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
         if (!userId.HasValue)
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
-        // 1. Channel membership verification
-        // Rule: Private channels verify ChannelMember; public channels verify ServerMember.
-        var channel = await _context.Channels
+        // 1. PERF-05: Channel permissions (ViewChannel, ReadMessageHistory, Server membership, Private Channel isolation)
+        // are already validated in AuthorizationBehavior via IRequireChannelPermission and L1-cached.
+        // We only check channel existence with a lightweight AnyAsync:
+        var channelExists = await _context.Channels
             .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Id == request.ChannelId, cancellationToken);
+            .AnyAsync(c => c.Id == request.ChannelId, cancellationToken);
 
-        if (channel == null)
+        if (!channelExists)
             return Error.NotFound("Channel.NotFound", $"Channel {request.ChannelId} not found.");
-
-        if (channel.IsPrivate || channel.Type == ChannelType.DirectMessage)
-        {
-            var isMember = await _context.ChannelMembers
-                .AnyAsync(cm => cm.ChannelId == channel.Id && cm.UserId == userId.Value, cancellationToken);
-            if (!isMember && channel.CreatedById != userId.Value)
-                return Error.Forbidden("Channel.Forbidden", "You do not have access to this private channel.");
-        }
-        else
-        {
-            var isMember = await _context.ServerMembers
-                .AnyAsync(wm => wm.ServerId == channel.ServerId && wm.UserId == userId.Value, cancellationToken);
-            if (!isMember)
-                return Error.Forbidden("Server.Forbidden", "You are not a member of this server.");
-        }
 
         // 2. Cursor pagination query
         var limit = Math.Clamp(request.Limit, 1, 100);
@@ -61,9 +47,11 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
         if (request.After.HasValue)
         {
             // Scrolling down / forward: fetch messages AFTER cursor in chronological order
+            // PERF-07: Add secondary tie-breaker Id to guarantee strictly monotonic pagination
             query = query
                 .Where(m => m.CreatedAt > request.After.Value)
-                .OrderBy(m => m.CreatedAt);
+                .OrderBy(m => m.CreatedAt)
+                .ThenBy(m => m.Id);
             shouldReverse = false;
             hasOlder = true;
         }
@@ -80,7 +68,10 @@ public class GetMessagesQueryHandler : IRequestHandler<GetMessagesQuery, Result<
                 hasNewer = false;
             }
 
-            query = query.OrderByDescending(m => m.CreatedAt);
+            // PERF-07: Add secondary tie-breaker Id DESC
+            query = query
+                .OrderByDescending(m => m.CreatedAt)
+                .ThenByDescending(m => m.Id);
             shouldReverse = true;
         }
 

@@ -39,6 +39,7 @@ export const Permissions = {
   MuteMembers: 1n << 24n,
   DeafenMembers: 1n << 25n,
   MoveMembers: 1n << 26n,
+  ModerateMembers: 1n << 27n,
 
   // Presets
   All: ~0n,

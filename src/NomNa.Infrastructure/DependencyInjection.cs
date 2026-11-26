@@ -43,6 +43,21 @@ public static class DependencyInjection
         });
 
         services.AddSingleton<IUserPresenceTracker, RedisUserPresenceTracker>();
+        services.AddSingleton<IVoiceRoomManager, RedisVoiceRoomManager>();
+        services.AddSingleton<ICallSignalingManager, RedisCallSignalingManager>();
+        services.AddSingleton<IDistributedRateLimiter, RedisDistributedRateLimiter>();
+        services.AddSingleton<IChannelSlowmodeService, RedisChannelSlowmodeService>();
+
+        // Distributed Cache Invalidation Bus (Registers as both ICacheInvalidationBus and IHostedService)
+        services.AddSingleton<RedisCacheInvalidationBus>();
+        services.AddSingleton<ICacheInvalidationBus>(sp => sp.GetRequiredService<RedisCacheInvalidationBus>());
+        services.AddHostedService<RedisCacheInvalidationBus>(sp => sp.GetRequiredService<RedisCacheInvalidationBus>());
+
+        // Hot-Channel LastMessage Coalescer (Registers as both IChannelLastMessageCoalescer and IHostedService)
+        services.AddSingleton<ChannelLastMessageCoalescer>();
+        services.AddSingleton<IChannelLastMessageCoalescer>(sp => sp.GetRequiredService<ChannelLastMessageCoalescer>());
+        services.AddHostedService<ChannelLastMessageCoalescer>(sp => sp.GetRequiredService<ChannelLastMessageCoalescer>());
+
         services.AddMemoryCache();
         services.AddSingleton<IUserProfileCache, UserProfileCache>();
         services.AddSingleton<IPinnedMessageCache, PinnedMessageCache>();

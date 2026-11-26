@@ -10,5 +10,6 @@ public class ChannelMember : BaseEntity
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;
 
+    public Guid? LastReadMessageId { get; set; }
     public DateTime? LastReadAt { get; set; }
 }

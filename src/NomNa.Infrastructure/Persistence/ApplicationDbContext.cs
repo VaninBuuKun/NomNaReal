@@ -24,6 +24,8 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
     public new DbSet<Role> Roles => Set<Role>();
     public DbSet<MemberRole> MemberRoles => Set<MemberRole>();
     public DbSet<ChannelPermissionOverwrite> ChannelPermissionOverwrites => Set<ChannelPermissionOverwrite>();
+    public DbSet<ServerBan> ServerBans => Set<ServerBan>();
+    public DbSet<ServerAuditLog> ServerAuditLogs => Set<ServerAuditLog>();
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -111,13 +113,60 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // ServerBan Configuration
+        builder.Entity<ServerBan>(entity =>
+        {
+            entity.ToTable("server_bans");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ServerId, e.UserId }).IsUnique();
+            entity.Property(e => e.Reason).HasMaxLength(500);
+
+            entity.HasOne(e => e.Server)
+                .WithMany(s => s.Bans)
+                .HasForeignKey(e => e.ServerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.BannedBy)
+                .WithMany()
+                .HasForeignKey(e => e.BannedById)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ServerAuditLog Configuration
+        builder.Entity<ServerAuditLog>(entity =>
+        {
+            entity.ToTable("server_audit_logs");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.ServerId, e.CreatedAt });
+            entity.Property(e => e.ActionType).HasConversion<string>().HasMaxLength(50).IsRequired();
+            entity.Property(e => e.TargetName).HasMaxLength(150);
+            entity.Property(e => e.Reason).HasMaxLength(500);
+            entity.Property(e => e.ChangesJson).HasColumnType("jsonb");
+
+            entity.HasOne(e => e.Server)
+                .WithMany(s => s.AuditLogs)
+                .HasForeignKey(e => e.ServerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Actor)
+                .WithMany()
+                .HasForeignKey(e => e.ActorId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
         // Channel Configuration
         builder.Entity<Channel>(entity =>
         {
             entity.ToTable("channels");
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => new { e.ServerId, e.Position });
-            entity.HasIndex(e => e.LastMessageAt);
+            // PERF-02: Do NOT index LastMessageAt. Removing standalone index enables 100% PostgreSQL HOT (Heap-Only Tuple)
+            // updates when new messages arrive, preventing B-tree write amplification and table lock contention.
             entity.Property(e => e.Name).HasMaxLength(100);
             entity.Property(e => e.Topic).HasMaxLength(1024);
             entity.Property(e => e.LastMessageContent).HasMaxLength(500);
@@ -158,14 +207,13 @@ public class ApplicationDbContext : IdentityDbContext<User, IdentityRole<Guid>, 
         {
             entity.ToTable("messages");
             entity.HasKey(e => e.Id);
-            // Critical index for chat app performance: messages by channel and creation time
-            entity.HasIndex(e => new { e.ChannelId, e.CreatedAt });
             entity.HasIndex(e => e.SenderId);
             entity.HasIndex(e => e.ReplyToMessageId);
             entity.Property(e => e.Content).HasMaxLength(4000).IsRequired();
 
             entity.OwnsMany(e => e.Attachments, a => a.ToJson());
 
+            // PERF-06: Use single filtered index for chat message retrieval, removing duplicate unfiltered index
             entity.HasIndex(e => new { e.ChannelId, e.CreatedAt })
                 .HasDatabaseName("idx_messages_channel_root_created")
                 .HasFilter("\"DeletedAt\" IS NULL");

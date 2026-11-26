@@ -2,6 +2,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NomNa.Application.Common.Interfaces;
+using NomNa.Application.Common.Models;
+using NomNa.Domain.Entities;
 using NomNa.Domain.Enums;
 using NomNa.Shared.Constants;
 using NomNa.Shared.Models;
@@ -10,6 +12,8 @@ namespace NomNa.WebAPI.Hubs;
 
 /// <summary>
 /// Partial class handling WebRTC 1v1 call signaling RPC endpoints.
+/// Synchronized cluster-wide using Redis-backed ICallSignalingManager.
+/// Automatically persists call termination and missed call logs to DM channels.
 /// </summary>
 public partial class ChatHub
 {
@@ -30,7 +34,7 @@ public partial class ChatHub
         }
 
         // Verify caller is not already engaged in an active call
-        if (_activeCalls.TryGetValue(callerId, out _))
+        if (await _callSignalingManager.HasActiveCallAsync(callerId))
         {
             var busyPayload = new CallRejectedPayload(targetUserId, "You are already in an active call.");
             await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, busyPayload);
@@ -38,7 +42,7 @@ public partial class ChatHub
         }
 
         // Verify callee is not busy in another call
-        if (_activeCalls.TryGetValue(targetUserId, out _))
+        if (await _callSignalingManager.HasActiveCallAsync(targetUserId))
         {
             var busyPayload = new CallRejectedPayload(targetUserId, "User is currently busy in another call.");
             await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, busyPayload);
@@ -87,9 +91,14 @@ public partial class ChatHub
             _logger.LogWarning(ex, "Failed to load caller user info for call signaling");
         }
 
-        // Record active call intent between caller and callee
-        _activeCalls[callerId] = targetUserId;
-        _activeCalls[targetUserId] = callerId;
+        // Record active call intent between caller and callee atomically in Redis (60-second ring timeout)
+        var initiated = await _callSignalingManager.TryInitiateCallAsync(callerId, targetUserId, isVideoCall, TimeSpan.FromSeconds(60));
+        if (!initiated)
+        {
+            var busyPayload = new CallRejectedPayload(targetUserId, "User or caller became busy.");
+            await Clients.Caller.SendAsync(SignalRConstants.Events.CallRejected, busyPayload);
+            return;
+        }
 
         var payload = new CallOfferPayload(callerId, callerName, callerAvatar, targetUserId, offerSdp, isVideoCall);
 
@@ -100,6 +109,7 @@ public partial class ChatHub
 
     /// <summary>
     /// Accepts an incoming call and relays the SDP answer back to the caller.
+    /// Transitions distributed call status from ringing to connected in Redis.
     /// </summary>
     public async Task AcceptCall(Guid callerId, string answerSdp)
     {
@@ -108,11 +118,15 @@ public partial class ChatHub
             throw new HubException("User is not authenticated.");
         }
 
-        // Verify that callerId has indeed initiated a call to responderId
-        if (!_activeCalls.TryGetValue(callerId, out var pendingTarget) || pendingTarget != responderId)
+        // Verify that callerId has indeed initiated a call to responderId in Redis
+        var isPending = await _callSignalingManager.VerifyPendingCallAsync(callerId, responderId);
+        if (!isPending)
         {
             throw new HubException("No pending call found from this user.");
         }
+
+        // Atomically transition call state from ringing to connected in Redis
+        await _callSignalingManager.TryAcceptCallAsync(callerId, responderId);
 
         var payload = new CallAnswerPayload(responderId, callerId, answerSdp);
 
@@ -122,7 +136,8 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Rejects an incoming call request and cleans up call pairing state.
+    /// Rejects an incoming call request, cleans up call pairing state in Redis,
+    /// and logs a missed call system message to the DM channel.
     /// </summary>
     public async Task RejectCall(Guid callerId, string? reason = null)
     {
@@ -131,17 +146,23 @@ public partial class ChatHub
             throw new HubException("User is not authenticated.");
         }
 
-        RemoveCallPair(callerId, responderId);
+        var term = await _callSignalingManager.TerminateCallAsync(responderId, callerId);
 
         var payload = new CallRejectedPayload(responderId, reason);
 
         _logger.LogInformation("User {ResponderId} rejected call from {CallerId} (Reason: {Reason})", responderId, callerId, reason);
 
         await Clients.User(callerId.ToString()).SendAsync(SignalRConstants.Events.CallRejected, payload);
+
+        // Record missed call system message in DM channel
+        var actualCaller = term.WasActive ? term.CallerId : callerId;
+        var actualCallee = term.WasActive ? term.CalleeId : responderId;
+        _ = RecordCallLogAsync(actualCaller, actualCallee, wasConnected: false, isVideo: term.IsVideo, durationSeconds: 0);
     }
 
     /// <summary>
-    /// Ends an ongoing active call session and dispatches CallEnded to peer.
+    /// Ends an ongoing active call session, dispatches CallEnded to peer,
+    /// and logs the call duration system message to the DM channel.
     /// </summary>
     public async Task EndCall(Guid peerUserId)
     {
@@ -150,19 +171,25 @@ public partial class ChatHub
             throw new HubException("User is not authenticated.");
         }
 
-        // Verify active call pairing before ending
-        if (!_activeCalls.TryGetValue(senderId, out var partnerId) || partnerId != peerUserId)
+        var term = await _callSignalingManager.TerminateCallAsync(senderId, peerUserId);
+        if (!term.WasActive)
         {
             return;
         }
 
-        RemoveCallPair(senderId, peerUserId);
-
         var payload = new CallEndedPayload(senderId);
 
-        _logger.LogInformation("User {SenderId} ended call with {PeerUserId}", senderId, peerUserId);
+        _logger.LogInformation(
+            "User {SenderId} ended call with {PeerUserId} (Connected: {WasConnected}, Duration: {Duration}s)",
+            senderId,
+            peerUserId,
+            term.WasConnected,
+            term.DurationSeconds);
 
         await Clients.User(peerUserId.ToString()).SendAsync(SignalRConstants.Events.CallEnded, payload);
+
+        // Record completed or cancelled call log in DM channel
+        _ = RecordCallLogAsync(term.CallerId, term.CalleeId, term.WasConnected, term.IsVideo, term.DurationSeconds);
     }
 
     /// <summary>
@@ -176,7 +203,8 @@ public partial class ChatHub
         }
 
         // Verify active call pairing before forwarding candidate
-        if (!_activeCalls.TryGetValue(senderId, out var partnerId) || partnerId != targetUserId)
+        var partnerId = await _callSignalingManager.GetCallPartnerAsync(senderId);
+        if (partnerId != targetUserId)
         {
             _logger.LogWarning("Rejected ICE candidate from {SenderId} to {TargetUserId}: not an active call pair", senderId, targetUserId);
             return;
@@ -188,18 +216,93 @@ public partial class ChatHub
     }
 
     /// <summary>
-    /// Unbinds active call pairing (a <-> b) only when the mapping strictly matches both directions.
+    /// Persists a system call message into the DM channel between caller and callee
+    /// and broadcasts the message via SignalR to both participants.
     /// </summary>
-    private static void RemoveCallPair(Guid a, Guid b)
+    private async Task RecordCallLogAsync(
+        Guid callerId,
+        Guid calleeId,
+        bool wasConnected,
+        bool isVideo,
+        long durationSeconds)
     {
-        if (_activeCalls.TryGetValue(a, out var aPartner) && aPartner == b)
+        try
         {
-            _activeCalls.TryRemove(a, out _);
-        }
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        if (_activeCalls.TryGetValue(b, out var bPartner) && bPartner == a)
+            // Find direct message channel between the two participants
+            var dmChannel = await db.Channels
+                .Include(c => c.Members)
+                .Where(c => c.Type == ChannelType.DirectMessage)
+                .FirstOrDefaultAsync(c => c.Members.Any(m => m.UserId == callerId) &&
+                                          c.Members.Any(m => m.UserId == calleeId));
+
+            if (dmChannel == null)
+            {
+                return;
+            }
+
+            // Format human-readable call log text
+            string content;
+            var callType = isVideo ? "Video Call" : "Voice Call";
+
+            if (!wasConnected)
+            {
+                content = $"[{callType} — Missed Call]";
+            }
+            else
+            {
+                var duration = TimeSpan.FromSeconds(durationSeconds);
+                var durationFormatted = duration.TotalHours >= 1
+                    ? $"{(int)duration.TotalHours}h {duration.Minutes}m {duration.Seconds}s"
+                    : duration.TotalMinutes >= 1
+                        ? $"{duration.Minutes}m {duration.Seconds}s"
+                        : $"{duration.Seconds}s";
+
+                content = $"[{callType} — {durationFormatted}]";
+            }
+
+            var message = new Message
+            {
+                ChannelId = dmChannel.Id,
+                SenderId = callerId,
+                Content = content,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            db.Messages.Add(message);
+
+            dmChannel.LastMessageAt = message.CreatedAt;
+            dmChannel.LastMessageContent = content;
+            dmChannel.LastMessageSenderId = callerId;
+
+            await db.SaveChangesAsync();
+
+            // Load sender user info for realtime broadcast
+            var senderUser = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == callerId);
+
+            var messageDto = new NomNa.Application.Features.Messages.DTOs.MessageDto(
+                message.Id,
+                dmChannel.Id,
+                callerId,
+                senderUser?.DisplayName ?? "User",
+                senderUser?.UserName ?? "user",
+                senderUser?.AvatarUrl,
+                content,
+                null,
+                false,
+                message.CreatedAt,
+                new List<NomNa.Application.Features.Messages.DTOs.ReactionGroupDto>(),
+                new List<NomNa.Application.Features.Messages.DTOs.MessageAttachmentDto>()
+            );
+
+            // Multicast to channel group so both clients' message lists update instantaneously
+            await Clients.Group(dmChannel.Id.ToString()).SendAsync(SignalRConstants.Events.ReceiveMessage, messageDto);
+        }
+        catch (Exception ex)
         {
-            _activeCalls.TryRemove(b, out _);
+            _logger.LogError(ex, "Failed to persist call history log between {CallerId} and {CalleeId}", callerId, calleeId);
         }
     }
 }

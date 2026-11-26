@@ -41,19 +41,50 @@ public class KickServerMemberCommandHandler : IRequestHandler<KickServerMemberCo
         if (server == null)
             return Error.NotFound("Server.NotFound", "Server not found.");
 
-        var currentMember = server.Members.FirstOrDefault(m => m.UserId == userId.Value);
-        if (currentMember == null || (currentMember.Role != ServerRole.Owner && currentMember.Role != ServerRole.Admin))
-            return Error.Forbidden("Server.Forbidden", "Only server owners or admins can remove members.");
+        var isCallerOwner = server.OwnerId == userId.Value;
+
+        // SEC-06: Verify caller permissions using bitmask Permissions.KickMembers instead of obsolete enum check
+        if (!isCallerOwner)
+        {
+            var hasKickPermission = await _permissionService.HasServerPermissionAsync(
+                userId.Value,
+                request.ServerId,
+                Permissions.KickMembers,
+                cancellationToken);
+
+            if (!hasKickPermission)
+            {
+                return Error.Forbidden("Server.Forbidden", "You do not have permission to kick members from this server.");
+            }
+        }
 
         var targetMember = server.Members.FirstOrDefault(m => m.UserId == request.MemberUserId);
         if (targetMember == null)
             return Error.NotFound("Server.MemberNotFound", "Member not found in this server.");
 
-        if (targetMember.Role == ServerRole.Owner)
+        if (server.OwnerId == request.MemberUserId)
             return Error.Forbidden("Server.CannotKickOwner", "The server owner cannot be removed.");
 
-        if (currentMember.Role == ServerRole.Admin && targetMember.Role == ServerRole.Admin)
-            return Error.Forbidden("Server.CannotKickAdmin", "Admins cannot remove other admins.");
+        // SEC-06: Discord Role Hierarchy check - A non-owner cannot kick someone with equal or higher role position
+        if (!isCallerOwner)
+        {
+            var callerMaxPosition = await _context.MemberRoles
+                .AsNoTracking()
+                .Where(mr => mr.ServerMember.ServerId == request.ServerId && mr.ServerMember.UserId == userId.Value)
+                .Select(mr => (int?)mr.Role.Position)
+                .MaxAsync(cancellationToken) ?? 0;
+
+            var targetMaxPosition = await _context.MemberRoles
+                .AsNoTracking()
+                .Where(mr => mr.ServerMember.ServerId == request.ServerId && mr.ServerMember.UserId == request.MemberUserId)
+                .Select(mr => (int?)mr.Role.Position)
+                .MaxAsync(cancellationToken) ?? 0;
+
+            if (targetMaxPosition >= callerMaxPosition)
+            {
+                return Error.Forbidden("Server.RoleHierarchyViolation", "You cannot remove a member with an equal or higher role position.");
+            }
+        }
 
         _context.ServerMembers.Remove(targetMember);
 

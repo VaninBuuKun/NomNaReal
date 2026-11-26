@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { UserMinus, WarningCircle } from "@phosphor-icons/react";
-import { Modal, Button, ImageWithSkeleton } from "../ui";
+import { Modal, Button, UserAvatar } from "../ui";
 import type { DirectMessageUser } from "../dm";
 
 interface KickMemberModalProps {
@@ -52,15 +52,15 @@ export const KickMemberModal: React.FC<KickMemberModalProps> = ({
           </div>
         )}
 
-        {/* Member Preview Card */}
+        {/* Member Preview Card with unified UserAvatar */}
         <div className="flex items-center gap-3.5 p-3 rounded-[4px] bg-[var(--bg-surface)] border border-[var(--border-color)]">
-          <div className="relative w-11 h-11 shrink-0">
-            <ImageWithSkeleton
-              src={member.avatarUrl}
-              alt={member.displayName}
-              className="w-11 h-11 rounded-full object-cover border border-[var(--border-color)]"
-            />
-          </div>
+          <UserAvatar
+            name={member.displayName}
+            avatarUrl={member.avatarUrl}
+            size="md"
+            status={member.status}
+            className="w-11 h-11 shrink-0"
+          />
           <div className="min-w-0 flex-1">
             <div className="text-sm font-bold text-[var(--text-primary)] truncate">
               {member.displayName}

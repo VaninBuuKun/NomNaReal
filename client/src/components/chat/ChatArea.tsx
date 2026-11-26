@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
   MagnifyingGlass,
   Users,
@@ -113,6 +113,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     currentChannel?.permissions
   );
   const connectionStatus = useConnectionStatus();
+
+  // Check if current user is timed out in this workspace
+  const currentMember = useMemo(
+    () => workspaceMembers.find((m) => m.id === currentUser?.id),
+    [workspaceMembers, currentUser?.id]
+  );
+
+  const isTimedOut = useMemo(() => {
+    if (!currentMember?.communicationDisabledUntil) return false;
+    return new Date(currentMember.communicationDisabledUntil) > new Date();
+  }, [currentMember?.communicationDisabledUntil]);
 
   const [replyingToMessage, setReplyingToMessage] = useState<Message | null>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -532,8 +543,9 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         channelName={currentChannel?.name}
         channelType={currentChannel?.type}
         isDm={isDm}
-        canSendMessages={canSendMessages}
-        canAttachFiles={canAttachFiles}
+        canSendMessages={canSendMessages && !isTimedOut}
+        canAttachFiles={canAttachFiles && !isTimedOut}
+        isTimedOut={isTimedOut}
         replyingToMessage={replyingToMessage}
         onCancelReply={() => setReplyingToMessage(null)}
         onSendMessage={onSendMessage}
@@ -541,6 +553,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
         onStopTyping={onStopTyping}
         workspaceMembers={workspaceMembers}
         isSidebar={isSidebar}
+        slowmodeSeconds={currentChannel?.slowmodeSeconds ?? 0}
         onSendSuccess={() => {
           const targetRef = isSidebar ? sidebarMessageListRef : messageListRef;
           targetRef.current?.scrollToBottom("smooth");
