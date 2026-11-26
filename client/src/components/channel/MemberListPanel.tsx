@@ -461,7 +461,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
                     className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-control bg-warning-soft hover:bg-warning/20 text-warning text-xs font-semibold transition-all border border-warning/30 cursor-pointer active:scale-98"
                   >
                     <Clock size={15} weight="bold" />
-                    <span>Tạm khóa chat (Timeout)</span>
+                    <span>Tạm khóa chat</span>
                   </button>
 
                   {/* Kick */}
@@ -480,7 +480,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
                     className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-control bg-danger-soft hover:bg-danger/20 text-danger text-xs font-semibold transition-all border border-danger/30 cursor-pointer active:scale-98"
                   >
                     <UserMinus size={15} weight="bold" />
-                    <span>Đuổi khỏi nhóm (Kick)</span>
+                    <span>Đuổi khỏi máy chủ</span>
                   </button>
 
                   {/* Ban */}
@@ -493,7 +493,7 @@ export const MemberListPanel: React.FC<MemberListPanelProps> = ({
                     className="w-full flex items-center justify-center gap-2 py-1.5 px-3 rounded-control bg-danger-soft hover:bg-danger/20 text-danger text-xs font-semibold transition-all border border-danger/30 cursor-pointer active:scale-98"
                   >
                     <Prohibit size={15} weight="bold" />
-                    <span>Cấm vĩnh viễn (Ban)</span>
+                    <span>Cấm vĩnh viễn</span>
                   </button>
                 </div>
               );

@@ -9,7 +9,7 @@ import {
   useImperativeHandle,
 } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
-import { CircleNotch, ArrowUp, HandWaving } from "@phosphor-icons/react";
+import { ArrowUp, HandWaving } from "@phosphor-icons/react";
 import { getReadMarker, setReadMarker } from "../../utils/readMarkers";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
 import { MessageItem } from "./MessageItem";
@@ -101,27 +101,34 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
     const currentTopMessageIdRef = useRef<string | undefined>(undefined);
     const isUserScrollingRef = useRef(false);
     const hasRestoredChannelRef = useRef<string | null>(null);
+    const fetchedChannelIdRef = useRef<string | null>(null);
 
     // Keep firstItemIndexRef in sync with state
     useEffect(() => {
       firstItemIndexRef.current = firstItemIndex;
     }, [firstItemIndex]);
 
-    // Only show full skeleton if messages are empty AND loading has been ongoing for > 300ms
-    const [showSkeleton, setShowSkeleton] = useState(false);
     useEffect(() => {
-      let timer: any;
-      if (isLoadingMessages && messages.length === 0) {
-        timer = setTimeout(() => {
-          setShowSkeleton(true);
-        }, 300);
-      } else {
-        setShowSkeleton(false);
+      // Reset fetched marker whenever channel changes
+      fetchedChannelIdRef.current = null;
+    }, [currentChannel?.id]);
+
+    useEffect(() => {
+      // Mark channel as loaded once messages arrive or loading completes
+      if (messages.length > 0 || (!isLoadingMessages && currentChannel?.id)) {
+        fetchedChannelIdRef.current = currentChannel?.id || null;
       }
-      return () => {
-        if (timer) clearTimeout(timer);
-      };
-    }, [isLoadingMessages, messages.length]);
+    }, [messages.length, isLoadingMessages, currentChannel?.id]);
+
+    // Show skeleton immediately when channel is not ready, messages are loading, or initial channel load is pending
+    const isChannelPending = Boolean(
+      currentChannel?.id &&
+        fetchedChannelIdRef.current !== currentChannel.id &&
+        messages.length === 0
+    );
+    const showSkeleton =
+      (!currentChannel || isLoadingMessages || isChannelPending) &&
+      messages.length === 0;
 
     // Track pinned message IDs for fast O(1) lookup
     const pinnedMessageIds = useMemo(() => {
@@ -510,11 +517,19 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
           components={{
             Header: () => (
               <div className="flex flex-col w-full">
-                {/* Loading older messages spinner */}
+                {/* Loading older messages skeleton */}
                 {isLoadingMore && (
-                  <div className="py-2.5 flex items-center justify-center gap-2 text-xs text-text-muted select-none">
-                    <CircleNotch size={16} className="animate-spin text-accent-primary" />
-                    <span>Đang tải tin nhắn cũ hơn...</span>
+                  <div className="flex flex-col gap-2 py-2 px-4 select-none animate-pulse">
+                    <div className="flex gap-3 py-1">
+                      <div className="w-8 h-8 rounded-full bg-border/60 shrink-0" />
+                      <div className="flex-1 flex flex-col gap-1.5 pt-0.5">
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-20 rounded bg-border/70" />
+                          <div className="h-2.5 w-10 rounded bg-border/40" />
+                        </div>
+                        <div className="h-3 w-4/6 rounded bg-border/50" />
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -535,9 +550,17 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
             Footer: () => (
               <div className="flex flex-col w-full pb-8 sm:pb-4">
                 {isLoadingNewer && (
-                  <div className="py-2.5 flex items-center justify-center gap-2 text-xs text-text-muted select-none">
-                    <CircleNotch size={16} className="animate-spin text-accent-primary" />
-                    <span>Đang tải tin nhắn mới hơn...</span>
+                  <div className="flex flex-col gap-2 py-2 px-4 select-none animate-pulse">
+                    <div className="flex gap-3 py-1">
+                      <div className="w-8 h-8 rounded-full bg-border/60 shrink-0" />
+                      <div className="flex-1 flex flex-col gap-1.5 pt-0.5">
+                        <div className="flex items-center gap-2">
+                          <div className="h-3 w-24 rounded bg-border/70" />
+                          <div className="h-2.5 w-10 rounded bg-border/40" />
+                        </div>
+                        <div className="h-3 w-3/5 rounded bg-border/50" />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

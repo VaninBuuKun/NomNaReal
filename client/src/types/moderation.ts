@@ -39,3 +39,4 @@ export interface ServerAuditLog {
   changesJson?: string;
   createdAt: string;
 }
+

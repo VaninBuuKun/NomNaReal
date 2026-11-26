@@ -29,6 +29,7 @@ interface ServerSettingsModalProps {
   onClose: () => void;
   workspace: Workspace | null;
   isOwner: boolean;
+  currentUserRole?: string | null;
   onWorkspaceUpdated?: (ws: Workspace) => void;
   onWorkspaceDeleted?: (id: string) => void;
 }
@@ -38,9 +39,15 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
   onClose,
   workspace,
   isOwner,
+  currentUserRole,
   onWorkspaceUpdated,
   onWorkspaceDeleted,
 }) => {
+  const isOwnerOrAdmin =
+    isOwner ||
+    (currentUserRole || '').toLowerCase() === 'owner' ||
+    (currentUserRole || '').toLowerCase() === 'admin';
+
   const [activeTab, setActiveTab] = useState<SettingsTab>('overview');
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoadingRoles, setIsLoadingRoles] = useState(false);
@@ -49,7 +56,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
 
   // Load Roles
   const loadRoles = async () => {
-    if (!workspace) return;
+    if (!workspace || !isOwnerOrAdmin) return;
     try {
       setIsLoadingRoles(true);
       const data = await roleApi.getRoles(workspace.id);
@@ -96,6 +103,12 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
     }
   }, [workspace?.id, isOpen]);
 
+  useEffect(() => {
+    if (!isOwnerOrAdmin && (activeTab === 'roles' || activeTab === 'bans' || activeTab === 'audit-logs' || activeTab === 'delete')) {
+      setActiveTab('overview');
+    }
+  }, [isOwnerOrAdmin, activeTab]);
+
   if (!workspace) return null;
 
   return (
@@ -130,23 +143,25 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
               <span>Tổng quan</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('roles')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-xs font-medium cursor-pointer transition-colors ${
-                activeTab === 'roles'
-                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={16} weight={activeTab === 'roles' ? 'bold' : 'regular'} />
-                <span>Vai trò</span>
-              </div>
-              <span className="text-[11px] text-[var(--text-muted)] font-mono">
-                {roles.length}
-              </span>
-            </button>
+            {isOwnerOrAdmin && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('roles')}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-xs font-medium cursor-pointer transition-colors ${
+                  activeTab === 'roles'
+                    ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={16} weight={activeTab === 'roles' ? 'bold' : 'regular'} />
+                  <span>Vai trò</span>
+                </div>
+                <span className="text-[11px] text-[var(--text-muted)] font-mono">
+                  {roles.length}
+                </span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -166,35 +181,39 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
               </span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('bans')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-xs font-medium cursor-pointer transition-colors ${
-                activeTab === 'bans'
-                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Prohibit size={16} weight={activeTab === 'bans' ? 'bold' : 'regular'} />
-                <span>Danh sách cấm</span>
-              </div>
-            </button>
+            {isOwnerOrAdmin && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('bans')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-xs font-medium cursor-pointer transition-colors ${
+                    activeTab === 'bans'
+                      ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Prohibit size={16} weight={activeTab === 'bans' ? 'bold' : 'regular'} />
+                    <span>Danh sách cấm</span>
+                  </div>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('audit-logs')}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-xs font-medium cursor-pointer transition-colors ${
-                activeTab === 'audit-logs'
-                  ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
-                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <ClockCounterClockwise size={16} weight={activeTab === 'audit-logs' ? 'bold' : 'regular'} />
-                <span>Nhật ký hoạt động</span>
-              </div>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('audit-logs')}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[4px] text-xs font-medium cursor-pointer transition-colors ${
+                    activeTab === 'audit-logs'
+                      ? 'bg-[var(--bg-surface-active)] text-[var(--text-primary)] font-semibold'
+                      : 'text-[var(--text-secondary)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <ClockCounterClockwise size={16} weight={activeTab === 'audit-logs' ? 'bold' : 'regular'} />
+                    <span>Nhật ký hoạt động</span>
+                  </div>
+                </button>
+              </>
+            )}
 
             {isOwner && (
               <>
@@ -246,7 +265,7 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
             />
           )}
 
-          {activeTab === 'roles' && (
+          {activeTab === 'roles' && isOwnerOrAdmin && (
             <ServerRolesTab
               workspace={workspace}
               roles={roles}
@@ -265,13 +284,13 @@ export const ServerSettingsModal: React.FC<ServerSettingsModalProps> = ({
             />
           )}
 
-          {activeTab === 'bans' && (
+          {activeTab === 'bans' && isOwnerOrAdmin && (
             <div className="flex-1 p-6 overflow-y-auto">
               <ServerBansTab serverId={workspace.id} />
             </div>
           )}
 
-          {activeTab === 'audit-logs' && (
+          {activeTab === 'audit-logs' && isOwnerOrAdmin && (
             <div className="flex-1 p-6 overflow-y-auto">
               <ServerAuditLogsTab serverId={workspace.id} />
             </div>

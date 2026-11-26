@@ -65,7 +65,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Compute position near anchorRect (Discord-style popout)
+  // Compute position near anchorRect with robust viewport collision clamping
   const popoverStyle = useMemo<React.CSSProperties>(() => {
     if (!anchorRect) {
       return {
@@ -75,23 +75,22 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       };
     }
 
-    const cardWidth = 300;
-    const cardHeight = 360;
+    const cardWidth = 310;
+    const estimatedHeight = canKick ? 340 : 260;
     const pad = 12;
     const vw = typeof window !== 'undefined' ? window.innerWidth : 1200;
     const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
 
-    // Default: pop out to the right of anchor
+    // Horizontal: default to right of anchor; flip to left if overflowing
     let left = anchorRect.right + 8;
-    // If popping right causes horizontal overflow, pop to the left of anchor
     if (left + cardWidth > vw - pad) {
       left = Math.max(pad, anchorRect.left - cardWidth - 8);
     }
 
-    // Vertically align near top of anchor, clamped inside screen
-    let top = anchorRect.top - 12;
-    if (top + cardHeight > vh - pad) {
-      top = Math.max(pad, vh - cardHeight - pad);
+    // Vertical: clamp inside screen so it never overflows bottom taskbar
+    let top = anchorRect.top - 8;
+    if (top + estimatedHeight > vh - pad) {
+      top = Math.max(pad, vh - estimatedHeight - pad);
     }
     if (top < pad) {
       top = pad;
@@ -100,8 +99,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     return {
       top: `${top}px`,
       left: `${left}px`,
+      maxHeight: `calc(100vh - ${pad * 2}px)`,
     };
-  }, [anchorRect]);
+  }, [anchorRect, canKick]);
 
   if (!isOpen || !user) return null;
 
@@ -111,23 +111,23 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     const r = (user.role || '').toLowerCase();
     if (r === 'owner') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-warning-soft text-warning border border-warning/30">
-          <Crown size={12} weight="fill" />
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-warning-soft text-warning border border-warning/30">
+          <Crown size={11} weight="fill" />
           <span>Chủ sở hữu</span>
         </span>
       );
     }
     if (r === 'admin') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-accent-soft text-accent border border-accent/30">
-          <ShieldCheck size={12} weight="fill" />
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-accent-soft text-accent border border-accent/30">
+          <ShieldCheck size={11} weight="fill" />
           <span>Quản trị viên</span>
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[var(--bg-surface-active)] text-[var(--text-muted)] border border-[var(--border-color)]">
-        <User size={12} />
+      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-surface-active text-text-muted border border-border">
+        <User size={11} />
         <span>Thành viên</span>
       </span>
     );
@@ -138,29 +138,29 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     switch (s) {
       case 'online':
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs text-status-online font-medium">
+          <span className="inline-flex items-center gap-1 text-[11px] text-status-online font-medium">
             <span className="w-2 h-2 rounded-full bg-status-online shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-            <span>Đang trực tuyến</span>
+            <span>Trực tuyến</span>
           </span>
         );
       case 'away':
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs text-status-idle font-medium">
+          <span className="inline-flex items-center gap-1 text-[11px] text-status-idle font-medium">
             <span className="w-2 h-2 rounded-full bg-status-idle" />
             <span>Vắng mặt</span>
           </span>
         );
       case 'dnd':
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs text-status-dnd font-medium">
+          <span className="inline-flex items-center gap-1 text-[11px] text-status-dnd font-medium">
             <span className="w-2 h-2 rounded-full bg-status-dnd" />
-            <span>Không làm phiền</span>
+            <span>Bận</span>
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-            <Circle size={8} weight="fill" className="text-status-offline" />
+          <span className="inline-flex items-center gap-1 text-[11px] text-text-muted">
+            <Circle size={7} weight="fill" className="text-status-offline" />
             <span>Ngoại tuyến</span>
           </span>
         );
@@ -177,75 +177,75 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       <div
         onClick={(e) => e.stopPropagation()}
         style={popoverStyle}
-        className="fixed z-50 w-[300px] rounded-2xl bg-[var(--bg-surface)] border border-[var(--border-color)] shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        className="fixed z-50 w-[310px] rounded-2xl bg-surface border border-border shadow-2xl overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150"
       >
-        {/* Top Cover Banner */}
-        <div className="h-20 bg-gradient-to-r from-[var(--accent-primary)]/30 via-[var(--accent-primary)]/15 to-[var(--bg-surface)] relative">
+        {/* Compact Banner */}
+        <div className="h-16 bg-gradient-to-r from-accent-primary/35 via-accent-primary/20 to-surface relative shrink-0">
           <button
             type="button"
             onClick={onClose}
             title="Đóng (Escape)"
-            className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/25 hover:bg-black/40 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/30 hover:bg-black/50 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
           >
-            <X size={15} weight="bold" />
+            <X size={13} weight="bold" />
           </button>
         </div>
 
         {/* Profile Card Body */}
-        <div className="px-5 pb-5 pt-0">
-          {/* Avatar (overlapping the banner) */}
-          <div className="relative -mt-10 mb-3 inline-block">
+        <div className="px-3.5 pb-3.5 pt-0">
+          {/* Avatar (overlapping banner) */}
+          <div className="relative -mt-7 mb-2 inline-block">
             <UserAvatar
-              size="xl"
+              size="lg"
               name={user.displayName || user.username}
               avatarUrl={user.avatarUrl}
-              roundedClassName="rounded-2xl"
+              roundedClassName="rounded-full"
               status={user.status}
-              className="w-18 h-18 border-3 border-[var(--bg-surface)] shadow-md"
+              className="w-14 h-14 border-3 border-surface shadow-md"
             />
           </div>
 
-          {/* Name & Handle */}
-          <div className="flex items-start justify-between gap-2">
+          {/* Name & Role Header */}
+          <div className="flex items-start justify-between gap-1.5">
             <div className="min-w-0 flex-1">
-              <h3 className="font-bold text-base text-[var(--text-primary)] truncate leading-tight">
+              <h3 className="font-bold text-sm text-text-primary truncate leading-tight">
                 {user.displayName}
               </h3>
-              <p className="text-xs text-[var(--text-muted)] truncate mt-0.5 font-medium">
+              <p className="text-[11px] text-text-muted truncate mt-0.5 font-medium">
                 @{user.username}
               </p>
             </div>
-            <div>{renderRoleBadge()}</div>
+            <div className="shrink-0">{renderRoleBadge()}</div>
           </div>
 
-          {/* Status & Details */}
-          <div className="mt-3.5 pt-3 border-t border-[var(--border-color)]/70 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Trạng thái</span>
+          {/* Details (compact card) */}
+          <div className="mt-2.5 p-2.5 rounded-control bg-chat/60 border border-border/50 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-text-muted">Trạng thái</span>
               {renderStatus()}
             </div>
 
             {user.email && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-[var(--text-muted)] flex items-center gap-1">
-                  <EnvelopeSimple size={13} />
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-text-muted flex items-center gap-1">
+                  <EnvelopeSimple size={12} />
                   <span>Email</span>
                 </span>
-                <span className="text-[var(--text-secondary)] font-mono text-[11px] truncate max-w-[170px]">
+                <span className="text-text-secondary font-mono text-[10px] truncate max-w-[155px]">
                   {user.email}
                 </span>
               </div>
             )}
 
             {user.bio && (
-              <div className="pt-1 text-xs text-[var(--text-secondary)] leading-relaxed italic bg-[var(--bg-chat)]/60 p-2 rounded-lg border border-[var(--border-color)]/40">
+              <div className="pt-1.5 mt-1 border-t border-border/40 text-[11px] text-text-secondary leading-snug italic">
                 "{user.bio}"
               </div>
             )}
           </div>
 
-          {/* Primary Actions */}
-          <div className="mt-4 pt-3 border-t border-[var(--border-color)]/70 flex items-center gap-2">
+          {/* Primary Action Button */}
+          <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center gap-1.5">
             {isMe ? (
               <button
                 type="button"
@@ -253,10 +253,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   onClose();
                   onOpenSettings?.();
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[var(--accent-soft)] hover:bg-[var(--accent-primary)] text-[var(--accent-primary)] hover:text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-control bg-accent-soft hover:bg-accent-primary text-accent-primary hover:text-white text-xs font-semibold transition-all cursor-pointer shadow-2xs"
               >
-                <Gear size={15} weight="bold" />
-                <span>Cài đặt tài khoản của bạn</span>
+                <Gear size={14} weight="bold" />
+                <span>Cài đặt tài khoản</span>
               </button>
             ) : (
               <>
@@ -266,9 +266,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     onClose();
                     onStartDm?.(user);
                   }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-98"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-control bg-accent-primary hover:bg-accent-hover text-white text-xs font-semibold transition-all shadow-xs cursor-pointer active:scale-98"
                 >
-                  <ChatCenteredDots size={15} weight="bold" />
+                  <ChatCenteredDots size={14} weight="bold" />
                   <span>Nhắn tin</span>
                 </button>
 
@@ -280,56 +280,62 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       onMentionUser(user.username);
                     }}
                     title={`Nhắc tên @${user.username} trong chat`}
-                    className="p-2 rounded-xl bg-[var(--bg-chat)] hover:bg-[var(--bg-surface-active)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-color)] transition-all cursor-pointer"
+                    className="p-1.5 rounded-control bg-chat hover:bg-surface-active text-text-secondary hover:text-text-primary border border-border transition-all cursor-pointer"
                   >
-                    <At size={16} weight="bold" />
+                    <At size={14} weight="bold" />
                   </button>
                 )}
               </>
             )}
           </div>
 
+          {/* Moderation Actions (Compact 3-column Grid, No English) */}
           {!isMe && canKick && (
-            <div className="mt-2 pt-2 border-t border-[var(--border-color)]/60 flex flex-col gap-1.5">
-              {onTimeoutMember && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onTimeoutMember(user);
-                  }}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-control bg-warning-soft hover:bg-warning/20 text-warning text-xs font-semibold transition-all border border-warning/30 cursor-pointer active:scale-98"
-                >
-                  <Clock size={14} weight="bold" />
-                  <span>Tạm khóa chat (Timeout)</span>
-                </button>
-              )}
-              {onKickMember && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onKickMember(user);
-                  }}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-control bg-danger-soft hover:bg-danger/20 text-danger text-xs font-semibold transition-all border border-danger/30 cursor-pointer active:scale-98"
-                >
-                  <UserMinus size={14} weight="bold" />
-                  <span>Đuổi khỏi nhóm (Kick)</span>
-                </button>
-              )}
-              {onBanMember && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onBanMember(user);
-                  }}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-control bg-danger-soft hover:bg-danger/20 text-danger text-xs font-semibold transition-all border border-danger/30 cursor-pointer active:scale-98"
-                >
-                  <Prohibit size={14} weight="bold" />
-                  <span>Cấm vĩnh viễn (Ban)</span>
-                </button>
-              )}
+            <div className="mt-2.5 pt-2 border-t border-border/60">
+              <div className="grid grid-cols-3 gap-1.5">
+                {onTimeoutMember && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onTimeoutMember(user);
+                    }}
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-control bg-warning-soft hover:bg-warning/20 text-warning text-[11px] font-semibold whitespace-nowrap transition-all border border-warning/30 cursor-pointer active:scale-98"
+                    title="Tạm khóa chat"
+                  >
+                    <Clock size={13} weight="bold" className="shrink-0" />
+                    <span>Tạm khóa</span>
+                  </button>
+                )}
+                {onKickMember && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onKickMember(user);
+                    }}
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-control bg-danger-soft/80 hover:bg-danger-soft text-danger text-[11px] font-semibold whitespace-nowrap transition-all border border-danger/25 cursor-pointer active:scale-98"
+                    title="Đuổi khỏi máy chủ"
+                  >
+                    <UserMinus size={13} weight="bold" className="shrink-0" />
+                    <span>Đuổi</span>
+                  </button>
+                )}
+                {onBanMember && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onBanMember(user);
+                    }}
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-control bg-danger-soft hover:bg-danger text-danger hover:text-white text-[11px] font-semibold whitespace-nowrap transition-all border border-danger/30 cursor-pointer active:scale-98"
+                    title="Cấm vĩnh viễn"
+                  >
+                    <Prohibit size={13} weight="bold" className="shrink-0" />
+                    <span>Cấm</span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

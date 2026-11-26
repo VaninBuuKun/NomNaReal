@@ -75,7 +75,14 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set) => ({
-  activeSidebarView: 'dms',
+  activeSidebarView: (() => {
+    if (typeof window !== 'undefined') {
+      const p = window.location.pathname;
+      if (p.startsWith('/channels/@me')) return 'dms';
+      if (p.startsWith('/channels/')) return 'channels';
+    }
+    return 'channels';
+  })(),
   isMemberListOpen: localStorage.getItem('nomna_member_list_open') !== 'false',
   isSearchOpen: false,
   isMobileSidebarOpen: false,

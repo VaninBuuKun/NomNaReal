@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Prohibit, WarningCircle } from '@phosphor-icons/react';
-import { Modal, Button, ImageWithSkeleton } from '../ui';
+import { Modal, Button, UserAvatar } from '../ui';
 import type { DirectMessageUser } from '../dm';
 
 interface BanMemberModalProps {
@@ -43,24 +43,29 @@ export const BanMemberModal: React.FC<BanMemberModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Cấm thành viên vĩnh viễn"
-      subtitle="Thành viên sẽ bị trục xuất khỏi máy chủ và không thể tham gia lại bằng liên kết mời."
-      className="max-w-[440px]"
+      subtitle={
+        serverName
+          ? `Thành viên sẽ bị trục xuất khỏi ${serverName} và không thể tham gia lại.`
+          : "Thành viên sẽ bị trục xuất khỏi máy chủ và không thể tham gia lại bằng liên kết mời."
+      }
+      className="max-w-[420px]"
     >
-      <div className="p-6 space-y-5">
+      <div className="p-5 space-y-4">
         {error && (
           <div className="p-3 text-xs rounded-control bg-danger-soft border border-danger/20 text-danger font-medium">
             {error}
           </div>
         )}
 
+        {/* Member preview card with unified UserAvatar */}
         <div className="flex items-center gap-3 p-3 rounded-control bg-surface border border-border">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-chat shrink-0 border border-border">
-            <ImageWithSkeleton
-              src={member.avatarUrl}
-              alt={member.displayName}
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <UserAvatar
+            name={member.displayName}
+            avatarUrl={member.avatarUrl}
+            size="md"
+            status={member.status}
+            className="w-10 h-10 shrink-0"
+          />
           <div className="min-w-0 flex-1">
             <h4 className="text-sm font-semibold text-text-primary truncate">
               {member.displayName}
@@ -78,18 +83,20 @@ export const BanMemberModal: React.FC<BanMemberModalProps> = ({
             onChange={(e) => setReason(e.target.value)}
             placeholder="Ví dụ: Vi phạm quy định cộng đồng, phát ngôn xúc phạm, spam..."
             rows={3}
-            className="w-full p-2.5 text-xs bg-chat border border-border rounded-control text-text-primary placeholder:text-text-muted outline-none focus:border-accent-primary transition-colors resize-none"
+            maxLength={512}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-control text-xs text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-danger resize-none"
           />
+          <div className="flex justify-between items-center text-[11px] text-text-muted">
+            <span>{reason.length}/512 ký tự</span>
+          </div>
         </div>
 
-        <div className="flex items-start gap-2.5 p-3 rounded-control bg-danger-soft text-danger text-xs font-medium border border-danger/20">
-          <WarningCircle size={16} className="shrink-0 mt-0.5" />
-          <span>
-            Hành động này sẽ xóa thành viên khỏi <b>{serverName || 'máy chủ'}</b> và đưa vào danh sách đen (Blacklist).
-          </span>
+        <div className="flex items-center gap-2 p-3 rounded-control bg-danger-soft border border-danger/20 text-danger text-xs">
+          <WarningCircle size={18} className="shrink-0" />
+          <span>Hành động này sẽ tước quyền truy cập máy chủ của thành viên ngay lập tức.</span>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-end gap-2.5 pt-2">
           <Button variant="ghost" size="sm" onClick={onClose} disabled={isBanning}>
             Hủy
           </Button>
@@ -100,7 +107,7 @@ export const BanMemberModal: React.FC<BanMemberModalProps> = ({
             isLoading={isBanning}
             leftIcon={<Prohibit size={16} />}
           >
-            Cấm vĩnh viễn
+            Xác nhận cấm vĩnh viễn
           </Button>
         </div>
       </div>

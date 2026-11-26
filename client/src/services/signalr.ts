@@ -49,6 +49,10 @@ export class SignalRService {
     return this.status;
   }
 
+  public isConnected(): boolean {
+    return this.connection?.state === signalR.HubConnectionState.Connected;
+  }
+
   public subscribeStatus(
     listener: (status: ConnectionStatus) => void,
   ): () => void {

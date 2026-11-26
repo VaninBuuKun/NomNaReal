@@ -1762,6 +1762,7 @@ export const ChatPage: React.FC = () => {
                     onOpenAddChannelMember={(ch) => setChannelToAddMember(ch)}
                     onChannelsReorder={(newChannels) => setChannels(newChannels)}
                     currentUser={currentUser}
+                    currentUserRole={currentUserRole}
                     onOpenUserProfile={handleOpenUserProfile}
                   />
                 ) : activeSidebarView === "dms" ? (

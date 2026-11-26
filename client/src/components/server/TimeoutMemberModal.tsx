@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Clock, WarningCircle } from '@phosphor-icons/react';
-import { Modal, Button, ImageWithSkeleton } from '../ui';
+import { Modal, Button, UserAvatar } from '../ui';
 import type { DirectMessageUser } from '../dm';
 
 interface TimeoutMemberModalProps {
@@ -18,7 +18,7 @@ const TIMEOUT_OPTIONS = [
   { label: '1 giờ', value: 60 },
   { label: '1 ngày', value: 1440 },
   { label: '7 ngày', value: 10080 },
-  { label: 'Gỡ timeout', value: 0 },
+  { label: 'Gỡ tạm khóa', value: 0 },
 ];
 
 export const TimeoutMemberModal: React.FC<TimeoutMemberModalProps> = ({
@@ -43,7 +43,7 @@ export const TimeoutMemberModal: React.FC<TimeoutMemberModalProps> = ({
       onClose();
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
-      setError(errorObj?.response?.data?.message || 'Không thể đặt timeout cho thành viên này.');
+      setError(errorObj?.response?.data?.message || 'Không thể đặt tạm khóa cho thành viên này.');
     } finally {
       setIsSubmitting(false);
     }
@@ -53,25 +53,30 @@ export const TimeoutMemberModal: React.FC<TimeoutMemberModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Tạm thời cấm chat (Timeout)"
-      subtitle="Thành viên sẽ không thể gửi tin nhắn, thả cảm xúc hoặc nói trong kênh thoại."
-      className="max-w-[440px]"
+      title="Tạm khóa chat"
+      subtitle={
+        serverName
+          ? `Thành viên sẽ không thể gửi tin nhắn hoặc phát biểu trong ${serverName}.`
+          : "Thành viên sẽ không thể gửi tin nhắn hoặc phát biểu trong máy chủ."
+      }
+      className="max-w-[420px]"
     >
-      <div className="p-6 space-y-5">
+      <div className="p-5 space-y-4">
         {error && (
           <div className="p-3 text-xs rounded-control bg-danger-soft border border-danger/20 text-danger font-medium">
             {error}
           </div>
         )}
 
+        {/* Member preview card with unified UserAvatar */}
         <div className="flex items-center gap-3 p-3 rounded-control bg-surface border border-border">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-chat shrink-0 border border-border">
-            <ImageWithSkeleton
-              src={member.avatarUrl}
-              alt={member.displayName}
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <UserAvatar
+            name={member.displayName}
+            avatarUrl={member.avatarUrl}
+            size="md"
+            status={member.status}
+            className="w-10 h-10 shrink-0"
+          />
           <div className="min-w-0 flex-1">
             <h4 className="text-sm font-semibold text-text-primary truncate">
               {member.displayName}
@@ -80,28 +85,25 @@ export const TimeoutMemberModal: React.FC<TimeoutMemberModalProps> = ({
           </div>
         </div>
 
-        <div className="space-y-2">
+        {/* Duration Combobox (clean, compact) */}
+        <div className="space-y-1.5">
           <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-            Thời lượng cấm chat
+            Thời lượng tạm khóa
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <select
+            value={durationMinutes}
+            onChange={(e) => setDurationMinutes(Number(e.target.value))}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-control text-xs text-text-primary focus:outline-hidden focus:border-accent-primary cursor-pointer"
+          >
             {TIMEOUT_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setDurationMinutes(opt.value)}
-                className={`p-2.5 rounded-control text-xs font-medium border text-left transition-colors cursor-pointer ${
-                  durationMinutes === opt.value
-                    ? 'bg-accent-soft border-accent-primary text-accent-primary shadow-xs'
-                    : 'bg-surface border-border text-text-secondary hover:bg-surface-active'
-                }`}
-              >
+              <option key={opt.value} value={opt.value}>
                 {opt.label}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
+        {/* Reason field */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
             Lý do (Tùy chọn)
@@ -109,33 +111,34 @@ export const TimeoutMemberModal: React.FC<TimeoutMemberModalProps> = ({
           <textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Ví dụ: Spam tin nhắn, vi phạm nội quy..."
+            placeholder="Ví dụ: Cần hạ nhiệt, spam tin nhắn..."
             rows={2}
-            className="w-full p-2.5 text-xs bg-chat border border-border rounded-control text-text-primary placeholder:text-text-muted outline-none focus:border-accent-primary transition-colors resize-none"
+            maxLength={512}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-control text-xs text-text-primary placeholder:text-text-muted focus:outline-hidden focus:border-accent-primary resize-none"
           />
         </div>
 
-        <div className="flex items-start gap-2.5 p-3 rounded-control bg-warning-soft text-warning text-xs font-medium border border-warning/20">
-          <WarningCircle size={16} className="shrink-0 mt-0.5" />
+        <div className="flex items-center gap-2 p-2.5 rounded-control bg-warning-soft border border-warning/20 text-warning text-xs">
+          <WarningCircle size={16} className="shrink-0" />
           <span>
-            {durationMinutes === 0
-              ? `Gỡ bỏ trạng thái timeout cho ${member.displayName}.`
-              : `Thành viên sẽ bị cấm phát ngôn trong ${TIMEOUT_OPTIONS.find((o) => o.value === durationMinutes)?.label} trên ${serverName || 'máy chủ'}.`}
+            {durationMinutes > 0
+              ? 'Thành viên sẽ bị chặn gửi tin nhắn cho đến khi hết thời lượng.'
+              : 'Gỡ bỏ trạng thái tạm khóa ngay lập tức.'}
           </span>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex items-center justify-end gap-2.5 pt-2">
           <Button variant="ghost" size="sm" onClick={onClose} disabled={isSubmitting}>
             Hủy
           </Button>
           <Button
-            variant={durationMinutes === 0 ? 'secondary' : 'primary'}
+            variant="primary"
             size="sm"
             onClick={handleSubmit}
             isLoading={isSubmitting}
-            leftIcon={<Clock size={16} />}
+            leftIcon={<Clock size={15} />}
           >
-            {durationMinutes === 0 ? 'Gỡ timeout' : 'Xác nhận timeout'}
+            {durationMinutes > 0 ? 'Xác nhận tạm khóa' : 'Gỡ tạm khóa'}
           </Button>
         </div>
       </div>

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NomNa.Domain.Enums;
 
 namespace NomNa.Application.Features.Servers.DTOs;
@@ -20,6 +21,7 @@ public record ServerAuditLogDto(
     Guid ActorId,
     string ActorDisplayName,
     string? ActorAvatarUrl,
+    [property: JsonConverter(typeof(JsonStringEnumConverter))]
     AuditLogActionType ActionType,
     Guid? TargetId,
     string? TargetName,

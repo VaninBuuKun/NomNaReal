@@ -54,20 +54,21 @@ export const ServerBansTab: React.FC<ServerBansTabProps> = ({ serverId }) => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4 pr-8">
+      {/* Header and Search - positioned cleanly below close button */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h3 className="text-base font-bold text-text-primary">Danh sách cấm (Bans)</h3>
-          <p className="text-xs text-text-muted mt-1">
+          <h3 className="text-base font-bold text-text-primary">Danh sách cấm</h3>
+          <p className="text-xs text-text-muted mt-0.5">
             Quản lý những tài khoản bị cấm tham gia máy chủ vĩnh viễn.
           </p>
         </div>
-        <div className="w-full sm:w-64">
+        <div className="w-full sm:w-60">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm theo tên hoặc lý do..."
-            leftIcon={<MagnifyingGlass size={16} />}
+            leftIcon={<MagnifyingGlass size={15} />}
           />
         </div>
       </div>
@@ -90,48 +91,55 @@ export const ServerBansTab: React.FC<ServerBansTabProps> = ({ serverId }) => {
           </div>
           <p className="text-sm font-semibold text-text-primary">Chưa có ai bị cấm</p>
           <p className="text-xs text-text-muted mt-1">
-            {search ? 'Không tìm thấy người dùng phù hợp với từ khóa.' : 'Máy chủ chưa có thành viên nào nằm trong danh sách đen.'}
+            {search ? 'Không tìm thấy người dùng phù hợp với từ khóa.' : 'Máy chủ chưa có thành viên nào nằm trong danh sách cấm.'}
           </p>
         </div>
       ) : (
         <div className="rounded-card border border-border divide-y divide-border bg-surface overflow-hidden">
           {filteredBans.map((ban) => (
-            <div key={ban.id} className="p-4 flex items-center justify-between gap-4 hover:bg-surface-active transition-colors">
-              <div className="flex items-center gap-3 min-w-0">
+            <div key={ban.id} className="p-3 flex items-center justify-between gap-3 hover:bg-surface-active/50 transition-colors">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <UserAvatar
                   name={ban.displayName}
                   avatarUrl={ban.avatarUrl}
-                  size="md"
-                  roundedClassName="rounded-full"
-                  className="w-10 h-10 border border-border shrink-0"
+                  size="sm"
+                  className="w-9 h-9 shrink-0"
                 />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-text-primary truncate">
+                {/* Compact 2-line layout */}
+                <div className="min-w-0 flex-1 leading-tight">
+                  {/* Line 1: DisplayName and username */}
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="text-xs font-bold text-text-primary truncate">
                       {ban.displayName}
                     </span>
-                    <span className="text-xs text-text-muted truncate">@{ban.username}</span>
+                    <span className="text-[11px] text-text-muted truncate">@{ban.username}</span>
                   </div>
-                  {ban.reason ? (
-                    <p className="text-xs text-danger font-medium mt-0.5 truncate">
-                      Lý do: {ban.reason}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-text-muted mt-0.5">Không có lý do cụ thể</p>
-                  )}
-                  <p className="text-[11px] text-text-muted mt-0.5">
-                    Cấm bởi <b>{ban.bannedByDisplayName}</b> vào {new Date(ban.createdAt).toLocaleDateString('vi-VN')}
-                  </p>
+
+                  {/* Line 2: Reason & Banned by with date */}
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-text-muted truncate">
+                    {ban.reason ? (
+                      <span className="text-danger font-medium truncate">
+                        Lý do: {ban.reason}
+                      </span>
+                    ) : (
+                      <span className="italic">Không có lý do</span>
+                    )}
+                    <span>•</span>
+                    <span className="shrink-0">
+                      Bởi <b>{ban.bannedByDisplayName}</b> ({new Date(ban.createdAt).toLocaleDateString('vi-VN')})
+                    </span>
+                  </div>
                 </div>
               </div>
 
+              {/* Action Button */}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => handleUnban(ban.userId)}
                 isLoading={unbanningId === ban.userId}
-                className="text-danger hover:text-danger hover:bg-danger-soft shrink-0"
-                leftIcon={<Trash size={15} />}
+                className="text-danger hover:text-danger hover:bg-danger-soft shrink-0 text-xs py-1 px-2.5 h-7"
+                leftIcon={<Trash size={13} />}
               >
                 Gỡ cấm
               </Button>
