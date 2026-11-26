@@ -172,8 +172,32 @@ public class ChannelsController : ApiControllerBase
         }
         return HandleResult(result);
     }
+
+    [HttpPost("{channelId:guid}/read")]
+    public async Task<IActionResult> MarkAsRead(
+        [FromRoute] Guid channelId,
+        [FromBody] MarkAsReadRequest request)
+    {
+        var command = new NomNa.Application.Features.Messages.Commands.MarkChannelAsRead.MarkChannelAsReadCommand(
+            channelId, request.MessageId);
+        var result = await Mediator.Send(command);
+        if (result.IsSuccess && result.Value != null)
+        {
+            await _hubContext.Clients.Group(channelId.ToString()).SendAsync(
+                SignalRConstants.Events.ChannelReadReceiptUpdated,
+                new
+                {
+                    channelId = result.Value.ChannelId,
+                    userId = result.Value.UserId,
+                    lastReadMessageId = result.Value.LastReadMessageId,
+                    lastReadAt = result.Value.LastReadAt
+                });
+        }
+        return HandleResult(result);
+    }
 }
 
+public record MarkAsReadRequest(Guid MessageId);
 public record UpdateSlowmodeRequest(int SlowmodeSeconds);
 public record CreateDmChannelRequest(Guid TargetUserId, Guid? ServerId = null);
 public record SendMessageRequest(string? Content, Guid? ReplyToMessageId = null, List<NomNa.Application.Features.Messages.DTOs.AttachmentInputDto>? Attachments = null);

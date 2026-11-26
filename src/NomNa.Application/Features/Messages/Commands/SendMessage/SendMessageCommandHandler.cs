@@ -16,6 +16,7 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
     private readonly INotificationDispatcher _notificationDispatcher;
     private readonly IChannelSlowmodeService _slowmodeService;
     private readonly IPermissionService _permissionService;
+    private readonly IChannelLastMessageCoalescer _lastMessageCoalescer;
 
     [GeneratedRegex(@"@([a-zA-Z0-9_\.]+)", RegexOptions.Compiled, 200)]
     private static partial Regex MentionRegex();
@@ -26,7 +27,8 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
         IUserProfileCache userProfileCache,
         INotificationDispatcher notificationDispatcher,
         IChannelSlowmodeService slowmodeService,
-        IPermissionService permissionService)
+        IPermissionService permissionService,
+        IChannelLastMessageCoalescer lastMessageCoalescer)
     {
         _context = context;
         _currentUserService = currentUserService;
@@ -34,6 +36,7 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
         _notificationDispatcher = notificationDispatcher;
         _slowmodeService = slowmodeService;
         _permissionService = permissionService;
+        _lastMessageCoalescer = lastMessageCoalescer;
     }
 
     public async Task<Result<MessageDto>> Handle(SendMessageCommand request, CancellationToken cancellationToken)
@@ -43,6 +46,7 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
             return Error.Unauthorized("Auth.Unauthorized", "User is not authenticated.");
 
         var channel = await _context.Channels
+            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.ChannelId, cancellationToken);
 
         if (channel == null)
@@ -114,8 +118,7 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
                 : new List<MessageAttachmentItem>()
         };
 
-        channel.LastMessageAt = DateTime.UtcNow;
-        channel.LastMessageSenderId = userId.Value;
+        var lastMessageAt = DateTime.UtcNow;
 
         // Compute smart snippet for sidebar and notifications
         var smartSnippet = string.Empty;
@@ -169,9 +172,8 @@ public partial class SendMessageCommandHandler : IRequestHandler<SendMessageComm
             }
         }
 
-        channel.LastMessageContent = smartSnippet;
-
         _context.Messages.Add(message);
+        _lastMessageCoalescer.Enqueue(channel.Id, lastMessageAt, smartSnippet, userId.Value);
 
         // 5. Parse Mentions and Prepare Notifications (Only for Server channels, never for DMs)
         var hasContent = !string.IsNullOrWhiteSpace(content);

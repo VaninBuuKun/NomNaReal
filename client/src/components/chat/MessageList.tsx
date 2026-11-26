@@ -11,6 +11,10 @@ import {
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { ArrowUp, HandWaving } from "@phosphor-icons/react";
 import { getReadMarker, setReadMarker } from "../../utils/readMarkers";
+import { channelApi } from "../../services/channelApi";
+import { signalRService } from "../../services/signalr";
+import { useDmStore } from "../../stores";
+import { UserAvatar } from "../ui";
 import { ChannelType, type Channel, type Message, type User, type PinnedMessage } from "../../types";
 import { MessageItem } from "./MessageItem";
 import { ChatAreaSkeleton } from "./ChatAreaSkeleton";
@@ -175,6 +179,30 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       setIsUnreadAbove(false);
     }, [channelId]);
 
+    const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [dmReadReceipts, setDmReadReceipts] = useState<Record<string, string>>({});
+
+    // Subscribe to real-time DM read receipt updates
+    useEffect(() => {
+      if (!channelId || currentChannel?.type !== ChannelType.DirectMessage) {
+        setDmReadReceipts({});
+        return;
+      }
+
+      const unsubscribe = signalRService.onReadReceiptUpdated((payload) => {
+        if (payload.channelId?.toLowerCase() !== channelId.toLowerCase()) return;
+        if (currentUser && payload.userId?.toLowerCase() === currentUser.id.toLowerCase()) return;
+        setDmReadReceipts((prev) => ({
+          ...prev,
+          [payload.userId]: payload.lastReadMessageId,
+        }));
+      });
+
+      return () => {
+        unsubscribe();
+      };
+    }, [channelId, currentChannel?.type, currentUser]);
+
     // Advance the read marker while the user is looking at the newest messages
     const advanceReadMarker = useCallback(() => {
       const last = messages[messages.length - 1];
@@ -182,8 +210,15 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
       if (last.channelId && last.channelId !== channelId) return;
       if (isAtBottomRef.current && !hasNewerMessages) {
         setReadMarker(channelId, last.createdAt);
+
+        if (currentChannel?.type === ChannelType.DirectMessage) {
+          if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+          markReadTimerRef.current = setTimeout(() => {
+            channelApi.markAsRead(channelId, last.id);
+          }, 500);
+        }
       }
-    }, [messages, channelId, hasNewerMessages]);
+    }, [messages, channelId, hasNewerMessages, currentChannel?.type]);
 
     useEffect(() => {
       advanceReadMarker();
@@ -618,6 +653,34 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(
                   onPinMessage={onPinMessage}
                   onUnpinMessage={onUnpinMessage}
                 />
+                {isDm && Object.entries(dmReadReceipts).some(([, readMsgId]) => readMsgId === msg.id) && (
+                  <div className="flex justify-end items-center gap-1 px-5 pb-1 -mt-0.5 select-none">
+                    {Object.entries(dmReadReceipts)
+                      .filter(([, readMsgId]) => readMsgId === msg.id)
+                      .map(([readerId]) => {
+                        const dmPeer = useDmStore
+                          .getState()
+                          .dmConversations.find((c) => c.id.toLowerCase() === channelId?.toLowerCase())?.user;
+                        const reader =
+                          (dmPeer && dmPeer.id.toLowerCase() === readerId.toLowerCase() ? dmPeer : undefined) ||
+                          workspaceMembers.find((m) => m.id.toLowerCase() === readerId.toLowerCase());
+                        return (
+                          <div
+                            key={readerId}
+                            title={`Đã xem bởi ${reader?.displayName || "đối phương"}`}
+                            className="flex items-center gap-1"
+                          >
+                            <UserAvatar
+                              name={reader?.displayName || "U"}
+                              avatarUrl={reader?.avatarUrl}
+                              size="xs"
+                              className="w-3.5 h-3.5 rounded-full ring-1 ring-border/60"
+                            />
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
               </div>
             );
           }}

@@ -53,6 +53,11 @@ public static class DependencyInjection
         services.AddSingleton<ICacheInvalidationBus>(sp => sp.GetRequiredService<RedisCacheInvalidationBus>());
         services.AddHostedService<RedisCacheInvalidationBus>(sp => sp.GetRequiredService<RedisCacheInvalidationBus>());
 
+        // Hot-Channel LastMessage Coalescer (Registers as both IChannelLastMessageCoalescer and IHostedService)
+        services.AddSingleton<ChannelLastMessageCoalescer>();
+        services.AddSingleton<IChannelLastMessageCoalescer>(sp => sp.GetRequiredService<ChannelLastMessageCoalescer>());
+        services.AddHostedService<ChannelLastMessageCoalescer>(sp => sp.GetRequiredService<ChannelLastMessageCoalescer>());
+
         services.AddMemoryCache();
         services.AddSingleton<IUserProfileCache, UserProfileCache>();
         services.AddSingleton<IPinnedMessageCache, PinnedMessageCache>();

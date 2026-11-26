@@ -27,6 +27,7 @@ public static class SignalRConstants
         public const string ServerMemberBanned = "ServerMemberBanned";
         public const string ServerMemberTimedOut = "ServerMemberTimedOut";
         public const string ChannelSlowmodeUpdated = "ChannelSlowmodeUpdated";
+        public const string ChannelReadReceiptUpdated = "ChannelReadReceiptUpdated";
 
         // WebRTC 1v1 Call Signaling Events
         public const string CallIncoming = "CallIncoming";

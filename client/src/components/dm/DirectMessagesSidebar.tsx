@@ -191,16 +191,6 @@ export const DirectMessagesSidebar: React.FC<DirectMessagesSidebarProps> = ({
                       {item.unreadCount > 99 ? '99+' : item.unreadCount}
                     </span>
                   )}
-                  {onRemoveConversation && (
-                    <button
-                      type="button"
-                      onClick={(e) => onRemoveConversation(item.id, e)}
-                      title="Đóng cuộc trò chuyện"
-                      className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-text-primary rounded-control transition-opacity cursor-pointer text-text-muted"
-                    >
-                      <X size={13} weight="bold" />
-                    </button>
-                  )}
                 </div>
               </div>
             );

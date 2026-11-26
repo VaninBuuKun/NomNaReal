@@ -227,6 +227,9 @@ namespace NomNa.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("LastReadAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("LastReadMessageId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 

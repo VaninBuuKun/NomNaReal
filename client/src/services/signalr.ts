@@ -53,6 +53,20 @@ export class SignalRService {
     return this.connection?.state === signalR.HubConnectionState.Connected;
   }
 
+  public onReadReceiptUpdated(
+    callback: (payload: {
+      channelId: string;
+      userId: string;
+      lastReadMessageId: string;
+      lastReadAt: string;
+    }) => void
+  ): () => void {
+    this.connection?.on("ChannelReadReceiptUpdated", callback);
+    return () => {
+      this.connection?.off("ChannelReadReceiptUpdated", callback);
+    };
+  }
+
   public subscribeStatus(
     listener: (status: ConnectionStatus) => void,
   ): () => void {

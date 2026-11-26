@@ -37,9 +37,10 @@ export const channelApi = {
     return res.data;
   },
 
-  markAsRead: async (channelId: string): Promise<void> => {
+  markAsRead: async (channelId: string, messageId?: string): Promise<void> => {
     try {
-      await httpClient.post(`/channels/${channelId}/read`);
+      if (!messageId) return;
+      await httpClient.post(`/channels/${channelId}/read`, { messageId });
     } catch {
       // Ignore background read sync errors
     }

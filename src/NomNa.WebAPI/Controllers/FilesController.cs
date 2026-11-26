@@ -29,6 +29,59 @@ public class FilesController : ApiControllerBase
         _fileStorageService = fileStorageService;
     }
 
+    public record PresignedUploadRequest(string FileName, string ContentType, long FileSize, string? Folder = "uploads");
+
+    [HttpPost("presigned-upload")]
+    public async Task<IActionResult> CreatePresignedUpload([FromBody] PresignedUploadRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.FileName) || request.FileSize <= 0)
+        {
+            return BadRequest(new { code = "File.Empty", message = "File metadata is invalid or file is empty." });
+        }
+
+        if (request.FileSize > MaxFileSize)
+        {
+            return BadRequest(new { code = "File.TooLarge", message = "File size exceeds 100MB limit." });
+        }
+
+        var sanitizedFileName = Path.GetFileName(request.FileName);
+        var extension = Path.GetExtension(sanitizedFileName);
+        if (string.IsNullOrEmpty(extension) || !AllowedExtensions.Contains(extension))
+        {
+            return BadRequest(new { code = "File.InvalidType", message = $"File type {extension} is not supported." });
+        }
+
+        var safeFolder = (request.Folder ?? "uploads").ToLowerInvariant() switch
+        {
+            "avatars" => "avatars",
+            "servers" or "workspaces" => "servers",
+            "videos" => "videos",
+            "attachments" => "attachments",
+            _ => "uploads"
+        };
+
+        var result = await _fileStorageService.GeneratePresignedUploadUrlAsync(
+            sanitizedFileName,
+            safeFolder,
+            string.IsNullOrWhiteSpace(request.ContentType) ? "application/octet-stream" : request.ContentType,
+            request.FileSize,
+            HttpContext.RequestAborted);
+
+        if (result == null)
+        {
+            return Ok(new { supported = false });
+        }
+
+        return Ok(new
+        {
+            supported = true,
+            uploadUrl = result.UploadUrl,
+            publicUrl = result.PublicUrl,
+            objectKey = result.ObjectKey,
+            expiresAt = result.ExpiresAt
+        });
+    }
+
     [HttpPost("upload")]
     [RequestSizeLimit(105 * 1024 * 1024)] // 105MB to allow multipart headers
     public async Task<IActionResult> Upload([FromForm] IFormFile? file, [FromQuery] string folder = "uploads")

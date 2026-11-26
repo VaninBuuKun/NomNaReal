@@ -230,6 +230,43 @@ public class S3FileStorageService : IFileStorageService
         }
     }
 
+    public Task<PresignedUploadResult?> GeneratePresignedUploadUrlAsync(
+        string fileName,
+        string folder,
+        string contentType,
+        long fileSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (_s3Client == null || string.IsNullOrWhiteSpace(_bucketName))
+        {
+            return Task.FromResult<PresignedUploadResult?>(null);
+        }
+
+        var safeFileName = Path.GetFileName(fileName);
+        var uniqueId = Guid.CreateVersion7();
+        var objectKey = $"{folder.Trim('/')}/{uniqueId}-{safeFileName}";
+        var expiresAt = DateTime.UtcNow.AddSeconds(120);
+
+        var presignRequest = new GetPreSignedUrlRequest
+        {
+            BucketName = _bucketName,
+            Key = objectKey,
+            Verb = HttpVerb.PUT,
+            Expires = expiresAt,
+            ContentType = contentType
+        };
+
+        var uploadUrl = _s3Client.GetPreSignedURL(presignRequest);
+        var publicUrl = !string.IsNullOrWhiteSpace(_publicBaseUrl)
+            ? $"{_publicBaseUrl.TrimEnd('/')}/{objectKey}"
+            : !string.IsNullOrWhiteSpace(_serviceUrl)
+                ? $"{_serviceUrl.TrimEnd('/')}/{_bucketName}/{objectKey}"
+                : $"https://{_bucketName}.s3.{_region}.amazonaws.com/{objectKey}";
+
+        return Task.FromResult<PresignedUploadResult?>(
+            new PresignedUploadResult(uploadUrl, publicUrl, objectKey, expiresAt));
+    }
+
     private static string? ExtractKeyFromUrl(string url, string bucketName)
     {
         if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
